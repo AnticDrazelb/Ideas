@@ -95,6 +95,15 @@
   --t-2xl:clamp(22px,6.3vw,28px);
   --t-3xl:clamp(30px,9.2vw,42px);
 
+  /* ---- MOTION ------------------------------------------------------
+     Three curves and no others. --seat overshoots and settles, and is for
+     anything arriving that should feel like it has mass. --snap is for
+     things leaving, which should not linger. --ease is for opacity, which
+     has no mass and should never bounce. */
+  --seat:cubic-bezier(.2,1.5,.42,1);
+  --snap:cubic-bezier(.4,0,.2,1);
+  --ease:cubic-bezier(.33,0,.2,1);
+
   --ui:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,system-ui,sans-serif;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
 }
@@ -125,9 +134,28 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
           calc(var(--sa-bottom) + 22px) calc(var(--sa-left) + 20px);
   background:radial-gradient(ellipse 120% 70% at 50% 0%, var(--void-3), var(--void-2) 46%, var(--void) 82%);
   overflow-y:auto;-webkit-overflow-scrolling:touch;
-  opacity:1;transition:opacity .26s ease;
+  opacity:1;transform:scale(1);
+  transition:opacity .24s var(--ease), transform .34s var(--seat);
 }
-.layer.hide{opacity:0;pointer-events:none;}
+.layer.hide{opacity:0;pointer-events:none;transform:scale(1.035);}
+/* the menus float over the live board, so they need their own ground */
+.layer{backdrop-filter:blur(7px) saturate(.85);-webkit-backdrop-filter:blur(7px) saturate(.85);}
+/* The title sits ON the engine, so the scrim has to be thin enough to see a
+   cube through and heavy enough to read white type against. Barely any blur
+   — enough to push the cube behind the glass, not enough to erase it — and
+   the type carries its own shadow instead of asking the whole plate to get
+   darker. */
+#scTitle,#scManual{
+  backdrop-filter:blur(2.5px) saturate(.92);-webkit-backdrop-filter:blur(2.5px) saturate(.92);
+  background:
+    radial-gradient(ellipse 90% 46% at 50% 52%, rgba(4,3,7,.62), rgba(4,3,7,.42) 62%, rgba(4,3,7,.30)),
+    linear-gradient(180deg, rgba(4,3,7,.46), rgba(4,3,7,.24) 34%, rgba(4,3,7,.62));
+}
+#scTitle h1{text-shadow:0 2px 24px rgba(0,0,0,.95),0 0 60px rgba(0,0,0,.8);}
+#scTitle .sub,#scManual .sub,#scTitle .foot{text-shadow:0 1px 12px rgba(0,0,0,.95);}
+#scTitle .btn,#scManual .btn{backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);}
+#scTitle .btn:not(.primary){background:rgba(16,13,24,.72);}
+#scManual .mkey,#scManual .mtxt{text-shadow:0 1px 10px rgba(0,0,0,.9);}
 .layer::before,.layer::after{content:'';flex:1 1 auto;min-height:0;}
 .layer>*{flex-shrink:0;}
 
@@ -149,9 +177,11 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
   font-size:var(--t-md);font-weight:800;letter-spacing:.14em;
   background:var(--glass-2);box-shadow:inset 0 0 0 1px var(--edge);
   color:var(--ink);
-  transition:transform .12s ease, background .16s ease, box-shadow .16s ease;
+  transition:transform .16s var(--seat), background .16s var(--ease), box-shadow .16s var(--ease), filter .16s var(--ease);
 }
-.btn:active{transform:scale(.975);background:rgba(255,255,255,.1);}
+/* press DEPTH, not just a size change — it reads as the button going down
+   into the panel rather than shrinking on the spot */
+.btn:active{transform:scale(.965) translateY(2px);background:rgba(255,255,255,.1);filter:brightness(1.12);}
 .btn.primary{
   background:linear-gradient(180deg,var(--rust-hi),var(--rust));
   color:#2a0d02;box-shadow:0 6px 22px -8px rgba(255,106,61,.8);
@@ -180,9 +210,19 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
   border-radius:var(--r-pill);background:var(--glass);
   box-shadow:inset 0 0 0 1px var(--edge);
   font-size:var(--t-sm);font-weight:800;letter-spacing:.1em;
-  transition:transform .12s ease,opacity .18s ease,box-shadow .18s ease;
+  transition:transform .16s var(--seat),opacity .18s var(--ease),box-shadow .18s var(--ease);
 }
-.pill:active{transform:scale(.94);}
+.pill:active{transform:scale(.9) translateY(1px);}
+/* the counter flinches when a key lands in it, so the number changing is
+   something you SEE rather than something you have to have been watching */
+@keyframes keyPop{
+  0%{transform:scale(1);}
+  38%{transform:scale(1.26);box-shadow:inset 0 0 0 1px rgba(255,196,77,.95),0 0 26px -4px rgba(255,196,77,.85);}
+  100%{transform:scale(1);}
+}
+#keyPill.pop{animation:keyPop .46s var(--seat);}
+@keyframes turnBump{0%{transform:scale(1);}40%{transform:scale(1.18);}100%{transform:scale(1);}}
+#turnPill.bump .n{display:inline-block;animation:turnBump .34s var(--seat);}
 .pill[disabled]{opacity:.32;pointer-events:none;}
 .pill.icon{padding:0;width:var(--h-ctl);}
 .pill .n{font-family:var(--mono);font-size:var(--t-md);font-weight:700;}
@@ -197,7 +237,9 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 #dpad{position:absolute;left:50%;bottom:calc(var(--sa-bottom) + 14px + var(--h-ctl) + 16px);
       transform:translateX(-50%);display:flex;gap:7px;align-items:center;}
 .tick{width:26px;height:5px;border-radius:3px;background:var(--edge);transition:background .2s ease,opacity .2s ease;}
-.tick.ok{background:var(--rust);opacity:.95;}
+.tick.ok{background:var(--rust);opacity:.95;box-shadow:0 0 12px -2px rgba(255,106,61,.9);}
+.tick{transition:background .2s var(--ease),opacity .2s var(--ease),transform .18s var(--seat),box-shadow .2s var(--ease);}
+.tick.armed{transform:scaleX(1.55) scaleY(1.7);}
 .tick.no{background:var(--edge-2);}
 
 #toast{
@@ -217,11 +259,12 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 }
 .cube{
   aspect-ratio:1;border-radius:var(--r-card);position:relative;
+  transition:transform .16s var(--seat),box-shadow .18s var(--ease);
   background:var(--glass-2);box-shadow:inset 0 0 0 1px var(--edge);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
   min-height:88px;transition:transform .12s ease,box-shadow .18s ease;
 }
-.cube:active{transform:scale(.955);}
+.cube:active{transform:scale(.94) translateY(2px);}
 .cube .idx{font-family:var(--mono);font-size:var(--t-2xl);font-weight:700;color:var(--dim-2);line-height:1;}
 .cube .nm{font-size:var(--t-micro);letter-spacing:.13em;color:var(--dim);font-weight:800;
           text-align:center;padding:0 6px;line-height:1.25;}
@@ -249,7 +292,11 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 .stat+.stat{box-shadow:inset 0 1px 0 var(--edge-2);}
 .stat .k{font-size:var(--t-fine);letter-spacing:.17em;color:var(--dim-2);text-transform:uppercase;font-weight:700;}
 .stat .v{font-family:var(--mono);font-size:var(--t-lg);font-weight:700;}
-.verdict{text-align:center;font-size:var(--t-2xl);font-weight:800;letter-spacing:.2em;margin:0 0 3px;}
+.verdict{text-align:center;font-size:var(--t-2xl);font-weight:800;letter-spacing:.2em;margin:0 0 3px;
+  animation:verdictIn .5s var(--seat) both;}
+@keyframes verdictIn{0%{opacity:0;transform:scale(.78) translateY(9px);letter-spacing:.42em;}100%{opacity:1;transform:none;letter-spacing:.2em;}}
+.card{animation:cardIn .42s var(--seat) both .06s;}
+@keyframes cardIn{0%{opacity:0;transform:translateY(16px) scale(.97);}100%{opacity:1;transform:none;}}
 .verdict.par{color:var(--jade);}
 .verdict.over{color:var(--gold);}
 

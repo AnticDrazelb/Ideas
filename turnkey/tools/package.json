@@ -11,7 +11,8 @@
     "probe": "node probe.js",
     "infinite": "node infinite.js",
     "gallery": "node gallery.js",
-    "all": "node test.js && node mint-test.js && sh build.sh && node infinite.js && node probe.js && node drive.js"
+    "all": "node test.js && node mint-test.js && sh build.sh && node infinite.js && node probe.js && node drive.js",
+    "juice": "node juice-shots.js"
   },
   "devDependencies": {
     "playwright": "*"

@@ -95,6 +95,15 @@
   --t-2xl:clamp(22px,6.3vw,28px);
   --t-3xl:clamp(30px,9.2vw,42px);
 
+  /* ---- MOTION ------------------------------------------------------
+     Three curves and no others. --seat overshoots and settles, and is for
+     anything arriving that should feel like it has mass. --snap is for
+     things leaving, which should not linger. --ease is for opacity, which
+     has no mass and should never bounce. */
+  --seat:cubic-bezier(.2,1.5,.42,1);
+  --snap:cubic-bezier(.4,0,.2,1);
+  --ease:cubic-bezier(.33,0,.2,1);
+
   --ui:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,system-ui,sans-serif;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
 }
@@ -125,9 +134,28 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
           calc(var(--sa-bottom) + 22px) calc(var(--sa-left) + 20px);
   background:radial-gradient(ellipse 120% 70% at 50% 0%, var(--void-3), var(--void-2) 46%, var(--void) 82%);
   overflow-y:auto;-webkit-overflow-scrolling:touch;
-  opacity:1;transition:opacity .26s ease;
+  opacity:1;transform:scale(1);
+  transition:opacity .24s var(--ease), transform .34s var(--seat);
 }
-.layer.hide{opacity:0;pointer-events:none;}
+.layer.hide{opacity:0;pointer-events:none;transform:scale(1.035);}
+/* the menus float over the live board, so they need their own ground */
+.layer{backdrop-filter:blur(7px) saturate(.85);-webkit-backdrop-filter:blur(7px) saturate(.85);}
+/* The title sits ON the engine, so the scrim has to be thin enough to see a
+   cube through and heavy enough to read white type against. Barely any blur
+   — enough to push the cube behind the glass, not enough to erase it — and
+   the type carries its own shadow instead of asking the whole plate to get
+   darker. */
+#scTitle,#scManual{
+  backdrop-filter:blur(2.5px) saturate(.92);-webkit-backdrop-filter:blur(2.5px) saturate(.92);
+  background:
+    radial-gradient(ellipse 90% 46% at 50% 52%, rgba(4,3,7,.62), rgba(4,3,7,.42) 62%, rgba(4,3,7,.30)),
+    linear-gradient(180deg, rgba(4,3,7,.46), rgba(4,3,7,.24) 34%, rgba(4,3,7,.62));
+}
+#scTitle h1{text-shadow:0 2px 24px rgba(0,0,0,.95),0 0 60px rgba(0,0,0,.8);}
+#scTitle .sub,#scManual .sub,#scTitle .foot{text-shadow:0 1px 12px rgba(0,0,0,.95);}
+#scTitle .btn,#scManual .btn{backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);}
+#scTitle .btn:not(.primary){background:rgba(16,13,24,.72);}
+#scManual .mkey,#scManual .mtxt{text-shadow:0 1px 10px rgba(0,0,0,.9);}
 .layer::before,.layer::after{content:'';flex:1 1 auto;min-height:0;}
 .layer>*{flex-shrink:0;}
 
@@ -149,9 +177,11 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
   font-size:var(--t-md);font-weight:800;letter-spacing:.14em;
   background:var(--glass-2);box-shadow:inset 0 0 0 1px var(--edge);
   color:var(--ink);
-  transition:transform .12s ease, background .16s ease, box-shadow .16s ease;
+  transition:transform .16s var(--seat), background .16s var(--ease), box-shadow .16s var(--ease), filter .16s var(--ease);
 }
-.btn:active{transform:scale(.975);background:rgba(255,255,255,.1);}
+/* press DEPTH, not just a size change — it reads as the button going down
+   into the panel rather than shrinking on the spot */
+.btn:active{transform:scale(.965) translateY(2px);background:rgba(255,255,255,.1);filter:brightness(1.12);}
 .btn.primary{
   background:linear-gradient(180deg,var(--rust-hi),var(--rust));
   color:#2a0d02;box-shadow:0 6px 22px -8px rgba(255,106,61,.8);
@@ -180,9 +210,19 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
   border-radius:var(--r-pill);background:var(--glass);
   box-shadow:inset 0 0 0 1px var(--edge);
   font-size:var(--t-sm);font-weight:800;letter-spacing:.1em;
-  transition:transform .12s ease,opacity .18s ease,box-shadow .18s ease;
+  transition:transform .16s var(--seat),opacity .18s var(--ease),box-shadow .18s var(--ease);
 }
-.pill:active{transform:scale(.94);}
+.pill:active{transform:scale(.9) translateY(1px);}
+/* the counter flinches when a key lands in it, so the number changing is
+   something you SEE rather than something you have to have been watching */
+@keyframes keyPop{
+  0%{transform:scale(1);}
+  38%{transform:scale(1.26);box-shadow:inset 0 0 0 1px rgba(255,196,77,.95),0 0 26px -4px rgba(255,196,77,.85);}
+  100%{transform:scale(1);}
+}
+#keyPill.pop{animation:keyPop .46s var(--seat);}
+@keyframes turnBump{0%{transform:scale(1);}40%{transform:scale(1.18);}100%{transform:scale(1);}}
+#turnPill.bump .n{display:inline-block;animation:turnBump .34s var(--seat);}
 .pill[disabled]{opacity:.32;pointer-events:none;}
 .pill.icon{padding:0;width:var(--h-ctl);}
 .pill .n{font-family:var(--mono);font-size:var(--t-md);font-weight:700;}
@@ -197,7 +237,9 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 #dpad{position:absolute;left:50%;bottom:calc(var(--sa-bottom) + 14px + var(--h-ctl) + 16px);
       transform:translateX(-50%);display:flex;gap:7px;align-items:center;}
 .tick{width:26px;height:5px;border-radius:3px;background:var(--edge);transition:background .2s ease,opacity .2s ease;}
-.tick.ok{background:var(--rust);opacity:.95;}
+.tick.ok{background:var(--rust);opacity:.95;box-shadow:0 0 12px -2px rgba(255,106,61,.9);}
+.tick{transition:background .2s var(--ease),opacity .2s var(--ease),transform .18s var(--seat),box-shadow .2s var(--ease);}
+.tick.armed{transform:scaleX(1.55) scaleY(1.7);}
 .tick.no{background:var(--edge-2);}
 
 #toast{
@@ -217,11 +259,12 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 }
 .cube{
   aspect-ratio:1;border-radius:var(--r-card);position:relative;
+  transition:transform .16s var(--seat),box-shadow .18s var(--ease);
   background:var(--glass-2);box-shadow:inset 0 0 0 1px var(--edge);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
   min-height:88px;transition:transform .12s ease,box-shadow .18s ease;
 }
-.cube:active{transform:scale(.955);}
+.cube:active{transform:scale(.94) translateY(2px);}
 .cube .idx{font-family:var(--mono);font-size:var(--t-2xl);font-weight:700;color:var(--dim-2);line-height:1;}
 .cube .nm{font-size:var(--t-micro);letter-spacing:.13em;color:var(--dim);font-weight:800;
           text-align:center;padding:0 6px;line-height:1.25;}
@@ -249,7 +292,11 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 .stat+.stat{box-shadow:inset 0 1px 0 var(--edge-2);}
 .stat .k{font-size:var(--t-fine);letter-spacing:.17em;color:var(--dim-2);text-transform:uppercase;font-weight:700;}
 .stat .v{font-family:var(--mono);font-size:var(--t-lg);font-weight:700;}
-.verdict{text-align:center;font-size:var(--t-2xl);font-weight:800;letter-spacing:.2em;margin:0 0 3px;}
+.verdict{text-align:center;font-size:var(--t-2xl);font-weight:800;letter-spacing:.2em;margin:0 0 3px;
+  animation:verdictIn .5s var(--seat) both;}
+@keyframes verdictIn{0%{opacity:0;transform:scale(.78) translateY(9px);letter-spacing:.42em;}100%{opacity:1;transform:none;letter-spacing:.2em;}}
+.card{animation:cardIn .42s var(--seat) both .06s;}
+@keyframes cardIn{0%{opacity:0;transform:translateY(16px) scale(.97);}100%{opacity:1;transform:none;}}
 .verdict.par{color:var(--jade);}
 .verdict.over{color:var(--gold);}
 
@@ -1054,13 +1101,36 @@ function save(){
    The context is created on the first touch because every mobile browser
    refuses one made any earlier.
    ============================================================ */
-var AC = null;
+/* A real bus, not six loose oscillators.
+
+   Everything lands on master -> compressor -> out, with a send to a cheap
+   feedback-delay reverb, because the single biggest difference between "a
+   game with sounds in it" and "a game that feels like a place" is that the
+   sounds share a room. A dry click in silence reads as a UI beep; the same
+   click with 180ms of dark tail reads as stone.                            */
+var AC = null, BUS = null, WET = null, AMB = null, ambBand = -1;
 function audio(){
   if(AC || !store.sound) return AC;
-  try{ AC = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ AC = null; }
+  try{ AC = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ return (AC = null); }
+  BUS = AC.createGain(); BUS.gain.value = 0.9;
+  var comp = AC.createDynamicsCompressor();
+  comp.threshold.value = -14; comp.knee.value = 22; comp.ratio.value = 5;
+  comp.attack.value = 0.004; comp.release.value = 0.16;
+  BUS.connect(comp); comp.connect(AC.destination);
+  /* the room: two delays at prime-ish spacings, damped, fed back a little */
+  WET = AC.createGain(); WET.gain.value = 0.30;
+  var d1 = AC.createDelay(1), d2 = AC.createDelay(1), fb = AC.createGain(), lp = AC.createBiquadFilter();
+  d1.delayTime.value = 0.083; d2.delayTime.value = 0.127;
+  fb.gain.value = 0.34; lp.type = 'lowpass'; lp.frequency.value = 1900;
+  WET.connect(d1); d1.connect(lp); lp.connect(d2); d2.connect(fb); fb.connect(d1);
+  d2.connect(BUS); lp.connect(BUS);
   return AC;
 }
-function tone(f, dur, type, gain, slideTo){
+function out(node, send){
+  node.connect(BUS);
+  if(send && WET){ var g = AC.createGain(); g.gain.value = send; node.connect(g); g.connect(WET); }
+}
+function tone(f, dur, type, gain, slideTo, send){
   var a = audio(); if(!a || !store.sound) return;
   var o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
   o.type = type || 'sine'; o.frequency.setValueAtTime(f, t);
@@ -1068,26 +1138,86 @@ function tone(f, dur, type, gain, slideTo){
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(gain || 0.12, t + 0.008);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
+  o.connect(g); out(g, send === undefined ? 0.18 : send);
+  o.start(t); o.stop(t + dur + 0.02);
 }
-function noise(dur, cut, gain){
+function noise(dur, cut, gain, send, sweepTo){
   var a = audio(); if(!a || !store.sound) return;
-  var n = Math.floor(a.sampleRate * dur), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+  var n = Math.max(1, Math.floor(a.sampleRate * dur)), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
   for(var i = 0; i < n; i++) d[i] = (Math.random()*2 - 1) * (1 - i/n);
   var s = a.createBufferSource(); s.buffer = b;
-  var f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cut || 1400;
+  var f = a.createBiquadFilter(); f.type = 'lowpass';
+  f.frequency.setValueAtTime(cut || 1400, a.currentTime);
+  if(sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, a.currentTime + dur);
   var g = a.createGain(); g.gain.value = gain || 0.16;
-  s.connect(f); f.connect(g); g.connect(a.destination); s.start();
+  s.connect(f); f.connect(g); out(g, send === undefined ? 0.22 : send);
+  s.start();
 }
+
+/* THE AMBIENT BED. Two detuned saws through a heavy lowpass, pitched off the
+   vault number, at a level you notice only when it stops. It is the cheapest
+   atmosphere in the building and the reason a vault feels like somewhere
+   rather than a recoloured grid. */
+var VAULT_ROOT = [55, 49, 61.7, 46.2, 58.3, 65.4, 51.9, 43.7];
+function ambience(band){
+  var a = audio(); if(!a || !store.sound || band === ambBand) return;
+  ambBand = band;
+  if(AMB){ try{ AMB.g.gain.setTargetAtTime(0.0001, a.currentTime, 0.4); var old = AMB;
+    setTimeout(function(){ try{ old.o1.stop(); old.o2.stop(); }catch(e){} }, 2200); }catch(e){} }
+  var root = VAULT_ROOT[band % VAULT_ROOT.length] * (band > 15 ? 1.5 : 1);
+  var o1 = a.createOscillator(), o2 = a.createOscillator(), g = a.createGain(), f = a.createBiquadFilter();
+  o1.type = o2.type = 'sawtooth';
+  o1.frequency.value = root; o2.frequency.value = root * 1.005;
+  f.type = 'lowpass'; f.frequency.value = 210; f.Q.value = 0.7;
+  g.gain.setValueAtTime(0.0001, a.currentTime);
+  g.gain.setTargetAtTime(0.055, a.currentTime, 1.2);
+  o1.connect(f); o2.connect(f); f.connect(g); out(g, 0.5);
+  o1.start(); o2.start();
+  AMB = {o1:o1, o2:o2, g:g};
+}
+
+/* Steps drift in pitch so a run of them sounds like walking rather than a
+   stuck record — the cheapest possible fix for the most repeated sound. */
+var stepN = 0;
 var sfx = {
-  step:  function(){ noise(0.055, 900, 0.075); },
-  /* the detent: a hard click and the mass behind it arriving a beat later */
-  turn:  function(){ noise(0.035, 2600, 0.15); tone(96, 0.16, 'triangle', 0.1, 62); },
-  deny:  function(){ tone(74, 0.13, 'square', 0.05, 58); },
-  key:   function(){ tone(880, 0.1, 'triangle', 0.09); setTimeout(function(){ tone(1320, 0.16, 'triangle', 0.07); }, 70); },
-  door:  function(){ noise(0.09, 700, 0.2); tone(150, 0.22, 'sawtooth', 0.06, 90); },
-  win:   function(){ [523,659,784,1047].forEach(function(f,i){ setTimeout(function(){ tone(f, 0.42, 'triangle', 0.1); }, i*95); }); },
-  stuck: function(){ tone(200, 0.3, 'sine', 0.06, 120); }
+  step:  function(){
+    stepN++;
+    noise(0.05, 700 + (stepN % 3) * 190, 0.07, 0.10);
+    tone(150 + (stepN % 4) * 11, 0.06, 'sine', 0.045, 0, 0.08);
+  },
+  land:  function(){ noise(0.09, 520, 0.10, 0.3); tone(78, 0.14, 'sine', 0.07, 58, 0.25); },
+  /* the detent, in three layers: the latch, the stone it is set in, and the
+     mass arriving underneath a beat late */
+  turn:  function(){
+    noise(0.035, 5200, 0.16, 0.12);
+    noise(0.30, 2400, 0.10, 0.42, 380);
+    tone(104, 0.30, 'triangle', 0.13, 52, 0.34);
+    tone(41, 0.42, 'sine', 0.16, 33, 0.10);
+  },
+  creak: function(v){ noise(0.10, 320 + v*900, 0.020 + v*0.03, 0.3); },
+  deny:  function(){ noise(0.08, 420, 0.16, 0.2); tone(68, 0.16, 'square', 0.07, 50, 0.1); },
+  key:   function(){
+    tone(1046, 0.10, 'triangle', 0.10, 0, 0.4);
+    setTimeout(function(){ tone(1568, 0.20, 'triangle', 0.085, 0, 0.5); }, 62);
+  },
+  keyIn: function(){ tone(2093, 0.13, 'sine', 0.07, 0, 0.4); },
+  door:  function(){
+    noise(0.24, 900, 0.20, 0.4, 260); tone(126, 0.30, 'sawtooth', 0.07, 84, 0.3);
+    setTimeout(function(){ noise(0.05, 3800, 0.11, 0.3); }, 190);
+  },
+  win:   function(){
+    [523,659,784,1047,1319].forEach(function(f,i){
+      setTimeout(function(){ tone(f, 0.65, 'triangle', 0.10, 0, 0.55); }, i*88);
+    });
+    tone(65, 0.9, 'sine', 0.15, 44, 0.3);
+    noise(0.5, 2600, 0.09, 0.6, 300);
+  },
+  vault: function(){
+    [196,262,330,392].forEach(function(f,i){ setTimeout(function(){ tone(f,1.5,'sine',0.09,0,0.7); }, i*130); });
+    noise(1.1, 1500, 0.07, 0.8, 200);
+  },
+  undo:  function(){ tone(420, 0.16, 'sine', 0.06, 700, 0.3); noise(0.07, 1800, 0.05, 0.2); },
+  stuck: function(){ tone(200, 0.34, 'sine', 0.07, 118, 0.4); }
 };
 function buzz(ms){ if(store.haptic && navigator.vibrate) try{ navigator.vibrate(ms); }catch(e){} }
 
@@ -1124,9 +1254,10 @@ var S = 40, CX = 0, CY = 0;
 function layout(){
   if(!N) return;
   var ins = insets();
-  var top = ins.t + 68, bot = ins.b + 150;           /* the two HUD bars, never overlapped */
-  var availW = W - ins.l - ins.r - 26, availH = H - top - bot;
-  S = Math.max(18, Math.min(availW, availH) * 0.98 / N);
+  /* the attract cube has no HUD to duck under, so it gets the whole plate */
+  var top = ins.t + (demo ? 20 : 68), bot = ins.b + (demo ? 20 : 150);
+  var availW = W - ins.l - ins.r - (demo ? 0 : 26), availH = H - top - bot;
+  S = Math.max(18, Math.min(availW, availH) * (demo ? 1.12 : 0.98) / N);
   CX = ins.l + (W - ins.l - ins.r)/2;
   CY = top + availH/2;
 }
@@ -1147,6 +1278,7 @@ function pitchBasis(m, th){
 function liveAngle(){
   if(anim) return {axis:anim.axis, ang:anim.ang};
   if(drag && drag.axis) return {axis:drag.axis, ang:drag.ang};
+  if(demo && Math.abs(demoAng) > 1e-4) return {axis:demoAxis, ang:demoAng};
   return null;
 }
 function liveBasis(){
@@ -1179,6 +1311,11 @@ function loadLevel(level){
   if(band !== curBand || !skyCv){ curBand = band; setStyle(band); }
   buildFaces();
   layout(); settle();
+  parts = []; flyers = []; exitFlash = 0; exitPull = -1; kickV.t = 1;
+  var sv = viewOf(N, M, pos);
+  startWave('in', sv[0], sv[1], 380);
+  revealT = -120;
+  ambience(band);
   if(levelNo > store.reached){ store.reached = levelNo; save(); }
   prebuild(levelNo + 1);            /* cut the next one while this one is played */
 }
@@ -1229,6 +1366,7 @@ function settle(){
 }
 function computeReach(){
   reach = new Uint8Array(N*N);
+  reachDist = new Uint8Array(N*N);
   var v = viewOf(N, M, pos), q = [v[0]*N + v[1]];
   reach[q[0]] = 1;
   for(var i = 0; i < q.length; i++){
@@ -1239,7 +1377,7 @@ function computeReach(){
       var k = u2*N + w2;
       if(reach[k]) continue;
       if(!walkable(lv, surf, u2, w2, doors)) continue;
-      reach[k] = 1; q.push(k);
+      reach[k] = 1; reachDist[k] = Math.min(255, reachDist[q[i]] + 1); q.push(k);
     }
   }
 }
@@ -1362,11 +1500,176 @@ function buildDrops(){
   }
 }
 
+/* ============================================================
+   JUICE — what each moment is supposed to feel like
+
+   Every beat in this game is one of five things, and each gets built toward
+   a specific sensation rather than "add particles":
+
+     a STEP    purposeful, weighted. Not a cursor moving.
+     a DRAG    heavy. You are turning a stone vault, and it resists.
+     a LANDING a mechanism seating. The single most important feel in the
+               game, because it is the verb — so it overshoots, kicks the
+               camera along its own axis, shakes dust off the whole cube, and
+               sweeps the newly-reachable set alight.
+     a REFUSAL immediate and physical. The cube tries and slams back.
+     the EXIT  earned. The board comes apart toward you.
+
+   Nothing here is allowed to make the player wait. Every transition is
+   under 420ms and none of them gate input that could have been taken.
+   ============================================================ */
+
+/* ---------- THE ATTRACT CUBE ----------------------------------------------
+   The title screen used to be type on a gradient. It is now type over the
+   actual game engine, tumbling a real cube slowly and forever behind the
+   glass. It costs nothing — the renderer already exists and the menus were
+   drawing nothing at all — and it means the first thing anyone sees is the
+   one idea the game has. */
+var demo = false, demoAxis = 'x', demoAng = 0, demoDir = 1, demoWait = 0, demoT = 0;
+function stepDemo(dt){
+  if(!demo) return;
+  demoT += dt;
+  /* it never rests square to the camera. A cube parked flat is a grid, and
+     the one thing the title screen has to say is "this is a solid". */
+  if(demoWait > 0){
+    demoWait -= dt;
+    demoAng = (0.13 + Math.sin(demoT * 0.0013) * 0.05) * demoDir;
+    return;
+  }
+  demoAng += demoDir * dt / 2000 * Math.PI/2;
+  if(Math.abs(demoAng) >= Math.PI/2){
+    M = TURNS[demoAxis === 'x' ? (demoDir > 0 ? 1 : 0) : (demoDir > 0 ? 2 : 3)].f(M);
+    demoAng = 0; demoWait = 420;
+    demoAxis = Math.random() < 0.62 ? 'x' : 'y';
+    demoDir = Math.random() < 0.5 ? 1 : -1;
+    surf = project(N, lv.vox, M);
+  }
+}
+
+/* ---------- CAMERA KICK ---------------------------------------------------
+   Directional, not random: a turn about the screen-up axis kicks sideways,
+   a turn about screen-right kicks vertically, so the shake tells you which
+   way the mass went. Decays as a damped sine, which reads as a mechanism
+   settling rather than an earthquake. Only the BOARD moves — the HUD is DOM
+   and stays nailed down, which is what keeps it legible mid-impact. */
+var kickV = {x:0, y:0, t:1, dur:1, mag:0};
+function kick(mag, dx, dy){
+  kickV.mag = mag; kickV.x = dx; kickV.y = dy; kickV.t = 0; kickV.dur = 380;
+}
+function kickOffset(){
+  if(kickV.t >= 1) return null;
+  var p = kickV.t, damp = Math.pow(1 - p, 2.2), w = Math.sin(p * Math.PI * 5.5) * damp;
+  return [kickV.x * kickV.mag * w, kickV.y * kickV.mag * w];
+}
+
+/* ---------- PARTICLES -----------------------------------------------------
+   One pool, additive, capped. Dust off a footfall, grit shaken loose by a
+   turn, sparks off a latch. They exist to make the board feel like it has
+   mass and dirt on it, so they are always small, always short, and never
+   drawn over the play surface densely enough to hide a tile. */
+var parts = [], PART_CAP = 220;
+function burst(x, y, n, o){
+  o = o || {};
+  for(var i = 0; i < n && parts.length < PART_CAP; i++){
+    var a = o.ang === undefined ? Math.random()*6.284 : o.ang + (Math.random()-0.5)*(o.spread||6.284);
+    var sp = (o.spd || 40) * (0.35 + Math.random()*0.9);
+    parts.push({x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - (o.lift||0),
+                life:0, max:(o.life||500)*(0.6+Math.random()*0.7),
+                r:(o.r||2)*(0.5+Math.random()), col:o.col || '233,225,209',
+                g:(o.g === undefined ? 42 : o.g), fade:o.fade||1});
+  }
+}
+function stepParts(dt){
+  var k = dt/1000;
+  for(var i = parts.length-1; i >= 0; i--){
+    var p = parts[i];
+    p.life += dt;
+    if(p.life >= p.max){ parts.splice(i,1); continue; }
+    p.x += p.vx*k; p.y += p.vy*k; p.vy += p.g*k; p.vx *= 0.985; p.vy *= 0.985;
+  }
+}
+function drawParts(){
+  if(!parts.length) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for(var i = 0; i < parts.length; i++){
+    var p = parts[i], t = 1 - p.life/p.max;
+    ctx.globalAlpha = Math.max(0, t*t*p.fade);
+    ctx.fillStyle = 'rgb(' + p.col + ')';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r*(0.4+t*0.6), 0, 6.284); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ---------- THE TILE WAVE -------------------------------------------------
+   One mechanism serving both ends of a level. Entering, the board assembles
+   outward from where you are standing; clearing it, the board comes apart
+   outward from the door you just walked through. Same code, sign flipped —
+   which is why arriving and leaving feel like the same place doing the same
+   thing in opposite directions. */
+var wave = null;
+function startWave(mode, fu, fv, dur){
+  wave = {mode:mode, fu:fu, fv:fv, t:0, dur:dur || 430, stagger:34, rise:170};
+}
+function tilePhase(u, v){
+  if(!wave) return 1;
+  var d = Math.sqrt((u-wave.fu)*(u-wave.fu) + (v-wave.fv)*(v-wave.fv));
+  var t = (wave.t - d*wave.stagger) / wave.rise;
+  t = Math.max(0, Math.min(1, t));
+  t = t*t*(3-2*t);
+  return wave.mode === 'in' ? t : 1 - t;
+}
+function stepWave(dt){
+  if(!wave) return;
+  wave.t += dt;
+  if(wave.t > wave.dur + N*wave.stagger + wave.rise) wave = null;
+}
+
+/* ---------- THE KEY GOES SOMEWHERE ----------------------------------------
+   A key that vanishes on pickup is a number changing. A key that flies to
+   the counter and makes it flinch is an object being put in a pocket, and
+   the player never has to look for where the count lives again. */
+var flyers = [];
+function flyKey(){
+  var pv = viewOf(N, M, pos), pr = tileRect(pv[0], pv[1]);
+  var pill = $('keyPill'), r = pill.getBoundingClientRect();
+  flyers.push({x0:pr[0]+S/2, y0:pr[1]+S/2, x1:r.left+r.width*0.32, y1:r.top+r.height/2, t:0, dur:380});
+}
+function stepFlyers(dt){
+  for(var i = flyers.length-1; i >= 0; i--){
+    var f = flyers[i];
+    f.t += dt;
+    if(f.t >= f.dur){
+      flyers.splice(i,1);
+      var p = $('keyPill'); p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop');
+      sfx.keyIn();
+      var r = p.getBoundingClientRect();
+      burst(r.left+r.width*0.32, r.top+r.height/2, 10, {spd:70, life:380, r:1.8, col:'255,196,77', g:0});
+    }
+  }
+}
+function drawFlyers(){
+  for(var i = 0; i < flyers.length; i++){
+    var f = flyers[i], p = f.t/f.dur, e = p*p*(3-2*p);
+    var x = f.x0 + (f.x1-f.x0)*e, y = f.y0 + (f.y1-f.y0)*e - Math.sin(p*Math.PI)*70;
+    halo(x, y, 24, '255,196,77', 0.5*(1-p*0.5));
+    ctx.save(); ctx.fillStyle = '#ffc44d';
+    ctx.beginPath(); ctx.arc(x, y, 5*(1-p*0.35), 0, 6.284); ctx.fill(); ctx.restore();
+  }
+}
+
+/* ---------- THE REVEAL ----------------------------------------------------
+   After every turn the lit reachable set sweeps outward from the player in
+   BFS order rather than snapping on. It is the prettiest thing on screen and
+   it is also the most useful: the sweep IS the connectivity graph being
+   traced, so the player watches the answer to "what did that turn buy me"
+   get drawn one tile at a time. Juice and teaching, same effect. */
+var revealT = 999, reachDist = null;
+
 /* ---------- DUST + IMPACT -------------------------------------------------
    Forty motes so the void is not a still image, and one white flash on the
    cage when a turn lands so the detent you can hear has something to look
    at. Both are pure feel and both are nearly free.                          */
-var motes = [], impact = 0;
+var motes = [], impact = 0, exitFlash = 0, exitPull = -1;
 function buildMotes(){
   motes = [];
   var rng = mulberry32(4242);
@@ -1479,10 +1782,26 @@ function draw(){
     var m0 = liveBasis();
     ctx.drawImage(skyCv, -PAD - m0.F[0]*11 - m0.R[0]*4, -PAD + m0.U[1]*8 - m0.F[1]*9, W + PAD*2, H + PAD*2);
   }
+  /* the kick moves the BOARD, never the HUD — a shaken readout is an
+     unreadable one, and the DOM chrome staying nailed down is what lets the
+     impact be as big as it is */
+  var ko = kickOffset();
+  ctx.save();
+  if(ko) ctx.translate(ko[0], ko[1]);
   var a = liveAngle();
   if(a && Math.abs(a.ang) > 1e-4) draw3d();
   else drawFlat();
+  drawParts();
+  ctx.restore();
+  drawFlyers();
   drawMotes();
+  if(exitFlash > 0){
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = exitFlash * 0.5;
+    var eg = ctx.createRadialGradient(CX, CY, 0, CX, CY, Math.max(W,H)*0.7);
+    eg.addColorStop(0, 'rgba(53,215,161,0.5)'); eg.addColorStop(1, 'rgba(53,215,161,0)');
+    ctx.fillStyle = eg; ctx.fillRect(0,0,W,H); ctx.restore();
+  }
   if(impact > 0){
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     var r = Math.max(W, H)*0.62, g = ctx.createRadialGradient(CX, CY, N*S*0.30, CX, CY, r);
@@ -1496,10 +1815,21 @@ function drawFlat(){
   var u, v, s, r, i;
   buildDrops();
   drawCage(M, 1, 0.16, 0);
-  /* 1. the tiles */
+  /* 1. the tiles, each riding whatever wave is passing through the board */
+  var anyWave = !!wave;
   for(u = 0; u < N; u++) for(v = 0; v < N; v++){
     s = surf[u*N + v]; if(!s) continue;
     r = tileRect(u, v);
+    var ph = anyWave ? tilePhase(u, v) : 1;
+    if(ph <= 0.002) continue;
+    if(ph < 0.999){
+      var sc = 0.55 + 0.45*ph, ix = r[0] + S*(1-sc)/2, iy = r[1] + S*(1-sc)/2;
+      ctx.globalAlpha = ph;
+      ctx.fillStyle = tileFill(s.t, s.d);
+      ctx.fillRect(ix, iy, S*sc + 0.6, S*sc + 0.6);
+      ctx.globalAlpha = 1;
+      continue;
+    }
     ctx.fillStyle = tileFill(s.t, s.d);
     ctx.fillRect(r[0], r[1], r[2] + 0.6, r[3] + 0.6);
     if(s.t === '+'){
@@ -1507,6 +1837,7 @@ function drawFlat(){
       ctx.fillRect(r[0] + S*0.10, r[1] + S*0.10, S*0.80, S*0.80);
     }
   }
+  if(anyWave){ drawWaveExtras(); return; }
   /* 1b. grain, on the tiles only, so stone reads as stone */
   if(grainPat){
     ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = 0.13;
@@ -1555,14 +1886,28 @@ function drawFlat(){
       ctx.stroke();
     }
   }
+  if(demo){ drawCage(M, 1, 0.16, 0); return; }
   /* 3. THE REACHABLE SET. The connectivity graph, drawn. This is the single
         most useful thing on screen: turn the cube and watch the lit region
         change, and the mechanic has explained itself with no words. */
-  ctx.strokeStyle = 'rgba(255,106,61,.42)'; ctx.lineWidth = Math.max(1.2, S*0.035);
+  ctx.lineWidth = Math.max(1.2, S*0.035);
   for(u = 0; u < N; u++) for(v = 0; v < N; v++){
-    if(!reach[u*N + v]) continue;
+    var rk = u*N + v;
+    if(!reach[rk]) continue;
+    /* the sweep: each tile lights when the wavefront reaches its BFS depth,
+       so what you are watching is the connectivity graph being traced */
+    var lit = Math.max(0, Math.min(1, (revealT - reachDist[rk]*46) / 150));
+    if(lit <= 0) continue;
     r = tileRect(u, v);
+    ctx.strokeStyle = 'rgba(255,106,61,' + (0.42*lit).toFixed(3) + ')';
     ctx.strokeRect(r[0] + S*0.07, r[1] + S*0.07, S*0.86, S*0.86);
+    if(lit < 1){
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = (1-lit)*0.5;
+      ctx.fillStyle = 'rgba(255,106,61,1)';
+      ctx.fillRect(r[0] + S*0.07, r[1] + S*0.07, S*0.86, S*0.86);
+      ctx.restore();
+    }
   }
   /* 4. depth numerals, for as long as someone wants the crutch */
   if(store.depth){
@@ -1575,7 +1920,8 @@ function drawFlat(){
       ctx.fillText(String(s.d), r[0] + S*0.10, r[1] + S*0.09);
     }
   }
-  /* 5. things standing on the deck */
+  /* 5. things standing on the deck — none of which the attract cube needs */
+  if(demo) return;
   for(i = 0; i < lv.doors.length; i++){
     var dv = surfaceAt(N, surf, M, lv.doors[i]); if(!dv) continue;
     drawDoor(tileRect(dv[0], dv[1]), !!(doors & (1<<i)));
@@ -1592,6 +1938,14 @@ function drawFlat(){
   drawPlayer(p[0], p[1], S);
 }
 
+/* While the board is assembling or coming apart, only the two things that
+   are people-shaped stay on screen. Everything else is scenery and scenery
+   does not need to be there for the transition. */
+function drawWaveExtras(){
+  var gv = surfaceAt(N, surf, M, lv.goal);
+  if(gv && wave.mode === 'out') drawGoal(tileRect(gv[0], gv[1]));
+  if(wave.mode === 'in'){ var p = playerScreen(); drawPlayer(p[0], p[1], S); }
+}
 function playerScreen(){
   var v = viewOf(N, M, pos), r = tileRect(v[0], v[1]);
   var x = r[0] + S/2, y = r[1] + S/2;
@@ -1604,9 +1958,17 @@ function playerScreen(){
   return [x, y];
 }
 
-function drawPlayer(x, y, sz){
-  var rr = sz*0.27;
-  halo(x, y, sz*1.05, '255,106,61', 0.34);
+function drawPlayer(x, y, sz, k){
+  /* on the way out you do not blink off the board, you are drawn into the
+     door — down to nothing, spinning, over a quarter of a second */
+  if(exitPull >= 0){
+    k = 1 - exitPull;
+    if(k <= 0.02) return;
+  }
+  k = k === undefined ? 1 : k;
+  var rr = sz*0.27*k;
+  ctx.save(); ctx.translate(x, y); ctx.rotate((1-k)*3.4); ctx.translate(-x, -y);
+  halo(x, y, sz*1.05*k, '255,106,61', 0.34*k);
   ctx.save();
   ctx.shadowColor = 'rgba(255,106,61,.85)'; ctx.shadowBlur = sz*0.5;
   ctx.fillStyle = '#ff6a3d';
@@ -1616,6 +1978,7 @@ function drawPlayer(x, y, sz){
   ctx.restore();
   ctx.fillStyle = '#ffd9c8';
   ctx.beginPath(); ctx.arc(x, y, rr*0.32, 0, 6.284); ctx.fill();
+  ctx.restore();
 }
 function drawGoal(r){
   var x = r[0] + S/2, y = r[1] + S/2, t = (Date.now() % 2400) / 2400;
@@ -1777,13 +2140,29 @@ function advanceWalk(dt){
   if(!cell){ walking = null; settle(); return; }   /* the board moved under a queued step */
   walking.from = pos.slice();
   pos = cell.w.slice();
+  var pv2 = viewOf(N, M, pos), pr2 = tileRect(pv2[0], pv2[1]);
+  var cx2 = pr2[0] + S/2, cy2 = pr2[1] + S/2;
   var di = doorIndexAt(lv, pos);
-  if(di >= 0 && !(doors & (1<<di))){ doors |= (1<<di); sfx.door(); buzz(18); toast('unlocked'); }
-  else sfx.step();
+  if(di >= 0 && !(doors & (1<<di))){
+    doors |= (1<<di); sfx.door(); buzz(24); toast('unlocked');
+    kick(5, 0, 1);
+    burst(cx2, cy2, 22, {spd:120, life:620, r:2.4, col:'53,215,161', g:90});
+  } else {
+    sfx.step();
+    burst(cx2, cy2 + S*0.22, 3, {spd:20, life:340, r:1.5, col:'200,190,170', g:34, fade:0.6});
+  }
   var ki = keyIndexAt(lv, pos);
-  if(ki >= 0 && !(kmask & (1<<ki))){ kmask |= (1<<ki); sfx.key(); buzz(12); toast('key'); }
+  if(ki >= 0 && !(kmask & (1<<ki))){
+    kmask |= (1<<ki); sfx.key(); buzz(12); toast('key');
+    burst(cx2, cy2, 16, {spd:95, life:520, r:2.2, col:'255,196,77', g:20});
+    flyKey();
+  }
   walking.t = 0;
-  if(!walking.queue.length){ walking = null; settle(); afterAction(); }
+  if(!walking.queue.length){
+    walking = null; sfx.land(); kick(3, 0, 1);
+    burst(cx2, cy2 + S*0.24, 6, {spd:38, life:420, r:1.8, col:'210,200,180', g:56, fade:0.7});
+    settle(); afterAction();
+  }
   else { computeReach(); refreshHud(); }
 }
 
@@ -1797,18 +2176,44 @@ function tryTurn(t){
   drag = null;
   pushUndo();
   anim = {axis:axis, ang:from, from:from, to:to, t:0,
-          dur:180 + 150*(Math.abs(to - from)/(Math.PI/2)), turn:t};
+          dur:180 + 150*(Math.abs(to - from)/(Math.PI/2)), turn:t, back:1};
   return true;
+}
+
+/* A REFUSED TURN IS A PHYSICAL EVENT, not an error message.
+   The cube commits a few degrees, hits the stop, and slams back — so the
+   answer arrives in the hand before the toast arrives in the eye. */
+function refuseTurn(t){
+  var axis = (t === 0 || t === 1) ? 'x' : 'y';
+  var sgn = (t === 1 || t === 2) ? 1 : -1;
+  var from = drag && drag.axis === axis ? drag.ang : sgn * 0.14;
+  drag = null;
+  anim = {axis:axis, ang:from, from:from, to:0, t:0, dur:260, turn:-1, back:0, hard:1};
+  kick(5, t < 2 ? -sgn : 0, t < 2 ? 0 : sgn);
+  sfx.deny(); buzz(18); toast('no footing that way');
 }
 function springBack(){
   if(!drag || !drag.axis) { drag = null; return; }
   anim = {axis:drag.axis, ang:drag.ang, from:drag.ang, to:0, t:0, dur:190, turn:-1};
   drag = null;
 }
+/* The detent, as a curve. A plain ease-out arrives at 90 degrees and stops,
+   which is what a slideshow does. A real latch goes slightly past its seat
+   and is pulled back into it, so this overshoots by a few degrees and
+   settles — and that half-frame of coming BACK is most of what makes the
+   turn feel like a mechanism instead of a transition. A refusal uses the
+   hard curve instead: no overshoot, arrive early, stop dead. */
+function easeSeat(p){
+  var c = 1.9;
+  return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2);
+}
+function easeSlam(p){ return 1 - Math.pow(1 - p, 5); }
+
 function advanceAnim(dt){
   if(!anim) return;
   anim.t += dt;
-  var p = Math.min(1, anim.t / anim.dur), e = 1 - Math.pow(1 - p, 3);
+  var p = Math.min(1, anim.t / anim.dur);
+  var e = anim.hard ? easeSlam(p) : (anim.back ? easeSeat(p) : 1 - Math.pow(1 - p, 3));
   anim.ang = anim.from + (anim.to - anim.from) * e;
   if(p < 1) return;
   var t = anim.turn; anim = null;
@@ -1817,9 +2222,20 @@ function advanceAnim(dt){
   var land = landing(lv, M, pos, doors);
   pos = land.w.slice();
   var ki = keyIndexAt(lv, pos);
-  if(ki >= 0 && !(kmask & (1<<ki))){ kmask |= (1<<ki); sfx.key(); toast('key'); }
+  if(ki >= 0 && !(kmask & (1<<ki))){ kmask |= (1<<ki); sfx.key(); flyKey(); toast('key'); }
   turns++;
   impact = 1;
+  /* the mass arrives: kick the camera along the turn's own axis, shake grit
+     off the whole board, and start the reachable set sweeping outward */
+  var sgn = (t === 1 || t === 2) ? 1 : -1;
+  kick(9, t < 2 ? -sgn : 0, t < 2 ? 0 : sgn);
+  var pv = viewOf(N, M, pos), pr = tileRect(pv[0], pv[1]);
+  for(var g = 0; g < 5; g++){
+    var gx = CX + (Math.random()-0.5)*N*S*0.9, gy = CY + (Math.random()-0.5)*N*S*0.9;
+    burst(gx, gy, 3, {spd:26, life:620, r:1.5, col:'190,180,160', g:70, fade:0.5});
+  }
+  burst(pr[0]+S/2, pr[1]+S/2, 8, {spd:64, life:420, r:2.1, col:'255,140,90', g:60});
+  revealT = 0;
   sfx.turn(); buzz(11);
   settle(); afterAction();
 }
@@ -1848,6 +2264,18 @@ function finish(){
   if(best === undefined || turns < best){ store.best[levelNo] = turns; save(); }
   if(levelNo + 1 > store.reached){ store.reached = levelNo + 1; save(); }
   prebuild(levelNo + 1);
+  /* THE EXIT. The player is pulled into the door, a ring goes out across the
+     board, and then the board itself comes apart outward from that same
+     square. The card does not appear over a still image of a solved puzzle —
+     it appears after the puzzle has left. */
+  var gv = viewOf(N, M, pos), gr = tileRect(gv[0], gv[1]);
+  var gx = gr[0] + S/2, gy = gr[1] + S/2;
+  exitPull = 0;
+  burst(gx, gy, 30, {spd:190, life:800, r:2.6, col:'53,215,161', g:0});
+  burst(gx, gy, 16, {spd:70, life:1000, r:3.4, col:'233,245,255', g:-14});
+  kick(11, 0, 1);
+  exitFlash = 1;
+  setTimeout(function(){ startWave('out', gv[0], gv[1], 420); }, 190);
   sfx.win(); buzz(40);
   setTimeout(function(){
     $('winTurns').textContent = turns;
@@ -1862,8 +2290,9 @@ function finish(){
     $('winVault').textContent = crossing ? 'VAULT ' + roman(vaultOf(levelNo+1)) + ' — ' + vaultName(vaultOf(levelNo+1)) : '';
     $('winVault').style.display = crossing ? '' : 'none';
     $('btnRetry').style.display = turns <= lv.par ? 'none' : '';
+    if(crossing) sfx.vault();
     show('scWin');
-  }, 520);
+  }, 880);
 }
 
 /* ============================================================
@@ -1896,7 +2325,12 @@ function onMove(e){
   if(e.cancelable) e.preventDefault();
   var amt = drag.axis === 'x' ? dx : -dy;
   var q = Math.max(-1, Math.min(1, amt / pxPerQuarter()));
+  var was = Math.abs(drag.ang);
   drag.ang = q * Math.PI/2;
+  /* the vault complains as it moves, and complains louder near the detent —
+     so the commit threshold is something you can hear coming */
+  if(Math.abs(drag.ang) - was > 0.12){ sfx.creak(Math.abs(q)); }
+  if(was < Math.PI/4 && Math.abs(drag.ang) >= Math.PI/4) buzz(8);
   refreshTicks();
 }
 function onUp(e){
@@ -1911,7 +2345,7 @@ function onUp(e){
   var ang = drag.ang, axis = drag.axis;
   if(Math.abs(ang) > Math.PI/4){
     var t = axis === 'x' ? (ang > 0 ? 1 : 0) : (ang > 0 ? 2 : 3);
-    if(!tryTurn(t)){ toast('no footing that way'); sfx.deny(); buzz(16); springBack(); }
+    if(!tryTurn(t)) refuseTurn(t);
   } else springBack();
   refreshTicks();
 }
@@ -1928,7 +2362,7 @@ window.addEventListener('keydown', function(e){
   var map = {ArrowLeft:0, ArrowRight:1, ArrowUp:2, ArrowDown:3};
   if(map[e.key] !== undefined){
     e.preventDefault();
-    if(!tryTurn(map[e.key])){ toast('no footing that way'); sfx.deny(); }
+    if(!tryTurn(map[e.key])) refuseTurn(map[e.key]);
   }
   else if(e.key === 'z') undo();
   else if(e.key === 'Escape') show('scPause');
@@ -1949,13 +2383,25 @@ function show(id){
     $(s).classList.toggle('hide', s !== id);
   });
   $('hud').classList.toggle('on', !id);
+  /* the attract cube tumbles behind the title and the manual; behind the
+     pause and win cards the real board stays put, because those are about
+     the level you are in the middle of */
+  var wasDemo = demo;
+  demo = (id === 'scTitle' || id === 'scManual');
+  if(demo && !lv){ loadLevel(1); wave = null; }
+  if(!demo) demoAng = 0;
+  if(demo !== wasDemo) layout();
 }
 var ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 function roman(b){ return b < ROMAN.length ? ROMAN[b] : String(b+1); }
 function refreshHud(){
   if(!lv) return;
   $('lvName').textContent = levelNo + ' · ' + lv.name;
-  $('turnN').textContent = turns;
+  var tn = $('turnN');
+  if(tn.textContent !== String(turns)){
+    tn.textContent = turns;
+    var tp = $('turnPill'); tp.classList.remove('bump'); void tp.offsetWidth; tp.classList.add('bump');
+  }
   $('parN').textContent = '/' + lv.par;
   $('turnPill').classList.toggle('over', turns > lv.par);
   var kp = $('keyPill'), held = keysHeld();
@@ -1975,9 +2421,9 @@ function refreshTicks(){
     el.className = 'tick ' + (can ? 'ok' : 'no');
     if(live && Math.abs(live.ang) > 0.1){
       var act = live.axis === 'x' ? (live.ang > 0 ? 1 : 0) : (live.ang > 0 ? 2 : 3);
-      if(act === t) el.style.opacity = '1';
-      else el.style.opacity = '.3';
-    } else el.style.opacity = '';
+      el.classList.toggle('armed', act === t && Math.abs(live.ang) > Math.PI/4 && can);
+      el.style.opacity = act === t ? '1' : '.3';
+    } else { el.style.opacity = ''; el.classList.remove('armed'); }
   }
 }
 function undo(){
@@ -2133,7 +2579,11 @@ function loop(ts){
   try{
     advanceAnim(dt);
     advanceWalk(dt);
-    stepMotes(dt);
+    stepMotes(dt); stepParts(dt); stepWave(dt); stepFlyers(dt); stepDemo(dt);
+    if(kickV.t < 1) kickV.t = Math.min(1, kickV.t + dt/kickV.dur);
+    if(revealT < 2000) revealT += dt;
+    if(exitFlash > 0) exitFlash = Math.max(0, exitFlash - dt/620);
+    if(exitPull >= 0){ exitPull += dt/260; if(exitPull > 1) exitPull = 1; }
     draw();
   } catch(err){
     console.error('frame error', err);

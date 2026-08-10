@@ -57,7 +57,7 @@ const path = '/home/user/Ideas/turnkey/index.html';
         await page.mouse.down();
         for(let k=1;k<=6;k++) await page.mouse.move(cx + d[0]*L*k/6, cy + d[1]*L*k/6);
         await page.mouse.up();
-        await page.waitForTimeout(430);
+        await page.waitForTimeout(520);
       } else {
         await page.mouse.click(s.tap[0], s.tap[1]);
         await page.waitForTimeout(170);
@@ -67,7 +67,7 @@ const path = '/home/user/Ideas/turnkey/index.html';
   }
 
   const ok1 = await autoplay();
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(1500);
   console.log('after autoplay level 1:', JSON.stringify(await st()));
   await page.screenshot({path:'shot-4-cleared.png'});
 
@@ -78,7 +78,7 @@ const path = '/home/user/Ideas/turnkey/index.html';
     await page.waitForTimeout(220);
     const before = await st();
     const ok = await autoplay();
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(1500);
     const after = await page.evaluate(() => ({won, turns, par:lv.par, name:lv.name}));
     if(ok && after.won && after.turns === after.par){ cleared++; }
     else fails.push(`${n+1} ${after.name}: ok=${ok} won=${after.won} turns=${after.turns} par=${after.par}`);

@@ -146,6 +146,67 @@ rules.
 
 ---
 
+## Feel
+
+Every beat is built toward one specific sensation rather than "add
+particles". There are five, and the whole feel layer is downstream of them:
+
+| | |
+|---|---|
+| a **step** | purposeful, weighted. Not a cursor moving. |
+| a **drag** | heavy. You are turning a stone vault, and it resists — it creaks under the thumb, louder near the detent, so the commit threshold is something you *hear coming*. |
+| a **landing** | a mechanism seating. The most important feel in the game, because it is the verb. |
+| a **refusal** | immediate and physical. The cube tries, hits the stop, slams back. |
+| the **exit** | earned. The board comes apart toward you. |
+
+**The landing gets the most work,** and the single biggest thing in it is the
+easing curve. A plain ease-out arrives at 90° and stops, which is what a
+slideshow does. A real latch goes slightly *past* its seat and is pulled back
+into it — so the turn overshoots by a few degrees and settles, and that
+half-frame of coming back is most of what makes it feel like a mechanism
+instead of a transition. Around it: a camera kick along the turn's own axis
+(so the shake tells you which way the mass went), grit shaken off the whole
+cube, dust off the player's tile, and a three-layer sound — the latch, the
+stone it's set in, and the mass arriving underneath a beat late.
+
+**The kick moves the board, never the HUD.** A shaken readout is an unreadable
+one; the DOM chrome staying nailed down is what lets the impact be as big as
+it is.
+
+**The reveal sweep is juice and teaching at once.** After every turn the lit
+reachable set sweeps outward from the player in BFS order rather than snapping
+on — so what you are watching is the connectivity graph being traced, one tile
+at a time. It is the prettiest thing on screen and it is also the answer to
+"what did that turn buy me", drawn.
+
+**One mechanism serves both ends of a level.** Entering, the board assembles
+outward from where you stand; clearing it, the board comes apart outward from
+the door you just walked through — with you drawn down into it, spinning, over
+a quarter of a second. Same code, sign flipped, which is why arriving and
+leaving feel like the same place doing the same thing in opposite directions.
+The clear card doesn't appear over a still image of a solved puzzle; it appears
+after the puzzle has left.
+
+**Audio is a bus, not six loose oscillators.** Everything lands on
+master → compressor → out with a send to a cheap feedback-delay reverb, because
+the difference between "a game with sounds in it" and "a game that feels like a
+place" is that the sounds share a room. A dry click in silence is a UI beep;
+the same click with 180 ms of dark tail is stone. Under it, an ambient bed of
+two detuned saws through a heavy lowpass, pitched off the vault number, at a
+level you notice only when it stops. Steps drift in pitch so a run of them
+sounds like walking rather than a stuck record.
+
+**The title screen is the engine.** It used to be type on a gradient; it is now
+type over a real cube tumbling behind the glass, with the play furniture hidden
+and the scrim thin enough to see through. It costs nothing — the renderer
+already existed and the menus were drawing nothing at all — and it means the
+first thing anyone sees is the one idea the game has.
+
+Nothing here makes the player wait. Every transition is under 420 ms and none
+of them gate input that could have been taken.
+
+---
+
 ## Android
 
 Built for a WebView. The three seams a packaged host needs are on one object:
