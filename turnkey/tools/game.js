@@ -725,6 +725,10 @@ function tapCell(u, v){
   if(shut && keysHeld() < 1){ toast('locked — find a key'); sfx.deny(); buzz(14); return; }
   var path = pathTo(u, v);
   if(!path){ toast(shut ? 'no way to that door' : 'not connected — turn the cube'); sfx.deny(); return; }
+  /* Tapping the cell you already stand on yields an EMPTY path, which is
+     truthy — it used to start a walk with nothing in it, and the next frame
+     read surf[undefined].w and took the render loop down with it. */
+  if(!path.length) return;
   pushUndo();
   walking = {queue:path, from:pos.slice(), t:0, step:0};
 }
@@ -733,8 +737,9 @@ function advanceWalk(dt){
   if(!walking) return;
   walking.t += dt / 105;
   if(walking.t < 1) return;
-  var k = walking.queue.shift();
-  var u = (k/N)|0, v = k % N, cell = surf[k];
+  if(!walking.queue.length){ walking = null; settle(); return; }
+  var cell = surf[walking.queue.shift()];
+  if(!cell){ walking = null; settle(); return; }   /* the board moved under a queued step */
   walking.from = pos.slice();
   pos = cell.w.slice();
   var di = doorIndexAt(lv, pos);
@@ -1076,14 +1081,30 @@ window.addEventListener('orientationchange', function(){ setTimeout(fit, 120); }
    LOOP
    ============================================================ */
 var running = true, last = 0;
+/* THE LOOP MUST NOT BE ABLE TO DIE.
+
+   An exception thrown in here propagates out before the next
+   requestAnimationFrame is queued, and the chain is gone — permanently. The
+   game does not crash to an error screen, it silently freezes: taps do
+   nothing, nothing redraws, and the only cure is a restart. That is exactly
+   what one bad tap did, and no single defect should ever be able to brick
+   the app. So the frame is wrapped and the next one is always armed, while
+   the error still goes to the console so a test harness watching for it
+   fails loudly rather than quietly passing. */
 function loop(ts){
   if(!running) return;
   var dt = last ? Math.min(64, ts - last) : 16;
   last = ts;
-  advanceAnim(dt);
-  advanceWalk(dt);
-  stepMotes(dt);
-  draw();
+  try{
+    advanceAnim(dt);
+    advanceWalk(dt);
+    stepMotes(dt);
+    draw();
+  } catch(err){
+    console.error('frame error', err);
+    walking = null; anim = null; drag = null;
+    if(lv) settle();
+  }
   requestAnimationFrame(loop);
 }
 buildGrain(); buildMotes(); setStyle(0);

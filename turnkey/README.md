@@ -191,7 +191,7 @@ sizes rather than two different layouts.
   invariants, determinism, and frame cost.
 - **`probe.js`** — undo fidelity, 400 random turns against the legality and
   footing invariants, the back-gesture chain, inset injection, the dead-end
-  detector, performance.
+  detector, performance, and that no single bad tap can brick the app.
 - **`drive.js`** — launches the real game in Chromium at 412×915, asks its own
   solver for each answer, and plays levels 1–16 **through the real input path**
   — mouse drags past the detent, taps on tile centres. Levels 11–16 are minted
@@ -211,6 +211,25 @@ it, while Node's hoisting kept the tests green. The comment above it says so.)*
 
 Measured: **0.36 ms a frame resting, 0.72 ms mid-turn** with the full graphics
 pass on the largest cube. Worst level load, minted cold, 421 ms.
+
+The suites earn their keep. Three defects in this round were found only by
+running the real thing rather than by reading it:
+
+- A palette invariant that genuinely broke at **vault 22** — a deck in deep
+  shadow fell below the brightest bedrock, making the two materials
+  confusable. Now enforced per palette rather than trusted.
+- A signed-shift bug that named half the cubes past level 40 *"undefined"*,
+  caught in a screenshot, then swept across 4,000 levels.
+- **The bad one.** Tapping the tile you already stand on produced an empty
+  path — truthy, so it started a walk with nothing in it, and the next frame
+  read `surf[undefined].w`. The exception escaped `loop()` before the next
+  `requestAnimationFrame` was queued, so the chain died: no crash screen, no
+  error, just a frozen game that ignored every tap until restart. It surfaced
+  as two levels in the autoplay run doing nothing at all. Fixed twice over —
+  the empty path is a no-op, and **the frame is now wrapped so the next one is
+  always armed**, because no single defect should be able to brick the app.
+  The console error is still emitted, so a harness watching for it fails
+  loudly instead of passing quietly.
 
 ---
 

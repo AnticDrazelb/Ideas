@@ -10,7 +10,7 @@ const path = '/home/user/Ideas/turnkey/index.html';
     isMobile:true, hasTouch:true
   });
   const errs = [];
-  page.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
+  page.on('pageerror', e => { errs.push('PAGEERROR: ' + e.message + '\n' + (e.stack||'')); console.log('>>> CRASH', e.stack||e.message); });
   page.on('console', m => { if(m.type()==='error') errs.push('CONSOLE: ' + m.text()); });
 
   await page.goto('file://' + path);

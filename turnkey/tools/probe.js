@@ -137,6 +137,26 @@ const ok = (n, c, extra='') => { console.log((c?'  ok  ':'FAIL  ') + n + (extra?
   });
   ok('a solvable position is not falsely flagged', notDead);
 
+  // ---- one bad tap must never be able to brick the app
+  const survive = await p.evaluate(async () => {
+    loadLevel(9); show(null);
+    await new Promise(r => setTimeout(r, 200));
+    const v = viewOf(N, M, pos);
+    tapCell(v[0], v[1]);                       // tap the tile you are standing on
+    await new Promise(r => setTimeout(r, 300));
+    const t0 = performance.now();
+    const alive = await new Promise(r => requestAnimationFrame(() => r(performance.now() > t0)));
+    const before = pos.slice();
+    const s = solve(lv, 40, {pos:pos, ori:oriIndex(M), kmask:kmask, doors:doors});
+    if(s.first && s.first.kind === 'step'){
+      const w = viewOf(N, M, pos), t = TURNS[s.first.dir];
+      tapCell(w[0] + t.dx, w[1] + t.dy);
+    }
+    await new Promise(r => setTimeout(r, 400));
+    return {alive, responsive: JSON.stringify(before) !== JSON.stringify(pos)};
+  });
+  ok('tapping your own tile does not kill the render loop', survive.alive && survive.responsive);
+
   ok('no page errors', errs.length === 0, errs.join(' | '));
   await b.close();
   process.exit(bad);
