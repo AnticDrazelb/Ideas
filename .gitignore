@@ -1,0 +1,4 @@
+node_modules/
+turnkey/tools/shot-*.png
+turnkey/tools/genlog.txt
+turnkey/tools/core-inline.js

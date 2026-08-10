@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0910">
+<meta name="description" content="TURNKEY — a dungeon that is a cube. You read one flat face at a time, and turning it rewrites what connects to what.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>TURNKEY</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0910'/%3E%3Cpath d='M12 20h18v18H12z' fill='%23e8e0d0'/%3E%3Cpath d='M34 20h18v18H34z' fill='%233a3f52'/%3E%3Cpath d='M12 42h18v10H12z' fill='%233a3f52'/%3E%3Ccircle cx='43' cy='47' r='5' fill='%23ff6a3d'/%3E%3C/svg%3E">
+<style>
+/* ============================================================
+   TURNKEY — DESIGN SYSTEM
+   "the cube is the map, and the map is the only readout"
+
+   There is no minimap, no compass rose and no depth gauge, because
+   every one of those would be a second copy of information the cube
+   is already showing. Colour carries exactly one meaning each:
+
+     bone   walkable deck        — you may stand here
+     slate  bedrock              — solid, and no footing on this face
+     void   nothing at all       — the ground shows through; impassable
+     rust   you                  — and only you
+     jade   the way out, and the doors that gate it
+     gold   keys
+
+   Brightness is depth, always, everywhere. A pale tile is near the
+   camera and a dim one is far, and two tiles of wildly different
+   brightness sitting side by side is not a rendering artefact — it is
+   the entire game saying "these are neighbours anyway".
+   ============================================================ */
+:root{
+  /* ---- SAFE AREA ---------------------------------------------------
+     AN ANDROID WEBVIEW DOES NOT KNOW WHERE THE NOTCH IS.
+     env(safe-area-inset-*) is plumbed through Chromium's own display-cutout
+     handling, and a WebView is a View inside somebody else's Activity —
+     not Chromium's window. So in a packaged Android app every one of these
+     reads ZERO however correctly the host sets viewport-fit.
+     Every read below therefore goes through a variable that env() only
+     supplies the DEFAULT for. In a browser nothing changes. In the app the
+     host measures the real insets and writes --sa-top and friends onto
+     :root, and this is the seam that lets it. */
+  --sa-top:env(safe-area-inset-top);
+  --sa-right:env(safe-area-inset-right);
+  --sa-bottom:env(safe-area-inset-bottom);
+  --sa-left:env(safe-area-inset-left);
+
+  --void:#0a0910;
+  --void-2:#12101a;
+  --void-3:#1b1826;
+  --glass:rgba(23,20,34,.82);
+  --glass-2:rgba(255,255,255,.055);
+
+  --bone:#e9e1d1;      --bone-lo:#b6ac97;
+  --slate:#454b60;     --slate-lo:#272c3c;
+  --rust:#ff6a3d;      --rust-hi:#ff9a70;
+  --jade:#35d7a1;      --jade-lo:#1c8f6b;
+  --gold:#ffc44d;
+
+  --ink:#f3efe7;
+  --dim:#9a92a8;
+  --dim-2:#6c6580;
+
+  --edge:rgba(230,220,255,.14);
+  --edge-2:rgba(230,220,255,.075);
+  --edge-on:rgba(255,106,61,.42);
+
+  /* ---- SHAPE ---- */
+  --r-chip:12px; --r-ctl:15px; --r-btn:18px; --r-card:22px; --r-sheet:26px; --r-pill:999px;
+
+  /* ---- CONTROL HEIGHTS --------------------------------------------
+     These scale with the viewport rather than stepping at hand-written
+     breakpoints, so a 320dp phone and a 430dp phone get the same layout
+     at two sizes instead of two different layouts.
+     ANYTHING TAPPABLE HAS A HARD 44px FLOOR. A control does not get to
+     shrink below a thumb because the screen is small; the chrome around
+     it is the part that gives. */
+  --h-ctl:clamp(44px,11vw,50px);
+  --h-btn:clamp(52px,14.5vw,62px);
+  --h-row:clamp(54px,15vw,64px);
+
+  /* ---- TYPE -------------------------------------------------------
+     Nine rungs that scale together. The vw term is calibrated so each
+     rung hits its intended value at 400dp and shrinks smoothly from
+     there rather than jumping. */
+  --t-micro:clamp(8.5px,2.2vw,10px);
+  --t-tiny:clamp(9.5px,2.5vw,11px);
+  --t-fine:clamp(10.5px,2.8vw,12px);
+  --t-sm:clamp(12px,3.1vw,13.5px);
+  --t-md:clamp(13px,3.6vw,15.5px);
+  --t-lg:clamp(15px,4.1vw,17.5px);
+  --t-xl:clamp(18px,5.1vw,22px);
+  --t-2xl:clamp(22px,6.3vw,28px);
+  --t-3xl:clamp(30px,9.2vw,42px);
+
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,system-ui,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+*{scrollbar-width:none;-ms-overflow-style:none;}
+*::-webkit-scrollbar{width:0;height:0;display:none;}
+
+html,body{
+  margin:0;padding:0;width:100%;height:100%;height:100dvh;overflow:hidden;
+  overscroll-behavior:none;
+  background:var(--void);color:var(--ink);
+  font-family:var(--ui);
+  user-select:none;-webkit-user-select:none;
+  touch-action:manipulation;
+}
+/* The play surface owns its gestures completely — a drag on the cube is a
+   rotation, never a scroll, never a pull-to-refresh, never a text selection. */
+#stage{position:fixed;top:0;left:0;width:100%;height:100%;display:block;touch-action:none;z-index:1;}
+
+button{font-family:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;}
+
+/* ---------- LAYERS ---------- */
+.layer{
+  position:fixed;top:0;right:0;bottom:0;left:0;z-index:10;
+  display:flex;flex-direction:column;align-items:center;
+  padding:calc(var(--sa-top) + 22px) calc(var(--sa-right) + 20px)
+          calc(var(--sa-bottom) + 22px) calc(var(--sa-left) + 20px);
+  background:radial-gradient(ellipse 120% 70% at 50% 0%, var(--void-3), var(--void-2) 46%, var(--void) 82%);
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  opacity:1;transition:opacity .26s ease;
+}
+.layer.hide{opacity:0;pointer-events:none;}
+.layer::before,.layer::after{content:'';flex:1 1 auto;min-height:0;}
+.layer>*{flex-shrink:0;}
+
+/* ---------- TYPE ---------- */
+h1{
+  font-size:var(--t-3xl);font-weight:800;letter-spacing:.26em;
+  margin:0 0 6px;text-align:center;text-indent:.26em;
+  color:var(--bone);
+}
+h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;text-align:center;}
+.sub{color:var(--dim);font-size:var(--t-sm);text-align:center;line-height:1.5;max-width:31ch;margin:0 auto 26px;}
+.eyebrow{font-size:var(--t-tiny);letter-spacing:.24em;color:var(--dim-2);text-transform:uppercase;font-weight:700;}
+
+/* ---------- BUTTONS ---------- */
+.btn{
+  min-height:var(--h-btn);width:100%;max-width:340px;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  border-radius:var(--r-btn);margin:0 auto 11px;padding:0 20px;
+  font-size:var(--t-md);font-weight:800;letter-spacing:.14em;
+  background:var(--glass-2);box-shadow:inset 0 0 0 1px var(--edge);
+  color:var(--ink);
+  transition:transform .12s ease, background .16s ease, box-shadow .16s ease;
+}
+.btn:active{transform:scale(.975);background:rgba(255,255,255,.1);}
+.btn.primary{
+  background:linear-gradient(180deg,var(--rust-hi),var(--rust));
+  color:#2a0d02;box-shadow:0 6px 22px -8px rgba(255,106,61,.8);
+}
+.btn.ghost{background:transparent;box-shadow:inset 0 0 0 1px var(--edge-2);color:var(--dim);}
+
+/* ---------- THE HUD ----------------------------------------------
+   Two bars and nothing between them, so the middle of the screen — the
+   cube — is never covered by anything. The top bar states the level and
+   the turn count; the bottom bar is the three things a hand needs. */
+#hud{position:fixed;top:0;right:0;bottom:0;left:0;pointer-events:none;z-index:5;
+     opacity:0;transition:opacity .3s ease;}
+#hud.on{opacity:1;}
+#hud>*{pointer-events:auto;}
+
+.bar{
+  position:absolute;left:0;right:0;display:flex;align-items:center;gap:9px;
+  padding:0 calc(var(--sa-left) + 14px) 0 calc(var(--sa-right) + 14px);
+}
+#barTop{top:calc(var(--sa-top) + 12px);}
+#barBot{bottom:calc(var(--sa-bottom) + 14px);justify-content:center;}
+
+.pill{
+  height:var(--h-ctl);min-width:var(--h-ctl);padding:0 15px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  border-radius:var(--r-pill);background:var(--glass);
+  box-shadow:inset 0 0 0 1px var(--edge);
+  font-size:var(--t-sm);font-weight:800;letter-spacing:.1em;
+  transition:transform .12s ease,opacity .18s ease,box-shadow .18s ease;
+}
+.pill:active{transform:scale(.94);}
+.pill[disabled]{opacity:.32;pointer-events:none;}
+.pill.icon{padding:0;width:var(--h-ctl);}
+.pill .n{font-family:var(--mono);font-size:var(--t-md);font-weight:700;}
+#lvName{flex:1;justify-content:flex-start;letter-spacing:.2em;overflow:hidden;white-space:nowrap;}
+#turnPill .n{color:var(--rust);}
+#turnPill.over .n{color:var(--gold);}
+#keyPill{color:var(--gold);box-shadow:inset 0 0 0 1px rgba(255,196,77,.3);}
+
+/* the drag affordance — four ticks that light when a turn is available and
+   go hollow when the far side of it has no footing. It is the only thing on
+   screen that answers "may I turn?", so it is never hidden. */
+#dpad{position:absolute;left:50%;bottom:calc(var(--sa-bottom) + 14px + var(--h-ctl) + 16px);
+      transform:translateX(-50%);display:flex;gap:7px;align-items:center;}
+.tick{width:26px;height:5px;border-radius:3px;background:var(--edge);transition:background .2s ease,opacity .2s ease;}
+.tick.ok{background:var(--rust);opacity:.95;}
+.tick.no{background:var(--edge-2);}
+
+#toast{
+  position:absolute;left:50%;bottom:calc(var(--sa-bottom) + 132px);
+  transform:translate(-50%,12px);
+  padding:11px 18px;border-radius:var(--r-pill);
+  background:var(--glass);box-shadow:inset 0 0 0 1px var(--edge);
+  font-size:var(--t-sm);font-weight:700;letter-spacing:.05em;white-space:nowrap;
+  opacity:0;transition:opacity .22s ease,transform .22s ease;pointer-events:none;
+}
+#toast.on{opacity:1;transform:translate(-50%,0);}
+
+/* ---------- LEVEL SELECT ---------- */
+.grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));
+  gap:11px;width:100%;max-width:440px;margin:0 auto 18px;
+}
+.cube{
+  aspect-ratio:1;border-radius:var(--r-card);position:relative;
+  background:var(--glass-2);box-shadow:inset 0 0 0 1px var(--edge);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  min-height:88px;transition:transform .12s ease,box-shadow .18s ease;
+}
+.cube:active{transform:scale(.955);}
+.cube .idx{font-family:var(--mono);font-size:var(--t-2xl);font-weight:700;color:var(--dim-2);line-height:1;}
+.cube .nm{font-size:var(--t-micro);letter-spacing:.13em;color:var(--dim);font-weight:800;
+          text-align:center;padding:0 6px;line-height:1.25;}
+.cube.done{box-shadow:inset 0 0 0 1px rgba(53,215,161,.34);}
+.cube.done .idx{color:var(--jade);}
+.cube.perfect{background:rgba(53,215,161,.1);}
+.cube.locked{opacity:.34;}
+.cube .marks{display:flex;gap:3px;height:6px;}
+.cube .marks i{width:6px;height:6px;border-radius:50%;background:var(--edge);}
+.cube .marks i.on{background:var(--jade);}
+
+/* ---------- CARDS ---------- */
+.card{
+  width:100%;max-width:360px;margin:0 auto;padding:26px 22px 20px;
+  border-radius:var(--r-sheet);background:var(--glass);
+  box-shadow:inset 0 0 0 1px var(--edge), 0 22px 60px -20px rgba(0,0,0,.85);
+}
+.stat{display:flex;align-items:baseline;justify-content:space-between;padding:11px 0;}
+.stat+.stat{box-shadow:inset 0 1px 0 var(--edge-2);}
+.stat .k{font-size:var(--t-fine);letter-spacing:.17em;color:var(--dim-2);text-transform:uppercase;font-weight:700;}
+.stat .v{font-family:var(--mono);font-size:var(--t-lg);font-weight:700;}
+.verdict{text-align:center;font-size:var(--t-2xl);font-weight:800;letter-spacing:.2em;margin:0 0 3px;}
+.verdict.par{color:var(--jade);}
+.verdict.over{color:var(--gold);}
+
+/* ---------- SETTINGS ROWS ---------- */
+.row{
+  min-height:var(--h-row);display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:12px 16px;border-radius:var(--r-ctl);background:var(--glass-2);
+  box-shadow:inset 0 0 0 1px var(--edge-2);margin-bottom:9px;
+  width:100%;max-width:360px;
+}
+.row .lbl{font-size:var(--t-sm);font-weight:700;letter-spacing:.06em;text-align:left;}
+.row .hint{font-size:var(--t-micro);color:var(--dim-2);letter-spacing:.04em;margin-top:3px;line-height:1.4;}
+.sw{width:52px;height:31px;border-radius:var(--r-pill);background:var(--edge);position:relative;flex:0 0 auto;transition:background .2s ease;}
+.sw::after{content:'';position:absolute;top:3px;left:3px;width:25px;height:25px;border-radius:50%;
+           background:var(--dim);transition:transform .2s cubic-bezier(.3,1.4,.5,1),background .2s ease;}
+.sw.on{background:rgba(255,106,61,.34);}
+.sw.on::after{transform:translateX(21px);background:var(--rust);}
+
+/* ---------- THE MANUAL ----------------------------------------------
+   Ten lines, once, and never shown again unless asked for. A rule you
+   have to read twice is a rule that should have been taught by a level. */
+.manual{width:100%;max-width:370px;margin:0 auto;}
+.mrow{display:flex;gap:14px;align-items:flex-start;padding:13px 0;}
+.mrow+.mrow{box-shadow:inset 0 1px 0 var(--edge-2);}
+.mkey{flex:0 0 46px;height:46px;border-radius:var(--r-chip);background:var(--glass-2);
+      box-shadow:inset 0 0 0 1px var(--edge);display:flex;align-items:center;justify-content:center;}
+.mtxt{flex:1;font-size:var(--t-sm);line-height:1.55;color:var(--dim);padding-top:2px;}
+.mtxt b{color:var(--ink);font-weight:700;}
+.mtxt .c{color:var(--rust);font-weight:700;}
+
+.foot{font-size:var(--t-micro);color:var(--dim-2);letter-spacing:.16em;text-align:center;margin-top:16px;}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<!-- ============ HUD ============ -->
+<div id="hud">
+  <div class="bar" id="barTop">
+    <div class="pill" id="lvName">—</div>
+    <div class="pill" id="keyPill" style="display:none">◈ <span class="n" id="keyN">0</span></div>
+    <div class="pill" id="turnPill">TURNS <span class="n" id="turnN">0</span><span class="n" id="parN" style="color:var(--dim-2)">/0</span></div>
+  </div>
+  <div id="dpad">
+    <div class="tick" id="tkL"></div><div class="tick" id="tkD"></div>
+    <div class="tick" id="tkU"></div><div class="tick" id="tkR"></div>
+  </div>
+  <div class="bar" id="barBot">
+    <button class="pill icon" id="btnMenu" aria-label="Menu">☰</button>
+    <button class="pill" id="btnUndo">UNDO</button>
+    <button class="pill icon" id="btnHint" aria-label="Hint">?</button>
+  </div>
+  <div id="toast"></div>
+</div>
+
+<!-- ============ TITLE ============ -->
+<div class="layer" id="scTitle">
+  <h1>TURNKEY</h1>
+  <p class="sub">A dungeon that is a cube. You read one flat face at a time — and everything that lines up, touches.</p>
+  <button class="btn primary" id="btnPlay">CONTINUE</button>
+  <button class="btn" id="btnCubes">CUBES</button>
+  <button class="btn ghost" id="btnManual">HOW IT WORKS</button>
+  <div class="foot">NO DEAD PIXELS</div>
+</div>
+
+<!-- ============ LEVEL SELECT ============ -->
+<div class="layer hide" id="scCubes">
+  <div class="eyebrow" style="text-align:center;margin-bottom:14px">THE CUBES</div>
+  <div class="grid" id="cubeGrid"></div>
+  <button class="btn ghost" id="btnCubesBack">BACK</button>
+</div>
+
+<!-- ============ MANUAL ============ -->
+<div class="layer hide" id="scManual">
+  <h2>HOW IT WORKS</h2>
+  <p class="sub">Four rules. There is no fifth.</p>
+  <div class="manual">
+    <div class="mrow"><div class="mkey">👆</div><div class="mtxt"><b>Tap a tile to walk there.</b> Only pale <span class="c">bone</span> tiles are decks you can stand on. Dark ones are bedrock, and gaps are nothing at all.</div></div>
+    <div class="mrow"><div class="mkey">↔</div><div class="mtxt"><b>Drag to turn the cube.</b> Past halfway it commits, short of it springs back. The four ticks above your thumb say which turns have footing on the far side.</div></div>
+    <div class="mrow"><div class="mkey">◫</div><div class="mtxt"><b>Depth is discarded.</b> Everything in a column collapses to the nearest solid thing. Two decks far apart in the cube are <span class="c">neighbours on screen</span>, and you may walk between them.</div></div>
+    <div class="mrow"><div class="mkey">▦</div><div class="mtxt"><b>Brightness is distance.</b> A pale tile is near, a dim one is far. The hairlines between them mark a drop you are allowed to ignore.</div></div>
+    <div class="mrow"><div class="mkey">◈</div><div class="mtxt">Keys and doors can be <b>buried</b> behind bedrock. If something is missing, it is behind you in an axis you are not looking down. Turn.</div></div>
+  </div>
+  <button class="btn" id="btnManualBack" style="margin-top:20px">GOT IT</button>
+</div>
+
+<!-- ============ PAUSE ============ -->
+<div class="layer hide" id="scPause">
+  <h2 id="pauseName">PAUSED</h2>
+  <p class="sub" id="pauseSub">—</p>
+  <button class="btn primary" id="btnResume">RESUME</button>
+  <button class="btn" id="btnRestart">RESTART CUBE</button>
+  <button class="btn" id="btnToCubes">ALL CUBES</button>
+  <div class="row" id="rowSound"><div><div class="lbl">Sound</div><div class="hint">Clicks, latches, and the detent</div></div><div class="sw on" id="swSound"></div></div>
+  <div class="row" id="rowHaptic"><div><div class="lbl">Haptics</div><div class="hint">A tick on every committed turn</div></div><div class="sw on" id="swHaptic"></div></div>
+  <div class="row" id="rowDepth"><div><div class="lbl">Depth numbers</div><div class="hint">Prints each tile's distance from the camera. A crutch, and a good one while the collapse is still new.</div></div><div class="sw" id="swDepth"></div></div>
+  <button class="btn ghost" id="btnManual2">HOW IT WORKS</button>
+</div>
+
+<!-- ============ CLEARED ============ -->
+<div class="layer hide" id="scWin">
+  <div class="eyebrow" style="text-align:center">CUBE CLEARED</div>
+  <div class="verdict" id="winVerdict">AT PAR</div>
+  <div class="card" style="margin-top:16px">
+    <div class="stat"><span class="k">Turns used</span><span class="v" id="winTurns">0</span></div>
+    <div class="stat"><span class="k">Fewest possible</span><span class="v" id="winPar">0</span></div>
+    <div class="stat"><span class="k">Your best</span><span class="v" id="winBest">0</span></div>
+  </div>
+  <button class="btn primary" id="btnNext" style="margin-top:20px">NEXT CUBE</button>
+  <button class="btn ghost" id="btnRetry">TRY FOR PAR</button>
+  <button class="btn ghost" id="btnWinCubes">ALL CUBES</button>
+</div>
+
+<script>

@@ -1,0 +1,13 @@
+{
+  "name": "turnkey-tools",
+  "private": true,
+  "description": "Build, generation and verification for TURNKEY. Node only; the game itself has no dependencies.",
+  "scripts": {
+    "test": "node test.js",
+    "gen": "node gen.js > levels.js",
+    "build": "sh build.sh",
+    "drive": "node drive.js",
+    "probe": "node probe.js"
+  },
+  "devDependencies": { "playwright": "*" }
+}
