@@ -2,7 +2,7 @@
    PERSISTENCE — one key, and it is allowed to fail.
    A WebView with storage disabled should still play; it just forgets.
    ============================================================ */
-var store = {best:{}, reached:1, sound:1, haptic:1, depth:0, taught:0};
+var store = {best:{}, reached:1, sound:1, haptic:1, depth:0, taught:0, sawPlate:0};
 try{ var raw = localStorage.getItem('turnkey-v2'); if(raw) store = Object.assign(store, JSON.parse(raw)); }catch(e){}
 var saveT = 0;
 function save(){
@@ -134,6 +134,14 @@ var sfx = {
     [196,262,330,392].forEach(function(f,i){ setTimeout(function(){ tone(f,1.5,'sine',0.09,0,0.7); }, i*130); });
     noise(1.1, 1500, 0.07, 0.8, 200);
   },
+  /* the world turning over: a long filtered sweep in the direction of the
+     change, a bell for the plate, and a sub under both */
+  plate: function(bit){
+    noise(0.85, 240, 0.20, 0.75, bit === 1 ? 3200 : 160);
+    tone(bit === 1 ? 174 : 330, 0.8, 'sawtooth', 0.10, bit === 1 ? 520 : 116, 0.6);
+    tone(55, 1.0, 'sine', 0.17, 40, 0.25);
+    setTimeout(function(){ tone(bit === 1 ? 1046 : 784, 0.5, 'triangle', 0.09, 0, 0.7); }, 120);
+  },
   undo:  function(){ tone(420, 0.16, 'sine', 0.06, 700, 0.3); noise(0.07, 1800, 0.05, 0.2); },
   stuck: function(){ tone(200, 0.34, 'sine', 0.07, 118, 0.4); }
 };
@@ -147,7 +155,7 @@ function buzz(ms){ if(store.haptic && navigator.vibrate) try{ navigator.vibrate(
    ============================================================ */
 var cv = document.getElementById('stage'), ctx = cv.getContext('2d');
 var W = 0, H = 0, DPR = 1;
-var lv = null, N = 0, M = ORI_ID, pos = [0,0,0], kmask = 0, doors = 0, turns = 0;
+var lv = null, N = 0, M = ORI_ID, pos = [0,0,0], kmask = 0, doors = 0, turns = 0, world = 0;
 var surf = null, reach = null, faces = [], undoStack = [], levelNo = 1, curBand = 0, viewBand = 0;
 var walking = null, anim = null, drag = null, won = false, stuck = false;
 var probe = document.createElement('div');
@@ -250,7 +258,8 @@ function loadLevel(level){
   lv = {n:src.n, vox:src.vox.slice(), start:src.start, goal:src.goal,
         keys:src.keys, doors:src.doors, par:src.par, name:levelName(levelNo)};
   N = lv.n;
-  M = ORI_ID; pos = lv.start.slice(); kmask = 0; doors = 0; turns = 0;
+  M = ORI_ID; pos = lv.start.slice(); kmask = 0; doors = 0; turns = 0; world = 0;
+  clearEff(lv); flip = null;
   var k0 = keyIndexAt(lv, pos); if(k0 >= 0) kmask |= (1<<k0);
   undoStack = []; walking = null; anim = null; drag = null; won = false; stuck = false;
   var band = vaultOf(levelNo);
@@ -263,6 +272,13 @@ function loadLevel(level){
   revealT = -120;
   ambience(band);
   if(levelNo > store.reached){ store.reached = levelNo; save(); }
+  /* TEACH IT WHEN IT SHOWS UP, ONCE. Not in the manual four screens earlier,
+     not as a toast that has gone before it is read — on the cube that has one,
+     with the thing itself waiting behind the card. */
+  if(!store.sawPlate && (lv.vox.indexOf('A') >= 0 || lv.vox.indexOf('B') >= 0)){
+    store.sawPlate = 1; save();
+    setTimeout(function(){ if(!won && !walking && !anim) show('scPlate'); }, 260);
+  }
   prebuild(levelNo + 1);            /* cut the next one while this one is played */
 }
 
@@ -306,7 +322,7 @@ function buildFaces(){
 
 /* recompute everything the projection decides, after any settled change */
 function settle(){
-  surf = project(N, lv.vox, M);
+  surf = project(N, effVox(lv, world), M);
   computeReach();
   refreshHud();
 }
@@ -621,6 +637,49 @@ function drawFlyers(){
   }
 }
 
+/* ---------- THE FLIP ------------------------------------------------------
+   The plate is the only thing in the game that changes the BOARD rather than
+   your view of it, so it cannot be a state swap and a toast. The old
+   material has to be seen leaving.
+
+   So the change propagates outward from the plate at a fixed speed, and each
+   tile crosses over as the front reaches it: the old material shrinking out,
+   the new one growing in behind. For a second and a half you are looking at
+   two worlds at once with a lit seam running between them, and the seam
+   starts under your own feet. It reuses the level-entry wave's geometry
+   wholesale — same distance-staggered phase, different payload.            */
+var PLATE_COL = {1:'168,107,255', 2:'111,214,255'};
+var PLATE_NAME = {1:'INVERT', 2:'DRAIN'};
+var flip = null;
+function firePlate(bit, cx, cy){
+  var v = viewOf(N, M, pos);
+  var old = surf;
+  world ^= bit;
+  clearEff(lv);
+  surf = project(N, effVox(lv, world), M);
+  flip = {t:0, fu:v[0], fv:v[1], old:old, col:PLATE_COL[bit], dur:520, stagger:30, rise:150};
+  computeReach(); refreshHud();
+  revealT = -260;                       /* the reachable sweep follows the front */
+  kick(13, 0, 1);
+  impact = 1;
+  sfx.plate(bit); buzz(34);
+  burst(cx, cy, 26, {spd:150, life:760, r:2.6, col:PLATE_COL[bit], g:0});
+  burst(cx, cy, 12, {spd:52, life:1000, r:3.6, col:'240,240,255', g:-16});
+  toast(world ? (PLATE_NAME[bit] + ' — the cube is a different place') : 'restored');
+}
+function stepFlip(dt){
+  if(!flip) return;
+  flip.t += dt;
+  if(flip.t > flip.dur + N*flip.stagger + flip.rise) flip = null;
+}
+function flipPhase(u, v){
+  if(!flip) return 1;
+  var d = Math.sqrt((u-flip.fu)*(u-flip.fu) + (v-flip.fv)*(v-flip.fv));
+  var t = (flip.t - d*flip.stagger) / flip.rise;
+  t = Math.max(0, Math.min(1, t));
+  return t*t*(3-2*t);
+}
+
 /* ---------- THE REVEAL ----------------------------------------------------
    After every turn the lit reachable set sweeps outward from the player in
    BFS order rather than snapping on. It is the prettiest thing on screen and
@@ -782,22 +841,37 @@ function drawFlat(){
   drawCage(BM, 1, 0.16, 0);
   /* 1. the tiles, each riding whatever wave is passing through the board */
   var anyWave = !!wave;
+  if(flip && !demo){
+    /* the old material is still on screen behind the front — draw it first,
+       shrinking out, so the crossover is a thing you watch rather than a
+       frame you miss */
+    for(u = 0; u < N; u++) for(v = 0; v < N; v++){
+      var os = flip.old[u*N + v]; if(!os) continue;
+      var fp = flipPhase(u, v); if(fp >= 0.999) continue;
+      var orr = tileRect(u, v), osc = 1 - fp;
+      ctx.globalAlpha = 1 - fp;
+      ctx.fillStyle = tileFill(os.t === 'A' || os.t === 'B' ? '+' : os.t, os.d);
+      ctx.fillRect(orr[0] + S*(1-osc)/2, orr[1] + S*(1-osc)/2, S*osc + 0.6, S*osc + 0.6);
+    }
+    ctx.globalAlpha = 1;
+  }
   for(u = 0; u < N; u++) for(v = 0; v < N; v++){
     s = SF[u*N + v]; if(!s) continue;
     r = tileRect(u, v);
     var ph = anyWave ? tilePhase(u, v) : 1;
+    if(flip && !demo) ph = Math.min(ph, flipPhase(u, v));
     if(ph <= 0.002) continue;
     if(ph < 0.999){
       var sc = 0.55 + 0.45*ph, ix = r[0] + S*(1-sc)/2, iy = r[1] + S*(1-sc)/2;
       ctx.globalAlpha = ph;
-      ctx.fillStyle = tileFill(s.t, s.d);
+      ctx.fillStyle = tileFill(s.t === 'A' || s.t === 'B' ? '+' : s.t, s.d);
       ctx.fillRect(ix, iy, S*sc + 0.6, S*sc + 0.6);
       ctx.globalAlpha = 1;
       continue;
     }
-    ctx.fillStyle = tileFill(s.t, s.d);
+    ctx.fillStyle = tileFill(s.t === 'A' || s.t === 'B' ? '+' : s.t, s.d);
     ctx.fillRect(r[0], r[1], r[2] + 0.6, r[3] + 0.6);
-    if(s.t === '+'){
+    if(isWalkType(s.t)){
       ctx.fillStyle = 'rgba(255,255,255,' + (0.05 + 0.09*(s.d/Math.max(1,N-1))).toFixed(3) + ')';
       ctx.fillRect(r[0] + S*0.10, r[1] + S*0.10, S*0.80, S*0.80);
     }
@@ -885,8 +959,25 @@ function drawFlat(){
       ctx.fillText(String(s.d), r[0] + S*0.10, r[1] + S*0.09);
     }
   }
+  /* 4b. the seam — a lit ring at the wavefront, so the change has a leading
+         edge instead of just happening */
+  if(flip){
+    var rad = (flip.t / flip.rise) * S * 0.92;
+    if(rad > 0 && rad < N*S*1.9){
+      var fr = tileRect(flip.fu, flip.fv);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = 'rgba(' + flip.col + ',' + Math.max(0, 0.85 - rad/(N*S*1.5)).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(2, S*0.11);
+      ctx.beginPath(); ctx.arc(fr[0]+S/2, fr[1]+S/2, rad, 0, 6.284); ctx.stroke();
+      ctx.restore();
+    }
+  }
   /* 5. things standing on the deck — none of which the attract cube needs */
   if(demo) return;
+  for(u = 0; u < N; u++) for(v = 0; v < N; v++){
+    var gs = SF[u*N + v];
+    if(gs && isGlyph(gs.t)) drawPlate(tileRect(u, v), GLYPH_BIT[gs.t], gs.d);
+  }
   for(i = 0; i < lv.doors.length; i++){
     var dv = surfaceAt(N, surf, M, lv.doors[i]); if(!dv) continue;
     drawDoor(tileRect(dv[0], dv[1]), !!(doors & (1<<i)));
@@ -943,6 +1034,28 @@ function drawPlayer(x, y, sz, k){
   ctx.restore();
   ctx.fillStyle = '#ffd9c8';
   ctx.beginPath(); ctx.arc(x, y, rr*0.32, 0, 6.284); ctx.fill();
+  ctx.restore();
+}
+/* A plate reads as a thing cut INTO the deck rather than set on top of it:
+   a recessed ring, a bar across it for INVERT (the axis that flips) or a
+   level line for DRAIN, and a slow breath so it is visibly live. It is drawn
+   at its own depth like everything else, so a plate far down the cube is dim
+   — but it is never occluded, which is the one thing that makes planning
+   with them possible. */
+function drawPlate(r, bit, depth){
+  var x = r[0] + S/2, y = r[1] + S/2, col = PLATE_COL[bit];
+  var t = (Date.now() % 2600) / 2600, br = 0.55 + 0.45*Math.sin(t*6.284);
+  var lit = 0.35 + 0.65 * (depth / Math.max(1, N-1));
+  halo(x, y, S*0.95, col, 0.30*br*lit);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(' + col + ',' + (0.55 + 0.4*br*lit).toFixed(3) + ')';
+  ctx.lineWidth = Math.max(1.6, S*0.065);
+  ctx.beginPath(); ctx.arc(x, y, S*0.29, 0, 6.284); ctx.stroke();
+  ctx.lineWidth = Math.max(1.3, S*0.05);
+  ctx.beginPath();
+  if(bit === 1){ ctx.moveTo(x - S*0.17, y - S*0.17); ctx.lineTo(x + S*0.17, y + S*0.17); }
+  else { ctx.moveTo(x - S*0.19, y); ctx.lineTo(x + S*0.19, y); }
+  ctx.stroke();
   ctx.restore();
 }
 function drawGoal(r){
@@ -1042,11 +1155,12 @@ function draw3d(){
 /* ============================================================
    MOVING
    ============================================================ */
-function snapshot(){ return {pos:pos.slice(), ori:oriIndex(M), kmask:kmask, doors:doors, turns:turns}; }
+function snapshot(){ return {pos:pos.slice(), ori:oriIndex(M), kmask:kmask, doors:doors, turns:turns, world:world}; }
 function pushUndo(){ undoStack.push(snapshot()); if(undoStack.length > 200) undoStack.shift(); }
 function restore(s){
   pos = s.pos.slice(); M = ORIS[s.ori]; kmask = s.kmask; doors = s.doors; turns = s.turns;
-  walking = null; anim = null; drag = null; won = false; stuck = false;
+  world = s.world | 0;
+  walking = null; anim = null; drag = null; won = false; stuck = false; flip = null;
   settle();
 }
 
@@ -1064,10 +1178,16 @@ function pathTo(tu, tv){
       var u2 = u + TURNS[t].dx, v2 = v + TURNS[t].dy, k = u2*N + v2;
       if(u2 < 0 || v2 < 0 || u2 >= N || v2 >= N || seen[k]) continue;
       var cell = walkable(lv, surf, u2, v2, doors);
+      /* A PLATE MAY ONLY BE THE DESTINATION. Stepping on one rewrites the
+         board, so every step planned after it was planned against a world
+         that no longer exists. Routing stops there and you plan again — which
+         also makes standing on a plate a decision rather than something that
+         happens to you on the way past. */
+      if(cell && isGlyph(cell.t) && !(u2 === tu && v2 === tv)) continue;
       if(!cell){
         if(!(u2 === tu && v2 === tv)) continue;
         var raw = surf[k];
-        if(!raw || raw.t !== '+') continue;
+        if(!raw || !isWalkType(raw.t)) continue;
         var di = doorIndexAt(lv, raw.w);
         if(di < 0 || (doors & (1<<di)) || keysHeld() < 1) continue;
       }
@@ -1085,7 +1205,7 @@ function tapCell(u, v){
   if(walking || anim || won) return;
   var s = surf[u*N + v];
   if(!s){ toast('nothing there'); sfx.deny(); return; }
-  if(s.t !== '+'){ toast('bedrock — no footing on this face'); sfx.deny(); return; }
+  if(!isWalkType(s.t)){ toast('bedrock — no footing on this face'); sfx.deny(); return; }
   var di = doorIndexAt(lv, s.w), shut = di >= 0 && !(doors & (1<<di));
   if(shut && keysHeld() < 1){ toast('locked — find a key'); sfx.deny(); buzz(14); return; }
   var path = pathTo(u, v);
@@ -1124,6 +1244,8 @@ function advanceWalk(dt){
     burst(cx2, cy2, 16, {spd:95, life:520, r:2.2, col:'255,196,77', g:20});
     flyKey();
   }
+  var gb = glyphAt(lv, pos);
+  if(gb){ firePlate(gb, cx2, cy2); }
   walking.t = 0;
   if(!walking.queue.length){
     walking = null; sfx.land(); kick(3, 0, 1);
@@ -1136,7 +1258,7 @@ function advanceWalk(dt){
 function tryTurn(t){
   if(walking || anim || won) return false;
   var m2 = TURNS[t].f(M);
-  if(!landing(lv, m2, pos, doors)) return false;
+  if(!landing(lv, m2, pos, doors, world)) return false;
   var axis = (t === 0 || t === 1) ? 'x' : 'y';
   var to = (t === 1 || t === 2) ? Math.PI/2 : -Math.PI/2;
   var from = drag && drag.axis === axis ? drag.ang : 0;
@@ -1186,7 +1308,7 @@ function advanceAnim(dt){
   var t = anim.turn; anim = null;
   if(t < 0) return;
   M = TURNS[t].f(M);
-  var land = landing(lv, M, pos, doors);
+  var land = landing(lv, M, pos, doors, world);
   pos = land.w.slice();
   var ki = keyIndexAt(lv, pos);
   if(ki >= 0 && !(kmask & (1<<ki))){ kmask |= (1<<ki); sfx.key(); flyKey(); toast('key'); }
@@ -1220,7 +1342,7 @@ function afterAction(){
   clearTimeout(stuckT);
   stuckT = setTimeout(function(){
     if(won || walking || anim) return;
-    var r = solve(lv, 40, {pos:pos, ori:oriIndex(M), kmask:kmask, doors:doors});
+    var r = solve(lv, 40, {pos:pos, ori:oriIndex(M), kmask:kmask, doors:doors, world:world});
     stuck = !r.ok;
     if(stuck){ toast('no way on from here — undo'); sfx.stuck(); buzz(30); }
   }, 60);
@@ -1346,7 +1468,7 @@ function toast(msg){
   clearTimeout(toastT); toastT = setTimeout(function(){ el.classList.remove('on'); }, 1500);
 }
 function show(id){
-  ['scTitle','scCubes','scManual','scPause','scWin'].forEach(function(s){
+  ['scTitle','scCubes','scManual','scPause','scWin','scPlate'].forEach(function(s){
     $(s).classList.toggle('hide', s !== id);
   });
   $('hud').classList.toggle('on', !id);
@@ -1373,6 +1495,12 @@ function refreshHud(){
   }
   $('parN').textContent = '/' + lv.par;
   $('turnPill').classList.toggle('over', turns > lv.par);
+  var wt = $('worldTag'), names = {0:'', 1:'INVERTED', 2:'DRAINED', 3:'INVERTED · DRAINED'};
+  wt.textContent = names[world] || '';
+  wt.classList.toggle('on', world !== 0);
+  wt.style.color = 'rgb(' + (world === 2 ? PLATE_COL[2] : PLATE_COL[1]) + ')';
+  wt.style.boxShadow = 'inset 0 0 0 1px rgba(' + (world === 2 ? PLATE_COL[2] : PLATE_COL[1]) + ',.34)';
+  wt.style.background = 'rgba(' + (world === 2 ? PLATE_COL[2] : PLATE_COL[1]) + ',.10)';
   var kp = $('keyPill'), held = keysHeld();
   kp.style.display = lv.keys.length ? '' : 'none';
   $('keyN').textContent = held;
@@ -1386,7 +1514,7 @@ function refreshTicks(){
   var live = liveAngle();
   for(var i = 0; i < 4; i++){
     var t = order[i], el = $(ids[i]);
-    var can = lv && !won && !!landing(lv, TURNS[t].f(M), pos, doors);
+    var can = lv && !won && !!landing(lv, TURNS[t].f(M), pos, doors, world);
     el.className = 'tick ' + (can ? 'ok' : 'no');
     if(live && Math.abs(live.ang) > 0.1){
       var act = live.axis === 'x' ? (live.ang > 0 ? 1 : 0) : (live.ang > 0 ? 2 : 3);
@@ -1402,7 +1530,7 @@ function undo(){
 }
 function hint(){
   if(!lv || won) return;
-  var r = solve(lv, 40, {pos:pos, ori:oriIndex(M), kmask:kmask, doors:doors});
+  var r = solve(lv, 40, {pos:pos, ori:oriIndex(M), kmask:kmask, doors:doors, world:world});
   if(!r.ok){ toast('no way on from here — undo'); sfx.stuck(); return; }
   if(!r.first){ toast('you are standing on it'); return; }
   if(r.first.kind === 'turn'){
@@ -1474,6 +1602,7 @@ $('btnMenu').onclick = function(){
   show('scPause');
 };
 $('btnResume').onclick = function(){ show(null); };
+$('btnPlateGo').onclick = function(){ show(null); };
 $('btnRestart').onclick = function(){ loadLevel(levelNo); show(null); };
 $('btnToCubes').onclick = openCubes;
 $('btnUndo').onclick = undo;
@@ -1508,6 +1637,7 @@ window.TURNKEY = {
     if(!$('scWin').classList.contains('hide')){ buildCubeGrid(); show('scCubes'); return true; }
     if(!$('scManual').classList.contains('hide')){ show(lv ? 'scPause' : 'scTitle'); return true; }
     if(!$('scPause').classList.contains('hide')){ show(null); return true; }
+    if(!$('scPlate').classList.contains('hide')){ show(null); return true; }
     if(!$('scCubes').classList.contains('hide')){
       if(viewBand > 0){ viewBand--; buildCubeGrid(); return true; }
       show('scTitle'); return true;
@@ -1561,7 +1691,7 @@ function loop(ts){
   try{
     advanceAnim(dt);
     advanceWalk(dt);
-    stepMotes(dt); stepParts(dt); stepWave(dt); stepFlyers(dt); stepDemo(dt);
+    stepMotes(dt); stepParts(dt); stepWave(dt); stepFlip(dt); stepFlyers(dt); stepDemo(dt);
     if(kickV.t < 1) kickV.t = Math.min(1, kickV.t + dt/kickV.dur);
     if(revealT < 2000) revealT += dt;
     if(exitFlash > 0) exitFlash = Math.max(0, exitFlash - dt/620);

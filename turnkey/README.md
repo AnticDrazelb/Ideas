@@ -70,6 +70,46 @@ than the vault asked for, never a broken one.
 Minting costs a couple of hundred milliseconds, so the next level is always cut
 in the background while the current one is being played.
 
+### Plates — the second verb
+
+**From cube 20, some cubes carry a PLATE.** Step on one and the cube's
+*material* inverts: every deck becomes bedrock, every wall you have been
+walking around becomes floor. The geometry does not move. What changes is
+which of it you may stand on — so the projection you spent four turns
+learning is now its own negative, and the route you were walking is a wall.
+Step on it again and it goes back. **A plate is a door between two versions
+of the same cube**, and the way out is usually only reachable from one of them.
+
+Two kinds, two bits, **four material states** — and because the second is
+applied after the first, the pair composes into a third layout neither makes
+alone:
+
+```
+world 0    deck +     bedrock #     void .      as carved
+world 1    deck #     bedrock +     void .      INVERT — the negative
+world 2    deck +     bedrock .     void #      DRAIN — stone to air,
+world 3    deck .     bedrock +     void #      both — a third world
+```
+
+DRAIN joins at vault V. The state space is now position × orientation × keys
+× doors × **world**, and that is what lets a cube ask for turns the rotation
+graph alone would never give up.
+
+**A plate is always the surface of its column.** It's cut clean through the
+rock, so it's legible from every face in every world — which is what makes
+planning with them possible at all. That has a second consequence, and it's
+the best thing about them: since a plate always gives footing, **every turn is
+legal while you stand on one. Plates are pivots.** In a game where where you
+stand decides which turns you have, a square that gives you all four is worth
+walking a long way for. `tools/plate.js` asserts it across every orientation ×
+turn combination.
+
+Two rules fall out and both are deliberate: a plate may only be a path's
+*destination*, never a cell it runs through — stepping on one rewrites the
+board every later step was planned against, which also makes standing on a
+plate a decision rather than something that happens to you on the way past.
+And a plate you *turn* onto does not fire; you press it with a foot.
+
 ### The difficulty curve, and its ceiling
 
 The first curve asked for nine-turn cubes by vault ten and got threes, at every
@@ -99,10 +139,33 @@ stay the small elegant number it is:
 - **route length** — a four-turn solution that runs forty steps is a different
   animal to one that runs eight.
 
-Measured across vaults: par 1–2 → 4–5, locks 0 → 3. It plateaus around vault 8,
-and past there the vaults change their look and their lock count but not their
-fundamental difficulty. Raising that ceiling needs a new mechanic, not a bigger
-number — which is what the items in `../turnkey.md` were for.
+**Plates are what raised it.** A second transform multiplies the state space
+instead of extending it, and it moves the measured ceiling by two:
+
+```
+                  no plate      one plate
+n=6                max par 3     max par 5
+n=7                max par 4     max par 6
+and roughly 2.5x as many cubes land at par 3 or better
+```
+
+Measured across the running curve: **vault I averages par 2.5, vaults V+
+average 4.4, and par 6 turns up regularly** — against an old ceiling that
+plateaued at 3.9 and never produced a 5.
+
+Two counter-intuitive results, both now recorded in the code because both cost
+a rebuild to learn:
+
+- **Two plates is worse than one** — max par falls back to 5. It's the same
+  trap as the decoy pass and the leg length: more freedom to reach any world
+  is more ways to shortcut, and the search finds them. So exactly one plate
+  is carried, and past vault V the variety comes from *which* plate it is.
+- **The demand is deliberately not raised for carrying one.** Asking for the
+  new ceiling put two thirds of mints outside their own band, because the tail
+  of the distribution is thin and a 240 ms search can't be relied on to find
+  it. The band stays where it's reliably met and the scorer reaches for the
+  top of it — so plates show up as *fours where the old curve gave threes*,
+  rather than as a promise the generator misses.
 
 *(One experiment is recorded in the code as a comment because it failed
 instructively: scaling the carve's leg length with the vault made routes longer
@@ -286,6 +349,14 @@ sizes rather than two different layouts.
 - **`infinite.js`** — the same guarantee *in the running game*: 68 levels
   loaded through `loadLevel`, each solved as served, plus the palette-band
   invariants, determinism, and frame cost.
+- **`plate.js`** — plates appear only from cube 20, exactly one per cube,
+  stepping on one really changes the walkable set, the world it leaves is
+  solvable with valid footing, undo restores the world, and the pivot property
+  holds across every orientation × turn.
+- **`portable.js`** — mints 67 levels in **Node and in Chromium** and demands
+  the cubes be byte-identical. Two V8 builds is the closest thing available
+  here to two different phones, and it exists because the same-environment
+  determinism test passed twice while the promise was broken.
 - **`probe.js`** — undo fidelity, 400 random turns against the legality and
   footing invariants, the back-gesture chain, inset injection, the dead-end
   detector, performance, and that no single bad tap can brick the app.
@@ -317,6 +388,32 @@ running the real thing rather than by reading it:
   confusable. Now enforced per palette rather than trusted.
 - A signed-shift bug that named half the cubes past level 40 *"undefined"*,
   caught in a screenshot, then swept across 4,000 levels.
+- **The same level number generated a different cube on different machines.**
+  Two separate causes, and the existing determinism test could see neither
+  because it only ever re-ran in one environment. First, the candidate search
+  was *time-boxed*, so a faster device got through more candidates and picked
+  a different winner — cube 41 was a five-turn puzzle in Chromium and a
+  three-turn puzzle in Node. Second, the generator shuffled with
+  `[0,1,2,3].sort(() => rng() - 0.5)`; a random comparator is **inconsistent**,
+  so how many numbers it draws off the stream is a property of the engine's
+  sort implementation, and Node's V8 and Chromium's V8 disagree. Two Android
+  WebView versions would have too. Work is now *counted*, never timed, and
+  shuffling is Fisher-Yates. `portable.js` is the test that can actually see
+  this class of bug.
+- **A curve that went flat because one field meant two things.** `spec.turns`
+  is the *carve's* ambition — how many times the generator's own route turns
+  while cutting the cube. `parLo` is the bottom of the *acceptance band*. They
+  were the same field, so widening the band down to 2 quietly told the
+  generator to cut two-turn routes, and a four-turn optimum cannot exist in a
+  cube whose route never needed one. Three rounds of tuning the scorer, the
+  decoys and the sample size moved nothing; printing the candidate histogram
+  showed it in one line — `{0:7, 1:11, 2:16}` where a direct probe had shown a
+  fifth of cubes at par 3 or better.
+- **A door on a plate.** The generator placed locks on route cells and plates
+  on route cells and never checked they weren't the *same* cell — so a shut
+  door sat on a plate and blocked its own column, silently destroying the one
+  property plates are built around. The pivot test caught it on its first run:
+  192 of 576 orientation × turn checks failed, all with the same cause.
 - **The worst one, found by a player on a real phone.** The attract cube on the
   title screen tumbled by rotating `M` — *the real game basis* — while `pos`
   stayed at the level's opening cell. Leaving the title then dropped you into a
@@ -345,19 +442,21 @@ running the real thing rather than by reading it:
 
 ## Where it is weak
 
-**Difficulty plateaus around vault 8.** Documented above with the measurements.
-Vaults past it are a change of clothes and a lock count, not a change of
-demand. Honest fix: new verbs, not bigger numbers.
+**Difficulty still plateaus, just higher.** Plates moved the ceiling from 4 to
+6 and the reliable band from 3 to 4, which bought several vaults — but the
+same argument applies again one level up. A *third* transform would move it
+again; more of the same two will not.
 
 **Generated cubes never have a joke in them.** They test the mechanic
 competently and none of them will ever be *the* level people describe to each
 other — the one whose whole point is a single absurd adjacency. Those still
 have to be authored, and Vault I is the only place any exist.
 
-**Nothing from the design doc's item list exists.** No Plumb, no Anchor, no
-Lens, no enemies, no bosses. The verb is finished; the ladder Zelda's half was
-supposed to contribute is not started — and it is exactly what would break the
-par ceiling.
+**The rest of the design doc's item list still doesn't exist.** No Plumb, no
+Anchor, no Lens, no enemies, no bosses. Plates are the first rung of the ladder
+Zelda's half was supposed to contribute, and they did exactly what that ladder
+was predicted to do — so the remaining rungs are worth building for the same
+reason.
 
 **And AR is not in here.** Rotating the cube by walking around a real table is
 a WebXR session and a different input path, and it remains the single next

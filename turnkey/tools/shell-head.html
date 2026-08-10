@@ -251,6 +251,23 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 .tick.armed{transform:scaleX(1.55) scaleY(1.7);}
 .tick.no{background:var(--edge-2);}
 
+/* A MODE YOU CANNOT SEE YOU ARE IN IS A MODE YOU FILE AS A BUG.
+   The board looks different after a plate fires, but "different" is not the
+   same as "named" — and on cube two hundred, coming back to it after a day,
+   the player needs to know which world this is without re-deriving it. It is
+   deliberately quiet and deliberately not shaped like the turn counter: this
+   is a condition being lived in, not a score. */
+#worldTag{
+  position:absolute;left:50%;top:calc(var(--sa-top) + 8px + var(--h-read) + 10px);
+  transform:translateX(-50%) scale(.9);
+  padding:5px 14px;border-radius:var(--r-pill);
+  font-size:var(--t-micro);font-weight:900;letter-spacing:.22em;
+  opacity:0;transition:opacity .3s var(--ease),transform .3s var(--seat);
+  pointer-events:none;white-space:nowrap;
+}
+#worldTag.on{opacity:1;transform:translateX(-50%) scale(1);animation:wtBreath 3s ease-in-out infinite;}
+@keyframes wtBreath{0%,100%{opacity:.72}50%{opacity:1}}
+
 #toast{
   position:absolute;left:50%;bottom:calc(var(--sa-bottom) + 120px);
   transform:translate(-50%,12px);
@@ -349,6 +366,7 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
     <div class="pill" id="keyPill" style="display:none">◈ <span class="n" id="keyN">0</span></div>
     <div class="pill" id="turnPill">TURNS <span class="n" id="turnN">0</span><span class="n" id="parN" style="color:var(--dim-2)">/0</span></div>
   </div>
+  <div id="worldTag"></div>
   <div id="dpad">
     <div class="tick" id="tkL"></div><div class="tick" id="tkD"></div>
     <div class="tick" id="tkU"></div><div class="tick" id="tkR"></div>
@@ -392,8 +410,26 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
     <div class="mrow"><div class="mkey">◫</div><div class="mtxt"><b>Depth is discarded.</b> Everything in a column collapses to the nearest solid thing. Two decks far apart in the cube are <span class="c">neighbours on screen</span>, and you may walk between them.</div></div>
     <div class="mrow"><div class="mkey">▦</div><div class="mtxt"><b>Brightness is distance.</b> A pale tile is near, a dim one is far. The hairlines between them mark a drop you are allowed to ignore.</div></div>
     <div class="mrow"><div class="mkey">◈</div><div class="mtxt">Keys and doors can be <b>buried</b> behind bedrock. If something is missing, it is behind you in an axis you are not looking down. Turn.</div></div>
+    <div class="mrow"><div class="mkey" style="color:#a86bff">⊘</div><div class="mtxt"><b>Plates rewrite the cube.</b> Step on one and every deck becomes stone and every wall becomes floor — the same cube, a different place. Step on it again to put it back. They appear from cube 20.</div></div>
+    <div class="mrow"><div class="mkey" style="color:#a86bff">⟲</div><div class="mtxt">A plate is cut clean through the rock, so you can see it from <b>every face</b> — and it always gives you footing, which means <span class="c">every turn is legal while you stand on one</span>. Plates are pivots.</div></div>
   </div>
   <button class="btn" id="btnManualBack" style="margin-top:20px">GOT IT</button>
+</div>
+
+<!-- ============ THE PLATE, TAUGHT ONCE ============
+     Shown the first time a cube carries one, and never again. A mechanic
+     this large should not arrive as a toast, and it should not arrive as a
+     manual page either — it arrives when the thing is on screen. -->
+<div class="layer hide" id="scPlate">
+  <div class="eyebrow" style="text-align:center;color:#a86bff">A NEW THING IN THE ROCK</div>
+  <h2 style="margin-top:8px">PLATES</h2>
+  <p class="sub">Everything you know how to do is about to be worth less.</p>
+  <div class="manual">
+    <div class="mrow"><div class="mkey" style="color:#a86bff">⊘</div><div class="mtxt"><b>Step on a plate and the cube turns inside out.</b> Every deck becomes stone. Every wall you have been walking around becomes floor. The geometry does not move — only what you may stand on.</div></div>
+    <div class="mrow"><div class="mkey" style="color:#a86bff">⟲</div><div class="mtxt">Step on it again and it goes back. <b>The plate is a door between two versions of the same cube</b>, and the way out is usually only reachable from one of them.</div></div>
+    <div class="mrow"><div class="mkey" style="color:#a86bff">◎</div><div class="mtxt">A plate is cut clean through the rock, so it is visible from every face however deep it sits — and it always gives footing. <span class="c">While you stand on a plate, every turn is legal.</span></div></div>
+  </div>
+  <button class="btn primary" id="btnPlateGo" style="margin-top:20px">STEP ON IT</button>
 </div>
 
 <!-- ============ PAUSE ============ -->

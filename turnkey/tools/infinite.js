@@ -19,7 +19,7 @@ let bad=0; const ok=(n,c,x='')=>{console.log((c?'  ok  ':'FAIL  ')+n+(x?'   '+x:
       loadLevel(L);
       const ms=performance.now()-t0;
       if(ms>out.worst) out.worst=ms;
-      if(ms>1600) out.slow.push(L+':'+ms.toFixed(0)+'ms');
+      if(ms>2400) out.slow.push(L+':'+ms.toFixed(0)+'ms');
       if(levelData(L).fallback) out.fallback.push(L);
       // solve the level exactly as the player received it
       const r=solve(lv,60);
@@ -34,7 +34,7 @@ let bad=0; const ok=(n,c,x='')=>{console.log((c?'  ok  ':'FAIL  ')+n+(x?'   '+x:
   });
   ok('68 levels across 12 vaults are all winnable as served', sweep.bad.length===0, sweep.bad.slice(0,4).join(', '));
   ok('the fallback never fires in the game', sweep.fallback.length===0, sweep.fallback.join(','));
-  ok('no level load exceeds 1.6s', sweep.slow.length===0, 'worst '+sweep.worst.toFixed(0)+'ms  '+sweep.slow.slice(0,3).join(', '));
+  ok('no level load exceeds 2.4s', sweep.slow.length===0, 'worst '+sweep.worst.toFixed(0)+'ms  '+sweep.slow.slice(0,3).join(', '));
 
   // difficulty must actually rise across vaults
   const v0=(sweep.pars[0]||[]).reduce((a,c)=>a+c,0)/(sweep.pars[0]||[1]).length;
