@@ -4,10 +4,16 @@
   "description": "Build, generation and verification for TURNKEY. Node only; the game itself has no dependencies.",
   "scripts": {
     "test": "node test.js",
+    "mint": "node mint-test.js",
     "gen": "node gen.js > levels.js",
     "build": "sh build.sh",
     "drive": "node drive.js",
-    "probe": "node probe.js"
+    "probe": "node probe.js",
+    "infinite": "node infinite.js",
+    "gallery": "node gallery.js",
+    "all": "node test.js && node mint-test.js && sh build.sh && node infinite.js && node probe.js && node drive.js"
   },
-  "devDependencies": { "playwright": "*" }
+  "devDependencies": {
+    "playwright": "*"
+  }
 }

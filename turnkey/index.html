@@ -233,6 +233,12 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 .cube .marks i{width:6px;height:6px;border-radius:50%;background:var(--edge);}
 .cube .marks i.on{background:var(--jade);}
 
+/* the vault pager — the only chrome an endless shelf needs */
+  .vaultBar{display:flex;align-items:center;gap:10px;width:100%;max-width:440px;margin:0 auto 16px;}
+  .vaultId{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;
+           font-size:var(--t-fine);letter-spacing:.2em;font-weight:800;color:var(--dim);}
+  .vaultId i{width:15px;height:15px;border-radius:5px;box-shadow:inset 0 0 0 1px var(--edge);flex:0 0 auto;}
+
 /* ---------- CARDS ---------- */
 .card{
   width:100%;max-width:360px;margin:0 auto;padding:26px 22px 20px;
@@ -311,7 +317,11 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 
 <!-- ============ LEVEL SELECT ============ -->
 <div class="layer hide" id="scCubes">
-  <div class="eyebrow" style="text-align:center;margin-bottom:14px">THE CUBES</div>
+  <div class="vaultBar">
+    <button class="pill icon" id="vaultPrev" aria-label="Previous vault">‹</button>
+    <div class="vaultId"><i id="vaultSwatch"></i><span id="vaultName">VAULT I</span></div>
+    <button class="pill icon" id="vaultNext" aria-label="Next vault">›</button>
+  </div>
   <div class="grid" id="cubeGrid"></div>
   <button class="btn ghost" id="btnCubesBack">BACK</button>
 </div>
@@ -346,6 +356,7 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 <!-- ============ CLEARED ============ -->
 <div class="layer hide" id="scWin">
   <div class="eyebrow" style="text-align:center">CUBE CLEARED</div>
+  <div class="eyebrow" id="winVault" style="text-align:center;color:var(--jade);margin-top:6px"></div>
   <div class="verdict" id="winVerdict">AT PAR</div>
   <div class="card" style="margin-top:16px">
     <div class="stat"><span class="k">Turns used</span><span class="v" id="winTurns">0</span></div>
@@ -545,12 +556,19 @@ function solve(lv, budget, from){
   }
   relax(0, start);
 
-  /* Walk the parent chain back from the goal so a hint can name the very
-     next thing to do — which is the only part of a solution worth showing. */
-  function firstAction(endKey){
+  /* Walk the parent chain back from the goal. A hint needs only the very
+     first action — the rest is the player's to find — but the LENGTH of the
+     chain is the second difficulty axis the vault curve scales on, so it is
+     measured here where the answer is already in hand. */
+  function chainOf(endKey){
     var chain = [], k = endKey, guard = 0;
-    while(parent[k] && guard++ < 4000){ chain.push(parent[k][1]); k = parent[k][0]; }
-    return chain.length ? chain[chain.length-1] : null;
+    while(parent[k] && guard++ < 8000){ chain.push(parent[k][1]); k = parent[k][0]; }
+    return chain.reverse();
+  }
+  function report(cost, endKey){
+    var ch = chainOf(endKey), steps = 0;
+    for(var i = 0; i < ch.length; i++) if(ch[i].kind === 'step') steps++;
+    return {ok:true, turns:cost, steps:steps, first: ch.length ? ch[0] : null};
   }
 
   for(var cost = 0; cost <= budget; cost++){
@@ -559,7 +577,7 @@ function solve(lv, budget, from){
     for(var qi = 0; qi < q.length; qi++){       /* q grows while we walk it — intended, free steps land here */
       var s = q[qi];
       if(seen[skey(s)] < cost) continue;
-      if(samePos(s.pos, lv.goal)) return {ok:true, turns:cost, first:firstAction(skey(s))};
+      if(samePos(s.pos, lv.goal)) return report(cost, skey(s));
       var m = ORIS[s.ori], surf = P(s.ori), v = viewOf(n, m, s.pos);
 
       /* steps — free */
@@ -703,8 +721,174 @@ function assess(lv, wantTurns){
 }
 
 
+
+/* ============================================================
+   THE DIFFICULTY CONTRACT — ten cubes to a vault, forever.
+
+   A vault is a block of ten levels and owns one difficulty step and one
+   look. Inside a vault the demand still creeps, so the tenth cube of a
+   vault is harder than the first and easier than the next vault's first —
+   the curve is a staircase with a slope on every tread, not a cliff every
+   ten.
+
+   Everything here is CAPPED. Size stops at 7 because an 8-cube costs four
+   times the search and reads worse on a phone; turns stop at 9 because the
+   generator's acceptance falls off a cliff past that and a level nobody can
+   hold in their head is not harder, it is just longer. Past the caps the
+   difficulty keeps arriving through lock count and density, which cost
+   nothing to search.
+   ============================================================ */
+var CAP_LOCKS = 3;
+
+/* WHAT THE SHAPE CAN ACTUALLY DELIVER.
+
+   The first curve here asked for nine-turn cubes at vault ten and got
+   threes, every time, at every budget. That is not a tuning miss — it is
+   the mechanic's ceiling, and it is worth writing down.
+
+   Turn-par is bounded by the diameter of the cube's orientation graph. Any
+   orientation is a handful of quarter-turns from any other, so once a deck
+   set is well connected you can get anywhere in three or four turns no
+   matter how big the cube or how many locks are on it. Measured over
+   thousands of candidates:
+
+       n=5  par tops out at 2        locks barely move par at all:
+       n=6  par tops out at 3          n=7, 0 locks -> max 4
+       n=7  par tops out at 4          n=7, 3 locks -> max 4
+       n=7 at density .60 -> 5       density is the real lever, not locks
+
+   So difficulty scales on the three axes that DO respond, and turn-par is
+   allowed to be the small elegant number it is rather than being flogged
+   toward a figure it cannot reach:
+
+     SIZE      more cube to read
+     DENSITY   more bedrock, so fewer decks are exposed per face and routes
+               are tighter — the one thing that genuinely forces more turns
+     LOCKS     sequencing. Locks do not raise the turn count; they raise
+               how much has to be true at once for a route to work.
+     LENGTH    the minimum route, in steps. A four-turn solution that runs
+               forty steps is a different animal to one that runs eight, and
+               it is the axis with no ceiling in sight.                     */
+function specFor(level){
+  var band = Math.floor((level-1)/10), w = (level-1) % 10;
+  var b = Math.min(band, 11);                  /* the shape curve saturates; the length curve does not */
+  var n = b < 1 ? 5 : b < 3 ? 6 : 7;
+  var parLo = (n === 5 ? 1 : n === 6 ? 2 : 3) + (b >= 7 ? 1 : 0);
+  return {
+    n: n,
+    turns: parLo,
+    locks: Math.min(CAP_LOCKS, Math.floor(b/2) + (w >= 6 ? 1 : 0)),
+    density: Math.min(0.62, 0.42 + 0.021*b + 0.004*w),
+    /* Leg length is deliberately NOT scaled with the vault. It was, and it
+       backfired: a longer carve lays down more deck, more deck means more
+       shortcuts, and par fell from 4 to 1 at vault 21 while route length
+       barely moved. The two axes fight, and turn-par is the one worth
+       keeping. */
+    legMin: 2 + Math.floor(n/3), legMax: 4 + Math.floor(n/2),
+    parLo: parLo, parHi: parLo + 2,
+    minSteps: 5 + band*2 + w,                  /* band, not b — this one keeps climbing */
+    band: band, level: level
+  };
+}
+
+/* The floor under everything: a cube that cannot fail to be solvable,
+   because it is a straight line of decks in open space and nothing else.
+   It is deliberately boring. It exists so that the promise "every level
+   the player is handed has been proved winnable" has no exceptions —
+   not "almost none", none. The tests assert it never actually fires. */
+function fallbackLevel(level){
+  var n = 5, vox = [], i;
+  for(i = 0; i < n*n*n; i++) vox[i] = '.';
+  for(i = 0; i < n; i++) vox[vidx(n, i, 2, 2)] = '+';
+  return {n:n, vox:vox, start:[0,2,2], goal:[n-1,2,2], keys:[], doors:[],
+          par:0, level:level, band:Math.floor((level-1)/10), fallback:true};
+}
+
+function hashSeed(level){
+  var h = (level * 2654435761) ^ 0x9e3779b9;
+  h = Math.imul(h ^ (h >>> 15), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+/* How well a candidate answers the demand. Being too EASY is a much smaller
+   sin than being too hard or malformed, because a cube below par still
+   plays — it just under-delivers — whereas one the search could not finish
+   inside the budget may be a slog nobody can see the end of. */
+function score(turns, steps, fill, spec){
+  if(fill < 0.24 || fill > 0.80) return 50;
+  if(turns > spec.parHi)  return 200;                       /* overshoot: usable, not wanted */
+  if(turns < spec.parLo)  return 100 + turns*10 + Math.min(60, steps);
+  /* in band. Prefer more turns, then a longer route — and treat the vault's
+     step demand as a bonus rather than a gate, so a short but otherwise
+     perfect cube still beats nothing. */
+  return 1000 + turns*20 + Math.min(120, steps) + (steps >= spec.minSteps ? 200 : 0);
+}
+
+/* ---------- MINT — the only way a level ever reaches a player ------------
+   Solvability is not filtered for, it is CONSTRUCTED: the generator carves
+   a route by walking and turning, so the route that built the cube is
+   always in it. The solver's job is the other half — proving that route
+   survived the decoy pass, that the opening cell is not buried, that the
+   keys really do open the doors in some order, and reporting the true
+   minimum, which is usually shorter than the carve and is what par becomes.
+
+   Then the gate: whatever wins, the level is solved one final time before
+   it is handed over, and anything that fails falls back. So there is no
+   path through this function that returns an unwinnable cube — not on a
+   bad seed, not when the budget expires, not at level nine million.
+
+   The budget bounds the search for QUALITY only. Running out means the
+   player gets an easier cube than the vault asked for, never a broken one.
+   ------------------------------------------------------------------- */
+function mint(level, budgetMs, now){
+  now = now || function(){ return Date.now(); };
+  var spec = specFor(level), seed = hashSeed(level), t0 = now();
+  var best = null, bestScore = -1, tries = 0;
+
+  for(var i = 0; i < 3000; i++){
+    if((i & 3) === 0 && best && now() - t0 > budgetMs) break;
+    tries++;
+    var lv = generate(seed + i * 7919, spec);
+    if(!lv) continue;
+    if(lv.keys.length !== spec.locks) continue;
+    widen(mulberry32(seed + i * 104729), lv, Math.max(2, spec.n + 2 - spec.turns));
+
+    var s0 = project(lv.n, lv.vox, ORI_ID);
+    if(!surfaceAt(lv.n, s0, ORI_ID, lv.start)) continue;      /* opened buried */
+    if(doorIndexAt(lv, lv.start) >= 0 || doorIndexAt(lv, lv.goal) >= 0) continue;
+
+    /* One bounded solve does all the work: past parHi it stops looking, so
+       a cube that is too hard costs no more than one that is just right. */
+    var r = solve(lv, spec.parHi);
+    if(!r.ok) continue;
+
+    var solid = 0;
+    for(var k = 0; k < lv.vox.length; k++) if(lv.vox[k] !== '.') solid++;
+    var sc = score(r.turns, r.steps, solid / lv.vox.length, spec);
+    if(sc > bestScore){
+      bestScore = sc; best = lv; best.par = r.turns; best.steps = r.steps;
+    }
+    /* Stop only on a cube that maxes the band on BOTH axes. Anything less
+       and the remaining budget is better spent looking, because the first
+       in-band candidate is usually the weakest one that qualifies. */
+    if(r.turns >= spec.parHi && r.steps >= spec.minSteps) break;
+  }
+
+  if(!best) best = fallbackLevel(level);
+  var gate = solve(best, 60);                                  /* THE GATE */
+  if(!gate.ok) { best = fallbackLevel(level); gate = solve(best, 60); }
+  best.par = gate.turns; best.steps = gate.steps;
+  best.level = level; best.band = spec.band; best.tries = tries;
+  best.ms = now() - t0;
+  return best;
+}
+
+/* Node-only. Everything above this line is what the browser gets, so this
+   MUST stay last: the build truncates the file here. */
+
 /* ---------- THE CUBES — every one solver-verified at the par it claims ---------- */
-var LEVELS = [
+var BAKED = [
 {n:5,name:"FOOTING",par:1,vox:"......#..#..+..+##+#.#..#...#.##..##.#...#..##+...#..#.#+..#.##.#.+.#.#+..###...#..##.#.###+...#........#....#+..#.#+.#+...+.",start:[1,1,4],goal:[4,4,3],keys:[],doors:[]},
 {n:5,name:"THE TURN",par:1,vox:".#.#.#..#.###.+#.#++#+#....##.#+.+##........###..+#........#.##...........+.###+...##.#.+#..#..+#...#.#.#.#.#.#.###.#.+..#.#.",start:[3,1,1],goal:[3,3,2],keys:[],doors:[]},
 {n:5,name:"BURIED",par:2,vox:"#####..##.##.##.#..###.##.....####.##...#....++##.#.##..+###..#.#..###+...+##+.+##.+#..##.+#....##.+.#..#..+.+#..#.+......#.#",start:[1,1,4],goal:[2,3,0],keys:[],doors:[]},
@@ -713,25 +897,153 @@ var LEVELS = [
 {n:6,name:"TUMBLER",par:3,vox:".#.##.##.##..####...##.#.#....#.##.........##.##...#.#..#.####.....++..+.....##+.##.#.##.#..##.##....##.++#++#..#####..#.....#.##..+#....####....+.....+...#.+..#..+.....+..+#..#.#..###.#.#.#....####+.###.##.#.+.+....",start:[3,2,5],goal:[1,4,1],keys:[],doors:[]},
 {n:6,name:"WARDEN",par:3,vox:"###...##.....##.+.##..##....#.#.##.###..#+###..##.#.#+.#...##+.#....#..##.###...#..#.#..#.+......##..#.+.#####.##.#..#.#....####.#..#..##.+#..#.+#....#.###...##...#..+.##..+..##.#+...#+.....##..#.++++#..+.##.++####.+",start:[1,1,4],goal:[4,5,4],keys:[[0,2,3]],doors:[[4,4,3]]},
 {n:6,name:"OUBLIETTE",par:3,vox:"##+.......#.+#..#.+.....#.##+..##....#..+#+#.###+##.##++..+.####..###.##.#.####..#+...#..###+.#.##.#...#..#...#..#.+...#####.####+..##...###.+.....###........#####...#+.++#.+...+####.#.#...#...##.#.#.#.+.....+....#..",start:[3,3,5],goal:[0,1,3],keys:[[1,4,4]],doors:[[4,1,3]]},
-{n:6,name:"THE CANT",par:4,vox:"+..+....+#.#+.....++.#.+.....#+....#++#..##...#...+.#...###....##..+....#++...###.#+.#..##...##..#####.##......#.##...+..#.##.#..##.#.##.#.#####.####...##.+###.+.#..#..##.....##..+#+..+.##...+#####...##+##.#..+####..",start:[1,1,5],goal:[4,5,3],keys:[[1,0,3]],doors:[[1,1,0]]},
-{n:7,name:"SIX WAYS",par:4,vox:"......+##..+.+...#+..#.#.......##..#+....#...#..#..#.#.+....#+.#...+..###.####..#.#####..#..##.#..##...###..#.##.#.#.++.###.#..#####..+###..##.....###.##..#.###.#.####..##..##..#....#.#..#...######...##..##..#..#.#.#....###.###....+...#...##.#+...+..+..#...#..##++.+..+.###.+....#++#...#..+.##.+.##.#..#..#..#...#...####..##.##...+##.#.+..#..#",start:[1,5,5],goal:[4,1,2],keys:[[0,6,6]],doors:[[6,2,2]]},
-{n:7,name:"DEEP CUT",par:4,vox:"##.+....++..+..+##...###...##..#.#.####.####..#..#.+##...#..#.++#.#.#+..##.##.####.##.+.##..+...##.#..##..#...#.#.#####.#.####.##......++#####..+.##.###.#.#.....#..##.+.##..#..#.####.....###.+####..#.###..##..#.+##.#.+..#........#.#..##.#+#.##.#.....##+#.#....##.#######...#..#..##....##.+####..##.#..+#..#..#....#.##.##.....##..++##......##..",start:[4,2,6],goal:[6,1,1],keys:[[1,1,6],[0,6,1]],doors:[[0,4,3],[2,0,1]]},
-{n:7,name:"THE VAULT",par:5,vox:".###..##...#.#.#.#.+..#..#..##.#++.####..##.#####.#..#+.....+...#.##...#......##.#.#++###......#.#.#####+.##.#++...###+.####.#....#..+##.###.+.#.#.#.###..###.#.######....#.#..#...+...#..#..+#.#.##+.+###.#.####+..###..#...#+.#+..#+.#+..###...##.#.++#.#..#.##..+.##.##+.#.####..+...+....##.+..#..#....#......++...####.###...###........###..###.#",start:[1,2,6],goal:[4,1,1],keys:[[0,2,5],[2,4,0]],doors:[[1,4,4],[5,4,3]]},
-{n:7,name:"GIMBAL",par:5,vox:"##...+...##....###+.+....#+#.###.#+#.+.##+..++#....###..#.##..+.####+#...#####..##.+##.+...+.##..#..#.++.##..+..##.#.##..#+#....#...#..#..#+#++.+.##.#..#.#.+.#.....#.#..#....#.+...##....+.#.#.++###.##..###.#..###.#.#...##..#.+##.#.+.#..#..+.#.#...#.##......#.#..#...+#..##.....+##.+##.....#..#####...#....####.##.#...#.######.#......#####.....",start:[1,5,5],goal:[4,2,0],keys:[[1,4,4],[2,2,6]],doors:[[1,2,6],[3,1,5]]},
-{n:7,name:"TURNKEY",par:8,vox:".#..##........##..#####....#....#..#.....#+.#+.#.#.####...#.##..###.##....#.#...##...#..#....#..#.##.#.###....#.+....##...+##..+.###.+..####+.+.####.#.###..###.##.##..#####.###.#...#.+.+#...++.##.###++.#..###.##+#..#.##.#.#.##.#..#...#..####..+++.......##+#....#...+.+#.##....#.+....+.....#.....+#.#.+++.....+.#+#......#.#..#.##.##.#..+...#.++",start:[3,3,5],goal:[3,5,1],keys:[[1,3,5],[1,6,1]],doors:[[6,6,6],[3,5,5]]}
+{n:6,name:"THE CANT",par:3,vox:"##+.#.#....+...+###..+.#+..#....#....##+.+...#.+#.##.+....##.#...#.#.###...+##+.+###.#..#...#.##.#.......#####..#.##....#.#.##..#.#....+#++..+.....#...#####+.#.##.##.#..+.++.......#..#.#..#.#.##.###..#..#.....++..+..",start:[1,4,4],goal:[5,0,1],keys:[[0,5,5]],doors:[[3,1,0]]},
+{n:7,name:"SIX WAYS",par:4,vox:"......+##..+.+...#+..#.#.......##..#+....#...#..#..#.#.+....#+.#...+..###.####..#.#####..#..##.#..##...###..#.##.#.#.++.###.#..#####..+###..##.....###.##..#.###.#.####..##..##..#....#.#..#...######...##..##..#..#.#.#....###.###....+...#...##.#+...+..+..#...#..##++.+..+.###.+....#++#...#..+.##.+.##.#..#..#..#...#...####..##.##...+##.#.+..#..#",start:[1,5,5],goal:[4,1,2],keys:[[0,6,6]],doors:[[6,2,2]]}
 ];
+
+/* ============================================================
+   VAULTS — ten cubes to a block, and a block owns a look.
+
+   COLOUR THAT MEANS SOMETHING NEVER CHANGES. You are always rust, the way
+   out is always jade, keys are always gold — a player who learns those on
+   cube three must still be able to read cube nine hundred at a glance. What
+   changes with the vault is the MATERIAL: what the deck is made of, what
+   the bedrock is made of, and what colour the nothing behind it is.
+
+   Eight are authored. Past those the palette keeps going by rotating the
+   authored hues, so vault ninety has a look nobody chose but nobody has
+   seen either — which is the honest deal for a game with no last level.
+   ============================================================ */
+var VAULTS = [
+  {name:'THE SHALLOWS',  dF:[96,80,62],  dN:[246,238,222], rF:[15,14,21], rN:[56,61,82],  vd:[10,9,16],  st:[190,200,235], at:[90,110,190]},
+  {name:'THE IRONWORKS', dF:[92,74,52],  dN:[240,222,196], rF:[22,14,11], rN:[86,52,38],  vd:[14,9,7],   st:[255,200,150], at:[200,110,50]},
+  {name:'GLASSWORKS',    dF:[58,92,96],  dN:[220,248,250], rF:[8,18,22],  rN:[36,72,84],  vd:[5,12,16],  st:[160,235,245], at:[60,180,200]},
+  {name:'THE ORCHARD',   dF:[80,92,50],  dN:[232,246,200], rF:[12,18,12], rN:[48,74,46],  vd:[8,13,9],   st:[190,240,180], at:[90,180,90]},
+  {name:'CINDERS',       dF:[104,66,48], dN:[250,226,206], rF:[20,10,10], rN:[74,40,36],  vd:[13,7,7],   st:[255,170,130], at:[220,90,50]},
+  {name:'THE SALT',      dF:[82,92,104], dN:[240,248,255], rF:[12,15,20], rN:[62,74,92],  vd:[8,10,14],  st:[220,235,255], at:[120,160,220]},
+  {name:'THE VEIN',      dF:[96,78,44],  dN:[250,232,182], rF:[16,10,22], rN:[62,44,86],  vd:[11,7,16],  st:[210,180,255], at:[150,90,220]},
+  {name:'THE DEEP',      dF:[72,72,78],  dN:[236,236,242], rF:[8,8,10],   rN:[42,44,52],  vd:[5,5,7],    st:[180,185,200], at:[80,90,120]}
+];
+var VAULT_A = ['IRON','SALT','GLASS','ASH','BONE','SLATE','AMBER','TIDE','EMBER','FROST','COPPER','SHALE'];
+var VAULT_B = ['REACH','WELL','SPINE','GATE','HOLLOW','WORKS','MARCH','VAULT','TERRACE','CANT'];
+var NAME_A  = ['THE','LOW','HIGH','OLD','DEEP','LONG','BLIND','CLOSE','FAR','LOST'];
+var NAME_B  = ['CANT','HINGE','LATCH','WARD','DROP','SPINE','SEAM','FOLD','TURN','GATE','WELL','STEP','CROSS','MOUTH','KEEP'];
+
+/* The standard hue-rotation matrix, so a rotated palette keeps its
+   luminance relationships and therefore keeps the deck/bedrock bands from
+   colliding — the one property the whole board's legibility rests on. */
+function hueRot(c, deg){
+  var a = deg*Math.PI/180, co = Math.cos(a), si = Math.sin(a);
+  var r = c[0], g = c[1], b = c[2];
+  return [
+    Math.max(0, Math.min(255, r*(0.213+co*0.787-si*0.213) + g*(0.715-co*0.715-si*0.715) + b*(0.072-co*0.072+si*0.928))),
+    Math.max(0, Math.min(255, r*(0.213-co*0.213+si*0.143) + g*(0.715+co*0.285+si*0.140) + b*(0.072-co*0.072-si*0.283))),
+    Math.max(0, Math.min(255, r*(0.213-co*0.213-si*0.787) + g*(0.715-co*0.715+si*0.715) + b*(0.072+co*0.928+si*0.072)))
+  ];
+}
+function vaultOf(level){ return Math.floor((level-1)/10); }
+function lumOf(c){ return 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2]; }
+
+/* THE BAND GUARANTEE.
+
+   Everything the player reads off this board rests on one property: the
+   DARKEST deck is brighter than the BRIGHTEST bedrock, so a tile's material
+   can never be mistaken however far away it is. A hand-picked palette can
+   be checked by eye. A palette produced by rotating hues for vault ninety
+   cannot, and one of them did break — vault 22's darkest deck, under the
+   deepest cast shadow the renderer draws, came out below its brightest
+   bedrock and the two materials became confusable.
+
+   So the property is not trusted, it is ENFORCED. Every style, authored or
+   generated, has its bedrock ramp walked down until the gap clears the
+   worst shadow the renderer can put on a deck, with a margin. It costs the
+   authored palettes a shade of contrast they will not miss, and it means
+   there is no vault number at which the board stops being readable.       */
+var MAX_SHADOW = 0.40 * 0.45;                 /* peak per-tile alpha x peak gradient alpha */
+function enforceBands(st){
+  var need = lumOf(st.dF) * MAX_SHADOW * 1.3, guard = 0;
+  while(lumOf(st.dF) - lumOf(st.rN) < need && guard++ < 60){
+    st.rN = [st.rN[0]*0.94, st.rN[1]*0.94, st.rN[2]*0.94];
+    st.rF = [st.rF[0]*0.94, st.rF[1]*0.94, st.rF[2]*0.94];
+    need = lumOf(st.dF) * MAX_SHADOW * 1.3;
+  }
+  return st;
+}
+var styleCache = {};
+function vaultStyle(band){
+  if(styleCache[band]) return styleCache[band];
+  var base = VAULTS[band % VAULTS.length], lap = Math.floor(band / VAULTS.length), st;
+  if(!lap){
+    st = {name:base.name, dF:base.dF.slice(), dN:base.dN.slice(), rF:base.rF.slice(),
+          rN:base.rN.slice(), vd:base.vd.slice(), st:base.st.slice(), at:base.at.slice()};
+  } else {
+    var deg = lap * 37 % 360;
+    st = {name: VAULT_A[(band*7) % VAULT_A.length] + ' ' + VAULT_B[(band*5) % VAULT_B.length],
+          dF:hueRot(base.dF,deg), dN:hueRot(base.dN,deg), rF:hueRot(base.rF,deg),
+          rN:hueRot(base.rN,deg), vd:hueRot(base.vd,deg), st:hueRot(base.st,deg), at:hueRot(base.at,deg)};
+  }
+  return (styleCache[band] = enforceBands(st));
+}
+function vaultName(band){ return vaultStyle(band).name; }
+function levelName(level){
+  if(level <= BAKED.length) return BAKED[level-1].name;
+  /* hashSeed is unsigned 32-bit, and `>>` would coerce it back to a SIGNED
+     int32 — every hash above 2^31 then indexed negatively and named half the
+     cubes past level 40 "undef". Unsigned shift throughout. */
+  var h = hashSeed(level) >>> 0;
+  return NAME_A[h % NAME_A.length] + ' ' + NAME_B[(h >>> 5) % NAME_B.length];
+}
+
+/* ============================================================
+   THE SUPPLY — where a level comes from, and the promise attached to it
+
+   Vault I is authored: ten cubes, verified offline, carrying the teaching
+   beats (the first two show you a way out you cannot walk to, which is the
+   entire lesson and is not something a generator can be trusted to stage).
+
+   Everything from level eleven is cut on demand by mint(), and mint()
+   cannot return an unwinnable cube — solvability is constructed by the
+   carve and then proved by the solver before the level is handed over.
+   A level is minted from its NUMBER, so cube 4,127 is the same cube on
+   every phone on earth with no server involved.
+
+   The cost is real — a couple of hundred milliseconds — so the next level
+   is always cut in the background while the current one is being played,
+   and the player never waits for the common case.
+   ============================================================ */
+var MINT_BUDGET = 240, mintCache = {}, prebuildT = 0;
+function levelData(level){
+  if(level <= BAKED.length){
+    var s = BAKED[level-1];
+    return {n:s.n, vox:s.vox.split(''), start:s.start, goal:s.goal, keys:s.keys,
+            doors:s.doors, par:s.par, level:level, band:vaultOf(level), authored:true};
+  }
+  if(mintCache[level]) return mintCache[level];
+  var lv = mint(level, MINT_BUDGET);
+  mintCache[level] = lv;
+  var ks = Object.keys(mintCache);
+  if(ks.length > 24) delete mintCache[ks[0]];
+  return lv;
+}
+function prebuild(level){
+  clearTimeout(prebuildT);
+  if(level <= BAKED.length || mintCache[level]) return;
+  prebuildT = setTimeout(function(){
+    if(!mintCache[level]) mintCache[level] = mint(level, MINT_BUDGET * 2);
+  }, 900);
+}
 
 /* ============================================================
    PERSISTENCE — one key, and it is allowed to fail.
    A WebView with storage disabled should still play; it just forgets.
    ============================================================ */
-var store = {best:{}, reached:0, sound:1, haptic:1, depth:0, taught:0};
-try{ var raw = localStorage.getItem('turnkey-v1'); if(raw) store = Object.assign(store, JSON.parse(raw)); }catch(e){}
+var store = {best:{}, reached:1, sound:1, haptic:1, depth:0, taught:0};
+try{ var raw = localStorage.getItem('turnkey-v2'); if(raw) store = Object.assign(store, JSON.parse(raw)); }catch(e){}
 var saveT = 0;
 function save(){
   clearTimeout(saveT);
   saveT = setTimeout(function(){
-    try{ localStorage.setItem('turnkey-v1', JSON.stringify(store)); }catch(e){}
+    try{ localStorage.setItem('turnkey-v2', JSON.stringify(store)); }catch(e){}
   }, 220);
 }
 
@@ -788,7 +1100,7 @@ function buzz(ms){ if(store.haptic && navigator.vibrate) try{ navigator.vibrate(
 var cv = document.getElementById('stage'), ctx = cv.getContext('2d');
 var W = 0, H = 0, DPR = 1;
 var lv = null, N = 0, M = ORI_ID, pos = [0,0,0], kmask = 0, doors = 0, turns = 0;
-var surf = null, reach = null, faces = [], undoStack = [], lvIndex = 0;
+var surf = null, reach = null, faces = [], undoStack = [], levelNo = 1, curBand = 0, viewBand = 0;
 var walking = null, anim = null, drag = null, won = false, stuck = false;
 var probe = document.createElement('div');
 probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;'
@@ -806,7 +1118,7 @@ function fit(){
   cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  layout();
+  layout(); buildSky(); buildMotes(); shS = -1;
 }
 var S = 40, CX = 0, CY = 0;
 function layout(){
@@ -854,18 +1166,31 @@ function liveZoom(){
 /* ============================================================
    LEVEL LOAD
    ============================================================ */
-function loadLevel(i){
-  lvIndex = Math.max(0, Math.min(LEVELS.length-1, i));
-  var src = LEVELS[lvIndex];
-  lv = {n:src.n, vox:src.vox.split(''), start:src.start, goal:src.goal,
-        keys:src.keys, doors:src.doors, name:src.name, par:src.par};
+function loadLevel(level){
+  levelNo = Math.max(1, level|0);
+  var src = levelData(levelNo);
+  lv = {n:src.n, vox:src.vox.slice(), start:src.start, goal:src.goal,
+        keys:src.keys, doors:src.doors, par:src.par, name:levelName(levelNo)};
   N = lv.n;
   M = ORI_ID; pos = lv.start.slice(); kmask = 0; doors = 0; turns = 0;
   var k0 = keyIndexAt(lv, pos); if(k0 >= 0) kmask |= (1<<k0);
   undoStack = []; walking = null; anim = null; drag = null; won = false; stuck = false;
+  var band = vaultOf(levelNo);
+  if(band !== curBand || !skyCv){ curBand = band; setStyle(band); }
   buildFaces();
   layout(); settle();
-  if(lvIndex + 1 > store.reached){ store.reached = lvIndex + 1; save(); }
+  if(levelNo > store.reached){ store.reached = levelNo; save(); }
+  prebuild(levelNo + 1);            /* cut the next one while this one is played */
+}
+
+/* Jumping somewhere far from the cache costs a real mint, so say so rather
+   than dropping a frame and hoping. One paint, then the work. */
+function goLevel(level, thenShow){
+  if(level > BAKED.length && !mintCache[level]){
+    toast('cutting cube ' + level + '…');
+    show(null);
+    setTimeout(function(){ loadLevel(level); if(thenShow) thenShow(); }, 30);
+  } else { loadLevel(level); show(null); if(thenShow) thenShow(); }
 }
 
 /* Only faces with nothing next to them are ever drawn — the inside of the
@@ -943,20 +1268,140 @@ function popcnt(x){ var c = 0; while(x){ x &= x-1; c++; } return c; }
 
    So each material gets its own band and the bands do not overlap. The
    DARKEST deck is still brighter than the BRIGHTEST bedrock, and the two
-   ramps run in opposite temperatures — deck warm, bedrock cold — so the
-   distinction survives being read at a glance, in sunlight, by someone who
-   cannot tell two blues apart. Depth then modulates freely inside a band
-   without ever being able to change what a tile IS.                       */
-var DECK_FAR = [96,80,62],   DECK_NEAR = [246,238,222];
-var ROCK_FAR = [15,14,21],   ROCK_NEAR = [56,61,82];
+   ramps run in opposite temperatures. Depth then modulates freely inside a
+   band without ever being able to change what a tile IS. Every vault
+   repaints all four endpoints and this invariant is what they are chosen
+   against.                                                                */
+var ST = VAULTS[0];
+function rgbs(c){ return 'rgb(' + (c[0]|0) + ',' + (c[1]|0) + ',' + (c[2]|0) + ')'; }
 function mixc(a, b, t){
   return 'rgb(' + Math.round(a[0]+(b[0]-a[0])*t) + ',' + Math.round(a[1]+(b[1]-a[1])*t) + ',' + Math.round(a[2]+(b[2]-a[2])*t) + ')';
 }
 function tileFill(t, d, lightMul){
   var near = Math.max(0, Math.min(1, d / Math.max(1, N-1)));
   var lm = lightMul === undefined ? 1 : lightMul;
-  var a = t === '+' ? DECK_FAR : ROCK_FAR, b = t === '+' ? DECK_NEAR : ROCK_NEAR;
+  var a = t === '+' ? ST.dF : ST.rF, b = t === '+' ? ST.dN : ST.rN;
   return mixc([a[0]*lm, a[1]*lm, a[2]*lm], [b[0]*lm, b[1]*lm, b[2]*lm], near);
+}
+function setStyle(band){
+  ST = vaultStyle(band);
+  var r = document.documentElement.style;
+  r.setProperty('--void', rgbs(ST.vd));
+  r.setProperty('--void-2', rgbs([ST.vd[0]+8, ST.vd[1]+7, ST.vd[2]+10]));
+  r.setProperty('--void-3', rgbs([ST.vd[0]+17, ST.vd[1]+15, ST.vd[2]+22]));
+  buildSky();
+}
+
+/* ---------- THE SKY -------------------------------------------------------
+   The void columns are not decoration and they are not black by accident:
+   they are the one place you are looking THROUGH the cube, and they should
+   read as distance rather than as a hole in the picture. So there is a real
+   starfield behind everything, painted once per vault and parallaxed off the
+   view basis — turn the cube and the stars slide, which is the cheapest
+   possible way of saying "the thing that moved was the world".              */
+var skyCv = null, PAD = 26;
+function buildSky(){
+  if(!W || !H) return;
+  skyCv = document.createElement('canvas');
+  skyCv.width = Math.round((W + PAD*2) * DPR); skyCv.height = Math.round((H + PAD*2) * DPR);
+  var c = skyCv.getContext('2d');
+  c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  var rng = mulberry32(0x5EED ^ (curBand * 2654435761));
+  var g = c.createRadialGradient(W/2+PAD, H*0.42+PAD, 0, W/2+PAD, H*0.42+PAD, Math.max(W,H)*0.72);
+  g.addColorStop(0, 'rgba(' + (ST.at[0]|0) + ',' + (ST.at[1]|0) + ',' + (ST.at[2]|0) + ',0.13)');
+  g.addColorStop(1, 'rgba(' + (ST.at[0]|0) + ',' + (ST.at[1]|0) + ',' + (ST.at[2]|0) + ',0)');
+  c.fillStyle = g; c.fillRect(0, 0, W+PAD*2, H+PAD*2);
+  for(var i = 0; i < 190; i++){
+    var x = rng()*(W+PAD*2), y = rng()*(H+PAD*2);
+    var r = rng()*rng()*1.7 + 0.32, a = 0.12 + rng()*rng()*0.7;
+    c.globalAlpha = a;
+    c.fillStyle = rgbs(ST.st);
+    c.beginPath(); c.arc(x, y, r, 0, 6.284); c.fill();
+    if(r > 1.3){ c.globalAlpha = a*0.28; c.beginPath(); c.arc(x, y, r*3.2, 0, 6.284); c.fill(); }
+  }
+}
+
+/* ---------- GRAIN ---------------------------------------------------------
+   One 64px noise tile, overlaid on the tiles only. Flat fills read as
+   plastic; the same fills with a whisper of grain read as stone, and it
+   costs one extra rect per tile.                                           */
+var grainPat = null;
+function buildGrain(){
+  var c = document.createElement('canvas'); c.width = c.height = 64;
+  var g = c.getContext('2d'), id = g.createImageData(64, 64), rng = mulberry32(11);
+  for(var i = 0; i < 64*64; i++){
+    var v = 128 + (rng()-0.5)*78;
+    id.data[i*4] = id.data[i*4+1] = id.data[i*4+2] = v; id.data[i*4+3] = 255;
+  }
+  g.putImageData(id, 0, 0);
+  grainPat = ctx.createPattern(c, 'repeat');
+}
+
+/* ---------- THE DROPS -----------------------------------------------------
+   Where two neighbouring columns sit at different depths, the nearer one
+   casts onto the farther one. This is the single most useful thing added to
+   the resting board: it is honest (the light is at the camera, so that
+   shadow is real), it turns a flat grid into a relief you can read at a
+   glance, and it puts a visible price on exactly the adjacencies that are
+   lying to you about distance.                                              */
+var shGrad = null, shS = -1;
+function buildDrops(){
+  if(shS === S) return;
+  shS = S; shGrad = [];
+  var reach = S*0.42, defs = [[0,0,reach,0],[S,0,S-reach,0],[0,0,0,reach],[0,S,0,S-reach]];
+  for(var i = 0; i < 4; i++){
+    var d = defs[i], g = ctx.createLinearGradient(d[0], d[1], d[2], d[3]);
+    /* Reaches 42% of the tile and no further, so the CENTRE of every tile
+       always shows its true material undarkened. That is not a nicety: the
+       whole board is read off "is this brighter than bedrock can be", and a
+       shadow deep enough to push a deck under that line would be the
+       renderer lying about the rules. */
+    g.addColorStop(0, 'rgba(0,0,0,0.45)'); g.addColorStop(0.55, 'rgba(0,0,0,0.13)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    shGrad.push(g);
+  }
+}
+
+/* ---------- DUST + IMPACT -------------------------------------------------
+   Forty motes so the void is not a still image, and one white flash on the
+   cage when a turn lands so the detent you can hear has something to look
+   at. Both are pure feel and both are nearly free.                          */
+var motes = [], impact = 0;
+function buildMotes(){
+  motes = [];
+  var rng = mulberry32(4242);
+  for(var i = 0; i < 40; i++)
+    motes.push({x:rng()*W, y:rng()*H, r:rng()*1.5+0.4, a:0.05+rng()*0.16,
+                vx:(rng()-0.5)*5, vy:-2 - rng()*7});
+}
+function stepMotes(dt){
+  var k = dt/1000;
+  for(var i = 0; i < motes.length; i++){
+    var m = motes[i];
+    m.x += m.vx*k; m.y += m.vy*k;
+    if(m.y < -8){ m.y = H + 6; m.x = Math.random()*W; }
+    if(m.x < -8) m.x = W + 6; else if(m.x > W + 8) m.x = -6;
+  }
+  if(impact > 0) impact = Math.max(0, impact - dt/340);
+}
+function drawMotes(){
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = rgbs(ST.st);
+  for(var i = 0; i < motes.length; i++){
+    var m = motes[i];
+    ctx.globalAlpha = m.a;
+    ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, 6.284); ctx.fill();
+  }
+  ctx.restore();
+}
+/* an additive halo, so the three things that mean something glow rather
+   than merely being coloured differently */
+function halo(x, y, r, col, a){
+  var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, 'rgba(' + col + ',' + a + ')');
+  g.addColorStop(0.5, 'rgba(' + col + ',' + (a*0.32).toFixed(3) + ')');
+  g.addColorStop(1, 'rgba(' + col + ',0)');
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = g; ctx.fillRect(x-r, y-r, r*2, r*2); ctx.restore();
 }
 
 /* A FIXED LIGHT, NOT A FACING TERM.
@@ -1011,8 +1456,8 @@ function drawCage(m, z, alpha, pv){
              CY - (m.U[0]*wx + m.U[1]*wy + m.U[2]*wz)*S*z*k]);
   }
   ctx.save();
-  ctx.strokeStyle = 'rgba(233,225,209,' + alpha + ')';
-  ctx.lineWidth = 1.25; ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(' + (ST.dN[0]|0) + ',' + (ST.dN[1]|0) + ',' + (ST.dN[2]|0) + ',' + (alpha + impact*0.5) + ')';
+  ctx.lineWidth = 1.25 + impact*1.6; ctx.lineJoin = 'round';
   ctx.beginPath();
   for(var e = 0; e < 12; e++){
     ctx.moveTo(pt[CAGE_E[e][0]][0], pt[CAGE_E[e][0]][1]);
@@ -1028,13 +1473,28 @@ function tileRect(u, v, z){
 function draw(){
   ctx.clearRect(0, 0, W, H);
   if(!lv) return;
+  /* the sky first, parallaxed off the view basis: turn the cube and the
+     stars slide, which is the cheapest way to say the WORLD moved */
+  if(skyCv){
+    var m0 = liveBasis();
+    ctx.drawImage(skyCv, -PAD - m0.F[0]*11 - m0.R[0]*4, -PAD + m0.U[1]*8 - m0.F[1]*9, W + PAD*2, H + PAD*2);
+  }
   var a = liveAngle();
   if(a && Math.abs(a.ang) > 1e-4) draw3d();
   else drawFlat();
+  drawMotes();
+  if(impact > 0){
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    var r = Math.max(W, H)*0.62, g = ctx.createRadialGradient(CX, CY, N*S*0.30, CX, CY, r);
+    g.addColorStop(0, 'rgba(' + (ST.dN[0]|0) + ',' + (ST.dN[1]|0) + ',' + (ST.dN[2]|0) + ',' + (impact*0.10).toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+  }
 }
 
 function drawFlat(){
   var u, v, s, r, i;
+  buildDrops();
   drawCage(M, 1, 0.16, 0);
   /* 1. the tiles */
   for(u = 0; u < N; u++) for(v = 0; v < N; v++){
@@ -1047,21 +1507,48 @@ function drawFlat(){
       ctx.fillRect(r[0] + S*0.10, r[1] + S*0.10, S*0.80, S*0.80);
     }
   }
-  /* 2. the drops. A hairline everywhere two neighbouring columns sit at
-        different depths — the game admitting, in the open, exactly which
-        of its adjacencies are lies about distance. */
+  /* 1b. grain, on the tiles only, so stone reads as stone */
+  if(grainPat){
+    ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = 0.13;
+    ctx.fillStyle = grainPat;
+    for(u = 0; u < N; u++) for(v = 0; v < N; v++){
+      if(!surf[u*N + v]) continue;
+      r = tileRect(u, v);
+      ctx.fillRect(r[0], r[1], r[2] + 0.6, r[3] + 0.6);
+    }
+    ctx.restore();
+  }
+  /* 2. THE DROPS. Where two neighbouring columns sit at different depths the
+        nearer one casts onto the farther one, and a hairline marks the seam.
+        The light is at the camera, so this shadow is not a flourish — it is
+        the true one, and it is the game admitting in the open exactly which
+        of its adjacencies are lying to you about distance. */
   ctx.lineCap = 'butt';
+  var SD = [[1,0,0,1],[-1,0,1,0],[0,1,2,3],[0,-1,3,2]];   /* du,dv, gradIntoMe, gradIntoThem */
   for(u = 0; u < N; u++) for(v = 0; v < N; v++){
     s = surf[u*N + v]; if(!s) continue;
     r = tileRect(u, v);
+    for(i = 0; i < 4; i++){
+      var u2 = u + SD[i][0], v2 = v + SD[i][1];
+      if(u2 < 0 || v2 < 0 || u2 >= N || v2 >= N) continue;
+      var s2 = surf[u2*N + v2]; if(!s2) continue;
+      var dd = s2.d - s.d;
+      if(dd <= 0) continue;                                /* only a NEARER neighbour casts */
+      ctx.save();
+      ctx.translate(r[0], r[1]);
+      ctx.globalAlpha = Math.min(MAX_SHADOW/0.45, 0.14 + dd*0.08);
+      ctx.fillStyle = shGrad[SD[i][2]];
+      ctx.fillRect(0, 0, S, S);
+      ctx.restore();
+    }
     var nb = [[1,0],[0,1]];
     for(i = 0; i < 2; i++){
-      var u2 = u + nb[i][0], v2 = v + nb[i][1];
-      if(u2 >= N || v2 >= N) continue;
-      var s2 = surf[u2*N + v2]; if(!s2) continue;
-      var dd = Math.abs(s2.d - s.d); if(!dd) continue;
-      ctx.strokeStyle = 'rgba(10,9,16,' + Math.min(0.8, 0.22 + dd*0.17).toFixed(2) + ')';
-      ctx.lineWidth = Math.min(3.4, 1 + dd*0.55);
+      var u3 = u + nb[i][0], v3 = v + nb[i][1];
+      if(u3 >= N || v3 >= N) continue;
+      var s3 = surf[u3*N + v3]; if(!s3) continue;
+      var ad = Math.abs(s3.d - s.d); if(!ad) continue;
+      ctx.strokeStyle = 'rgba(0,0,0,' + Math.min(0.85, 0.26 + ad*0.15).toFixed(2) + ')';
+      ctx.lineWidth = Math.min(3.4, 1 + ad*0.5);
       ctx.beginPath();
       if(i === 0){ ctx.moveTo(r[0]+S, r[1]); ctx.lineTo(r[0]+S, r[1]+S); }
       else       { ctx.moveTo(r[0], r[1]);   ctx.lineTo(r[0]+S, r[1]); }
@@ -1119,6 +1606,7 @@ function playerScreen(){
 
 function drawPlayer(x, y, sz){
   var rr = sz*0.27;
+  halo(x, y, sz*1.05, '255,106,61', 0.34);
   ctx.save();
   ctx.shadowColor = 'rgba(255,106,61,.85)'; ctx.shadowBlur = sz*0.5;
   ctx.fillStyle = '#ff6a3d';
@@ -1131,6 +1619,7 @@ function drawPlayer(x, y, sz){
 }
 function drawGoal(r){
   var x = r[0] + S/2, y = r[1] + S/2, t = (Date.now() % 2400) / 2400;
+  halo(x, y, S*1.15, '53,215,161', 0.30);
   ctx.save();
   ctx.strokeStyle = '#35d7a1'; ctx.lineWidth = Math.max(1.6, S*0.06);
   ctx.shadowColor = 'rgba(53,215,161,.8)'; ctx.shadowBlur = S*0.45;
@@ -1141,6 +1630,7 @@ function drawGoal(r){
 }
 function drawKey(r){
   var x = r[0] + S/2, y = r[1] + S/2;
+  halo(x, y, S*0.85, '255,196,77', 0.26);
   ctx.save();
   ctx.fillStyle = '#ffc44d'; ctx.shadowColor = 'rgba(255,196,77,.8)'; ctx.shadowBlur = S*0.4;
   ctx.beginPath(); ctx.arc(x, y - S*0.09, S*0.115, 0, 6.284); ctx.fill();
@@ -1324,6 +1814,7 @@ function advanceAnim(dt){
   var ki = keyIndexAt(lv, pos);
   if(ki >= 0 && !(kmask & (1<<ki))){ kmask |= (1<<ki); sfx.key(); toast('key'); }
   turns++;
+  impact = 1;
   sfx.turn(); buzz(11);
   settle(); afterAction();
 }
@@ -1348,18 +1839,23 @@ function afterAction(){
 }
 function finish(){
   won = true;
-  var best = store.best[lvIndex];
-  var isBest = best === undefined || turns < best;
-  if(isBest){ store.best[lvIndex] = turns; save(); }
+  var best = store.best[levelNo];
+  if(best === undefined || turns < best){ store.best[levelNo] = turns; save(); }
+  if(levelNo + 1 > store.reached){ store.reached = levelNo + 1; save(); }
+  prebuild(levelNo + 1);
   sfx.win(); buzz(40);
   setTimeout(function(){
     $('winTurns').textContent = turns;
     $('winPar').textContent = lv.par;
-    $('winBest').textContent = store.best[lvIndex];
+    $('winBest').textContent = store.best[levelNo];
     var vd = $('winVerdict');
     vd.className = 'verdict ' + (turns <= lv.par ? 'par' : 'over');
     vd.textContent = turns <= lv.par ? 'FEWEST POSSIBLE' : (turns - lv.par) + ' OVER PAR';
-    $('btnNext').style.display = lvIndex + 1 < LEVELS.length ? '' : 'none';
+    /* a vault boundary is worth marking — it is the only structure an
+       endless game has, and the next ten cubes look different because of it */
+    var crossing = vaultOf(levelNo + 1) !== vaultOf(levelNo);
+    $('winVault').textContent = crossing ? 'VAULT ' + roman(vaultOf(levelNo+1)) + ' — ' + vaultName(vaultOf(levelNo+1)) : '';
+    $('winVault').style.display = crossing ? '' : 'none';
     $('btnRetry').style.display = turns <= lv.par ? 'none' : '';
     show('scWin');
   }, 520);
@@ -1449,9 +1945,11 @@ function show(id){
   });
   $('hud').classList.toggle('on', !id);
 }
+var ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+function roman(b){ return b < ROMAN.length ? ROMAN[b] : String(b+1); }
 function refreshHud(){
   if(!lv) return;
-  $('lvName').textContent = (lvIndex+1) + '. ' + lv.name;
+  $('lvName').textContent = levelNo + ' · ' + lv.name;
   $('turnN').textContent = turns;
   $('parN').textContent = '/' + lv.par;
   $('turnPill').classList.toggle('over', turns > lv.par);
@@ -1495,53 +1993,69 @@ function hint(){
   }
 }
 
+/* The cube list is a window on an endless shelf, so it pages by vault
+   rather than trying to be a list of everything. Par is not shown for a
+   cube you have not opened — it is a fact about a level that does not
+   exist yet, and minting ten of them to fill in a grid would cost seconds. */
 function buildCubeGrid(){
   var g = $('cubeGrid'); g.innerHTML = '';
-  LEVELS.forEach(function(L, i){
-    var best = store.best[i], done = best !== undefined;
-    var marks = !done ? 0 : (best <= L.par ? 3 : (best <= L.par + 2 ? 2 : 1));
+  var st = vaultStyle(viewBand);
+  $('vaultName').textContent = 'VAULT ' + roman(viewBand) + ' — ' + st.name;
+  $('vaultSwatch').style.background = 'linear-gradient(135deg,' + rgbs(st.dN) + ' 0 50%,' + rgbs(st.rN) + ' 50% 100%)';
+  $('vaultPrev').disabled = viewBand === 0;
+  $('vaultNext').disabled = (viewBand+1)*10 + 1 > store.reached;
+  for(var k = 0; k < 10; k++){
+    var level = viewBand*10 + k + 1;
+    var best = store.best[level], done = best !== undefined;
+    var locked = level > store.reached;
+    var par = level <= BAKED.length ? BAKED[level-1].par : (mintCache[level] ? mintCache[level].par : null);
+    var marks = !done ? 0 : (par === null ? 1 : best <= par ? 3 : best <= par + 2 ? 2 : 1);
     var el = document.createElement('button');
-    el.className = 'cube' + (done ? ' done' : '') + (marks === 3 ? ' perfect' : '') + (i > store.reached ? ' locked' : '');
-    el.innerHTML = '<div class="idx">' + (i+1) + '</div><div class="nm">' + L.name + '</div>' +
-      '<div class="marks">' + [0,1,2].map(function(k){ return '<i class="' + (k < marks ? 'on' : '') + '"></i>'; }).join('') + '</div>';
-    el.onclick = function(){
-      if(i > store.reached){ toast('clear the cubes before it'); return; }
-      loadLevel(i); show(null);
-    };
+    el.className = 'cube' + (done ? ' done' : '') + (marks === 3 ? ' perfect' : '') + (locked ? ' locked' : '');
+    el.innerHTML = '<div class="idx">' + level + '</div><div class="nm">' + (locked ? '—' : levelName(level)) + '</div>' +
+      '<div class="marks">' + [0,1,2].map(function(j){ return '<i class="' + (j < marks ? 'on' : '') + '"></i>'; }).join('') + '</div>';
+    (function(L, lk){ el.onclick = function(){
+      if(lk){ toast('clear the cubes before it'); return; }
+      goLevel(L);
+    }; })(level, locked);
     g.appendChild(el);
-  });
+  }
 }
+function openCubes(){ viewBand = vaultOf(levelNo); buildCubeGrid(); show('scCubes'); }
 
 /* ---------- bindings, each exactly once ---------- */
 $('btnPlay').onclick = function(){
   audio();
   if(!store.taught){ store.taught = 1; save(); show('scManual'); return; }
-  loadLevel(firstUncleared()); show(null);
+  goLevel(firstUncleared());
 };
 function firstUncleared(){
-  for(var i = 0; i < LEVELS.length; i++) if(store.best[i] === undefined) return i;
-  return LEVELS.length - 1;
+  for(var i = 1; i <= store.reached; i++) if(store.best[i] === undefined) return i;
+  return store.reached;
 }
-$('btnCubes').onclick = function(){ buildCubeGrid(); show('scCubes'); };
+$('btnCubes').onclick = openCubes;
 $('btnCubesBack').onclick = function(){ show('scTitle'); };
+$('vaultPrev').onclick = function(){ if(viewBand > 0){ viewBand--; buildCubeGrid(); } };
+$('vaultNext').onclick = function(){ if((viewBand+1)*10 + 1 <= store.reached){ viewBand++; buildCubeGrid(); } };
 $('btnManual').onclick = function(){ show('scManual'); };
 $('btnManual2').onclick = function(){ show('scManual'); };
 $('btnManualBack').onclick = function(){
-  if(!lv){ loadLevel(firstUncleared()); show(null); } else show(null);
+  if(!lv){ goLevel(firstUncleared()); } else show(null);
 };
 $('btnMenu').onclick = function(){
   $('pauseName').textContent = lv ? lv.name : 'PAUSED';
-  $('pauseSub').textContent = lv ? ('Fewest possible: ' + lv.par + ' turn' + (lv.par===1?'':'s')) : '';
+  $('pauseSub').textContent = lv ? ('Vault ' + roman(vaultOf(levelNo)) + ' · ' + vaultName(vaultOf(levelNo)) +
+      ' — fewest possible: ' + lv.par + ' turn' + (lv.par===1?'':'s')) : '';
   show('scPause');
 };
 $('btnResume').onclick = function(){ show(null); };
-$('btnRestart').onclick = function(){ loadLevel(lvIndex); show(null); };
-$('btnToCubes').onclick = function(){ buildCubeGrid(); show('scCubes'); };
+$('btnRestart').onclick = function(){ loadLevel(levelNo); show(null); };
+$('btnToCubes').onclick = openCubes;
 $('btnUndo').onclick = undo;
 $('btnHint').onclick = hint;
-$('btnNext').onclick = function(){ loadLevel(lvIndex + 1); show(null); };
-$('btnRetry').onclick = function(){ loadLevel(lvIndex); show(null); };
-$('btnWinCubes').onclick = function(){ buildCubeGrid(); show('scCubes'); };
+$('btnNext').onclick = function(){ goLevel(levelNo + 1); };
+$('btnRetry').onclick = function(){ loadLevel(levelNo); show(null); };
+$('btnWinCubes').onclick = openCubes;
 function bindSwitch(id, key){
   var el = $(id);
   el.classList.toggle('on', !!store[key]);
@@ -1569,7 +2083,10 @@ window.TURNKEY = {
     if(!$('scWin').classList.contains('hide')){ buildCubeGrid(); show('scCubes'); return true; }
     if(!$('scManual').classList.contains('hide')){ show(lv ? 'scPause' : 'scTitle'); return true; }
     if(!$('scPause').classList.contains('hide')){ show(null); return true; }
-    if(!$('scCubes').classList.contains('hide')){ show('scTitle'); return true; }
+    if(!$('scCubes').classList.contains('hide')){
+      if(viewBand > 0){ viewBand--; buildCubeGrid(); return true; }
+      show('scTitle'); return true;
+    }
     if($('hud').classList.contains('on')){ show('scPause'); return true; }
     return false;
   },
@@ -1600,9 +2117,11 @@ function loop(ts){
   last = ts;
   advanceAnim(dt);
   advanceWalk(dt);
+  stepMotes(dt);
   draw();
   requestAnimationFrame(loop);
 }
+buildGrain(); buildMotes(); setStyle(0);
 fit();
 show('scTitle');
 $('btnPlay').textContent = store.reached ? 'CONTINUE' : 'BEGIN';

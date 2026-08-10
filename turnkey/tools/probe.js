@@ -12,7 +12,7 @@ const ok = (n, c, extra='') => { console.log((c?'  ok  ':'FAIL  ') + n + (extra?
   await p.waitForTimeout(400);
 
   // ---- undo restores position, orientation, keys, doors and the turn count
-  await p.evaluate(() => { loadLevel(6); show(null); });
+  await p.evaluate(() => { loadLevel(7); show(null); });
   await p.waitForTimeout(200);
   const snap0 = await p.evaluate(() => JSON.stringify([pos, oriIndex(M), kmask, doors, turns]));
   const turned = await p.evaluate(() => {
@@ -37,7 +37,7 @@ const ok = (n, c, extra='') => { console.log((c?'  ok  ':'FAIL  ') + n + (extra?
   ok('an illegal turn is refused without changing state', refused.same);
 
   // ---- the turn counter can never advance without a legal landing
-  await p.evaluate(() => { loadLevel(11); show(null); });
+  await p.evaluate(() => { loadLevel(12); show(null); });
   await p.waitForTimeout(200);
   const legality = await p.evaluate(() => {
     let violations = 0;
@@ -59,7 +59,7 @@ const ok = (n, c, extra='') => { console.log((c?'  ok  ':'FAIL  ') + n + (extra?
   // ---- stuck detection: burn the only key on a door that is not the way out
   const stuckCase = await p.evaluate(() => {
     // find a level with one key and force the doors-open state without the key
-    for(let i=0;i<LEVELS.length;i++){
+    for(let i=1;i<=10;i++){
       loadLevel(i);
       if(lv.keys.length !== 1) continue;
       const before = solve(lv, 40, {pos:pos, ori:oriIndex(M), kmask:kmask, doors:doors});
@@ -76,7 +76,7 @@ const ok = (n, c, extra='') => { console.log((c?'  ok  ':'FAIL  ') + n + (extra?
   // ---- the Android back chain unwinds screen by screen and then gives up
   const backs = await p.evaluate(() => {
     const out = [];
-    loadLevel(0); show(null);
+    loadLevel(1); show(null);
     out.push(TURNKEY.onBack());                       // playing -> pause
     out.push(document.getElementById('scPause').classList.contains('hide') === false);
     out.push(TURNKEY.onBack());                       // pause -> playing
@@ -101,7 +101,7 @@ const ok = (n, c, extra='') => { console.log((c?'  ok  ':'FAIL  ') + n + (extra?
 
   // ---- frame cost on the largest cube, mid-turn (the expensive path)
   const perf = await p.evaluate(() => {
-    loadLevel(13); show(null);
+    loadLevel(24); show(null);
     drag = {x0:0,y0:0,axis:'x',ang:Math.PI/4};        // hold it at 45 degrees
     const t0 = performance.now();
     for(let i=0;i<120;i++) draw();
@@ -116,7 +116,7 @@ const ok = (n, c, extra='') => { console.log((c?'  ok  ':'FAIL  ') + n + (extra?
 
   // ---- the dead-end detector actually reaches the player
   const dead = await p.evaluate(async () => {
-    loadLevel(6); show(null);
+    loadLevel(7); show(null);
     const real = window.solve;
     window.solve = () => ({ok:false});                 // pretend this cube is now a lie
     afterAction();
@@ -130,7 +130,7 @@ const ok = (n, c, extra='') => { console.log((c?'  ok  ':'FAIL  ') + n + (extra?
 
   // ---- and a live game is never wrongly declared dead
   const notDead = await p.evaluate(async () => {
-    loadLevel(6); show(null);
+    loadLevel(7); show(null);
     afterAction();
     await new Promise(r => setTimeout(r, 220));
     return !stuck;

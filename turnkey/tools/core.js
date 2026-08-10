@@ -179,12 +179,19 @@ function solve(lv, budget, from){
   }
   relax(0, start);
 
-  /* Walk the parent chain back from the goal so a hint can name the very
-     next thing to do — which is the only part of a solution worth showing. */
-  function firstAction(endKey){
+  /* Walk the parent chain back from the goal. A hint needs only the very
+     first action — the rest is the player's to find — but the LENGTH of the
+     chain is the second difficulty axis the vault curve scales on, so it is
+     measured here where the answer is already in hand. */
+  function chainOf(endKey){
     var chain = [], k = endKey, guard = 0;
-    while(parent[k] && guard++ < 4000){ chain.push(parent[k][1]); k = parent[k][0]; }
-    return chain.length ? chain[chain.length-1] : null;
+    while(parent[k] && guard++ < 8000){ chain.push(parent[k][1]); k = parent[k][0]; }
+    return chain.reverse();
+  }
+  function report(cost, endKey){
+    var ch = chainOf(endKey), steps = 0;
+    for(var i = 0; i < ch.length; i++) if(ch[i].kind === 'step') steps++;
+    return {ok:true, turns:cost, steps:steps, first: ch.length ? ch[0] : null};
   }
 
   for(var cost = 0; cost <= budget; cost++){
@@ -193,7 +200,7 @@ function solve(lv, budget, from){
     for(var qi = 0; qi < q.length; qi++){       /* q grows while we walk it — intended, free steps land here */
       var s = q[qi];
       if(seen[skey(s)] < cost) continue;
-      if(samePos(s.pos, lv.goal)) return {ok:true, turns:cost, first:firstAction(skey(s))};
+      if(samePos(s.pos, lv.goal)) return report(cost, skey(s));
       var m = ORIS[s.ori], surf = P(s.ori), v = viewOf(n, m, s.pos);
 
       /* steps — free */
@@ -336,8 +343,174 @@ function assess(lv, wantTurns){
   return {turns:r.turns, fill: solid / lv.vox.length};
 }
 
+
+
+/* ============================================================
+   THE DIFFICULTY CONTRACT — ten cubes to a vault, forever.
+
+   A vault is a block of ten levels and owns one difficulty step and one
+   look. Inside a vault the demand still creeps, so the tenth cube of a
+   vault is harder than the first and easier than the next vault's first —
+   the curve is a staircase with a slope on every tread, not a cliff every
+   ten.
+
+   Everything here is CAPPED. Size stops at 7 because an 8-cube costs four
+   times the search and reads worse on a phone; turns stop at 9 because the
+   generator's acceptance falls off a cliff past that and a level nobody can
+   hold in their head is not harder, it is just longer. Past the caps the
+   difficulty keeps arriving through lock count and density, which cost
+   nothing to search.
+   ============================================================ */
+var CAP_LOCKS = 3;
+
+/* WHAT THE SHAPE CAN ACTUALLY DELIVER.
+
+   The first curve here asked for nine-turn cubes at vault ten and got
+   threes, every time, at every budget. That is not a tuning miss — it is
+   the mechanic's ceiling, and it is worth writing down.
+
+   Turn-par is bounded by the diameter of the cube's orientation graph. Any
+   orientation is a handful of quarter-turns from any other, so once a deck
+   set is well connected you can get anywhere in three or four turns no
+   matter how big the cube or how many locks are on it. Measured over
+   thousands of candidates:
+
+       n=5  par tops out at 2        locks barely move par at all:
+       n=6  par tops out at 3          n=7, 0 locks -> max 4
+       n=7  par tops out at 4          n=7, 3 locks -> max 4
+       n=7 at density .60 -> 5       density is the real lever, not locks
+
+   So difficulty scales on the three axes that DO respond, and turn-par is
+   allowed to be the small elegant number it is rather than being flogged
+   toward a figure it cannot reach:
+
+     SIZE      more cube to read
+     DENSITY   more bedrock, so fewer decks are exposed per face and routes
+               are tighter — the one thing that genuinely forces more turns
+     LOCKS     sequencing. Locks do not raise the turn count; they raise
+               how much has to be true at once for a route to work.
+     LENGTH    the minimum route, in steps. A four-turn solution that runs
+               forty steps is a different animal to one that runs eight, and
+               it is the axis with no ceiling in sight.                     */
+function specFor(level){
+  var band = Math.floor((level-1)/10), w = (level-1) % 10;
+  var b = Math.min(band, 11);                  /* the shape curve saturates; the length curve does not */
+  var n = b < 1 ? 5 : b < 3 ? 6 : 7;
+  var parLo = (n === 5 ? 1 : n === 6 ? 2 : 3) + (b >= 7 ? 1 : 0);
+  return {
+    n: n,
+    turns: parLo,
+    locks: Math.min(CAP_LOCKS, Math.floor(b/2) + (w >= 6 ? 1 : 0)),
+    density: Math.min(0.62, 0.42 + 0.021*b + 0.004*w),
+    /* Leg length is deliberately NOT scaled with the vault. It was, and it
+       backfired: a longer carve lays down more deck, more deck means more
+       shortcuts, and par fell from 4 to 1 at vault 21 while route length
+       barely moved. The two axes fight, and turn-par is the one worth
+       keeping. */
+    legMin: 2 + Math.floor(n/3), legMax: 4 + Math.floor(n/2),
+    parLo: parLo, parHi: parLo + 2,
+    minSteps: 5 + band*2 + w,                  /* band, not b — this one keeps climbing */
+    band: band, level: level
+  };
+}
+
+/* The floor under everything: a cube that cannot fail to be solvable,
+   because it is a straight line of decks in open space and nothing else.
+   It is deliberately boring. It exists so that the promise "every level
+   the player is handed has been proved winnable" has no exceptions —
+   not "almost none", none. The tests assert it never actually fires. */
+function fallbackLevel(level){
+  var n = 5, vox = [], i;
+  for(i = 0; i < n*n*n; i++) vox[i] = '.';
+  for(i = 0; i < n; i++) vox[vidx(n, i, 2, 2)] = '+';
+  return {n:n, vox:vox, start:[0,2,2], goal:[n-1,2,2], keys:[], doors:[],
+          par:0, level:level, band:Math.floor((level-1)/10), fallback:true};
+}
+
+function hashSeed(level){
+  var h = (level * 2654435761) ^ 0x9e3779b9;
+  h = Math.imul(h ^ (h >>> 15), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+/* How well a candidate answers the demand. Being too EASY is a much smaller
+   sin than being too hard or malformed, because a cube below par still
+   plays — it just under-delivers — whereas one the search could not finish
+   inside the budget may be a slog nobody can see the end of. */
+function score(turns, steps, fill, spec){
+  if(fill < 0.24 || fill > 0.80) return 50;
+  if(turns > spec.parHi)  return 200;                       /* overshoot: usable, not wanted */
+  if(turns < spec.parLo)  return 100 + turns*10 + Math.min(60, steps);
+  /* in band. Prefer more turns, then a longer route — and treat the vault's
+     step demand as a bonus rather than a gate, so a short but otherwise
+     perfect cube still beats nothing. */
+  return 1000 + turns*20 + Math.min(120, steps) + (steps >= spec.minSteps ? 200 : 0);
+}
+
+/* ---------- MINT — the only way a level ever reaches a player ------------
+   Solvability is not filtered for, it is CONSTRUCTED: the generator carves
+   a route by walking and turning, so the route that built the cube is
+   always in it. The solver's job is the other half — proving that route
+   survived the decoy pass, that the opening cell is not buried, that the
+   keys really do open the doors in some order, and reporting the true
+   minimum, which is usually shorter than the carve and is what par becomes.
+
+   Then the gate: whatever wins, the level is solved one final time before
+   it is handed over, and anything that fails falls back. So there is no
+   path through this function that returns an unwinnable cube — not on a
+   bad seed, not when the budget expires, not at level nine million.
+
+   The budget bounds the search for QUALITY only. Running out means the
+   player gets an easier cube than the vault asked for, never a broken one.
+   ------------------------------------------------------------------- */
+function mint(level, budgetMs, now){
+  now = now || function(){ return Date.now(); };
+  var spec = specFor(level), seed = hashSeed(level), t0 = now();
+  var best = null, bestScore = -1, tries = 0;
+
+  for(var i = 0; i < 3000; i++){
+    if((i & 3) === 0 && best && now() - t0 > budgetMs) break;
+    tries++;
+    var lv = generate(seed + i * 7919, spec);
+    if(!lv) continue;
+    if(lv.keys.length !== spec.locks) continue;
+    widen(mulberry32(seed + i * 104729), lv, Math.max(2, spec.n + 2 - spec.turns));
+
+    var s0 = project(lv.n, lv.vox, ORI_ID);
+    if(!surfaceAt(lv.n, s0, ORI_ID, lv.start)) continue;      /* opened buried */
+    if(doorIndexAt(lv, lv.start) >= 0 || doorIndexAt(lv, lv.goal) >= 0) continue;
+
+    /* One bounded solve does all the work: past parHi it stops looking, so
+       a cube that is too hard costs no more than one that is just right. */
+    var r = solve(lv, spec.parHi);
+    if(!r.ok) continue;
+
+    var solid = 0;
+    for(var k = 0; k < lv.vox.length; k++) if(lv.vox[k] !== '.') solid++;
+    var sc = score(r.turns, r.steps, solid / lv.vox.length, spec);
+    if(sc > bestScore){
+      bestScore = sc; best = lv; best.par = r.turns; best.steps = r.steps;
+    }
+    /* Stop only on a cube that maxes the band on BOTH axes. Anything less
+       and the remaining budget is better spent looking, because the first
+       in-band candidate is usually the weakest one that qualifies. */
+    if(r.turns >= spec.parHi && r.steps >= spec.minSteps) break;
+  }
+
+  if(!best) best = fallbackLevel(level);
+  var gate = solve(best, 60);                                  /* THE GATE */
+  if(!gate.ok) { best = fallbackLevel(level); gate = solve(best, 60); }
+  best.par = gate.turns; best.steps = gate.steps;
+  best.level = level; best.band = spec.band; best.tries = tries;
+  best.ms = now() - t0;
+  return best;
+}
+
+/* Node-only. Everything above this line is what the browser gets, so this
+   MUST stay last: the build truncates the file here. */
 if(typeof module !== 'undefined') module.exports = {
-  widen,
+  widen, specFor, fallbackLevel, hashSeed, score, mint, CAP_LOCKS,
   mulberry32, ORI_ID, TURNS, ORIS, oriIndex, oriKey, vidx, viewOf, worldOf,
   project, surfaceAt, walkable, keyIndexAt, doorIndexAt, samePos, landing,
   solve, generate, assess, carve

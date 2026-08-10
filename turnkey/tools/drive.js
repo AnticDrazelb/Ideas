@@ -24,7 +24,7 @@ const path = '/home/user/Ideas/turnkey/index.html';
   await page.screenshot({path:'shot-3-level1.png'});
 
   const st = () => page.evaluate(() => ({
-    lv: lvIndex, name: lv.name, n: N, turns, par: lv.par, won,
+    lv: levelNo, name: lv.name, vault: vaultName(vaultOf(levelNo)), n: N, turns, par: lv.par, won,
     pos: pos.slice(), ori: oriIndex(M), keys: keysHeld(),
     reach: Array.from(reach).reduce((a,b)=>a+b,0),
     hudOn: document.getElementById('hud').classList.contains('on')
@@ -73,7 +73,7 @@ const path = '/home/user/Ideas/turnkey/index.html';
 
   // walk the whole campaign at par
   let cleared = 0, fails = [];
-  for(let n=0;n<14;n++){
+  for(let n=1;n<=16;n++){
     await page.evaluate(i => { loadLevel(i); show(null); }, n);
     await page.waitForTimeout(220);
     const before = await st();
@@ -85,11 +85,11 @@ const path = '/home/user/Ideas/turnkey/index.html';
     // dismiss the win card
     await page.evaluate(() => show(null));
   }
-  console.log(`\ncampaign: ${cleared}/14 cleared at exactly par through the real input path`);
+  console.log(`\ncampaign: ${cleared}/16 cleared at exactly par through the real input path`);
   fails.forEach(f => console.log('  FAIL ' + f));
 
   // mid-turn screenshot: hold a drag at 45 degrees so the 3D path is on screen
-  await page.evaluate(() => { loadLevel(9); show(null); });
+  await page.evaluate(() => { loadLevel(44); show(null); });
   await page.waitForTimeout(300);
   await page.mouse.move(206, 470); await page.mouse.down();
   for(let k=1;k<=5;k++) await page.mouse.move(206 + 82*k/5, 470);
@@ -100,10 +100,10 @@ const path = '/home/user/Ideas/turnkey/index.html';
   await page.screenshot({path:'shot-6-settled.png'});
 
   // level select + depth crutch
-  await page.evaluate(() => { store.depth = 1; });
+  await page.evaluate(() => { store.depth = 1; loadLevel(23); show(null); });
   await page.waitForTimeout(300);
   await page.screenshot({path:'shot-7-depth.png'});
-  await page.evaluate(() => { store.depth = 0; buildCubeGrid(); show('scCubes'); });
+  await page.evaluate(() => { store.depth = 0; store.reached = 60; openCubes(); });
   await page.waitForTimeout(400);
   await page.screenshot({path:'shot-8-cubes.png'});
 

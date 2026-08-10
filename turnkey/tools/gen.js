@@ -16,12 +16,8 @@ var CURVE = [
   {name:'TUMBLER',      n:6, turns:3, locks:0, density:0.48, legMin:3, legMax:5},
   {name:'WARDEN',       n:6, turns:3, locks:1, density:0.46, legMin:3, legMax:6},
   {name:'OUBLIETTE',    n:6, turns:3, locks:1, density:0.52, legMin:3, legMax:6},
-  {name:'THE CANT',     n:6, turns:4, locks:1, density:0.46, legMin:4, legMax:6},
-  {name:'SIX WAYS',     n:7, turns:4, locks:1, density:0.46, legMin:4, legMax:7},
-  {name:'DEEP CUT',     n:7, turns:4, locks:2, density:0.50, legMin:4, legMax:7},
-  {name:'THE VAULT',    n:7, turns:5, locks:2, density:0.48, legMin:4, legMax:8},
-  {name:'GIMBAL',       n:7, turns:5, locks:2, density:0.46, legMin:5, legMax:8},
-  {name:'TURNKEY',      n:7, turns:6, locks:2, density:0.48, legMin:5, legMax:8}
+  {name:'THE CANT',     n:6, turns:3, locks:1, density:0.46, legMin:4, legMax:6},
+  {name:'SIX WAYS',     n:7, turns:4, locks:1, density:0.46, legMin:4, legMax:7}
 ];
 
 function faceCount(lv){

@@ -233,6 +233,12 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 .cube .marks i{width:6px;height:6px;border-radius:50%;background:var(--edge);}
 .cube .marks i.on{background:var(--jade);}
 
+/* the vault pager — the only chrome an endless shelf needs */
+  .vaultBar{display:flex;align-items:center;gap:10px;width:100%;max-width:440px;margin:0 auto 16px;}
+  .vaultId{flex:1;display:flex;align-items:center;justify-content:center;gap:9px;
+           font-size:var(--t-fine);letter-spacing:.2em;font-weight:800;color:var(--dim);}
+  .vaultId i{width:15px;height:15px;border-radius:5px;box-shadow:inset 0 0 0 1px var(--edge);flex:0 0 auto;}
+
 /* ---------- CARDS ---------- */
 .card{
   width:100%;max-width:360px;margin:0 auto;padding:26px 22px 20px;
@@ -311,7 +317,11 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 
 <!-- ============ LEVEL SELECT ============ -->
 <div class="layer hide" id="scCubes">
-  <div class="eyebrow" style="text-align:center;margin-bottom:14px">THE CUBES</div>
+  <div class="vaultBar">
+    <button class="pill icon" id="vaultPrev" aria-label="Previous vault">‹</button>
+    <div class="vaultId"><i id="vaultSwatch"></i><span id="vaultName">VAULT I</span></div>
+    <button class="pill icon" id="vaultNext" aria-label="Next vault">›</button>
+  </div>
   <div class="grid" id="cubeGrid"></div>
   <button class="btn ghost" id="btnCubesBack">BACK</button>
 </div>
@@ -346,6 +356,7 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 <!-- ============ CLEARED ============ -->
 <div class="layer hide" id="scWin">
   <div class="eyebrow" style="text-align:center">CUBE CLEARED</div>
+  <div class="eyebrow" id="winVault" style="text-align:center;color:var(--jade);margin-top:6px"></div>
   <div class="verdict" id="winVerdict">AT PAR</div>
   <div class="card" style="margin-top:16px">
     <div class="stat"><span class="k">Turns used</span><span class="v" id="winTurns">0</span></div>

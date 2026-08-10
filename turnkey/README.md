@@ -6,7 +6,7 @@ that lines up, touches.*
 The playable answer to the question `../turnkey.md` ends on: **does the collapse
 read as magic or as a bug?**
 
-`index.html` is the whole game. One file, 74 KB, no network, no dependencies,
+`index.html` is the whole game. One file, ~99 KB, no network, no dependencies,
 no build step at runtime. Open it in a browser or point a WebView at it.
 
 ---
@@ -27,9 +27,9 @@ Four rules and no fifth:
 
 | | |
 |---|---|
-| **Tap** | walk. Pale bone tiles are decks; dark ones are bedrock; gaps are nothing. |
+| **Tap** | walk. Pale tiles are decks; dark ones are bedrock; gaps are nothing. |
 | **Drag** | turn the cube. Past halfway it commits, short of it springs back. |
-| **Brightness** | is distance. The hairlines mark a drop you are allowed to ignore. |
+| **Brightness** | is distance. The drop-shadows mark a fall you're allowed to ignore. |
 | **Turning needs footing** | you may only turn if your own column still has a deck on the far side. |
 
 That last one is the quiet one, and it is where the game lives: **where you
@@ -39,25 +39,116 @@ being placed on top of it.
 
 ---
 
-## What is in it
+## Endless, and provably so
 
-- 14 cubes, 5³ to 7³, par 1 to 8 turns.
-- Keys and doors, which can be **buried** behind bedrock and only exist in the
-  projections where nothing is in front of them.
-- Turn-count par, best-per-cube, and three marks for clearing at the minimum.
-- Undo, restart, and a hint that names only the next move.
-- A dead-end detector: the solver re-runs from your live position after every
-  action, so a cube you have made unwinnable says so at once.
-- Procedural audio, haptics, an optional depth-numeral crutch.
-- The reachable set drawn live — the connectivity graph, on screen, changing
-  as you turn. It is the mechanic explaining itself with no words.
+**Vault I — ten authored cubes.** Verified offline, carrying the teaching
+beats. The first two show you a way out you cannot walk to, which is the whole
+lesson and is not something a generator can be trusted to stage.
+
+**Level 11 to infinity — cut on demand.** A level is minted from its *number*,
+so cube 4,127 is the same cube on every phone on earth, with no server. Ten
+cubes to a vault; a vault owns one difficulty step and one look.
+
+The promise attached to every one of them:
+
+> **No cube reaches the player without the solver proving it winnable.**
+
+That is structural, not a filter. Solvability is *constructed* — the generator
+carves a route by walking and turning, so the route that built the cube is
+always in it. The solver's job is the other half: proving the route survived
+the decoy pass, that the opening cell is not buried behind rock, that the keys
+really do open the doors in some order, and reporting the true minimum, which
+is usually shorter than the carve and is what par becomes. Then the gate:
+whatever candidate wins, the level is solved once more from scratch before it
+is handed over, and anything that fails falls back to a cube that cannot fail.
+
+There is no path through `mint()` that returns an unwinnable level — not on a
+bad seed, not when the search budget expires, not at level nine million. The
+budget bounds the search for *quality* only; running out means an easier cube
+than the vault asked for, never a broken one.
+
+Minting costs a couple of hundred milliseconds, so the next level is always cut
+in the background while the current one is being played.
+
+### The difficulty curve, and its ceiling
+
+The first curve asked for nine-turn cubes by vault ten and got threes, at every
+budget. That is not a tuning miss — it is the mechanic's ceiling, and it is
+worth writing down.
+
+**Turn-par is bounded by the diameter of the cube's orientation graph.** Any
+orientation is a handful of quarter-turns from any other, so once a deck set is
+well connected you can get anywhere in three or four turns no matter how big
+the cube or how many locks are on it. Measured over thousands of candidates:
+
+```
+n=5   par tops out at 2         locks barely move par at all:
+n=6   par tops out at 3           n=7, 0 locks -> max 4
+n=7   par tops out at 4           n=7, 3 locks -> max 4
+n=7 at density .60 -> 5         density is the real lever, not locks
+```
+
+So difficulty scales on the axes that actually respond, and par is allowed to
+stay the small elegant number it is:
+
+- **size** 5³ → 7³ — more cube to read
+- **density** .42 → .62 — more bedrock, fewer decks exposed per face, tighter
+  routes. The one thing that genuinely forces more turns.
+- **locks** 0 → 3 — sequencing. Locks don't raise the turn count; they raise
+  how much has to be true at once for a route to work.
+- **route length** — a four-turn solution that runs forty steps is a different
+  animal to one that runs eight.
+
+Measured across vaults: par 1–2 → 4–5, locks 0 → 3. It plateaus around vault 8,
+and past there the vaults change their look and their lock count but not their
+fundamental difficulty. Raising that ceiling needs a new mechanic, not a bigger
+number — which is what the items in `../turnkey.md` were for.
+
+*(One experiment is recorded in the code as a comment because it failed
+instructively: scaling the carve's leg length with the vault made routes longer
+but laid down more deck, more deck meant more shortcuts, and par* fell *from 4
+to 1 at vault 21. The two axes fight. Turn-par is the one worth keeping.)*
+
+---
+
+## The look
+
+Eight authored vault palettes — THE SHALLOWS, THE IRONWORKS, GLASSWORKS, THE
+ORCHARD, CINDERS, THE SALT, THE VEIN, THE DEEP — and past those the palette
+keeps going by rotating the authored hues, so vault ninety has a look nobody
+chose but nobody has seen either.
+
+**Colour that means something never changes.** You are always rust, the way out
+is always jade, keys are always gold. A player who learns those on cube three
+must still read cube nine hundred at a glance. What changes with the vault is
+the *material*: what the deck is made of, what the bedrock is made of, and what
+colour the nothing behind it is.
+
+Everything the board's legibility rests on is one property — **the darkest deck
+is brighter than the brightest bedrock** — and for generated palettes that is
+not trusted, it is enforced: every style has its bedrock ramp walked down until
+the gap clears the deepest cast shadow the renderer can draw, with a margin.
+A test asserts it holds across forty vaults, with and without shadow. It caught
+a genuine break at vault 22.
+
+Also in the pass: a parallaxed starfield behind the cube so the void columns
+read as distance rather than a hole; grain on the tiles so stone reads as
+stone; **cast shadows at every depth step** — the light is at the camera, so
+those are the true shadows, and they turn the flat grid into a relief you can
+read at a glance; additive halos on the three semantic colours; drifting motes;
+and a flash on the cage when a turn lands, so the detent you can hear has
+something to look at.
+
+Cast shadows reach 42% of a tile and stop, so the *centre* of every tile always
+shows its true material undarkened. That is not a nicety — a shadow deep enough
+to push a deck under the bedrock line would be the renderer lying about the
+rules.
 
 ---
 
 ## Android
 
-Built for a WebView, and the three seams a packaged host needs are published
-on one object rather than scattered across globals:
+Built for a WebView. The three seams a packaged host needs are on one object:
 
 ```js
 window.TURNKEY.onBack()                  // true = handled, false = finish the Activity
@@ -69,95 +160,76 @@ window.TURNKEY.setInsets(t, r, b, l)     // the real display cutout, in CSS px
 is** — `env(safe-area-inset-*)` is plumbed through Chromium's own display-cutout
 handling, and a WebView is a View inside somebody else's Activity, so every one
 of those reads zero however correctly the host sets `viewport-fit`. The
-stylesheet therefore reads insets through variables that `env()` only supplies
-the *default* for, and `setInsets` is the seam that lets the host write the
-truth. In a plain browser nothing changes.
+stylesheet reads insets through variables that `env()` only supplies the
+*default* for, and `setInsets` is the seam that lets the host write the truth.
 
-Everything else that matters on a phone: no external requests at all (works
-offline and on a plane), `touch-action:none` on the play surface so a drag is
-never a scroll or a pull-to-refresh, a hard 44px floor on anything tappable,
-DPR capped at 2.5, render paused on `visibilitychange`, and a fluid type and
-control scale so a 320dp phone and a 430dp phone get the same layout at two
+No external requests at all (works offline and on a plane), `touch-action:none`
+on the play surface so a drag is never a scroll, a hard 44px floor on anything
+tappable, DPR capped at 2.5, render paused on `visibilitychange`, and a fluid
+type and control scale so a 320dp and a 430dp phone get the same layout at two
 sizes rather than two different layouts.
 
 ---
 
 ## The tooling is the point
 
-`tools/` is where the claim in `../turnkey.md` gets paid for. The objection to
-this design was always content: a tile placed for one face appears, unbidden,
-in three others, and that is why FEZ took five years.
+`tools/` is where the claim in `../turnkey.md` gets paid for.
 
 - **`core.js`** — the projection model, a 0–1 BFS **solver** (a step costs
-  nothing, a turn costs one, so the first time it reaches the goal is provably
-  the fewest turns possible), and a generator that carves a solution first and
-  fills in around it.
-- **`gen.js`** — the campaign curve. Each level is a *demand* — size, turns,
-  locks — and cubes are generated against it until the solver agrees. A cube
-  that can be walked without ever turning is thrown away; so is one where the
-  decoy pass made the answer cheaper than the demand.
-- **`test.js`** — 15 assertions on the model itself: the 24 orientations, the
+  nothing, a turn costs one, so first-reach is provably the fewest turns
+  possible), the generator, the vault curve, and `mint()`.
+- **`gen.js`** — builds the ten authored cubes of Vault I.
+- **`test.js`** — 15 assertions on the model: the 24 orientations, the
   world/view round trip on every cell of every orientation, the collapse, the
   burial, and that one key cannot open two doors.
-- **`drive.js`** — launches the real game in Chromium at 412×915, asks its own
-  solver for each answer, and plays the whole campaign **through the real input
-  path** — mouse drags past the detent, taps on tile centres. All 14 clear at
-  exactly par.
+- **`mint-test.js`** — mints 128 levels spanning vaults 2–13 plus samples out
+  to level 1,000,001, re-solves every one from scratch, and asserts par is
+  exactly as claimed, the fallback never fires, nothing exceeds its time bound,
+  and the same level number is always the same cube.
+- **`infinite.js`** — the same guarantee *in the running game*: 68 levels
+  loaded through `loadLevel`, each solved as served, plus the palette-band
+  invariants, determinism, and frame cost.
 - **`probe.js`** — undo fidelity, 400 random turns against the legality and
   footing invariants, the back-gesture chain, inset injection, the dead-end
-  detector, and frame cost.
+  detector, performance.
+- **`drive.js`** — launches the real game in Chromium at 412×915, asks its own
+  solver for each answer, and plays levels 1–16 **through the real input path**
+  — mouse drags past the detent, taps on tile centres. Levels 11–16 are minted
+  live during the run.
 
 ```sh
-cd tools
-npm install          # playwright, for drive/probe only
-npm test             # the model
-npm run gen          # regenerate + verify the campaign
-npm run build        # assemble ../index.html
-npm run drive        # play the campaign in a real browser
-npm run probe        # invariants, hooks, performance
+cd tools && npm install    # playwright, for the browser suites only
+npm run all                # model -> mint guarantee -> build -> in-game -> probes -> real input
 ```
 
 The core is inlined into `index.html` **byte-identical** to the module the
-generator and the tests run against, so the solver that verified a cube and the
-game that serves it can never be different code.
+generator and tests run against, so the solver that verified a cube and the
+game that serves it can never be different code. *(The build truncates
+`core.js` at its Node export shim, so that shim must stay last in the file —
+it once sat mid-file and the browser build silently lost every function after
+it, while Node's hoisting kept the tests green. The comment above it says so.)*
 
-Measured on the largest cube mid-turn: **0.4 ms a frame, 572 quads.** At rest,
-0.1 ms.
-
----
-
-## Two things worth knowing about the renderer
-
-**The board is drawn twice.** At rest the cube is square to the camera, every
-side face has zero projected area, and the image *is* a flat grid — so it is
-drawn as rects: crisper, cheaper, and the state a puzzle is actually read in.
-The moment a drag begins, the honest 3D solid takes over. Both paths draw the
-same front faces from the same numbers, so the hand-off is invisible.
-
-**Perspective is eased in with the turn.** An orthographic rotation of
-axis-aligned boxes produces no diagonals at all — halfway through a yaw the
-front faces and the side faces are tilted by the same 45°, so lighting alone
-cannot sell it and the turn reads as a smear of rectangles. So the projection
-grows a little perspective as the turn opens and gives it all back as it lands,
-scaled by |sin| of the angle. At rest the term is exactly zero, which is the
-whole reason the two renderers agree.
+Measured: **0.36 ms a frame resting, 0.72 ms mid-turn** with the full graphics
+pass on the largest cube. Worst level load, minted cold, 421 ms.
 
 ---
 
 ## Where it is weak
 
-**Fourteen cubes is a demo, not a campaign.** The generator can make more on
-demand and the solver will vouch for them, but generated puzzles plateau: they
-test the mechanic without ever having a *joke* in them. The set pieces — a cube
-whose whole point is one absurd adjacency — still have to be authored, and
-none here are.
+**Difficulty plateaus around vault 8.** Documented above with the measurements.
+Vaults past it are a change of clothes and a lock count, not a change of
+demand. Honest fix: new verbs, not bigger numbers.
 
-**Nothing from the design doc's item list exists yet.** No Plumb, no Anchor, no
+**Generated cubes never have a joke in them.** They test the mechanic
+competently and none of them will ever be *the* level people describe to each
+other — the one whose whole point is a single absurd adjacency. Those still
+have to be authored, and Vault I is the only place any exist.
+
+**Nothing from the design doc's item list exists.** No Plumb, no Anchor, no
 Lens, no enemies, no bosses. The verb is finished; the ladder Zelda's half was
-supposed to contribute is not started. That is the right order — there was no
-point building items for a collapse that might have read as a bug — but it
-means this is one third of the game described in `../turnkey.md`.
+supposed to contribute is not started — and it is exactly what would break the
+par ceiling.
 
-**And AR, the thing that made this worth doing at all**, is not in here.
-Rotating the cube by walking around a real table is a WebXR session and a
-different input path, and it is the single next thing to build.
+**And AR is not in here.** Rotating the cube by walking around a real table is
+a WebXR session and a different input path, and it remains the single next
+thing worth building.

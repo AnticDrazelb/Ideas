@@ -2,13 +2,13 @@
    PERSISTENCE — one key, and it is allowed to fail.
    A WebView with storage disabled should still play; it just forgets.
    ============================================================ */
-var store = {best:{}, reached:0, sound:1, haptic:1, depth:0, taught:0};
-try{ var raw = localStorage.getItem('turnkey-v1'); if(raw) store = Object.assign(store, JSON.parse(raw)); }catch(e){}
+var store = {best:{}, reached:1, sound:1, haptic:1, depth:0, taught:0};
+try{ var raw = localStorage.getItem('turnkey-v2'); if(raw) store = Object.assign(store, JSON.parse(raw)); }catch(e){}
 var saveT = 0;
 function save(){
   clearTimeout(saveT);
   saveT = setTimeout(function(){
-    try{ localStorage.setItem('turnkey-v1', JSON.stringify(store)); }catch(e){}
+    try{ localStorage.setItem('turnkey-v2', JSON.stringify(store)); }catch(e){}
   }, 220);
 }
 
@@ -65,7 +65,7 @@ function buzz(ms){ if(store.haptic && navigator.vibrate) try{ navigator.vibrate(
 var cv = document.getElementById('stage'), ctx = cv.getContext('2d');
 var W = 0, H = 0, DPR = 1;
 var lv = null, N = 0, M = ORI_ID, pos = [0,0,0], kmask = 0, doors = 0, turns = 0;
-var surf = null, reach = null, faces = [], undoStack = [], lvIndex = 0;
+var surf = null, reach = null, faces = [], undoStack = [], levelNo = 1, curBand = 0, viewBand = 0;
 var walking = null, anim = null, drag = null, won = false, stuck = false;
 var probe = document.createElement('div');
 probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;'
@@ -83,7 +83,7 @@ function fit(){
   cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  layout();
+  layout(); buildSky(); buildMotes(); shS = -1;
 }
 var S = 40, CX = 0, CY = 0;
 function layout(){
@@ -131,18 +131,31 @@ function liveZoom(){
 /* ============================================================
    LEVEL LOAD
    ============================================================ */
-function loadLevel(i){
-  lvIndex = Math.max(0, Math.min(LEVELS.length-1, i));
-  var src = LEVELS[lvIndex];
-  lv = {n:src.n, vox:src.vox.split(''), start:src.start, goal:src.goal,
-        keys:src.keys, doors:src.doors, name:src.name, par:src.par};
+function loadLevel(level){
+  levelNo = Math.max(1, level|0);
+  var src = levelData(levelNo);
+  lv = {n:src.n, vox:src.vox.slice(), start:src.start, goal:src.goal,
+        keys:src.keys, doors:src.doors, par:src.par, name:levelName(levelNo)};
   N = lv.n;
   M = ORI_ID; pos = lv.start.slice(); kmask = 0; doors = 0; turns = 0;
   var k0 = keyIndexAt(lv, pos); if(k0 >= 0) kmask |= (1<<k0);
   undoStack = []; walking = null; anim = null; drag = null; won = false; stuck = false;
+  var band = vaultOf(levelNo);
+  if(band !== curBand || !skyCv){ curBand = band; setStyle(band); }
   buildFaces();
   layout(); settle();
-  if(lvIndex + 1 > store.reached){ store.reached = lvIndex + 1; save(); }
+  if(levelNo > store.reached){ store.reached = levelNo; save(); }
+  prebuild(levelNo + 1);            /* cut the next one while this one is played */
+}
+
+/* Jumping somewhere far from the cache costs a real mint, so say so rather
+   than dropping a frame and hoping. One paint, then the work. */
+function goLevel(level, thenShow){
+  if(level > BAKED.length && !mintCache[level]){
+    toast('cutting cube ' + level + '…');
+    show(null);
+    setTimeout(function(){ loadLevel(level); if(thenShow) thenShow(); }, 30);
+  } else { loadLevel(level); show(null); if(thenShow) thenShow(); }
 }
 
 /* Only faces with nothing next to them are ever drawn — the inside of the
@@ -220,20 +233,140 @@ function popcnt(x){ var c = 0; while(x){ x &= x-1; c++; } return c; }
 
    So each material gets its own band and the bands do not overlap. The
    DARKEST deck is still brighter than the BRIGHTEST bedrock, and the two
-   ramps run in opposite temperatures — deck warm, bedrock cold — so the
-   distinction survives being read at a glance, in sunlight, by someone who
-   cannot tell two blues apart. Depth then modulates freely inside a band
-   without ever being able to change what a tile IS.                       */
-var DECK_FAR = [96,80,62],   DECK_NEAR = [246,238,222];
-var ROCK_FAR = [15,14,21],   ROCK_NEAR = [56,61,82];
+   ramps run in opposite temperatures. Depth then modulates freely inside a
+   band without ever being able to change what a tile IS. Every vault
+   repaints all four endpoints and this invariant is what they are chosen
+   against.                                                                */
+var ST = VAULTS[0];
+function rgbs(c){ return 'rgb(' + (c[0]|0) + ',' + (c[1]|0) + ',' + (c[2]|0) + ')'; }
 function mixc(a, b, t){
   return 'rgb(' + Math.round(a[0]+(b[0]-a[0])*t) + ',' + Math.round(a[1]+(b[1]-a[1])*t) + ',' + Math.round(a[2]+(b[2]-a[2])*t) + ')';
 }
 function tileFill(t, d, lightMul){
   var near = Math.max(0, Math.min(1, d / Math.max(1, N-1)));
   var lm = lightMul === undefined ? 1 : lightMul;
-  var a = t === '+' ? DECK_FAR : ROCK_FAR, b = t === '+' ? DECK_NEAR : ROCK_NEAR;
+  var a = t === '+' ? ST.dF : ST.rF, b = t === '+' ? ST.dN : ST.rN;
   return mixc([a[0]*lm, a[1]*lm, a[2]*lm], [b[0]*lm, b[1]*lm, b[2]*lm], near);
+}
+function setStyle(band){
+  ST = vaultStyle(band);
+  var r = document.documentElement.style;
+  r.setProperty('--void', rgbs(ST.vd));
+  r.setProperty('--void-2', rgbs([ST.vd[0]+8, ST.vd[1]+7, ST.vd[2]+10]));
+  r.setProperty('--void-3', rgbs([ST.vd[0]+17, ST.vd[1]+15, ST.vd[2]+22]));
+  buildSky();
+}
+
+/* ---------- THE SKY -------------------------------------------------------
+   The void columns are not decoration and they are not black by accident:
+   they are the one place you are looking THROUGH the cube, and they should
+   read as distance rather than as a hole in the picture. So there is a real
+   starfield behind everything, painted once per vault and parallaxed off the
+   view basis — turn the cube and the stars slide, which is the cheapest
+   possible way of saying "the thing that moved was the world".              */
+var skyCv = null, PAD = 26;
+function buildSky(){
+  if(!W || !H) return;
+  skyCv = document.createElement('canvas');
+  skyCv.width = Math.round((W + PAD*2) * DPR); skyCv.height = Math.round((H + PAD*2) * DPR);
+  var c = skyCv.getContext('2d');
+  c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  var rng = mulberry32(0x5EED ^ (curBand * 2654435761));
+  var g = c.createRadialGradient(W/2+PAD, H*0.42+PAD, 0, W/2+PAD, H*0.42+PAD, Math.max(W,H)*0.72);
+  g.addColorStop(0, 'rgba(' + (ST.at[0]|0) + ',' + (ST.at[1]|0) + ',' + (ST.at[2]|0) + ',0.13)');
+  g.addColorStop(1, 'rgba(' + (ST.at[0]|0) + ',' + (ST.at[1]|0) + ',' + (ST.at[2]|0) + ',0)');
+  c.fillStyle = g; c.fillRect(0, 0, W+PAD*2, H+PAD*2);
+  for(var i = 0; i < 190; i++){
+    var x = rng()*(W+PAD*2), y = rng()*(H+PAD*2);
+    var r = rng()*rng()*1.7 + 0.32, a = 0.12 + rng()*rng()*0.7;
+    c.globalAlpha = a;
+    c.fillStyle = rgbs(ST.st);
+    c.beginPath(); c.arc(x, y, r, 0, 6.284); c.fill();
+    if(r > 1.3){ c.globalAlpha = a*0.28; c.beginPath(); c.arc(x, y, r*3.2, 0, 6.284); c.fill(); }
+  }
+}
+
+/* ---------- GRAIN ---------------------------------------------------------
+   One 64px noise tile, overlaid on the tiles only. Flat fills read as
+   plastic; the same fills with a whisper of grain read as stone, and it
+   costs one extra rect per tile.                                           */
+var grainPat = null;
+function buildGrain(){
+  var c = document.createElement('canvas'); c.width = c.height = 64;
+  var g = c.getContext('2d'), id = g.createImageData(64, 64), rng = mulberry32(11);
+  for(var i = 0; i < 64*64; i++){
+    var v = 128 + (rng()-0.5)*78;
+    id.data[i*4] = id.data[i*4+1] = id.data[i*4+2] = v; id.data[i*4+3] = 255;
+  }
+  g.putImageData(id, 0, 0);
+  grainPat = ctx.createPattern(c, 'repeat');
+}
+
+/* ---------- THE DROPS -----------------------------------------------------
+   Where two neighbouring columns sit at different depths, the nearer one
+   casts onto the farther one. This is the single most useful thing added to
+   the resting board: it is honest (the light is at the camera, so that
+   shadow is real), it turns a flat grid into a relief you can read at a
+   glance, and it puts a visible price on exactly the adjacencies that are
+   lying to you about distance.                                              */
+var shGrad = null, shS = -1;
+function buildDrops(){
+  if(shS === S) return;
+  shS = S; shGrad = [];
+  var reach = S*0.42, defs = [[0,0,reach,0],[S,0,S-reach,0],[0,0,0,reach],[0,S,0,S-reach]];
+  for(var i = 0; i < 4; i++){
+    var d = defs[i], g = ctx.createLinearGradient(d[0], d[1], d[2], d[3]);
+    /* Reaches 42% of the tile and no further, so the CENTRE of every tile
+       always shows its true material undarkened. That is not a nicety: the
+       whole board is read off "is this brighter than bedrock can be", and a
+       shadow deep enough to push a deck under that line would be the
+       renderer lying about the rules. */
+    g.addColorStop(0, 'rgba(0,0,0,0.45)'); g.addColorStop(0.55, 'rgba(0,0,0,0.13)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    shGrad.push(g);
+  }
+}
+
+/* ---------- DUST + IMPACT -------------------------------------------------
+   Forty motes so the void is not a still image, and one white flash on the
+   cage when a turn lands so the detent you can hear has something to look
+   at. Both are pure feel and both are nearly free.                          */
+var motes = [], impact = 0;
+function buildMotes(){
+  motes = [];
+  var rng = mulberry32(4242);
+  for(var i = 0; i < 40; i++)
+    motes.push({x:rng()*W, y:rng()*H, r:rng()*1.5+0.4, a:0.05+rng()*0.16,
+                vx:(rng()-0.5)*5, vy:-2 - rng()*7});
+}
+function stepMotes(dt){
+  var k = dt/1000;
+  for(var i = 0; i < motes.length; i++){
+    var m = motes[i];
+    m.x += m.vx*k; m.y += m.vy*k;
+    if(m.y < -8){ m.y = H + 6; m.x = Math.random()*W; }
+    if(m.x < -8) m.x = W + 6; else if(m.x > W + 8) m.x = -6;
+  }
+  if(impact > 0) impact = Math.max(0, impact - dt/340);
+}
+function drawMotes(){
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = rgbs(ST.st);
+  for(var i = 0; i < motes.length; i++){
+    var m = motes[i];
+    ctx.globalAlpha = m.a;
+    ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, 6.284); ctx.fill();
+  }
+  ctx.restore();
+}
+/* an additive halo, so the three things that mean something glow rather
+   than merely being coloured differently */
+function halo(x, y, r, col, a){
+  var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, 'rgba(' + col + ',' + a + ')');
+  g.addColorStop(0.5, 'rgba(' + col + ',' + (a*0.32).toFixed(3) + ')');
+  g.addColorStop(1, 'rgba(' + col + ',0)');
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = g; ctx.fillRect(x-r, y-r, r*2, r*2); ctx.restore();
 }
 
 /* A FIXED LIGHT, NOT A FACING TERM.
@@ -288,8 +421,8 @@ function drawCage(m, z, alpha, pv){
              CY - (m.U[0]*wx + m.U[1]*wy + m.U[2]*wz)*S*z*k]);
   }
   ctx.save();
-  ctx.strokeStyle = 'rgba(233,225,209,' + alpha + ')';
-  ctx.lineWidth = 1.25; ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(' + (ST.dN[0]|0) + ',' + (ST.dN[1]|0) + ',' + (ST.dN[2]|0) + ',' + (alpha + impact*0.5) + ')';
+  ctx.lineWidth = 1.25 + impact*1.6; ctx.lineJoin = 'round';
   ctx.beginPath();
   for(var e = 0; e < 12; e++){
     ctx.moveTo(pt[CAGE_E[e][0]][0], pt[CAGE_E[e][0]][1]);
@@ -305,13 +438,28 @@ function tileRect(u, v, z){
 function draw(){
   ctx.clearRect(0, 0, W, H);
   if(!lv) return;
+  /* the sky first, parallaxed off the view basis: turn the cube and the
+     stars slide, which is the cheapest way to say the WORLD moved */
+  if(skyCv){
+    var m0 = liveBasis();
+    ctx.drawImage(skyCv, -PAD - m0.F[0]*11 - m0.R[0]*4, -PAD + m0.U[1]*8 - m0.F[1]*9, W + PAD*2, H + PAD*2);
+  }
   var a = liveAngle();
   if(a && Math.abs(a.ang) > 1e-4) draw3d();
   else drawFlat();
+  drawMotes();
+  if(impact > 0){
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    var r = Math.max(W, H)*0.62, g = ctx.createRadialGradient(CX, CY, N*S*0.30, CX, CY, r);
+    g.addColorStop(0, 'rgba(' + (ST.dN[0]|0) + ',' + (ST.dN[1]|0) + ',' + (ST.dN[2]|0) + ',' + (impact*0.10).toFixed(3) + ')');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+  }
 }
 
 function drawFlat(){
   var u, v, s, r, i;
+  buildDrops();
   drawCage(M, 1, 0.16, 0);
   /* 1. the tiles */
   for(u = 0; u < N; u++) for(v = 0; v < N; v++){
@@ -324,21 +472,48 @@ function drawFlat(){
       ctx.fillRect(r[0] + S*0.10, r[1] + S*0.10, S*0.80, S*0.80);
     }
   }
-  /* 2. the drops. A hairline everywhere two neighbouring columns sit at
-        different depths — the game admitting, in the open, exactly which
-        of its adjacencies are lies about distance. */
+  /* 1b. grain, on the tiles only, so stone reads as stone */
+  if(grainPat){
+    ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = 0.13;
+    ctx.fillStyle = grainPat;
+    for(u = 0; u < N; u++) for(v = 0; v < N; v++){
+      if(!surf[u*N + v]) continue;
+      r = tileRect(u, v);
+      ctx.fillRect(r[0], r[1], r[2] + 0.6, r[3] + 0.6);
+    }
+    ctx.restore();
+  }
+  /* 2. THE DROPS. Where two neighbouring columns sit at different depths the
+        nearer one casts onto the farther one, and a hairline marks the seam.
+        The light is at the camera, so this shadow is not a flourish — it is
+        the true one, and it is the game admitting in the open exactly which
+        of its adjacencies are lying to you about distance. */
   ctx.lineCap = 'butt';
+  var SD = [[1,0,0,1],[-1,0,1,0],[0,1,2,3],[0,-1,3,2]];   /* du,dv, gradIntoMe, gradIntoThem */
   for(u = 0; u < N; u++) for(v = 0; v < N; v++){
     s = surf[u*N + v]; if(!s) continue;
     r = tileRect(u, v);
+    for(i = 0; i < 4; i++){
+      var u2 = u + SD[i][0], v2 = v + SD[i][1];
+      if(u2 < 0 || v2 < 0 || u2 >= N || v2 >= N) continue;
+      var s2 = surf[u2*N + v2]; if(!s2) continue;
+      var dd = s2.d - s.d;
+      if(dd <= 0) continue;                                /* only a NEARER neighbour casts */
+      ctx.save();
+      ctx.translate(r[0], r[1]);
+      ctx.globalAlpha = Math.min(MAX_SHADOW/0.45, 0.14 + dd*0.08);
+      ctx.fillStyle = shGrad[SD[i][2]];
+      ctx.fillRect(0, 0, S, S);
+      ctx.restore();
+    }
     var nb = [[1,0],[0,1]];
     for(i = 0; i < 2; i++){
-      var u2 = u + nb[i][0], v2 = v + nb[i][1];
-      if(u2 >= N || v2 >= N) continue;
-      var s2 = surf[u2*N + v2]; if(!s2) continue;
-      var dd = Math.abs(s2.d - s.d); if(!dd) continue;
-      ctx.strokeStyle = 'rgba(10,9,16,' + Math.min(0.8, 0.22 + dd*0.17).toFixed(2) + ')';
-      ctx.lineWidth = Math.min(3.4, 1 + dd*0.55);
+      var u3 = u + nb[i][0], v3 = v + nb[i][1];
+      if(u3 >= N || v3 >= N) continue;
+      var s3 = surf[u3*N + v3]; if(!s3) continue;
+      var ad = Math.abs(s3.d - s.d); if(!ad) continue;
+      ctx.strokeStyle = 'rgba(0,0,0,' + Math.min(0.85, 0.26 + ad*0.15).toFixed(2) + ')';
+      ctx.lineWidth = Math.min(3.4, 1 + ad*0.5);
       ctx.beginPath();
       if(i === 0){ ctx.moveTo(r[0]+S, r[1]); ctx.lineTo(r[0]+S, r[1]+S); }
       else       { ctx.moveTo(r[0], r[1]);   ctx.lineTo(r[0]+S, r[1]); }
@@ -396,6 +571,7 @@ function playerScreen(){
 
 function drawPlayer(x, y, sz){
   var rr = sz*0.27;
+  halo(x, y, sz*1.05, '255,106,61', 0.34);
   ctx.save();
   ctx.shadowColor = 'rgba(255,106,61,.85)'; ctx.shadowBlur = sz*0.5;
   ctx.fillStyle = '#ff6a3d';
@@ -408,6 +584,7 @@ function drawPlayer(x, y, sz){
 }
 function drawGoal(r){
   var x = r[0] + S/2, y = r[1] + S/2, t = (Date.now() % 2400) / 2400;
+  halo(x, y, S*1.15, '53,215,161', 0.30);
   ctx.save();
   ctx.strokeStyle = '#35d7a1'; ctx.lineWidth = Math.max(1.6, S*0.06);
   ctx.shadowColor = 'rgba(53,215,161,.8)'; ctx.shadowBlur = S*0.45;
@@ -418,6 +595,7 @@ function drawGoal(r){
 }
 function drawKey(r){
   var x = r[0] + S/2, y = r[1] + S/2;
+  halo(x, y, S*0.85, '255,196,77', 0.26);
   ctx.save();
   ctx.fillStyle = '#ffc44d'; ctx.shadowColor = 'rgba(255,196,77,.8)'; ctx.shadowBlur = S*0.4;
   ctx.beginPath(); ctx.arc(x, y - S*0.09, S*0.115, 0, 6.284); ctx.fill();
@@ -601,6 +779,7 @@ function advanceAnim(dt){
   var ki = keyIndexAt(lv, pos);
   if(ki >= 0 && !(kmask & (1<<ki))){ kmask |= (1<<ki); sfx.key(); toast('key'); }
   turns++;
+  impact = 1;
   sfx.turn(); buzz(11);
   settle(); afterAction();
 }
@@ -625,18 +804,23 @@ function afterAction(){
 }
 function finish(){
   won = true;
-  var best = store.best[lvIndex];
-  var isBest = best === undefined || turns < best;
-  if(isBest){ store.best[lvIndex] = turns; save(); }
+  var best = store.best[levelNo];
+  if(best === undefined || turns < best){ store.best[levelNo] = turns; save(); }
+  if(levelNo + 1 > store.reached){ store.reached = levelNo + 1; save(); }
+  prebuild(levelNo + 1);
   sfx.win(); buzz(40);
   setTimeout(function(){
     $('winTurns').textContent = turns;
     $('winPar').textContent = lv.par;
-    $('winBest').textContent = store.best[lvIndex];
+    $('winBest').textContent = store.best[levelNo];
     var vd = $('winVerdict');
     vd.className = 'verdict ' + (turns <= lv.par ? 'par' : 'over');
     vd.textContent = turns <= lv.par ? 'FEWEST POSSIBLE' : (turns - lv.par) + ' OVER PAR';
-    $('btnNext').style.display = lvIndex + 1 < LEVELS.length ? '' : 'none';
+    /* a vault boundary is worth marking — it is the only structure an
+       endless game has, and the next ten cubes look different because of it */
+    var crossing = vaultOf(levelNo + 1) !== vaultOf(levelNo);
+    $('winVault').textContent = crossing ? 'VAULT ' + roman(vaultOf(levelNo+1)) + ' — ' + vaultName(vaultOf(levelNo+1)) : '';
+    $('winVault').style.display = crossing ? '' : 'none';
     $('btnRetry').style.display = turns <= lv.par ? 'none' : '';
     show('scWin');
   }, 520);
@@ -726,9 +910,11 @@ function show(id){
   });
   $('hud').classList.toggle('on', !id);
 }
+var ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+function roman(b){ return b < ROMAN.length ? ROMAN[b] : String(b+1); }
 function refreshHud(){
   if(!lv) return;
-  $('lvName').textContent = (lvIndex+1) + '. ' + lv.name;
+  $('lvName').textContent = levelNo + ' · ' + lv.name;
   $('turnN').textContent = turns;
   $('parN').textContent = '/' + lv.par;
   $('turnPill').classList.toggle('over', turns > lv.par);
@@ -772,53 +958,69 @@ function hint(){
   }
 }
 
+/* The cube list is a window on an endless shelf, so it pages by vault
+   rather than trying to be a list of everything. Par is not shown for a
+   cube you have not opened — it is a fact about a level that does not
+   exist yet, and minting ten of them to fill in a grid would cost seconds. */
 function buildCubeGrid(){
   var g = $('cubeGrid'); g.innerHTML = '';
-  LEVELS.forEach(function(L, i){
-    var best = store.best[i], done = best !== undefined;
-    var marks = !done ? 0 : (best <= L.par ? 3 : (best <= L.par + 2 ? 2 : 1));
+  var st = vaultStyle(viewBand);
+  $('vaultName').textContent = 'VAULT ' + roman(viewBand) + ' — ' + st.name;
+  $('vaultSwatch').style.background = 'linear-gradient(135deg,' + rgbs(st.dN) + ' 0 50%,' + rgbs(st.rN) + ' 50% 100%)';
+  $('vaultPrev').disabled = viewBand === 0;
+  $('vaultNext').disabled = (viewBand+1)*10 + 1 > store.reached;
+  for(var k = 0; k < 10; k++){
+    var level = viewBand*10 + k + 1;
+    var best = store.best[level], done = best !== undefined;
+    var locked = level > store.reached;
+    var par = level <= BAKED.length ? BAKED[level-1].par : (mintCache[level] ? mintCache[level].par : null);
+    var marks = !done ? 0 : (par === null ? 1 : best <= par ? 3 : best <= par + 2 ? 2 : 1);
     var el = document.createElement('button');
-    el.className = 'cube' + (done ? ' done' : '') + (marks === 3 ? ' perfect' : '') + (i > store.reached ? ' locked' : '');
-    el.innerHTML = '<div class="idx">' + (i+1) + '</div><div class="nm">' + L.name + '</div>' +
-      '<div class="marks">' + [0,1,2].map(function(k){ return '<i class="' + (k < marks ? 'on' : '') + '"></i>'; }).join('') + '</div>';
-    el.onclick = function(){
-      if(i > store.reached){ toast('clear the cubes before it'); return; }
-      loadLevel(i); show(null);
-    };
+    el.className = 'cube' + (done ? ' done' : '') + (marks === 3 ? ' perfect' : '') + (locked ? ' locked' : '');
+    el.innerHTML = '<div class="idx">' + level + '</div><div class="nm">' + (locked ? '—' : levelName(level)) + '</div>' +
+      '<div class="marks">' + [0,1,2].map(function(j){ return '<i class="' + (j < marks ? 'on' : '') + '"></i>'; }).join('') + '</div>';
+    (function(L, lk){ el.onclick = function(){
+      if(lk){ toast('clear the cubes before it'); return; }
+      goLevel(L);
+    }; })(level, locked);
     g.appendChild(el);
-  });
+  }
 }
+function openCubes(){ viewBand = vaultOf(levelNo); buildCubeGrid(); show('scCubes'); }
 
 /* ---------- bindings, each exactly once ---------- */
 $('btnPlay').onclick = function(){
   audio();
   if(!store.taught){ store.taught = 1; save(); show('scManual'); return; }
-  loadLevel(firstUncleared()); show(null);
+  goLevel(firstUncleared());
 };
 function firstUncleared(){
-  for(var i = 0; i < LEVELS.length; i++) if(store.best[i] === undefined) return i;
-  return LEVELS.length - 1;
+  for(var i = 1; i <= store.reached; i++) if(store.best[i] === undefined) return i;
+  return store.reached;
 }
-$('btnCubes').onclick = function(){ buildCubeGrid(); show('scCubes'); };
+$('btnCubes').onclick = openCubes;
 $('btnCubesBack').onclick = function(){ show('scTitle'); };
+$('vaultPrev').onclick = function(){ if(viewBand > 0){ viewBand--; buildCubeGrid(); } };
+$('vaultNext').onclick = function(){ if((viewBand+1)*10 + 1 <= store.reached){ viewBand++; buildCubeGrid(); } };
 $('btnManual').onclick = function(){ show('scManual'); };
 $('btnManual2').onclick = function(){ show('scManual'); };
 $('btnManualBack').onclick = function(){
-  if(!lv){ loadLevel(firstUncleared()); show(null); } else show(null);
+  if(!lv){ goLevel(firstUncleared()); } else show(null);
 };
 $('btnMenu').onclick = function(){
   $('pauseName').textContent = lv ? lv.name : 'PAUSED';
-  $('pauseSub').textContent = lv ? ('Fewest possible: ' + lv.par + ' turn' + (lv.par===1?'':'s')) : '';
+  $('pauseSub').textContent = lv ? ('Vault ' + roman(vaultOf(levelNo)) + ' · ' + vaultName(vaultOf(levelNo)) +
+      ' — fewest possible: ' + lv.par + ' turn' + (lv.par===1?'':'s')) : '';
   show('scPause');
 };
 $('btnResume').onclick = function(){ show(null); };
-$('btnRestart').onclick = function(){ loadLevel(lvIndex); show(null); };
-$('btnToCubes').onclick = function(){ buildCubeGrid(); show('scCubes'); };
+$('btnRestart').onclick = function(){ loadLevel(levelNo); show(null); };
+$('btnToCubes').onclick = openCubes;
 $('btnUndo').onclick = undo;
 $('btnHint').onclick = hint;
-$('btnNext').onclick = function(){ loadLevel(lvIndex + 1); show(null); };
-$('btnRetry').onclick = function(){ loadLevel(lvIndex); show(null); };
-$('btnWinCubes').onclick = function(){ buildCubeGrid(); show('scCubes'); };
+$('btnNext').onclick = function(){ goLevel(levelNo + 1); };
+$('btnRetry').onclick = function(){ loadLevel(levelNo); show(null); };
+$('btnWinCubes').onclick = openCubes;
 function bindSwitch(id, key){
   var el = $(id);
   el.classList.toggle('on', !!store[key]);
@@ -846,7 +1048,10 @@ window.TURNKEY = {
     if(!$('scWin').classList.contains('hide')){ buildCubeGrid(); show('scCubes'); return true; }
     if(!$('scManual').classList.contains('hide')){ show(lv ? 'scPause' : 'scTitle'); return true; }
     if(!$('scPause').classList.contains('hide')){ show(null); return true; }
-    if(!$('scCubes').classList.contains('hide')){ show('scTitle'); return true; }
+    if(!$('scCubes').classList.contains('hide')){
+      if(viewBand > 0){ viewBand--; buildCubeGrid(); return true; }
+      show('scTitle'); return true;
+    }
     if($('hud').classList.contains('on')){ show('scPause'); return true; }
     return false;
   },
@@ -877,9 +1082,11 @@ function loop(ts){
   last = ts;
   advanceAnim(dt);
   advanceWalk(dt);
+  stepMotes(dt);
   draw();
   requestAnimationFrame(loop);
 }
+buildGrain(); buildMotes(); setStyle(0);
 fit();
 show('scTitle');
 $('btnPlay').textContent = store.reached ? 'CONTINUE' : 'BEGIN';

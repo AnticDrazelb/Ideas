@@ -16,9 +16,9 @@ sed '/^if(typeof module/,$d' core.js > core-inline.js
   cat core-inline.js
   echo
   echo '/* ---------- THE CUBES — every one solver-verified at the par it claims ---------- */'
-  cat levels.js
+  sed "s/var LEVELS = /var BAKED = /" levels.js
   echo
-  cat game.js
+  cat game-vaults.js; echo; cat game.js
   echo '</script>'
   echo '</body>'
   echo '</html>'
