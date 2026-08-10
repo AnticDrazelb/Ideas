@@ -77,7 +77,11 @@
      ANYTHING TAPPABLE HAS A HARD 44px FLOOR. A control does not get to
      shrink below a thumb because the screen is small; the chrome around
      it is the part that gives. */
-  --h-ctl:clamp(44px,11vw,50px);
+  /* Readouts are not buttons and do not need a thumb's worth of height, so
+     they get their own smaller rung and give the board back the difference.
+     Anything TAPPABLE still has the hard 44px floor. */
+  --h-read:clamp(38px,9.6vw,42px);
+  --h-ctl:clamp(46px,12vw,52px);
   --h-btn:clamp(52px,14.5vw,62px);
   --h-row:clamp(54px,15vw,64px);
 
@@ -201,8 +205,13 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
   position:absolute;left:0;right:0;display:flex;align-items:center;gap:9px;
   padding:0 calc(var(--sa-left) + 14px) 0 calc(var(--sa-right) + 14px);
 }
-#barTop{top:calc(var(--sa-top) + 12px);}
-#barBot{bottom:calc(var(--sa-bottom) + 14px);justify-content:center;}
+#barTop{top:calc(var(--sa-top) + 8px);}
+#barBot{bottom:calc(var(--sa-bottom) + 12px);justify-content:center;gap:12px;}
+/* the readouts shrink; the three things a thumb actually presses grow */
+#barTop .pill{height:var(--h-read);min-width:var(--h-read);padding:0 13px;}
+#barBot .pill{height:var(--h-ctl);min-width:var(--h-ctl);}
+#barBot .pill.icon{width:var(--h-ctl);}
+#barBot #btnUndo{padding:0 24px;}
 
 .pill{
   height:var(--h-ctl);min-width:var(--h-ctl);padding:0 15px;
@@ -234,7 +243,7 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 /* the drag affordance — four ticks that light when a turn is available and
    go hollow when the far side of it has no footing. It is the only thing on
    screen that answers "may I turn?", so it is never hidden. */
-#dpad{position:absolute;left:50%;bottom:calc(var(--sa-bottom) + 14px + var(--h-ctl) + 16px);
+#dpad{position:absolute;left:50%;bottom:calc(var(--sa-bottom) + 12px + var(--h-ctl) + 14px);
       transform:translateX(-50%);display:flex;gap:7px;align-items:center;}
 .tick{width:26px;height:5px;border-radius:3px;background:var(--edge);transition:background .2s ease,opacity .2s ease;}
 .tick.ok{background:var(--rust);opacity:.95;box-shadow:0 0 12px -2px rgba(255,106,61,.9);}
@@ -243,7 +252,7 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 .tick.no{background:var(--edge-2);}
 
 #toast{
-  position:absolute;left:50%;bottom:calc(var(--sa-bottom) + 132px);
+  position:absolute;left:50%;bottom:calc(var(--sa-bottom) + 120px);
   transform:translate(-50%,12px);
   padding:11px 18px;border-radius:var(--r-pill);
   background:var(--glass);box-shadow:inset 0 0 0 1px var(--edge);

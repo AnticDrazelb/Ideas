@@ -57,7 +57,16 @@ function lumOf(c){ return 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2]; }
    authored palettes a shade of contrast they will not miss, and it means
    there is no vault number at which the board stops being readable.       */
 var MAX_SHADOW = 0.40 * 0.45;                 /* peak per-tile alpha x peak gradient alpha */
+var DECK_FLOOR = 108;                         /* the dimmest a deck may ever be */
 function enforceBands(st){
+  /* A deck at the far end of the cube was coming out near-black-brown and
+     reading as bedrock on a real phone in real light — which is the one
+     mistake this game cannot afford, because "may I stand there" is the
+     question every frame is asked. The far end of the deck ramp now has a
+     floor, and the bedrock ramp is walked down from wherever that lands. */
+  var g0 = 0;
+  while(lumOf(st.dF) < DECK_FLOOR && g0++ < 60)
+    st.dF = [Math.min(255, st.dF[0]*1.05 + 3), Math.min(255, st.dF[1]*1.05 + 3), Math.min(255, st.dF[2]*1.05 + 3)];
   var need = lumOf(st.dF) * MAX_SHADOW * 1.3, guard = 0;
   while(lumOf(st.dF) - lumOf(st.rN) < need && guard++ < 60){
     st.rN = [st.rN[0]*0.94, st.rN[1]*0.94, st.rN[2]*0.94];

@@ -160,24 +160,50 @@ function insets(){
           b:parseFloat(s.paddingBottom)||0, l:parseFloat(s.paddingLeft)||0};
 }
 
+/* visualViewport is the honest number on a phone. window.innerHeight on iOS
+   Safari includes the strip the URL bar is sitting on, so the board was being
+   sized against space the player cannot actually see or touch. */
+function vpSize(){
+  var vv = window.visualViewport;
+  if(vv && vv.width > 0) return {w:Math.round(vv.width), h:Math.round(vv.height)};
+  return {w:window.innerWidth, h:window.innerHeight};
+}
 function fit(){
   DPR = Math.min(window.devicePixelRatio || 1, 2.5);
-  W = window.innerWidth; H = window.innerHeight;
+  var vp = vpSize(); W = vp.w; H = vp.h;
   cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   layout(); buildSky(); buildMotes(); shS = -1;
 }
 var S = 40, CX = 0, CY = 0;
+/* LAYOUT — MOBILE FIRST, AND THE BOARD ALWAYS FITS.
+
+   The board is square. A phone is not. So the width always binds and the
+   height always has slack, and the job of this function is to spend the
+   width completely and put the slack where a thumb wants it.
+
+   The previous version sized the attract cube at 1.12x of the smaller side,
+   which put 23-26 PIXELS OF BOARD OFF BOTH SCREEN EDGES on every phone
+   tested — and a tile you cannot see is a tile you cannot tap. Whatever else
+   changes here, `side` is clamped to both axes and that cannot regress
+   without the viewport suite failing.
+
+   The slack is then biased upward, so the gap under the board is larger than
+   the gap over it. That is not symmetry for its own sake: the bottom of a
+   phone is where the thumb lives and where the controls are, and a board
+   sitting dead-centre crowds them. */
 function layout(){
   if(!N) return;
   var ins = insets();
-  /* the attract cube has no HUD to duck under, so it gets the whole plate */
-  var top = ins.t + (demo ? 20 : 68), bot = ins.b + (demo ? 20 : 150);
-  var availW = W - ins.l - ins.r - (demo ? 0 : 26), availH = H - top - bot;
-  S = Math.max(18, Math.min(availW, availH) * (demo ? 1.12 : 0.98) / N);
+  var topBar = ins.t + (demo ? 10 : 54);
+  var botBar = ins.b + (demo ? 10 : 112);
+  var availW = W - ins.l - ins.r - (demo ? 14 : 12);
+  var availH = H - topBar - botBar;
+  var side = Math.max(60, Math.min(availW, availH));
+  S = side / N;
   CX = ins.l + (W - ins.l - ins.r)/2;
-  CY = top + availH/2;
+  CY = topBar + availH/2 - (demo ? 0 : Math.min(30, (availH - side)*0.14));
 }
 
 /* ---------- the render basis: M, bent by whatever turn is in progress ---- */
@@ -199,10 +225,12 @@ function liveAngle(){
   if(demo && Math.abs(demoAng) > 1e-4) return {axis:demoAxis, ang:demoAng};
   return null;
 }
+function baseBasis(){ return demo ? demoM : M; }
+function curSurf(){ return demo ? (demoSurf || surf) : surf; }
 function liveBasis(){
-  var a = liveAngle();
-  if(!a || Math.abs(a.ang) < 1e-4) return M;
-  return a.axis === 'x' ? yawBasis(M, a.ang) : pitchBasis(M, a.ang);
+  var a = liveAngle(), B = baseBasis();
+  if(!a || Math.abs(a.ang) < 1e-4) return B;
+  return a.axis === 'x' ? yawBasis(B, a.ang) : pitchBasis(B, a.ang);
 }
 /* A square rotating about a screen axis projects (cos+sin) times as wide, so
    pulling the camera back by exactly that keeps the cube inside the frame
@@ -443,9 +471,27 @@ function buildDrops(){
    glass. It costs nothing — the renderer already exists and the menus were
    drawing nothing at all — and it means the first thing anyone sees is the
    one idea the game has. */
-var demo = false, demoAxis = 'x', demoAng = 0, demoDir = 1, demoWait = 0, demoT = 0;
+/* IT GETS ITS OWN BASIS, AND THAT IS NOT A STYLE CHOICE.
+
+   The attract cube used to tumble by rotating M — the real game basis — while
+   `pos` stayed put at the level's opening cell. Leaving the title screen then
+   dropped you into a live level standing INSIDE THE ROCK: your cell was no
+   longer the surface of its column, so the lit reachable set was stale, turn
+   legality was computed from a position that did not exist, and the cube was
+   unwinnable. Every first-time player hit it, because BEGIN -> GOT IT was the
+   only way in.
+
+   So the demo now owns demoM and demoSurf and cannot reach the rules at all.
+   The renderer reads whichever is live; nothing else ever sees demoM.        */
+var demo = false, demoM = ORI_ID, demoSurf = null;
+var demoAxis = 'x', demoAng = 0, demoDir = 1, demoWait = 0, demoT = 0;
+function demoStart(){
+  demoM = ORI_ID; demoAng = 0; demoWait = 260; demoT = 0;
+  demoAxis = 'x'; demoDir = 1;
+  if(lv) demoSurf = project(N, lv.vox, demoM);
+}
 function stepDemo(dt){
-  if(!demo) return;
+  if(!demo || !lv) return;
   demoT += dt;
   /* it never rests square to the camera. A cube parked flat is a grid, and
      the one thing the title screen has to say is "this is a solid". */
@@ -456,11 +502,11 @@ function stepDemo(dt){
   }
   demoAng += demoDir * dt / 2000 * Math.PI/2;
   if(Math.abs(demoAng) >= Math.PI/2){
-    M = TURNS[demoAxis === 'x' ? (demoDir > 0 ? 1 : 0) : (demoDir > 0 ? 2 : 3)].f(M);
+    demoM = TURNS[demoAxis === 'x' ? (demoDir > 0 ? 1 : 0) : (demoDir > 0 ? 2 : 3)].f(demoM);
     demoAng = 0; demoWait = 420;
     demoAxis = Math.random() < 0.62 ? 'x' : 'y';
     demoDir = Math.random() < 0.5 ? 1 : -1;
-    surf = project(N, lv.vox, M);
+    demoSurf = project(N, lv.vox, demoM);
   }
 }
 
@@ -730,13 +776,14 @@ function draw(){
 }
 
 function drawFlat(){
-  var u, v, s, r, i;
+  var u, v, s, r, i, SF = curSurf(), BM = baseBasis();
+  if(!SF) return;
   buildDrops();
-  drawCage(M, 1, 0.16, 0);
+  drawCage(BM, 1, 0.16, 0);
   /* 1. the tiles, each riding whatever wave is passing through the board */
   var anyWave = !!wave;
   for(u = 0; u < N; u++) for(v = 0; v < N; v++){
-    s = surf[u*N + v]; if(!s) continue;
+    s = SF[u*N + v]; if(!s) continue;
     r = tileRect(u, v);
     var ph = anyWave ? tilePhase(u, v) : 1;
     if(ph <= 0.002) continue;
@@ -761,7 +808,7 @@ function drawFlat(){
     ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = 0.13;
     ctx.fillStyle = grainPat;
     for(u = 0; u < N; u++) for(v = 0; v < N; v++){
-      if(!surf[u*N + v]) continue;
+      if(!SF[u*N + v]) continue;
       r = tileRect(u, v);
       ctx.fillRect(r[0], r[1], r[2] + 0.6, r[3] + 0.6);
     }
@@ -775,12 +822,12 @@ function drawFlat(){
   ctx.lineCap = 'butt';
   var SD = [[1,0,0,1],[-1,0,1,0],[0,1,2,3],[0,-1,3,2]];   /* du,dv, gradIntoMe, gradIntoThem */
   for(u = 0; u < N; u++) for(v = 0; v < N; v++){
-    s = surf[u*N + v]; if(!s) continue;
+    s = SF[u*N + v]; if(!s) continue;
     r = tileRect(u, v);
     for(i = 0; i < 4; i++){
       var u2 = u + SD[i][0], v2 = v + SD[i][1];
       if(u2 < 0 || v2 < 0 || u2 >= N || v2 >= N) continue;
-      var s2 = surf[u2*N + v2]; if(!s2) continue;
+      var s2 = SF[u2*N + v2]; if(!s2) continue;
       var dd = s2.d - s.d;
       if(dd <= 0) continue;                                /* only a NEARER neighbour casts */
       ctx.save();
@@ -794,7 +841,7 @@ function drawFlat(){
     for(i = 0; i < 2; i++){
       var u3 = u + nb[i][0], v3 = v + nb[i][1];
       if(u3 >= N || v3 >= N) continue;
-      var s3 = surf[u3*N + v3]; if(!s3) continue;
+      var s3 = SF[u3*N + v3]; if(!s3) continue;
       var ad = Math.abs(s3.d - s.d); if(!ad) continue;
       ctx.strokeStyle = 'rgba(0,0,0,' + Math.min(0.85, 0.26 + ad*0.15).toFixed(2) + ')';
       ctx.lineWidth = Math.min(3.4, 1 + ad*0.5);
@@ -804,7 +851,7 @@ function drawFlat(){
       ctx.stroke();
     }
   }
-  if(demo){ drawCage(M, 1, 0.16, 0); return; }
+  if(demo) return;
   /* 3. THE REACHABLE SET. The connectivity graph, drawn. This is the single
         most useful thing on screen: turn the cube and watch the lit region
         change, and the mechanic has explained itself with no words. */
@@ -832,7 +879,7 @@ function drawFlat(){
     ctx.font = '700 ' + Math.round(S*0.24) + 'px ui-monospace, monospace';
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     for(u = 0; u < N; u++) for(v = 0; v < N; v++){
-      s = surf[u*N + v]; if(!s) continue;
+      s = SF[u*N + v]; if(!s) continue;
       r = tileRect(u, v);
       ctx.fillStyle = s.t === '+' ? 'rgba(10,9,16,.55)' : 'rgba(233,225,209,.42)';
       ctx.fillText(String(s.d), r[0] + S*0.10, r[1] + S*0.09);
@@ -966,10 +1013,12 @@ function draw3d(){
     px(w[0] + m.F[0]*0.62, w[1] + m.F[1]*0.62, w[2] + m.F[2]*0.62, tmp);
     list.push({d:tmp[2] + 0.62, k:kind, x:tmp[0], y:tmp[1], extra:extra});
   }
-  for(i = 0; i < lv.doors.length; i++) marker(lv.doors[i], 3, !!(doors & (1<<i)));
-  for(i = 0; i < lv.keys.length; i++) if(!(kmask & (1<<i))) marker(lv.keys[i], 2, 0);
-  marker(lv.goal, 4, 0);
-  marker(pos, 1, 0);
+  if(!demo){
+    for(i = 0; i < lv.doors.length; i++) marker(lv.doors[i], 3, !!(doors & (1<<i)));
+    for(i = 0; i < lv.keys.length; i++) if(!(kmask & (1<<i))) marker(lv.keys[i], 2, 0);
+    marker(lv.goal, 4, 0);
+    marker(pos, 1, 0);
+  }
 
   list.sort(function(a, b){ return a.d - b.d; });
   var sz = S*z;
@@ -1305,10 +1354,12 @@ function show(id){
      pause and win cards the real board stays put, because those are about
      the level you are in the middle of */
   var wasDemo = demo;
-  demo = (id === 'scTitle' || id === 'scManual');
+  /* the manual opened mid-level is NOT an attract screen — the board behind
+     it is a puzzle somebody is in the middle of */
+  demo = (id === 'scTitle') || (id === 'scManual' && manualFrom === 'scTitle');
   if(demo && !lv){ loadLevel(1); wave = null; }
   if(!demo) demoAng = 0;
-  if(demo !== wasDemo) layout();
+  if(demo !== wasDemo){ if(demo) demoStart(); layout(); }
 }
 var ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 function roman(b){ return b < ROMAN.length ? ROMAN[b] : String(b+1); }
@@ -1406,10 +1457,15 @@ $('btnCubes').onclick = openCubes;
 $('btnCubesBack').onclick = function(){ show('scTitle'); };
 $('vaultPrev').onclick = function(){ if(viewBand > 0){ viewBand--; buildCubeGrid(); } };
 $('vaultNext').onclick = function(){ if((viewBand+1)*10 + 1 <= store.reached){ viewBand++; buildCubeGrid(); } };
-$('btnManual').onclick = function(){ show('scManual'); };
-$('btnManual2').onclick = function(){ show('scManual'); };
+var manualFrom = 'scTitle';
+$('btnManual').onclick = function(){ manualFrom = 'scTitle'; show('scManual'); };
+$('btnManual2').onclick = function(){ manualFrom = 'scPause'; show('scManual'); };
 $('btnManualBack').onclick = function(){
-  if(!lv){ goLevel(firstUncleared()); } else show(null);
+  /* Opened from the pause menu this is just a reference card — go back to the
+     level. Opened from the title it is the way IN, and it must load a level
+     rather than reveal whatever the attract cube left lying around. */
+  if(manualFrom === 'scPause'){ show(null); return; }
+  goLevel(firstUncleared());
 };
 $('btnMenu').onclick = function(){
   $('pauseName').textContent = lv ? lv.name : 'PAUSED';
@@ -1475,6 +1531,14 @@ document.addEventListener('visibilitychange', function(){
 });
 window.addEventListener('resize', fit);
 window.addEventListener('orientationchange', function(){ setTimeout(fit, 120); });
+if(window.visualViewport){
+  /* Safari collapses and expands its bars as you play; without this the board
+     is laid out against a height that stopped being true two seconds ago. */
+  var vvT = 0;
+  var onVV = function(){ clearTimeout(vvT); vvT = setTimeout(fit, 60); };
+  window.visualViewport.addEventListener('resize', onVV);
+  window.visualViewport.addEventListener('scroll', onVV);
+}
 
 /* ============================================================
    LOOP

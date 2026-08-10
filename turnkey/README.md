@@ -207,6 +207,42 @@ of them gate input that could have been taken.
 
 ---
 
+## Mobile is the target, not a viewport
+
+This is built to be an app, and everything below exists because it went wrong
+on an actual phone rather than in a headless browser.
+
+**The board always fits.** The attract cube was sized at 1.12× the smaller
+screen axis, which hung **23–26 px of board off both edges of every phone
+tested** — and a tile you cannot see is a tile you cannot tap. The board is
+square and a phone is not, so the width always binds; `layout()` now clamps to
+both axes and spends the width completely. Eleven viewports × four states are
+asserted in `tools/mobile.js`; the tightest margin is 6 px on an iPhone SE.
+
+**The slack goes under the thumb.** A square board on a 19.5:9 screen leaves
+~45 % vertical. Rather than centre it and crowd the controls, the board is
+biased upward so the gap below is larger than the gap above — that's where the
+hand is, and where the three things it presses live.
+
+**Readouts and controls are sized differently.** The level name and turn
+counter aren't buttons, so they use a shorter rung and give the board back the
+difference. Anything *tappable* keeps the hard 44 px floor, and a test walks
+every control to prove it.
+
+**`visualViewport`, not `innerHeight`.** On iOS Safari `innerHeight` includes
+the strip the URL bar is sitting on, so the board was being sized against space
+the player can neither see nor touch — and Safari collapses and expands those
+bars while you play.
+
+**The dimmest deck has a floor.** A deck at the far end of the cube was coming
+out near-black-brown and reading as *bedrock* in real light — the one mistake
+this game cannot afford, since "may I stand there" is the question every frame
+is asked. The deck ramp now has a luminance floor and the bedrock ramp is
+walked down from wherever that lands. Deck-to-bedrock separation went from 17.6
+to 41.3, and from 4.0 to 20.7 under the deepest cast shadow.
+
+---
+
 ## Android
 
 Built for a WebView. The three seams a packaged host needs are on one object:
@@ -281,6 +317,19 @@ running the real thing rather than by reading it:
   confusable. Now enforced per palette rather than trusted.
 - A signed-shift bug that named half the cubes past level 40 *"undefined"*,
   caught in a screenshot, then swept across 4,000 levels.
+- **The worst one, found by a player on a real phone.** The attract cube on the
+  title screen tumbled by rotating `M` — *the real game basis* — while `pos`
+  stayed at the level's opening cell. Leaving the title then dropped you into a
+  live level **standing inside the rock**: your cell was no longer the surface
+  of its column, so the lit reachable set was stale, turn legality was computed
+  from a position that did not exist, and the cube could be unwinnable. And
+  `btnManualBack` skipped `loadLevel` entirely whenever a level object already
+  existed — which it always did, because the attract cube had loaded one. So
+  **every first-time player hit it**, since BEGIN → GOT IT was the only way in.
+  The attract cube now owns `demoM`/`demoSurf` and cannot reach the rules at
+  all; `tools/mobile.js` asserts footing is valid on all four routes into a
+  level, and that six forced attract turns leave `M`, `pos` and `surf` byte-for-byte
+  untouched.
 - **The bad one.** Tapping the tile you already stand on produced an empty
   path — truthy, so it started a walk with nothing in it, and the next frame
   read `surf[undefined].w`. The exception escaped `loop()` before the next
