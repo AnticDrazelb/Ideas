@@ -48,9 +48,7 @@ const ok=(n,c,x='')=>{console.log((c?'  ok  ':'FAIL  ')+n+(x?'   '+x:''));if(!c)
   p.on('console',m=>{if(m.type()==='error')errs.push('console: '+m.text());});
   await p.goto(FILE); await p.waitForTimeout(350);
 
-  const spin=()=>p.evaluate(()=>{
-    for(let i=0;i<5;i++){ demoAng=0; demoWait=0; demoAxis=(i%2?'y':'x'); demoDir=i%3?1:-1; stepDemo(2100); }
-  });
+  const spin=()=>p.evaluate(()=>{ for(let i=0;i<5;i++) stepDemo(9200); });
   const check=()=>p.evaluate(()=>({
     ori:oriIndex(M), lvl:levelNo,
     footing: !!surfaceAt(N, project(N,lv.vox,M), M, pos),
@@ -101,13 +99,14 @@ const ok=(n,c,x='')=>{console.log((c?'  ok  ':'FAIL  ')+n+(x?'   '+x:''));if(!c)
   const iso=await p.evaluate(()=>{
     show('scTitle');
     const before={ori:oriIndex(M), pos:pos.slice(), surf:surf.map(s=>s?s.w.join(''):'-').join(',')};
-    /* NB: alternating x,y turns compose to a 120-degree rotation about a body
-       diagonal, so six of them return to identity — an earlier version of this
-       check forced exactly that and reported the cube had never moved. Same
-       axis throughout, odd count, so it cannot land back where it started. */
+    /* Driven the way the attract cube actually works now: one continuous
+       sweep, committing a quarter turn each time the angle crosses 90. It
+       used to step-and-rest, and this check reset the angle every call —
+       which with the new sweep meant it could never reach a commit at all
+       and reported the cube had never moved. Odd number of quarter turns
+       about one axis, so it cannot land back where it started. */
     let moved=false;
-    for(let i=0;i<5;i++){ demoAng=0; demoWait=0; demoAxis='x'; demoDir=1; stepDemo(2100);
-      if(oriIndex(demoM)!==0) moved=true; }
+    for(let i=0;i<5;i++){ stepDemo(9200); if(oriIndex(demoM)!==0) moved=true; }
     const after={ori:oriIndex(M), pos:pos.slice(), surf:surf.map(s=>s?s.w.join(''):'-').join(',')};
     return {same: before.ori===after.ori && JSON.stringify(before.pos)===JSON.stringify(after.pos)
                   && before.surf===after.surf,

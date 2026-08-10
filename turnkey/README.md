@@ -259,6 +259,36 @@ two detuned saws through a heavy lowpass, pitched off the vault number, at a
 level you notice only when it stops. Steps drift in pitch so a run of them
 sounds like walking rather than a stuck record.
 
+**The wordmark is cut from the same stone.** It was type in a system font
+with letter-spacing on it, which is a fine way to label a screen and a poor
+way to open a game about stone cubes. It's now a 5×7 bitmap per letter with
+every lit cell extruded, bevelled and mortared — rendered once into an
+offscreen canvas at boot and handed to an `<img>`, so it costs one canvas and
+zero frames and still scales with the layout. The extrusion is stamped once
+per pixel of depth rather than built face-by-face: nine stamps of a flat shape
+cannot have a seam, and the face-by-face version came out smeared on every
+diagonal.
+
+**The title screen is a stage, not a pane of glass.** It used to blur the
+whole plate, which meant the cube — the one thing the screen is about — came
+out as mush behind the type. The chrome now owns a band at each end and the
+middle is left completely alone: no blur, no scrim. In play the camera is
+square to a face because that's the surface the puzzle is read on; the attract
+screen has no such duty, so it gets a real three-quarter hero pose on a
+plinth, fitted by projecting the eight corners and scaling to whatever box
+they actually came out as.
+
+**Light from inside, and only there.** A warm gradient is drawn *before* the
+cube and never masked, so the only places it survives are the void columns —
+the gaps you're looking straight through. The cube appears lit from within and
+it costs one gradient, because the geometry does the masking for free. It was
+briefly on the play board too, and that was a mistake worth recording: an
+additive layer under the tiles lifts *bedrock* as much as deck, which eats the
+luminance separation the whole board is read off — and the palette test
+couldn't see it, because it measures `tileFill` and this was painted
+underneath. Atmosphere doesn't get to cost legibility on the surface the
+puzzle is solved on.
+
 **The title screen is the engine.** It used to be type on a gradient; it is now
 type over a real cube tumbling behind the glass, with the play furniture hidden
 and the scrim thin enough to see through. It costs nothing — the renderer

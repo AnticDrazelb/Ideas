@@ -204,11 +204,14 @@ var S = 40, CX = 0, CY = 0;
 function layout(){
   if(!N) return;
   var ins = insets();
-  var topBar = ins.t + (demo ? 10 : 54);
-  var botBar = ins.b + (demo ? 10 : 112);
-  var availW = W - ins.l - ins.r - (demo ? 14 : 12);
+  /* On the title screen the chrome owns a band at each end and the cube owns
+     the middle, so it is sized and centred against THAT band rather than the
+     whole plate — which is what stops the hero sitting under the buttons. */
+  var topBar = ins.t + (demo ? Math.round(H*0.26) : 54);
+  var botBar = ins.b + (demo ? Math.round(H*0.34) : 112);
+  var availW = W - ins.l - ins.r - (demo ? 8 : 12);
   var availH = H - topBar - botBar;
-  var side = Math.max(60, Math.min(availW, availH));
+  var side = Math.max(60, Math.min(availW, demo ? availH*1.45 : availH));
   S = side / N;
   CX = ins.l + (W - ins.l - ins.r)/2;
   CY = topBar + availH/2 - (demo ? 0 : Math.min(30, (availH - side)*0.14));
@@ -233,9 +236,35 @@ function liveAngle(){
   if(demo && Math.abs(demoAng) > 1e-4) return {axis:demoAxis, ang:demoAng};
   return null;
 }
+/* THE HERO POSE.
+
+   In play the camera is square to a face, because that is the surface the
+   puzzle is read on and it must not keystone. The attract screen has no such
+   duty: it should show the thing as an OBJECT, so it gets a real
+   three-quarter view — yaw turning forever, pitch parked where the top face
+   reads — and a fitted zoom rather than the play view's fixed one, because a
+   cube rotated about two axes at once sweeps a much bigger silhouette than
+   one rotated about a single axis.                                          */
+var HERO_PITCH = 0.50;
+function heroBasis(){
+  return pitchBasis(yawBasis(demoM, demoAng), HERO_PITCH);
+}
+/* Fit by measuring, not by trigonometry: project the eight corners and scale
+   to whatever box they actually came out as. Works for any pose, and cannot
+   drift out of step with the projection the way a closed form would. */
+function fitScale(m, boxW, boxH){
+  var h = N/2, mx = 0, my = 0;
+  for(var i = 0; i < 8; i++){
+    var x = (i&1?h:-h), y = (i&2?h:-h), z = (i&4?h:-h);
+    mx = Math.max(mx, Math.abs(m.R[0]*x + m.R[1]*y + m.R[2]*z));
+    my = Math.max(my, Math.abs(m.U[0]*x + m.U[1]*y + m.U[2]*z));
+  }
+  return Math.min(boxW / (2*mx*S), boxH / (2*my*S));
+}
 function baseBasis(){ return demo ? demoM : M; }
 function curSurf(){ return demo ? (demoSurf || surf) : surf; }
 function liveBasis(){
+  if(demo) return heroBasis();
   var a = liveAngle(), B = baseBasis();
   if(!a || Math.abs(a.ang) < 1e-4) return B;
   return a.axis === 'x' ? yawBasis(B, a.ang) : pitchBasis(B, a.ang);
@@ -244,6 +273,9 @@ function liveBasis(){
    pulling the camera back by exactly that keeps the cube inside the frame
    through the whole turn instead of clipping at 45 degrees. */
 function liveZoom(){
+  /* the plinth sticks out past the cube and perspective enlarges whatever is
+     nearest, so the fit box is the cube's footprint less a margin for both */
+  if(demo) return fitScale(heroBasis(), N*S*0.74, N*S*0.74);
   var a = liveAngle(); if(!a) return 1;
   var t = Math.abs(a.ang);
   return 1 / (Math.cos(t) + Math.sin(t));
@@ -383,8 +415,14 @@ function tileFill(t, d, lightMul){
   var a = t === '+' ? ST.dF : ST.rF, b = t === '+' ? ST.dN : ST.rN;
   return mixc([a[0]*lm, a[1]*lm, a[2]*lm], [b[0]*lm, b[1]*lm, b[2]*lm], near);
 }
+/* Quarried stone, not slate — and lighter than any vault plays in, because
+   the hero is lit from behind and every side face is already losing most of
+   its value to the shading term before the depth fade touches it. */
+var HERO_STYLE = enforceBands({name:'HERO',
+  dF:[150,126,96], dN:[250,241,222], rF:[46,39,38], rN:[116,104,100],
+  vd:[10,8,13], st:[255,198,150], at:[255,150,60]});
 function setStyle(band){
-  ST = vaultStyle(band);
+  ST = demo ? HERO_STYLE : vaultStyle(band);
   var r = document.documentElement.style;
   r.setProperty('--void', rgbs(ST.vd));
   r.setProperty('--void-2', rgbs([ST.vd[0]+8, ST.vd[1]+7, ST.vd[2]+10]));
@@ -481,6 +519,88 @@ function buildDrops(){
    under 420ms and none of them gate input that could have been taken.
    ============================================================ */
 
+/* ============================================================
+   THE WORDMARK — built out of the same thing the game is built out of
+
+   The title was type in a system font with letter-spacing on it, which is a
+   fine way to label a screen and a poor way to open a game about stone
+   cubes. It is now cut from blocks: a 5x7 bitmap per letter, every lit cell
+   extruded toward the viewer with a lit top face, a shaded right face and a
+   bevel, so the word is made of the same material as the thing behind it.
+
+   Drawn once into an offscreen canvas at boot and handed to an <img>, so it
+   costs one canvas and zero frames — and it lives in the DOM, which means it
+   scales with the layout and sits above the glass instead of behind it.
+   ============================================================ */
+var GLYPH6 = {
+  T:['111111','111111','001100','001100','001100','001100','001100'],
+  U:['110011','110011','110011','110011','110011','111111','011110'],
+  R:['111110','110011','110011','111110','110110','110011','110011'],
+  N:['110011','111011','111011','110111','110111','110011','110011'],
+  K:['110011','110110','111100','111000','111100','110110','110011'],
+  E:['111111','110000','110000','111110','110000','110000','111111'],
+  Y:['110011','110011','011110','001100','001100','001100','001100']
+};
+function buildWordmark(word, cell){
+  var cols = [], i, j;
+  for(i = 0; i < word.length; i++){
+    var g = GLYPH6[word[i]];
+    for(j = 0; j < 6; j++){
+      var col = [];
+      for(var r = 0; r < 7; r++) col.push(g[r][j] === '1');
+      cols.push(col);
+    }
+    if(i < word.length-1) cols.push(null);
+  }
+  var W0 = cols.length, H0 = 7;
+  var dep = Math.round(cell*0.55), pad = Math.round(cell*1.2);
+  var cv = document.createElement('canvas');
+  cv.width  = W0*cell + dep + pad*2;
+  cv.height = H0*cell + dep + pad*2;
+  var c = cv.getContext('2d');
+  function on(x,y){ return x>=0 && y>=0 && x<W0 && y<H0 && cols[x] && cols[x][y]; }
+  function eachCell(fn){
+    for(var y=0;y<H0;y++) for(var x=0;x<W0;x++) if(on(x,y)) fn(x,y, pad + x*cell, pad + y*cell);
+  }
+  /* THE EXTRUSION, the blunt way and therefore the right way: stamp the whole
+     silhouette once per pixel of depth, back to front. Building it face by
+     face needs the neighbour logic to be perfect on every edge and diagonal,
+     and when it is not the letters come out looking smeared rather than
+     solid. Nine stamps of a flat shape cannot have a seam. */
+  for(var d = dep; d >= 1; d--){
+    var k = d/dep;
+    c.fillStyle = 'rgb(' + Math.round(52+34*(1-k)) + ',' + Math.round(46+30*(1-k)) + ',' + Math.round(38+26*(1-k)) + ')';
+    eachCell(function(x,y,px,py){ c.fillRect(px+d, py+d, cell, cell); });
+  }
+  /* the front plate, one block at a time, each with its own bevel so the
+     wordmark is made of the same masonry as the cube */
+  eachCell(function(x,y,px,py){
+    var g2 = c.createLinearGradient(px, py, px, py+cell);
+    g2.addColorStop(0, '#fdf9ef'); g2.addColorStop(1, '#d9cfb8');
+    c.fillStyle = g2; c.fillRect(px, py, cell, cell);
+    var lw = Math.max(1.5, cell*0.09);
+    c.lineWidth = lw;
+    c.strokeStyle = 'rgba(255,255,255,.75)';
+    c.beginPath(); c.moveTo(px+lw/2, py+cell); c.lineTo(px+lw/2, py+lw/2); c.lineTo(px+cell, py+lw/2); c.stroke();
+    c.strokeStyle = 'rgba(70,56,38,.34)';
+    c.beginPath(); c.moveTo(px+cell-lw/2, py); c.lineTo(px+cell-lw/2, py+cell-lw/2); c.lineTo(px, py+cell-lw/2); c.stroke();
+    /* mortar: a hairline around every block, so 5000 of them still read as
+       individual stones at thumbnail size */
+    c.strokeStyle = 'rgba(40,32,22,.22)'; c.lineWidth = 1;
+    c.strokeRect(px+.5, py+.5, cell-1, cell-1);
+  });
+  /* one lit stone, in the U, because a wordmark cut from rock should have
+     something alive in it — the same amber as the light inside the vault */
+  var lx = pad + 7*cell + cell*0.5, ly = pad + 1*cell + cell*0.5;
+  var lg = c.createRadialGradient(lx, ly, 0, lx, ly, cell*1.25);
+  lg.addColorStop(0, 'rgba(255,178,80,.95)'); lg.addColorStop(1, 'rgba(255,150,60,0)');
+  c.fillStyle = lg; c.fillRect(lx-cell*1.25, ly-cell*1.25, cell*2.5, cell*2.5);
+  var ig = c.createLinearGradient(lx-cell*0.5, ly-cell*0.5, lx+cell*0.5, ly+cell*0.5);
+  ig.addColorStop(0, '#ffd79a'); ig.addColorStop(1, '#ff9a2e');
+  c.fillStyle = ig; c.fillRect(lx-cell*0.5, ly-cell*0.5, cell, cell);
+  return cv;
+}
+
 /* ---------- THE ATTRACT CUBE ----------------------------------------------
    The title screen used to be type on a gradient. It is now type over the
    actual game engine, tumbling a real cube slowly and forever behind the
@@ -511,12 +631,9 @@ function stepDemo(dt){
   demoT += dt;
   /* it never rests square to the camera. A cube parked flat is a grid, and
      the one thing the title screen has to say is "this is a solid". */
-  if(demoWait > 0){
-    demoWait -= dt;
-    demoAng = (0.13 + Math.sin(demoT * 0.0013) * 0.05) * demoDir;
-    return;
-  }
-  demoAng += demoDir * dt / 2000 * Math.PI/2;
+  /* one direction, forever, slowly — an object on a turntable rather than a
+     puzzle being solved */
+  demoAng += dt / 9000 * Math.PI/2;
   if(Math.abs(demoAng) >= Math.PI/2){
     demoM = TURNS[demoAxis === 'x' ? (demoDir > 0 ? 1 : 0) : (demoDir > 0 ? 2 : 3)].f(demoM);
     demoAng = 0; demoWait = 420;
@@ -710,12 +827,27 @@ function stepMotes(dt){
   }
   if(impact > 0) impact = Math.max(0, impact - dt/340);
 }
+/* The drifting specks are little CUBES now. In a game where everything is
+   made of blocks, round motes were the one thing on screen that was not. */
 function drawMotes(){
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = rgbs(ST.st);
+  ctx.save();
   for(var i = 0; i < motes.length; i++){
-    var m = motes[i];
-    ctx.globalAlpha = m.a;
-    ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, 6.284); ctx.fill();
+    var m = motes[i], r = m.r*2.6, hx = r, hy = r*0.56;
+    ctx.globalAlpha = m.a*1.5;
+    ctx.fillStyle = mixc(ST.vd, ST.st, 0.55);                    /* top */
+    ctx.beginPath();
+    ctx.moveTo(m.x, m.y-hy); ctx.lineTo(m.x+hx, m.y); ctx.lineTo(m.x, m.y+hy); ctx.lineTo(m.x-hx, m.y);
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = m.a*1.1;
+    ctx.fillStyle = mixc(ST.vd, ST.st, 0.30);                    /* left */
+    ctx.beginPath();
+    ctx.moveTo(m.x-hx, m.y); ctx.lineTo(m.x, m.y+hy); ctx.lineTo(m.x, m.y+hy+r*0.8); ctx.lineTo(m.x-hx, m.y+r*0.8);
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = m.a*0.8;
+    ctx.fillStyle = mixc(ST.vd, ST.st, 0.16);                    /* right */
+    ctx.beginPath();
+    ctx.moveTo(m.x+hx, m.y); ctx.lineTo(m.x, m.y+hy); ctx.lineTo(m.x, m.y+hy+r*0.8); ctx.lineTo(m.x+hx, m.y+r*0.8);
+    ctx.closePath(); ctx.fill();
   }
   ctx.restore();
 }
@@ -745,8 +877,9 @@ function halo(x, y, r, col, a){
    come out at exactly 1.0, because that is the case the flat renderer draws
    at rest, and any other value would make the picture jump the moment a drag
    begins. 0.30 + 0.70 is that seam, written so it cannot drift.            */
-function LIT(nx, ny, nz){
-  return Math.max(0, Math.min(1, 0.30 + 0.70*nz + 0.24*nx - 0.14*ny));
+function LIT(nx, ny, nz, ambient){
+  var a = ambient === undefined ? 0.30 : ambient;
+  return Math.max(0, Math.min(1, a + (1-a)*nz + 0.24*nx - 0.14*ny));
 }
 
 /* PERSPECTIVE, BUT ONLY WHILE IT IS TURNING.
@@ -811,8 +944,29 @@ function draw(){
   var ko = kickOffset();
   ctx.save();
   if(ko) ctx.translate(ko[0], ko[1]);
+  /* THE LIGHT INSIDE — and ONLY on the attract screen.
+     Drawn before the cube and never masked, so the only places it survives
+     are the void columns: the gaps you are looking straight through. The cube
+     appears lit from within and it costs one gradient, because the geometry
+     does the masking for free.
+
+     It was briefly on the play board too, and that was a mistake worth
+     recording. An additive layer under the tiles lifts BEDROCK as much as it
+     lifts deck, which eats the luminance separation the whole board is read
+     off — and the palette test could not see it, because it measures
+     tileFill and this was painted underneath. Atmosphere does not get to
+     cost legibility on the surface the puzzle is solved on. */
+  if(demo){
+    var vg = ctx.createRadialGradient(CX, CY, 0, CX, CY, N*S*0.44);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    vg.addColorStop(0, 'rgba(255,150,60,0.40)');
+    vg.addColorStop(0.55, 'rgba(255,150,60,0.15)');
+    vg.addColorStop(1, 'rgba(255,150,60,0)');
+    ctx.fillStyle = vg; ctx.fillRect(CX - N*S*0.8, CY - N*S*0.8, N*S*1.6, N*S*1.6);
+    ctx.restore();
+  }
   var a = liveAngle();
-  if(a && Math.abs(a.ang) > 1e-4) draw3d();
+  if(demo || (a && Math.abs(a.ang) > 1e-4)) draw3d();
   else drawFlat();
   drawParts();
   ctx.restore();
@@ -1097,7 +1251,8 @@ function drawDoor(r, open){
 /* ---------- the turning cube ---------- */
 function draw3d(){
   var m = liveBasis(), z = liveZoom(), c = (N-1)/2, list = [], i;
-  var pv = PERSP * Math.abs(Math.sin(liveAngle().ang));
+  var la = liveAngle();
+  var pv = demo ? PERSP * 0.85 : PERSP * Math.abs(Math.sin(la ? la.ang : 0));
   function px(wx, wy, wz, out){
     var qx = wx - c, qy = wy - c, qz = wz - c;
     out[2] = m.F[0]*qx + m.F[1]*qy + m.F[2]*qz;
@@ -1118,7 +1273,9 @@ function draw3d(){
       pts.push(tmp[0], tmp[1]); dep += tmp[2];
     }
     px(fc.x, fc.y, fc.z, tmp);
-    list.push({d:dep/4, k:0, pts:pts, t:fc.t, dep:tmp[2] + c, lit:LIT(nx, ny, nz)});
+    var mo = ((fc.x*73856093 ^ fc.y*19349663 ^ fc.z*83492791) >>> 8) % 100;
+    list.push({d:dep/4, k:0, pts:pts, t:fc.t, dep:tmp[2] + c, lit:LIT(nx, ny, nz),
+               up: ny > 0.55, moss: mo < 34 ? (mo/34) : 0});
   }
   /* markers ride half a cell proud of their own face so they stay visible
      as the solid turns under them */
@@ -1133,9 +1290,40 @@ function draw3d(){
     marker(pos, 1, 0);
   }
 
+  /* THE PLINTH. A object needs something to stand on or it is a diagram of an
+     object. Same projection, same lighting, drawn under everything. */
+  if(demo){
+    var ph = N/2, pt = ph + 0.75, pb = ph + 0.10, py0 = ph, py1 = ph + 0.62;
+    var corner = [[-pt,-pt],[pt,-pt],[pt,pt],[-pt,pt]], top = [], bot = [];
+    for(i = 0; i < 4; i++){
+      px(c + corner[i][0], c - py0, c + corner[i][1], tmp); top.push([tmp[0], tmp[1], tmp[2]]);
+      px(c + corner[i][0], c - py1, c + corner[i][1], tmp); bot.push([tmp[0], tmp[1], tmp[2]]);
+    }
+    ctx.save();
+    for(i = 0; i < 4; i++){
+      var j = (i+1) % 4;
+      var midz = (top[i][2] + top[j][2]) / 2;
+      if(midz > 0) continue;                       /* the far sides only */
+      ctx.fillStyle = 'rgba(28,26,36,.95)';
+      ctx.beginPath(); ctx.moveTo(top[i][0],top[i][1]); ctx.lineTo(top[j][0],top[j][1]);
+      ctx.lineTo(bot[j][0],bot[j][1]); ctx.lineTo(bot[i][0],bot[i][1]); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = tileFill('#', N-1, 0.85);
+    ctx.beginPath(); ctx.moveTo(top[0][0],top[0][1]);
+    for(i = 1; i < 4; i++) ctx.lineTo(top[i][0],top[i][1]);
+    ctx.closePath(); ctx.fill();
+    for(i = 0; i < 4; i++){
+      var j2 = (i+1) % 4, midz2 = (top[i][2] + top[j2][2]) / 2;
+      if(midz2 <= 0) continue;                     /* then the near ones, over the top */
+      ctx.fillStyle = 'rgba(22,20,30,.98)';
+      ctx.beginPath(); ctx.moveTo(top[i][0],top[i][1]); ctx.lineTo(top[j2][0],top[j2][1]);
+      ctx.lineTo(bot[j2][0],bot[j2][1]); ctx.lineTo(bot[i][0],bot[i][1]); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
   list.sort(function(a, b){ return a.d - b.d; });
   var sz = S*z;
-  drawCage(m, z, 0.46, pv);
+  drawCage(m, z, demo ? 0.10 : 0.46, pv);
   for(i = 0; i < list.length; i++){
     var e = list[i];
     if(e.k === 0){
@@ -1145,6 +1333,16 @@ function draw3d(){
       ctx.lineTo(e.pts[4], e.pts[5]); ctx.lineTo(e.pts[6], e.pts[7]);
       ctx.closePath(); ctx.fill();
       ctx.strokeStyle = 'rgba(10,9,16,.5)'; ctx.lineWidth = 0.7; ctx.stroke();
+      /* weathering, and only where weather would reach: the faces that point
+         up. Seeded off the cell so a given block is always mossy. */
+      if(e.up && e.moss){
+        ctx.save(); ctx.globalAlpha = 0.16 + 0.2*e.moss;
+        ctx.fillStyle = 'rgb(126,150,86)';
+        ctx.beginPath();
+        ctx.moveTo(e.pts[0], e.pts[1]); ctx.lineTo(e.pts[2], e.pts[3]);
+        ctx.lineTo(e.pts[4], e.pts[5]); ctx.lineTo(e.pts[6], e.pts[7]);
+        ctx.closePath(); ctx.fill(); ctx.restore();
+      }
     } else if(e.k === 1) drawPlayer(e.x, e.y, sz);
     else if(e.k === 2) drawKey([e.x - sz/2, e.y - sz/2]);
     else if(e.k === 3) drawDoor([e.x - sz/2, e.y - sz/2], e.extra);
@@ -1481,7 +1679,7 @@ function show(id){
   demo = (id === 'scTitle') || (id === 'scManual' && manualFrom === 'scTitle');
   if(demo && !lv){ loadLevel(1); wave = null; }
   if(!demo) demoAng = 0;
-  if(demo !== wasDemo){ if(demo) demoStart(); layout(); }
+  if(demo !== wasDemo){ if(demo) demoStart(); setStyle(curBand); layout(); }
 }
 var ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 function roman(b){ return b < ROMAN.length ? ROMAN[b] : String(b+1); }
@@ -1705,7 +1903,10 @@ function loop(ts){
   requestAnimationFrame(loop);
 }
 buildGrain(); buildMotes(); setStyle(0);
+try{ $('wordmark').src = buildWordmark('TURNKEY', 22).toDataURL('image/png'); }catch(e){}
 fit();
 show('scTitle');
-$('btnPlay').textContent = store.reached ? 'CONTINUE' : 'BEGIN';
+/* the label has its own node: writing textContent on the button itself wiped
+   the play chip out of the DOM every boot */
+$('playLabel').textContent = store.reached > 1 ? 'CONTINUE' : 'BEGIN';
 requestAnimationFrame(loop);

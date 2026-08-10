@@ -149,15 +149,45 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
    — enough to push the cube behind the glass, not enough to erase it — and
    the type carries its own shadow instead of asking the whole plate to get
    darker. */
-#scTitle,#scManual{
+/* THE TITLE SCREEN IS A STAGE, NOT A PANE OF GLASS.
+   It used to blur the whole plate, which meant the cube — the one thing the
+   screen is actually about — came out as mush behind the type. The chrome now
+   occupies a band at each end and the middle is left completely alone: no
+   blur, no scrim, nothing between the player and the object. The gradient
+   only darkens where words have to sit on top of it. */
+#scTitle{
+  justify-content:space-between;
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  background:linear-gradient(180deg,
+    rgba(4,3,7,.94) 0%, rgba(4,3,7,.74) 13%, rgba(4,3,7,.10) 27%,
+    rgba(4,3,7,0) 42%, rgba(4,3,7,0) 52%,
+    rgba(4,3,7,.30) 62%, rgba(4,3,7,.86) 74%, rgba(4,3,7,.97) 100%);
+}
+#scTitle::before,#scTitle::after{display:none;}
+.titleTop,.titleBottom{width:100%;display:flex;flex-direction:column;align-items:center;flex:0 0 auto;}
+.titleTop{padding-top:2px;}
+.titleBottom{padding-bottom:2px;}
+#scManual{
   backdrop-filter:blur(2.5px) saturate(.92);-webkit-backdrop-filter:blur(2.5px) saturate(.92);
   background:
     radial-gradient(ellipse 90% 46% at 50% 52%, rgba(4,3,7,.62), rgba(4,3,7,.42) 62%, rgba(4,3,7,.30)),
     linear-gradient(180deg, rgba(4,3,7,.46), rgba(4,3,7,.24) 34%, rgba(4,3,7,.62));
 }
+/* the play chip on the primary action, so the button has somewhere to point */
+.btn .chip{
+  position:absolute;right:9px;top:50%;transform:translateY(-50%);
+  width:calc(var(--h-btn) - 20px);height:calc(var(--h-btn) - 20px);
+  border-radius:calc(var(--r-btn) - 6px);
+  background:rgba(255,255,255,.20);box-shadow:inset 0 0 0 1px rgba(255,255,255,.26);
+  display:flex;align-items:center;justify-content:center;
+  font-style:normal;font-size:var(--t-sm);color:#3a1000;
+}
 #scTitle h1{text-shadow:0 2px 24px rgba(0,0,0,.95),0 0 60px rgba(0,0,0,.8);}
 #scTitle .sub,#scManual .sub,#scTitle .foot{text-shadow:0 1px 12px rgba(0,0,0,.95);}
+#scTitle .sub{margin-bottom:0;}
+#scTitle .foot{margin-top:10px;}
 #scTitle .btn,#scManual .btn{backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);}
+#scTitle .btn{position:relative;}
 #scTitle .btn:not(.primary){background:rgba(16,13,24,.72);}
 #scManual .mkey,#scManual .mtxt{text-shadow:0 1px 10px rgba(0,0,0,.9);}
 .layer::before,.layer::after{content:'';flex:1 1 auto;min-height:0;}
@@ -168,6 +198,13 @@ h1{
   font-size:var(--t-3xl);font-weight:800;letter-spacing:.26em;
   margin:0 0 6px;text-align:center;text-indent:.26em;
   color:var(--bone);
+}
+/* the wordmark is a rendered image, so it gets sized by the layout rather
+   than by a font stack that may or may not exist on the device */
+#wordmark{
+  display:block;width:min(86vw,420px);height:auto;margin:0 auto 14px;
+  image-rendering:auto;
+  filter:drop-shadow(0 10px 26px rgba(0,0,0,.75)) drop-shadow(0 0 42px rgba(255,150,60,.18));
 }
 h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;text-align:center;}
 .sub{color:var(--dim);font-size:var(--t-sm);text-align:center;line-height:1.5;max-width:31ch;margin:0 auto 26px;}
@@ -381,12 +418,16 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 
 <!-- ============ TITLE ============ -->
 <div class="layer" id="scTitle">
-  <h1>TURNKEY</h1>
-  <p class="sub">A dungeon that is a cube. You read one flat face at a time — and everything that lines up, touches.</p>
-  <button class="btn primary" id="btnPlay">CONTINUE</button>
-  <button class="btn" id="btnCubes">CUBES</button>
-  <button class="btn ghost" id="btnManual">HOW IT WORKS</button>
-  <div class="foot">NO DEAD PIXELS</div>
+  <div class="titleTop">
+    <img id="wordmark" alt="TURNKEY">
+    <p class="sub">A dungeon that is a cube. You read one flat face at a time — and everything that lines up, touches.</p>
+  </div>
+  <div class="titleBottom">
+    <button class="btn primary" id="btnPlay"><span id="playLabel">CONTINUE</span><i class="chip">▶</i></button>
+    <button class="btn" id="btnCubes">CUBES</button>
+    <button class="btn ghost" id="btnManual">HOW IT WORKS</button>
+    <div class="foot">NO DEAD PIXELS</div>
+  </div>
 </div>
 
 <!-- ============ LEVEL SELECT ============ -->
