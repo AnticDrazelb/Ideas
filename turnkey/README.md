@@ -278,6 +278,72 @@ shows its true material undarkened. That is not a nicety — a shadow deep enoug
 to push a deck under the bedrock line would be the renderer lying about the
 rules.
 
+### The art pass — making a block a solid
+
+The board was legible and it was flat. Forty-nine squares of material in a
+grid is a *chart*: material alone says what a thing is made of and nothing
+about its shape, and none of the shape information was anywhere, because the
+pattern is tiling detail and tiling detail has no edges.
+
+**The pattern grid and the render grid are now different numbers.** The
+material is still authored at 16 — bricks four to a face, mortar one texel
+wide — and that chunkiness is the look. But lighting is not made of texels,
+and at 16 a bevel is a staircase. So a block bakes at **64**, the pattern is
+point-sampled into it (every brick stays exactly as crisp as authored), and
+only the smooth field is drawn at the finer grid. Four things go into it:
+
+| | |
+|---|---|
+| **Bevel** | the top edge catches, the underside falls away — "this has thickness" in one term |
+| **Occlusion** | the outer seventh darkens toward the block's own boundary, so two neighbours get a seam and the grid becomes a wall of separate stones |
+| **Rim** | one thin bright line, and *only* along the two edges facing the light. The first version ran it all the way round, which is not a solid catching a light, it is a button |
+| **Sheen** | a broad weak highlight on decks only, because a laid floor is smoother than shot rock |
+
+Plus **detail at more than one scale** — a coarse mottle across a face and a
+fine tooth below the size of anything nameable. With only the authored middle
+scale present, a block reads as a printed swatch however well it is lit.
+
+**The middle of every block is left exactly alone**, and that is not an
+aesthetic choice. Cast shadows in this renderer stop at 42% of a tile so the
+centre always shows its true material undarkened — that is what keeps the
+deck/bedrock band readable under shadow. This field obeys the same law: the
+multiplier at a block's centre is exactly 1.
+
+**It is baked into the texture, not laid over the board.** There are two
+renderers — the flat board at rest and the honest solid mid-turn — and the one
+thing they must never do is disagree, because the handover happens on the
+first pixel of a drag. A screen-space overlay would have to be written twice,
+in two coordinate systems, and would pop the instant a finger moved.
+
+**The board also stopped floating.** Every block throws a soft shadow down and
+out, drawn under all of them, so it survives only in the void columns and
+around the outside — exactly the places the eye was being told nothing. And
+the sky got a far side: a handful of very large, very faint blooms, painted
+once per vault, so no two regions of the screen are the same value.
+
+**Film grain over the finished frame.** Not the per-tile material noise that
+was deleted long ago — that one claimed the stone was rough and fought the
+pixels it sat on. This one is the *image*: a radial vignette on a flat dark
+sky bands visibly on an OLED, and a film of noise dithers the steps away.
+
+Measured after all of it: **0.4 ms resting, 2.9 ms mid-turn** on the largest
+cube, against an 8 ms budget.
+
+Two performance traps were found by shipping it, both worth recording:
+
+- **The shade field was transcendentals per texel.** Invisible at rest, since
+  textures are cached — and a stutter at the worst possible moment, because a
+  plate flip rebakes every block at once, mid-flip, while the frame is already
+  spending a hitstop and a slow-motion. It is a lookup now: one multiply per
+  texel, ~0.3 ms a block cold.
+- **The grain was thirty-two composited draws a frame.** A 128px tile repeated
+  looks identical to a single sheet and costs three million `overlay`-blended
+  pixels at DPR 3. It did not show up as a slow `draw()` — the cost lands in
+  the compositor — it showed up as *dropped frames*, and it was caught by the
+  plate clock losing a fifth of its five seconds to frames over the 64 ms dt
+  ceiling. A countdown is a real-time measurement, so it is also an accidental
+  frame-health monitor, and it failed the build over a graphics change.
+
 ### The marker is a hole, and it is a real one
 
 **You are a black hole, and what is inside it is the sky behind the board.**

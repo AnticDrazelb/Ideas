@@ -2443,6 +2443,21 @@ function tileFill(t, d, lightMul){ return rgbs(tileRGB(t, d, lightMul)); }
    match reads as what it is: the front of a cube, with more cube behind it.
    ============================================================ */
 var TEXN = 16;
+/* THE PATTERN GRID AND THE RENDER GRID ARE NOT THE SAME NUMBER.
+
+   The material is authored at sixteen: bricks four to a face, cobbles the
+   size of a cobble, mortar one texel wide. That chunkiness is the look and it
+   is not up for negotiation.
+
+   But the LIGHTING on a block — its bevel, its occluded edge, its rim — is
+   not made of texels, and at sixteen it came out as a staircase. So the baked
+   block is four times that across, the pattern is sampled from it point by
+   point (so every brick stays exactly as crisp as it was authored), and only
+   the smooth field is drawn at the finer grid. Upscaled to a hundred-odd
+   pixels on screen, a gradient quantised to sixty-four steps has each step
+   about a pixel and a half wide, which is nothing, and the mortar lines are
+   still hard-edged. Crisp material, smooth light, one texture.             */
+var TEXR = 64, TEXS = TEXR / TEXN;
 function texNew(v){
   var a = new Float32Array(TEXN*TEXN);
   if(v) for(var i = 0; i < a.length; i++) a[i] = v;
@@ -2619,14 +2634,17 @@ function texFor(t, d, lit){
      on every level and every vault anyway — this is only the backstop, set
      well clear of what a single cube can ask for so it never fires in the
      middle of a turn. */
-  if(texCount > 2000) texReset();
+  if(texCount > 700) texReset();   /* a baked block is 16 KB now, not 1 */
   var pat = TEXPAT[mt], base = tileRGB(mt, dq/2, lq/TEX_LIT);
-  c = document.createElement('canvas'); c.width = c.height = TEXN;
-  var g = c.getContext('2d'), id = g.createImageData(TEXN, TEXN), i, m, o, px2, py2;
-  var vd = ST.vd;
-  for(i = 0; i < TEXN*TEXN; i++){
-    m = pat[i]; o = i*4;
-    px2 = i % TEXN; py2 = (i / TEXN) | 0;
+  c = document.createElement('canvas'); c.width = c.height = TEXR;
+  var g = c.getContext('2d'), id = g.createImageData(TEXR, TEXR), i, m, o, px2, py2;
+  var vd = ST.vd, deck = mt === '+';
+  for(i = 0; i < TEXR*TEXR; i++){
+    o = i*4;
+    px2 = i % TEXR; py2 = (i / TEXR) | 0;
+    /* the material, point-sampled off the coarse grid so a brick edge stays
+       a brick edge, times the smooth field that makes the block a solid */
+    m = pat[((py2/TEXS)|0)*TEXN + ((px2/TEXS)|0)] * shadeAt(i, deck);
     /* ROUNDED CORNERS, AND THEY ARE NOT A CLIP.
 
        A square block is a diagram; a block with its corners taken off is an
@@ -2668,20 +2686,151 @@ function drawBlock(t, d, x, y, w, h, lit){
 }
 
 /* How much of a texel survives at (x,y): 1 across the middle of the block,
-   falling to 0 outside the corner arc. Precomputed once — sixteen by sixteen
-   is 256 numbers and they never change. */
+   falling to 0 outside the corner arc. Precomputed once at the block's RENDER
+   resolution, which is what makes the corner an actual arc rather than four
+   pixels of staircase. */
 var CORNER_R = 4.2, cornerLUT = null;
 function cornerFade(x, y){
   if(!cornerLUT){
-    cornerLUT = new Float32Array(TEXN*TEXN);
-    for(var j = 0; j < TEXN; j++) for(var i = 0; i < TEXN; i++){
-      var dx = Math.max(0, CORNER_R - 0.5 - Math.min(i, TEXN-1-i));
-      var dy = Math.max(0, CORNER_R - 0.5 - Math.min(j, TEXN-1-j));
+    var rr = CORNER_R * TEXS;
+    cornerLUT = new Float32Array(TEXR*TEXR);
+    for(var j = 0; j < TEXR; j++) for(var i = 0; i < TEXR; i++){
+      var dx = Math.max(0, rr - 0.5 - Math.min(i, TEXR-1-i));
+      var dy = Math.max(0, rr - 0.5 - Math.min(j, TEXR-1-j));
       var d = Math.sqrt(dx*dx + dy*dy);
-      cornerLUT[j*TEXN + i] = Math.max(0, Math.min(1, (CORNER_R - 0.55) - d + 0.5));
+      cornerLUT[j*TEXR + i] = Math.max(0, Math.min(1, (rr - 0.55) - d + 0.5));
     }
   }
-  return cornerLUT[y*TEXN + x];
+  return cornerLUT[y*TEXR + x];
+}
+
+/* ============================================================
+   THE BLOCK IS A SOLID, AND THIS IS WHAT MAKES IT ONE.
+
+   Every block used to be a flat square of material. Material alone is a
+   swatch: it tells you what a thing is made of and nothing about its shape,
+   and forty-nine swatches in a grid read as a chart. What separates this from
+   something you would see on a shelf is that a block has to read as a piece
+   of matter with a top, an edge and a thickness — and none of that is in the
+   pattern, because the pattern is tiling detail and tiling detail has no
+   edges to speak of.
+
+   So a second field is laid over it, at a resolution the pattern never has to
+   pay for, carrying the four things that make a lump of stone look like one:
+
+     BEVEL      the top edge catches the light and the bottom edge loses it,
+                which is the whole of "this has thickness" in one term.
+     OCCLUSION  the last sixth of the block darkens toward its own boundary.
+                Two of these side by side put a soft seam between them and
+                the grid stops being a grid of tiles and becomes a wall of
+                separate stones.
+     RIM        one thin bright line inside the top-left silhouette. It is
+                the difference between an object lit by a room and an object
+                lit by a light, and it costs a smoothstep.
+     SHEEN      a broad, very weak highlight on the upper-left of DECKS ONLY,
+                because a laid floor is a smoother thing than shot rock and
+                should catch a little more of the room.
+
+   WHY THE MIDDLE IS LEFT ALONE, precisely. Cast shadows in this renderer stop
+   at 42% of a tile so the centre of every block always shows its true
+   material undarkened — that is what keeps the deck/bedrock band readable
+   under a shadow. This field obeys the same law: everything it does happens
+   within a sixth of an edge, and the multiplier at the centre of a block is
+   exactly 1. The band guarantee is measured off tileFill() and cannot be
+   touched from here, and now it cannot be touched in the picture either.
+
+   AND WHY IT IS BAKED INTO THE TEXTURE rather than laid over the board as a
+   pass. There are two renderers — the flat board at rest and the honest solid
+   mid-turn — and the one thing they must never do is disagree, because the
+   handover happens on the first pixel of a drag. A screen-space overlay would
+   have to be written twice, in two coordinate systems, and would pop the
+   instant a finger moved. Baked here, both paths inherit it from the same
+   pixels for free.                                                          */
+function blockShade(nx, ny, deck){
+  /* distance to the nearest edge, 0 at the boundary, 0.5 dead centre */
+  var e = Math.min(nx, ny, 1 - nx, 1 - ny);
+  var m = 1;
+  /* occlusion — the outer seventh only */
+  if(e < 0.15){
+    var q = e / 0.15; q = q*q*(3 - 2*q);
+    m *= 0.78 + 0.22*q;
+  }
+  /* THE LIP HAS A DIRECTION, and the first version of this did not — the rim
+     ran all the way round every block, which is not a solid catching a light,
+     it is a button. A lit top, a dark underside and a much weaker pair of
+     sides is what says "this has thickness and the light is up there". */
+  if(ny < 0.12){ var t0 = 1 - ny/0.12; m *= 1 + 0.135*t0*t0; }
+  if(ny > 0.84){ var b0 = (ny - 0.84)/0.16; m *= 1 - 0.19*b0*b0; }
+  if(nx < 0.10){ var l0 = 1 - nx/0.10; m *= 1 + 0.05*l0*l0; }
+  if(nx > 0.90){ var r0 = (nx - 0.90)/0.10; m *= 1 - 0.085*r0*r0; }
+  /* the rim: one thin bright line, and only along the two edges facing the
+     light. Away from the top-left it falls off to nothing. */
+  var lit = Math.max(0, 1 - (nx*0.55 + ny*1.05));
+  if(lit > 0){
+    var rim = Math.max(0, 1 - Math.abs(e - 0.035)/0.035);
+    m *= 1 + 0.20*rim*lit;
+  }
+  /* and the sheen, decks only */
+  if(deck){
+    var sx = nx - 0.30, sy = ny - 0.26;
+    m *= 1 + 0.05*Math.exp(-(sx*sx + sy*sy)*3.4);
+  }
+  return m;
+}
+
+/* DETAIL AT MORE THAN ONE SCALE, which is most of what separates a rendered
+   surface from a painted one.
+
+   The authored patterns carry exactly one: bricks the size of bricks, cobbles
+   the size of cobbles. Real stone also has a coarse mottle across a whole
+   face — where it is damp, where it has been walked on — and a fine tooth
+   below the size of anything you can name. With only the middle scale
+   present, a block reads as a printed swatch no matter how well it is lit.
+
+   Both extra scales are computed at the render grid, not the pattern grid, so
+   they cost the material nothing: the bricks stay exactly as crisp as they
+   were authored and the surface underneath them stops being flat. Amplitudes
+   are deliberately tiny — this is the layer you are not supposed to notice,
+   and the moment you can name it, it is too strong.
+
+   It is a hash rather than a random, so a given texel is the same shade every
+   time the texture is built. A cache that rebuilds after a vault change must
+   not hand back a different-looking floor.                                  */
+function fineDetail(x, y){
+  var h = (x * 374761393 + y * 668265263) | 0;
+  h = (h ^ (h >>> 13)) * 1274126177 | 0;
+  var n = ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  /* coarse mottle: two low-frequency waves crossing, so it never tiles into
+     a visible stripe */
+  var mot = Math.sin(x*0.21 + Math.cos(y*0.17)*2.3) * Math.sin(y*0.13 + 1.7);
+  return 1 + (n - 0.5)*0.055 + mot*0.022;
+}
+
+/* AND BOTH OF THEM ARE A LOOKUP, because they are the same numbers every
+   time and there are four thousand of them per block.
+
+   Written straight, the shade and the detail cost several transcendentals per
+   texel. That is invisible while a level sits still — the textures are cached
+   — and it is a stutter at exactly the wrong moment: a plate flip changes the
+   material of every cell at once, so forty blocks are baked inside a single
+   frame while the board is mid-flip and the game is already spending a hitstop
+   and a slow-motion on it. Measured as the clock losing a fifth of a second
+   of wall time to dropped frames.
+
+   The field depends on nothing but the texel and whether the block is a deck,
+   so it is two arrays of TEXR², built once, and baking a block becomes one
+   multiply per texel.                                                       */
+var shadeLUT = null;
+function shadeAt(i, deck){
+  if(!shadeLUT){
+    shadeLUT = [new Float32Array(TEXR*TEXR), new Float32Array(TEXR*TEXR)];
+    for(var y = 0; y < TEXR; y++) for(var x = 0; x < TEXR; x++){
+      var k = y*TEXR + x, fd = fineDetail(x, y);
+      shadeLUT[0][k] = blockShade((x + 0.5)/TEXR, (y + 0.5)/TEXR, false) * fd;
+      shadeLUT[1][k] = blockShade((x + 0.5)/TEXR, (y + 0.5)/TEXR, true)  * fd;
+    }
+  }
+  return shadeLUT[deck ? 1 : 0][i];
 }
 
 /* THE LAMP YOU ARE CARRYING. Two cells of falloff, decks only, and it is
@@ -2707,8 +2856,8 @@ function texQuad(pts, tex){
   ctx.moveTo(pts[0], pts[1]); ctx.lineTo(pts[2], pts[3]);
   ctx.lineTo(pts[4], pts[5]); ctx.lineTo(pts[6], pts[7]);
   ctx.closePath(); ctx.clip();
-  ctx.transform((pts[2]-pts[0])/TEXN, (pts[3]-pts[1])/TEXN,
-                (pts[6]-pts[0])/TEXN, (pts[7]-pts[1])/TEXN, pts[0], pts[1]);
+  ctx.transform((pts[2]-pts[0])/TEXR, (pts[3]-pts[1])/TEXR,
+                (pts[6]-pts[0])/TEXR, (pts[7]-pts[1])/TEXR, pts[0], pts[1]);
   ctx.drawImage(tex, 0, 0);
   ctx.restore();
 }
@@ -2769,7 +2918,29 @@ function buildSky(){
   g.addColorStop(0, 'rgba(' + (ST.at[0]|0) + ',' + (ST.at[1]|0) + ',' + (ST.at[2]|0) + ',0.13)');
   g.addColorStop(1, 'rgba(' + (ST.at[0]|0) + ',' + (ST.at[1]|0) + ',' + (ST.at[2]|0) + ',0)');
   c.fillStyle = g; c.fillRect(0, 0, W+PAD*2, H+PAD*2);
-  var area = (W + PAD*2) * (H + PAD*2), i, x, y, r, a;
+  /* ---- CLOUD, so the sky has a far side ------------------------------
+     A flat wash and a scatter of points is a backdrop. What makes a sky
+     read as DEPTH is that some of it is nearer than the rest of it — so a
+     handful of very large, very faint blooms are laid down first, in the
+     vault's own ambient and star colours, at alphas low enough that no
+     single one is findable. What they do is stop any two regions of the
+     screen being the same value, which is the whole of the difference
+     between "black behind the board" and "distance behind the board".
+     Painted once per vault, so they cost a frame nothing.               */
+  var i, x, y, r, a;
+  var nb = mulberry32(0xC10D ^ (curBand * 40503));
+  for(i = 0; i < 7; i++){
+    x = nb()*(W+PAD*2); y = nb()*(H+PAD*2);
+    r = (0.22 + nb()*0.42) * Math.max(W, H);
+    var col = nb() < 0.5 ? ST.at : ST.st;
+    var cg = c.createRadialGradient(x, y, 0, x, y, r);
+    cg.addColorStop(0, 'rgba(' + (col[0]|0) + ',' + (col[1]|0) + ',' + (col[2]|0) + ',' + (0.030 + nb()*0.035).toFixed(3) + ')');
+    cg.addColorStop(0.55, 'rgba(' + (col[0]|0) + ',' + (col[1]|0) + ',' + (col[2]|0) + ',0.012)');
+    cg.addColorStop(1, 'rgba(' + (col[0]|0) + ',' + (col[1]|0) + ',' + (col[2]|0) + ',0)');
+    c.fillStyle = cg;
+    c.fillRect(x - r, y - r, r*2, r*2);
+  }
+  var area = (W + PAD*2) * (H + PAD*2);
   c.fillStyle = rgbs(ST.st);
   /* THE BRIGHT ONES — the sky you actually notice, and there are as many of
      them as there always were. Count is off AREA now rather than a flat 190,
@@ -2891,6 +3062,59 @@ function buildDrops(){
     g.addColorStop(0, 'rgba(0,0,0,0.45)'); g.addColorStop(0.55, 'rgba(0,0,0,0.13)');
     g.addColorStop(1, 'rgba(0,0,0,0)');
     shGrad.push(g);
+  }
+  buildContact();
+}
+
+/* ---------- THE BOARD STOPS FLOATING -------------------------------------
+   Every block was drawn straight onto the starfield with nothing between
+   them, so the cube read as a decal on a wallpaper: correct, legible, and
+   obviously two flat things at the same distance from the eye.
+
+   What was missing is the cheapest and oldest trick there is — the block
+   throws a shadow into the space around it. It only ever SHOWS in the gaps:
+   between two neighbours the shadow is covered by the neighbour, so the only
+   places it survives are the void columns and the outside of the board,
+   which are exactly the places the eye was being told nothing. A soft dark
+   shape offset a little down and out from every block, drawn under all of
+   them, and the board lifts off the sky.
+
+   IT CANNOT TOUCH THE MATERIAL READ. It is painted before a single block is,
+   so nothing it does can darken a tile's own centre — the band guarantee
+   never comes near it. That is also why it is a separate pass rather than
+   part of the drops above, which are the shadows blocks throw at each OTHER
+   and have to obey the 42% law.
+
+   One blurred sprite, built when the tile size changes and drawn once per
+   block. The blur is done by the canvas at build time, so the frame pays for
+   a drawImage and nothing else.                                            */
+var contactCv = null;
+function buildContact(){
+  var pad = Math.max(6, S*0.28), sz = Math.ceil(S + pad*2);
+  contactCv = document.createElement('canvas');
+  contactCv.width = contactCv.height = Math.ceil(sz*DPR);
+  var g = contactCv.getContext('2d');
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.filter = 'blur(' + (S*0.085).toFixed(2) + 'px)';
+  g.fillStyle = 'rgba(0,0,0,0.62)';
+  var r = S*0.26, x = pad, y = pad, w = S, h = S;
+  g.beginPath();
+  if(g.roundRect) g.roundRect(x, y, w, h, r);
+  else {
+    g.moveTo(x+r, y); g.arcTo(x+w, y, x+w, y+h, r); g.arcTo(x+w, y+h, x, y+h, r);
+    g.arcTo(x, y+h, x, y, r); g.arcTo(x, y, x+w, y, r); g.closePath();
+  }
+  g.fill();
+  g.filter = 'none';
+  contactCv.pad = pad; contactCv.sz = sz;
+}
+function drawContact(SF){
+  if(!contactCv) return;
+  var pad = contactCv.pad, sz = contactCv.sz, drop = S*0.075;
+  for(var u = 0; u < N; u++) for(var v = 0; v < N; v++){
+    if(!SF[u*N + v]) continue;
+    var r = tileRect(u, v);
+    ctx.drawImage(contactCv, r[0] - pad, r[1] - pad + drop, sz, sz);
   }
 }
 
@@ -3401,6 +3625,64 @@ function drawVignette(){
   g.addColorStop(0, 'rgba(0,0,0,0)');
   g.addColorStop(1, 'rgba(0,0,0,' + (0.28 + vig*0.34).toFixed(3) + ')');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  drawGrain();
+}
+
+/* ---------- GRAIN, AND THIS TIME OVER THE WHOLE FRAME ---------------------
+   There was a per-tile noise overlay here once and it was deleted for good
+   reasons: a 64px noise pattern sitting on top of a 16px block texture is a
+   filter smearing the pixels the material is made of, and it fought the very
+   thing it was meant to enrich.
+
+   This is the other kind of grain, and the distinction is the whole point.
+   That one was MATERIAL — it claimed the stone was rough. This one is the
+   IMAGE: it sits over the finished frame, board and sky and interface alike,
+   at an amplitude near the limit of what can be seen, and what it does is
+   break up the perfectly smooth gradients. A radial vignette on a flat dark
+   sky bands on an OLED — visible steps in the falloff — and nothing says
+   "rendered in a browser" faster. A film of noise dithers those steps away,
+   which is exactly the job grain does on a camera.
+
+   IT MUST BE ONE BLIT, and the first version was thirty-two.
+
+   A 128px tile repeated across the screen looks identical to a single sheet
+   and costs thirty-two composited draws a frame. In 'overlay', at three
+   device pixels to the CSS pixel, that is three million pixels blended
+   through a branchy blend mode every frame — and it did not show up as a
+   slow draw() call, it showed up as DROPPED FRAMES, because the cost lands in
+   the compositor rather than in the loop that was being timed.
+
+   It was caught by something that had no business noticing: the plate clock
+   started losing a fifth of a second of its five to frames longer than the
+   64ms dt ceiling. A countdown is a real-time measurement, so it is also an
+   accidental frame-health monitor, and it failed the build over a graphics
+   change. That is the test suite doing its job from an unexpected direction.
+
+   So the sheet is built once at screen size plus a margin, and each frame
+   draws it once at a random whole-pixel offset inside that margin — same
+   picture, same movement, one draw.                                        */
+var grainCv = null, GRAIN_PAD = 64, grainW = 0, grainH = 0;
+function buildGrain(){
+  grainW = Math.ceil(W) + GRAIN_PAD; grainH = Math.ceil(H) + GRAIN_PAD;
+  grainCv = document.createElement('canvas');
+  grainCv.width = grainW; grainCv.height = grainH;
+  var g = grainCv.getContext('2d'), id = g.createImageData(grainW, grainH);
+  var rng = mulberry32(0x6841);
+  for(var i = 0; i < grainW*grainH; i++){
+    var o = i*4, v = (rng() + rng() + rng()) / 3;   /* toward gaussian: less salt-and-pepper */
+    id.data[o] = id.data[o+1] = id.data[o+2] = 255;
+    id.data[o+3] = Math.round(v*255*0.115);
+  }
+  g.putImageData(id, 0, 0);
+}
+function drawGrain(){
+  if(!store.fx) return;
+  if(!grainCv || grainW < W + 1 || grainH < H + 1) buildGrain();
+  ctx.save();
+  ctx.globalCompositeOperation = 'overlay';
+  ctx.globalAlpha = 0.5;
+  ctx.drawImage(grainCv, -((Math.random()*GRAIN_PAD)|0), -((Math.random()*GRAIN_PAD)|0));
+  ctx.restore();
 }
 
 /* ---------- PARTICLES -----------------------------------------------------
@@ -4110,6 +4392,7 @@ function drawFlat(){
   }
   buildDrops();
   drawCage(BM, 1, 0.16, 0);
+  drawContact(SF);                    /* under everything, seen only in the gaps */
   /* 1. the tiles, each riding whatever wave is passing through the board */
   var anyWave = !!wave;
   if(flip && !demo){

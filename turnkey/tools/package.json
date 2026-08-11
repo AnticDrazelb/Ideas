@@ -17,6 +17,7 @@
     "fit": "node fitcheck.js",
     "plate": "node plate.js",
     "hole": "node hole.js",
+    "look": "node look.js",
     "portable": "node portable.js"
   },
   "devDependencies": {
