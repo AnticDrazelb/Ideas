@@ -11,11 +11,12 @@
     "probe": "node probe.js",
     "infinite": "node infinite.js",
     "gallery": "node gallery.js",
-    "all": "node test.js && node mint-test.js && sh build.sh && node portable.js && node plate.js && node mobile.js && node infinite.js && node probe.js && node drive.js",
+    "all": "node test.js && node mint-test.js && sh build.sh && node portable.js && node plate.js && node hole.js && node mobile.js && node infinite.js && node probe.js && node drive.js",
     "juice": "node juice-shots.js",
     "mobile": "node mobile.js",
     "fit": "node fitcheck.js",
     "plate": "node plate.js",
+    "hole": "node hole.js",
     "portable": "node portable.js"
   },
   "devDependencies": {

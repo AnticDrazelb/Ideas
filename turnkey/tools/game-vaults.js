@@ -11,15 +11,32 @@
    authored hues, so vault ninety has a look nobody chose but nobody has
    seen either — which is the honest deal for a game with no last level.
    ============================================================ */
+/* EIGHT WORLDS, NOT EIGHT QUARRIES.
+
+   These were named for industry and lit like one: eight variations on wet
+   stone in a dark room, every deck a shade of bone and every sky within a
+   few points of black. It read as serious, which is not the same as good,
+   and it is the opposite of what this game is — a bright object turning in
+   your hands.
+
+   So each vault is a PLACE with a colour it could only be. The rule that
+   makes them work is the one Galaxy uses: the ground is candy-saturated and
+   the sky behind it is deep and SATURATED TOO — never grey, never black.
+   A dark violet sky makes a lime platform sing; a dark grey one makes it
+   look like a lime platform in a car park.
+
+   The bands still hold. Deck luminance stays high, bedrock is walked down
+   by enforceBands as it always was, and the guarantee has not moved an inch
+   — it is the hues that changed, not the contract.                        */
 var VAULTS = [
-  {name:'THE SHALLOWS',  dF:[96,80,62],  dN:[246,238,222], rF:[15,14,21], rN:[56,61,82],  vd:[10,9,16],  st:[190,200,235], at:[90,110,190]},
-  {name:'THE IRONWORKS', dF:[92,74,52],  dN:[240,222,196], rF:[22,14,11], rN:[86,52,38],  vd:[14,9,7],   st:[255,200,150], at:[200,110,50]},
-  {name:'GLASSWORKS',    dF:[58,92,96],  dN:[220,248,250], rF:[8,18,22],  rN:[36,72,84],  vd:[5,12,16],  st:[160,235,245], at:[60,180,200]},
-  {name:'THE ORCHARD',   dF:[80,92,50],  dN:[232,246,200], rF:[12,18,12], rN:[48,74,46],  vd:[8,13,9],   st:[190,240,180], at:[90,180,90]},
-  {name:'CINDERS',       dF:[104,66,48], dN:[250,226,206], rF:[20,10,10], rN:[74,40,36],  vd:[13,7,7],   st:[255,170,130], at:[220,90,50]},
-  {name:'THE SALT',      dF:[82,92,104], dN:[240,248,255], rF:[12,15,20], rN:[62,74,92],  vd:[8,10,14],  st:[220,235,255], at:[120,160,220]},
-  {name:'THE VEIN',      dF:[96,78,44],  dN:[250,232,182], rF:[16,10,22], rN:[62,44,86],  vd:[11,7,16],  st:[210,180,255], at:[150,90,220]},
-  {name:'THE DEEP',      dF:[72,72,78],  dN:[236,236,242], rF:[8,8,10],   rN:[42,44,52],  vd:[5,5,7],    st:[180,185,200], at:[80,90,120]}
+  {name:'MEADOW',     dF:[104,168,72],  dN:[196,246,150], rF:[38,44,30],  rN:[88,74,52],   vd:[14,18,34],  st:[210,240,255], at:[70,120,220]},
+  {name:'SANDCASTLE', dF:[186,148,72],  dN:[255,232,168], rF:[62,42,30],  rN:[126,84,52],  vd:[20,16,34],  st:[255,226,180], at:[210,140,70]},
+  {name:'BUBBLEGUM',  dF:[196,110,158], dN:[255,196,228], rF:[52,28,58],  rN:[104,58,116], vd:[26,12,36],  st:[255,206,246], at:[214,90,190]},
+  {name:'GLACIER',    dF:[112,168,196], dN:[206,244,255], rF:[26,42,64],  rN:[62,92,134],  vd:[10,18,40],  st:[220,244,255], at:[80,150,240]},
+  {name:'EMBERFALL',  dF:[204,116,64],  dN:[255,206,158], rF:[62,24,20],  rN:[128,50,34],  vd:[28,10,14],  st:[255,190,150], at:[240,96,54]},
+  {name:'LAGOON',     dF:[86,178,166],  dN:[186,250,238], rF:[20,48,52],  rN:[48,104,110], vd:[8,24,34],   st:[190,255,246], at:[54,190,196]},
+  {name:'TWILIGHT',   dF:[146,128,208], dN:[218,208,255], rF:[36,28,64],  rN:[78,64,134],  vd:[16,10,34],  st:[226,210,255], at:[140,96,240]},
+  {name:'HONEYCOMB',  dF:[204,158,60],  dN:[255,224,146], rF:[58,40,18],  rN:[122,86,34],  vd:[26,18,10],  st:[255,232,176], at:[236,160,50]}
 ];
 var VAULT_A = ['IRON','SALT','GLASS','ASH','BONE','SLATE','AMBER','TIDE','EMBER','FROST','COPPER','SHALE'];
 var VAULT_B = ['REACH','WELL','SPINE','GATE','HOLLOW','WORKS','MARCH','VAULT','TERRACE','CANT'];
@@ -58,6 +75,34 @@ function lumOf(c){ return 0.2126*c[0] + 0.7152*c[1] + 0.0722*c[2]; }
    there is no vault number at which the board stops being readable.       */
 var MAX_SHADOW = 0.40 * 0.45;                 /* peak per-tile alpha x peak gradient alpha */
 var DECK_FLOOR = 108;                         /* the dimmest a deck may ever be */
+
+/* THE TEXTURE'S SHARE OF THE SAME BUDGET.
+
+   Every block is painted from a 16x16 texture now, and a texture here is
+   nothing but a set of per-texel MULTIPLIERS on the palette colour the
+   material already has. Which means a texture can darken a deck texel and
+   lighten a bedrock texel — precisely the thing the band guarantee exists
+   to forbid. So the guarantee is told about it rather than being quietly
+   undermined by it.
+
+   These four numbers are the entire contract. No generator may emit a texel
+   outside its material's range (finishTex clamps every one, unconditionally),
+   and the walk below is run against the WORST pair the ranges permit: the
+   far end of the deck ramp, at its darkest texel, under the deepest drop
+   shadow the renderer can cast — against the near end of the bedrock ramp at
+   its brightest texel. Widen a range and the bedrock ramp simply darkens to
+   pay for it. The two materials cannot collide whatever a generator does.
+
+   The two floors are not the same number, and the asymmetry is the whole
+   trick: only the BRIGHT end of bedrock and the DARK end of deck can ever
+   make two materials confusable, so bedrock is allowed to go very dark
+   indeed. That is what buys rubble its contrast — a mortar line at 0.55 of
+   an already-dark rock is visible, where the same line at 0.74 was a rumour. */
+var TEX_LO = {'+':0.80, '#':0.55};            /* darkest texel each material may paint */
+var TEX_HI = {'+':1.12, '#':1.10};            /* brightest */
+function bandGap(st){
+  return lumOf(st.dF) * TEX_LO['+'] * (1 - MAX_SHADOW) - lumOf(st.rN) * TEX_HI['#'];
+}
 function enforceBands(st){
   /* A deck at the far end of the cube was coming out near-black-brown and
      reading as bedrock on a real phone in real light — which is the one
@@ -67,11 +112,10 @@ function enforceBands(st){
   var g0 = 0;
   while(lumOf(st.dF) < DECK_FLOOR && g0++ < 60)
     st.dF = [Math.min(255, st.dF[0]*1.05 + 3), Math.min(255, st.dF[1]*1.05 + 3), Math.min(255, st.dF[2]*1.05 + 3)];
-  var need = lumOf(st.dF) * MAX_SHADOW * 1.3, guard = 0;
-  while(lumOf(st.dF) - lumOf(st.rN) < need && guard++ < 60){
+  var margin = lumOf(st.dF) * 0.06, guard = 0;
+  while(bandGap(st) < margin && guard++ < 60){
     st.rN = [st.rN[0]*0.94, st.rN[1]*0.94, st.rN[2]*0.94];
     st.rF = [st.rF[0]*0.94, st.rF[1]*0.94, st.rF[2]*0.94];
-    need = lumOf(st.dF) * MAX_SHADOW * 1.3;
   }
   return st;
 }

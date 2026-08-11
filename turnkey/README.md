@@ -110,6 +110,67 @@ board every later step was planned against, which also makes standing on a
 plate a decision rather than something that happens to you on the way past.
 And a plate you *turn* onto does not fire; you press it with a foot.
 
+### Five seconds, and then the floor goes
+
+**A flipped world lasts five seconds.** Then the rock springs back to how it
+was carved, and if you are standing where a deck used to be, **you are thrown
+to the nearest square.**
+
+The plate was the biggest verb in the game and it had no cost attached: flip,
+look around, think about it, flip back. Every decision it created could be
+made at leisure, which made the second world a second *board* rather than a
+second *state* — and boards are things you study. The clock turns the flip
+from a place you visit into a thing you commit to. You read the inverted cube
+*before* you press the plate, because afterwards there is only time to walk
+the line you already have.
+
+The countdown sits under the world tag as a number and a draining bar, and
+ticks audibly over the last three seconds — the one readout in this game you
+are not expected to look at, because your eyes are needed on the board.
+
+Four rules keep it a challenge rather than a punishment:
+
+- **The plate itself is safe.** It is exempt from the material flip and always
+  the surface of its column, so the spring-back can never throw you off one.
+  Standing on the plate is the deliberate out.
+- **Nearest is nearest *on screen*.** The board is the flat face and the flat
+  face is what you were reading, so a throw two columns left has to mean two
+  columns left as seen. A "nearest" measured through the solid could put you
+  on the far side of the world, and that reads as teleportation rather than as
+  falling. `walkable()` does the rest quietly: the throw can never post you
+  inside a gate you have no key for, and a plate you land on does not fire.
+- **The expiry takes an undo point first.** It is the only thing in the game
+  that moves you without being asked, so undo puts you back one instant before
+  it landed — with a full five seconds, not the tenth you had left. That is
+  deliberately generous. Undo is a retry, so it is a whole run at it.
+- **It runs on game time and stops for a card.** The flip itself spends a
+  hitstop and most of a second of slow motion, and you cannot act during
+  either; charging you for frames you were not allowed to move in would be
+  taking the time back with the other hand. Pause, the manual and the win
+  screen are not play. A held peek *is* play, and the clock keeps running —
+  thinking is the thing being rationed.
+
+**The solver has no clock in it, and that is on purpose.** Par stays a lower
+bound rather than a promise, which is the right bound to publish: the carved
+route is still in the cube, the keys still open the doors in some order, and
+the number on the HUD is still the fewest turns the *geometry* can be beaten
+in. What the clock adds is a demand on the player's hands, not a change to the
+cube. Putting it in the search would mean carrying real time in the state key
+— turning a 0-1 BFS over a few thousand states into a search over a continuum
+— to answer a question the player is better placed to answer than the solver:
+whether they can move that fast.
+
+So the question the model *cannot* answer is asked of the running game
+instead. `tools/plate.js` plays cubes 20–31 through the real input path at
+human timings, re-asking the solver after every action the way a player
+re-reads the board:
+
+> **12/12 beaten, every one at exactly par, with zero spring-backs.**
+
+A line walked at par never even reaches the five seconds — the clock is a
+constraint on dithering, not on the answer. That measurement is the reason
+the timer is allowed to sit on top of a guarantee it is not part of.
+
 ### The difficulty curve, and its ceiling
 
 The first curve asked for nine-turn cubes by vault ten and got threes, at every
@@ -206,6 +267,47 @@ Cast shadows reach 42% of a tile and stop, so the *centre* of every tile always
 shows its true material undarkened. That is not a nicety — a shadow deep enough
 to push a deck under the bedrock line would be the renderer lying about the
 rules.
+
+### The marker is a hole, and it is a real one
+
+**You are a black hole, and what is inside it is the sky behind the board.**
+Not a starfield of its own, not a magnified copy, not a tinted one — the same
+pixels that would be there if the deck were not, in register with the void
+columns to the pixel. Stand beside a gap in the cube and the stars run
+straight across from one to the other, because they are one starfield seen
+through two holes.
+
+The deck under the marker is *removed* rather than covered: `clearRect` obeys
+the clip, so the disc is punched clean out of everything already painted, down
+to bare canvas — which is exactly what a void column is. Then the sky patch
+goes in, blitted in **screen** space rather than board space, because the
+starfield deliberately sits outside the camera. A shake has to slide the board
+across a hole whose contents do not budge; sampling under the camera transform
+would have dragged the sky along with the board and quietly undone the whole
+effect.
+
+That registration is the point, and it is why none of the obvious
+enhancements survive. The interior was a 2.6× copy for a while, turning slowly
+at half strength, with a fall to absolute black across the inner two thirds
+and seven painted "lensed" points to give the resulting smear some structure.
+Every one of those was a reason the picture inside could not be the picture
+behind — and a hole showing its own private sky is not a hole, it is a
+porthole onto somewhere else. The eye reads the difference long before it can
+name it. What is left is an edge (a photon ring on the silhouette, a lensing
+halo outside it, a contact shadow on the block), the sky, and whatever is
+directly opposite you in the cube, glimpsed in front of it.
+
+**The conduit is gone**, and it is worth writing down why. A lit throat used
+to run from the cell underfoot, through the centre of the cube, to the cell
+opposite, drawn only under a peek — on the argument that a black hole which is
+a way through ought to show the way through. It was wrong twice. In code: the
+ring generator it called was never written, so every peek held past the fade
+threw out of the frame, and the loop's own guard caught it, reset the walk and
+re-settled the board, once per frame, for as long as the finger stayed down —
+never a crash, just a game that quietly stopped obeying you. And in design:
+the antipode is a *look* and nothing else — no reach, no route, no bearing on
+any turn. A tube between two cells promises you can travel it, and the game
+has exactly one way to move and it is not that.
 
 ---
 
@@ -382,7 +484,18 @@ sizes rather than two different layouts.
 - **`plate.js`** — plates appear only from cube 20, exactly one per cube,
   stepping on one really changes the walkable set, the world it leaves is
   solvable with valid footing, undo restores the world, and the pivot property
-  holds across every orientation × turn.
+  holds across every orientation × turn. Then the clock: it starts at five
+  seconds and drains on the HUD as well as in the state, the world springs
+  back on its own, and the spring-back never leaves the player standing in
+  rock — with the throw itself staged rather than waited for, by putting the
+  player on a cell the carve gives no footing to and springing it back under
+  them.
+- **`hole.js`** — the two claims the player marker makes. That what is inside
+  the horizon *is* the starfield behind the board, checked by compositing the
+  sky by itself and demanding the pixels match (they do, to 0/255 across nine
+  samples inside the disc). And that a peek held for a second neither throws
+  nor moves anything — the regression test for a conduit that called a tunnel
+  generator nobody ever wrote.
 - **`portable.js`** — mints 67 levels in **Node and in Chromium** and demands
   the cubes be byte-identical. Two V8 builds is the closest thing available
   here to two different phones, and it exists because the same-environment

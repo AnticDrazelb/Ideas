@@ -19,17 +19,44 @@
    every one of those would be a second copy of information the cube
    is already showing. Colour carries exactly one meaning each:
 
-     bone   walkable deck        — you may stand here
-     slate  bedrock              — solid, and no footing on this face
-     void   nothing at all       — the ground shows through; impassable
-     rust   you                  — and only you
-     jade   the way out, and the doors that gate it
-     gold   keys
+     bone    walkable deck       — you may stand here
+     slate   bedrock             — solid, and no footing on this face
+     void    nothing at all      — the ground shows through; impassable
+     arc     you                 — and only you
+     emerald keys
+     jade    the gates they open
+     gold    the way out
+     rust    the interface — reach hints, ticks, buttons. Never an object.
+
+   The player used to be rust, which is also what every control in this game
+   is painted. That made the one thing you must find instantly the same
+   colour as the chrome around it. An arc-light blue-green belongs to nothing
+   else here, on the board or off it: exactly one object is cool and it is
+   you.
+
+   Jade used to carry both the exit and the doors, which meant the one
+   colour on the board that says "this is what you are here for" also said
+   "this is an obstacle". Four things now have four colours, and the pair
+   that belongs together — a key and the gate it opens — are the two greens.
 
    Brightness is depth, always, everywhere. A pale tile is near the
    camera and a dim one is far, and two tiles of wildly different
    brightness sitting side by side is not a rendering artefact — it is
    the entire game saying "these are neighbours anyway".
+
+   MATERIAL IS THE SECOND CHANNEL, and it says the same thing twice on
+   purpose. Every block is painted from a 16x16 texture, and a deck is
+   always something LAID — brick, board, cut slab — while bedrock is
+   always something RAW: rubble, gravel, shot rock. So "may I stand
+   here" is answered by brightness and answered again by whether the
+   block looks like anybody built it, and the answer survives a dim
+   screen, a bright room and a colour-blind eye. What a vault changes is
+   which stone it is cut from, never what the stone means.
+
+   AND YOU ARE NOT MADE OF STONE. Every other thing on this board is
+   matter drawn at block resolution; the player is a lit orb, smooth and
+   hovering, because the one marker that must be found instantly should
+   be the one thing the world cannot produce.
    ============================================================ */
 :root{
   /* ---- SAFE AREA ---------------------------------------------------
@@ -58,6 +85,12 @@
   --rust:#ff6a3d;      --rust-hi:#ff9a70;
   --jade:#35d7a1;      --jade-lo:#1c8f6b;
   --gold:#ffc44d;
+  /* Emerald is pushed off jade's teal lean toward a true green on purpose:
+     they now mean two different things a metre apart on the same board — the
+     key, and the gate it opens — and two greens that agree about hue would
+     be one colour with extra steps. */
+  --emerald:#22e06a;
+  --arc:#38d6ff;       /* you, and nothing else in the file */
 
   --ink:#f3efe7;
   --dim:#9a92a8;
@@ -68,7 +101,10 @@
   --edge-on:rgba(255,106,61,.42);
 
   /* ---- SHAPE ---- */
-  --r-chip:12px; --r-ctl:15px; --r-btn:18px; --r-card:22px; --r-sheet:26px; --r-pill:999px;
+  /* ROUNDER. Every corner in the interface is softer than it was, because
+     the shape language on the board is now round and a UI of tight
+     rectangles around it reads as two games stapled together. */
+  --r-chip:16px; --r-ctl:22px; --r-btn:26px; --r-card:28px; --r-sheet:32px; --r-pill:999px;
 
   /* ---- CONTROL HEIGHTS --------------------------------------------
      These scale with the viewport rather than stepping at hand-written
@@ -98,6 +134,7 @@
   --t-xl:clamp(18px,5.1vw,22px);
   --t-2xl:clamp(22px,6.3vw,28px);
   --t-3xl:clamp(30px,9.2vw,42px);
+
 
   /* ---- MOTION ------------------------------------------------------
      Three curves and no others. --seat overshoots and settles, and is for
@@ -144,6 +181,15 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .layer.hide{opacity:0;pointer-events:none;transform:scale(1.035);}
 /* the menus float over the live board, so they need their own ground */
 .layer{backdrop-filter:blur(7px) saturate(.85);-webkit-backdrop-filter:blur(7px) saturate(.85);}
+/* A SCREEN MADE OF WORDS IS NOT A WINDOW. The pause card sits over a puzzle
+   somebody is in the middle of and should let it through; the manual and the
+   plate card are text from top to bottom, and brickwork behind a paragraph
+   is just contrast the reader has to fight. Those two get a near-solid
+   plate. */
+#scPlate{
+  background:linear-gradient(180deg,rgba(6,5,11,.985),rgba(6,5,11,.955));
+  backdrop-filter:blur(14px) saturate(.7);-webkit-backdrop-filter:blur(14px) saturate(.7);
+}
 /* The title sits ON the engine, so the scrim has to be thin enough to see a
    cube through and heavy enough to read white type against. Barely any blur
    — enough to push the cube behind the glass, not enough to erase it — and
@@ -167,11 +213,29 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .titleTop,.titleBottom{width:100%;display:flex;flex-direction:column;align-items:center;flex:0 0 auto;}
 .titleTop{padding-top:2px;}
 .titleBottom{padding-bottom:2px;}
+/* THE MANUAL IS TWO DIFFERENT SCREENS AND HAS TO BE LIT LIKE TWO.
+
+   Opened from the title it is the way IN: the attract cube is turning behind
+   it, that cube is the entire pitch, and a scrim thick enough to hide it
+   would be throwing away the best thing on the screen. Thin glass, and the
+   type carries its own shadow.
+
+   Opened from the pause menu it is a reference card held over a puzzle
+   somebody is in the middle of, at the exact moment they have stopped
+   understanding something — and nine rules printed over brickwork is contrast
+   the reader has to fight for no reason. Near-solid, no compromise.
+
+   Same markup, one class, and show() knows which case it is because it
+   already had to work out whether the cube behind is attracting or playing. */
 #scManual{
   backdrop-filter:blur(2.5px) saturate(.92);-webkit-backdrop-filter:blur(2.5px) saturate(.92);
   background:
     radial-gradient(ellipse 90% 46% at 50% 52%, rgba(4,3,7,.62), rgba(4,3,7,.42) 62%, rgba(4,3,7,.30)),
     linear-gradient(180deg, rgba(4,3,7,.46), rgba(4,3,7,.24) 34%, rgba(4,3,7,.62));
+}
+#scManual.solid{
+  backdrop-filter:blur(14px) saturate(.7);-webkit-backdrop-filter:blur(14px) saturate(.7);
+  background:linear-gradient(180deg,rgba(6,5,11,.985),rgba(6,5,11,.955));
 }
 /* the play chip on the primary action, so the button has somewhere to point */
 .btn .chip{
@@ -207,10 +271,43 @@ h1{
   filter:drop-shadow(0 10px 26px rgba(0,0,0,.75)) drop-shadow(0 0 42px rgba(255,150,60,.18));
 }
 h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;text-align:center;}
+h2+.manual{margin-top:14px;}
 .sub{color:var(--dim);font-size:var(--t-sm);text-align:center;line-height:1.5;max-width:31ch;margin:0 auto 26px;}
 .eyebrow{font-size:var(--t-tiny);letter-spacing:.24em;color:var(--dim-2);text-transform:uppercase;font-weight:700;}
 
+/* A TELEVISION IS NOT A BIG PHONE.
+
+   Every rung above is calibrated in vw, which is the right unit for a
+   device held at arm's length where the width is the scarce thing. Sit the
+   same layout on a 1080p screen across a room and every one of those clamps
+   pins to its maximum — a 13px readout, four metres away. Console UI is
+   sized against the HEIGHT of the picture and against viewing distance, so
+   on anything wide enough to be a television the whole scale is rebuilt in
+   vh and the controls grow with it. Handheld at 1280x720 lands in between,
+   which is exactly where it should be. */
+@media (min-aspect-ratio: 13/10) and (min-width: 900px){
+  :root{
+    --t-micro:clamp(9px,1.15vh,14px);
+    --t-tiny:clamp(10px,1.3vh,16px);
+    --t-fine:clamp(11px,1.5vh,18px);
+    --t-sm:clamp(12.5px,1.85vh,22px);
+    --t-md:clamp(14px,2.15vh,26px);
+    --t-lg:clamp(16px,2.5vh,30px);
+    --t-xl:clamp(19px,3.2vh,38px);
+    --t-2xl:clamp(23px,4vh,48px);
+    --t-3xl:clamp(32px,5.8vh,70px);
+    --h-read:clamp(40px,5.4vh,64px);
+    --h-ctl:clamp(48px,6.4vh,76px);
+    --h-btn:clamp(54px,7.6vh,88px);
+    --h-row:clamp(56px,7.4vh,86px);
+  }
+  .tick{width:clamp(26px,2.6vh,44px);height:clamp(5px,0.7vh,9px);}
+}
+
 /* ---------- BUTTONS ---------- */
+/* every menu column is already capped, which is what makes the landscape
+   layer look composed rather than stretched — the only thing that had to
+   change for a wide screen is that the layer centres its own scroll */
 .btn{
   min-height:var(--h-btn);width:100%;max-width:340px;
   display:flex;align-items:center;justify-content:center;gap:10px;
@@ -241,6 +338,10 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 .bar{
   position:absolute;left:0;right:0;display:flex;align-items:center;gap:9px;
   padding:0 calc(var(--sa-left) + 14px) 0 calc(var(--sa-right) + 14px);
+  /* --barw is the board's width, written by layout(). On a phone it is the
+     screen and this does nothing; in landscape it is what stops the HUD
+     from being flung into the corners of a television. */
+  max-width:var(--barw,none);margin-left:auto;margin-right:auto;
 }
 #barTop{top:calc(var(--sa-top) + 8px);}
 #barBot{bottom:calc(var(--sa-bottom) + 12px);justify-content:center;gap:12px;}
@@ -258,12 +359,20 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
   font-size:var(--t-sm);font-weight:800;letter-spacing:.1em;
   transition:transform .16s var(--seat),opacity .18s var(--ease),box-shadow .18s var(--ease);
 }
+/* A GUMMY PRESS. Nothing in this interface used to move when you touched
+   it — the game underneath had squash, kick and hitstop, and the buttons
+   were a spreadsheet. They give under a thumb now and spring back past
+   where they started, on the same --seat curve the cube itself lands on. */
+.btn:active,.pill:active{transform:scale(.945);}
+.btn,.pill{transition:transform .13s var(--seat),opacity .18s var(--ease),box-shadow .18s var(--ease);}
+.row:active .sw{transform:scale(.94);}
+.cube:active{transform:scale(.95);}
 .pill:active{transform:scale(.9) translateY(1px);}
 /* the counter flinches when a key lands in it, so the number changing is
    something you SEE rather than something you have to have been watching */
 @keyframes keyPop{
   0%{transform:scale(1);}
-  38%{transform:scale(1.26);box-shadow:inset 0 0 0 1px rgba(255,196,77,.95),0 0 26px -4px rgba(255,196,77,.85);}
+  38%{transform:scale(1.26);box-shadow:inset 0 0 0 1px rgba(34,224,106,.95),0 0 26px -4px rgba(34,224,106,.85);}
   100%{transform:scale(1);}
 }
 #keyPill.pop{animation:keyPop .46s var(--seat);}
@@ -272,10 +381,38 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 .pill[disabled]{opacity:.32;pointer-events:none;}
 .pill.icon{padding:0;width:var(--h-ctl);}
 .pill .n{font-family:var(--mono);font-size:var(--t-md);font-weight:700;}
-#lvName{flex:1;justify-content:flex-start;letter-spacing:.2em;overflow:hidden;white-space:nowrap;}
+/* The name is the first thing to go when the bar runs out of room, and on a
+   320px phone with keys, a live par and a turn counter it goes entirely.
+   That is the right order — the cube's NUMBER is what a player needs and it
+   is first in the string — but a hard cut mid-letter reads as a bug, so the
+   last few pixels fade. The fade is the width of the pill's own padding, so
+   nothing is visibly softened until there is something to soften. */
+/* THE NAME SIZES TO ITS NAME, and a spacer takes the rest. It used to be
+   the flexible item, which is correct on a phone where the leftover is a
+   few pixels and wrong on a television where the leftover is six hundred:
+   the cube's name came out as a pill half a metre wide with three words
+   floating at one end of it. */
+.grow{flex:1 1 auto;min-width:0;}
+#lvName{flex:0 1 auto;min-width:0;justify-content:flex-start;letter-spacing:.2em;overflow:hidden;white-space:nowrap;
+  -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 13px),transparent);
+          mask-image:linear-gradient(90deg,#000 calc(100% - 13px),transparent);}
 #turnPill .n{color:var(--rust);}
 #turnPill.over .n{color:var(--gold);}
-#keyPill{color:var(--gold);box-shadow:inset 0 0 0 1px rgba(255,196,77,.3);}
+#keyPill{color:var(--emerald);box-shadow:inset 0 0 0 1px rgba(34,224,106,.32);}
+
+/* FEWEST FROM HERE. Shaped like the key pill because it is the same kind of
+   thing — a live count of something you are carrying — and coloured jade
+   because jade has meant the way out since cube one. It changes colour only
+   to say you have left the perfect line, and it is the one readout allowed
+   to say a cube is dead. */
+#goPill{color:var(--jade);box-shadow:inset 0 0 0 1px rgba(53,215,161,.30);}
+#goPill .n{color:var(--jade);}
+#goPill.slip{color:var(--gold);box-shadow:inset 0 0 0 1px rgba(255,196,77,.30);}
+#goPill.slip .n{color:var(--gold);}
+#goPill.dead{color:var(--danger);box-shadow:inset 0 0 0 1px rgba(255,90,90,.38);}
+#goPill.dead .n{color:var(--danger);}
+#goPill.think{opacity:.5;}
+#goPill.bump .n{display:inline-block;animation:turnBump .34s var(--seat);}
 
 /* the drag affordance — four ticks that light when a turn is available and
    go hollow when the far side of it has no footing. It is the only thing on
@@ -300,10 +437,38 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
   padding:5px 14px;border-radius:var(--r-pill);
   font-size:var(--t-micro);font-weight:900;letter-spacing:.22em;
   opacity:0;transition:opacity .3s var(--ease),transform .3s var(--seat);
-  pointer-events:none;white-space:nowrap;
+  pointer-events:none;white-space:nowrap;overflow:hidden;
 }
 #worldTag.on{opacity:1;transform:translateX(-50%) scale(1);animation:wtBreath 3s ease-in-out infinite;}
 @keyframes wtBreath{0%,100%{opacity:.72}50%{opacity:1}}
+
+/* THE FIVE SECONDS, SHOWN TWICE — a bar and a number.
+
+   The bar is the one you read without looking: it is the same shape as the
+   thing it measures, it drains left to right, and peripheral vision can hold
+   "about a third left" off it while the eyes stay on the board, which is
+   where they have to be. The number is for the last second, when "about a
+   third" stops being good enough and you need to know whether there is time
+   for one more tap.
+
+   The pulse rate carries the urgency rather than the colour, because the
+   palette already spends violet and cyan on WHICH world this is, and a tag
+   that changed hue as it ran down would be saying two things in one channel.
+   The number alone goes red under two seconds — red already means refused
+   everywhere else in this game, and being thrown off the board is the same
+   sentence arriving late. */
+#worldTag .wclock{
+  margin-left:11px;font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;opacity:.85;
+}
+#worldTag.hot{animation:wtHot .5s steps(2,end) infinite;}
+#worldTag.hot .wclock{color:#ff5a5a;opacity:1;}
+@keyframes wtHot{0%,100%{opacity:1}50%{opacity:.55}}
+#worldTag .wbar{
+  position:absolute;left:0;bottom:0;height:2px;width:100%;
+  background:currentColor;opacity:.5;
+  transform-origin:0 50%;transform:scaleX(1);
+}
 
 #toast{
   position:absolute;left:50%;bottom:calc(var(--sa-bottom) + 120px);
@@ -364,31 +529,88 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 .verdict.over{color:var(--gold);}
 
 /* ---------- SETTINGS ROWS ---------- */
+/* FIVE SWITCHES ARE ONE OBJECT, NOT FIVE.
+   Each row used to be its own floating card with its own border and its own
+   9px of air, which turned the pause menu into a column of identical slabs
+   you had to scroll. They are one grouped card with hairlines between them
+   now — the shape every phone user already reads as "settings" — and the
+   screen lost about a third of its height. */
+.settings{width:100%;max-width:340px;margin:2px auto 12px;border-radius:var(--r-ctl);
+  background:var(--glass-2);box-shadow:inset 0 0 0 1px var(--edge-2);overflow:hidden;}
+.settings .row{background:none;box-shadow:none;border-radius:0;margin:0;
+  min-height:50px;padding:9px 14px;max-width:none;}
+.settings .row+.row{box-shadow:inset 0 1px 0 var(--edge-2);}
 .row{
   min-height:var(--h-row);display:flex;align-items:center;justify-content:space-between;gap:14px;
   padding:12px 16px;border-radius:var(--r-ctl);background:var(--glass-2);
   box-shadow:inset 0 0 0 1px var(--edge-2);margin-bottom:9px;
   width:100%;max-width:360px;
 }
-.row .lbl{font-size:var(--t-sm);font-weight:700;letter-spacing:.06em;text-align:left;}
-.row .hint{font-size:var(--t-micro);color:var(--dim-2);letter-spacing:.04em;margin-top:3px;line-height:1.4;}
-.sw{width:52px;height:31px;border-radius:var(--r-pill);background:var(--edge);position:relative;flex:0 0 auto;transition:background .2s ease;}
-.sw::after{content:'';position:absolute;top:3px;left:3px;width:25px;height:25px;border-radius:50%;
-           background:var(--dim);transition:transform .2s cubic-bezier(.3,1.4,.5,1),background .2s ease;}
-.sw.on{background:rgba(255,106,61,.34);}
-.sw.on::after{transform:translateX(21px);background:var(--rust);}
+.row .lbl{font-size:var(--t-md);font-weight:700;letter-spacing:.04em;text-align:left;}
+/* the hints are three to six words now, so they can afford to be a legible
+   size instead of a legal-notice one */
+.row .hint{font-size:var(--t-fine);color:var(--dim-2);letter-spacing:.02em;margin-top:2px;line-height:1.35;}
+/* The track used to fill with 34% rust, which against this background comes
+   out as a muddy brown that reads as "broken", not as "on". On is the full
+   colour with a glow under the knob; off is a neutral rail. */
+.sw{width:48px;height:28px;border-radius:var(--r-pill);background:var(--edge-2);position:relative;
+    flex:0 0 auto;box-shadow:inset 0 0 0 1px var(--edge);transition:background .2s ease,box-shadow .2s ease;}
+.sw::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;
+           background:var(--dim-2);transition:transform .2s cubic-bezier(.3,1.4,.5,1),background .2s ease,box-shadow .2s ease;}
+.sw.on{background:rgba(255,106,61,.22);box-shadow:inset 0 0 0 1px rgba(255,106,61,.45);}
+.sw.on::after{transform:translateX(20px);background:var(--rust);box-shadow:0 0 12px -1px rgba(255,106,61,.9);}
+
+/* Two secondary actions, side by side, because they are secondary. A phone
+   menu that spends sixty pixels of height each on RESTART and ALL CUBES is
+   a phone menu you have to scroll to find the switches. */
+.btn2{display:flex;gap:10px;width:100%;max-width:340px;margin:0 auto 11px;}
+.btn2 .btn{margin:0;flex:1;max-width:none;padding:0 10px;font-size:var(--t-sm);letter-spacing:.1em;}
+.sub.tight{margin-bottom:16px;}
 
 /* ---------- THE MANUAL ----------------------------------------------
    Ten lines, once, and never shown again unless asked for. A rule you
    have to read twice is a rule that should have been taught by a level. */
-.manual{width:100%;max-width:370px;margin:0 auto;}
-.mrow{display:flex;gap:14px;align-items:flex-start;padding:13px 0;}
+/* A RULE IS A LABEL, NOT A PARAGRAPH.
+
+   Every row used to open with a bolded sentence fragment buried inside a
+   three-line block of dim prose, behind a 46px chip holding a 14px glyph.
+   That is a reference card. What a player wants at this size is a thing they
+   can read in one glance and one line of detail underneath if they care —
+   so the label is its own line, at button size, in full-strength ink, and
+   the chip is gone. The glyph stays, at the size the glyph actually is,
+   carrying the meaning colour it has everywhere else in the game: rust is
+   you, jade is the way out, gold is keys, violet is plates. The manual
+   teaches the palette by being printed in it. */
+.manual{width:100%;max-width:380px;margin:0 auto;}
+.meyebrow{width:100%;font-size:var(--t-tiny);letter-spacing:.24em;color:var(--dim-2);
+          text-transform:uppercase;font-weight:800;margin:14px 0 2px;}
+.meyebrow:first-child{margin-top:0;}
+.mrow{display:flex;gap:13px;align-items:flex-start;padding:9px 0;}
 .mrow+.mrow{box-shadow:inset 0 1px 0 var(--edge-2);}
-.mkey{flex:0 0 46px;height:46px;border-radius:var(--r-chip);background:var(--glass-2);
-      box-shadow:inset 0 0 0 1px var(--edge);display:flex;align-items:center;justify-content:center;}
-.mtxt{flex:1;font-size:var(--t-sm);line-height:1.55;color:var(--dim);padding-top:2px;}
-.mtxt b{color:var(--ink);font-weight:700;}
+.mkey{flex:0 0 26px;height:24px;font-size:var(--t-xl);line-height:1;color:var(--dim);
+      display:flex;align-items:center;justify-content:center;font-style:normal;}
+.mkey.rust{color:var(--rust);}
+.mkey.arc{color:var(--arc);}
+.mkey.jade{color:var(--jade);}
+.mkey.gold{color:var(--emerald);}
+.mkey.exit{color:var(--gold);}
+.mkey.plate{color:#a86bff;}
+.mtxt{flex:1;font-size:var(--t-sm);line-height:1.4;color:var(--dim);}
+.mtxt b{display:block;color:var(--ink);font-weight:800;font-size:var(--t-md);
+        letter-spacing:.07em;line-height:1.2;margin-bottom:3px;}
 .mtxt .c{color:var(--rust);font-weight:700;}
+
+/* THE WAY OUT OF A SCREEN IS NEVER BELOW THE FOLD.
+   GOT IT used to sit at the end of nine rules, which on a phone meant
+   scrolling past everything you had already decided not to read to reach the
+   only control on the screen. It is pinned to the bottom of the scrollport
+   now, over a fade, so the answer to "yes, fine" is always under the thumb
+   that is already there. */
+.stick{position:sticky;bottom:0;width:100%;display:flex;justify-content:center;z-index:2;
+       padding:22px 0 calc(var(--sa-bottom) + 22px);
+       margin:8px 0 calc((var(--sa-bottom) + 22px) * -1);
+       background:linear-gradient(180deg,rgba(6,5,11,0),rgba(6,5,11,.93) 34%,#06050b 62%);}
+.stick .btn{margin-bottom:0;}
 
 .foot{font-size:var(--t-micro);color:var(--dim-2);letter-spacing:.16em;text-align:center;margin-top:16px;}
 </style>
@@ -400,10 +622,12 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 <div id="hud">
   <div class="bar" id="barTop">
     <div class="pill" id="lvName">—</div>
+    <div class="grow"></div>
     <div class="pill" id="keyPill" style="display:none">◈ <span class="n" id="keyN">0</span></div>
+    <div class="pill" id="goPill" aria-label="fewest turns from here">◎ <span class="n" id="goN">·</span></div>
     <div class="pill" id="turnPill">TURNS <span class="n" id="turnN">0</span><span class="n" id="parN" style="color:var(--dim-2)">/0</span></div>
   </div>
-  <div id="worldTag"></div>
+  <div id="worldTag"><span id="worldName"></span><span class="wclock" id="worldClock"></span><i class="wbar" id="worldBar"></i></div>
   <div id="dpad">
     <div class="tick" id="tkL"></div><div class="tick" id="tkD"></div>
     <div class="tick" id="tkU"></div><div class="tick" id="tkR"></div>
@@ -441,20 +665,33 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
   <button class="btn ghost" id="btnCubesBack">BACK</button>
 </div>
 
-<!-- ============ MANUAL ============ -->
+<!-- ============ MANUAL ============
+     NINE LINES, NOT NINE PARAGRAPHS.
+     This screen had grown into documentation: every rule a full sentence of
+     prose, every prose block three lines deep, and a subtitle promising four
+     rules over a list of nine. Nobody reads a manual in a puzzle game — they
+     glance at it, twice, and go back to the cube. So every rule is now a
+     LABEL you can read in one saccade and one line under it, the four that
+     are actually rules are separated from the five that are worth knowing,
+     and GOT IT is nailed to the bottom of the screen where a thumb already
+     is instead of at the end of a scroll. -->
 <div class="layer hide" id="scManual">
   <h2>HOW IT WORKS</h2>
-  <p class="sub">Four rules. There is no fifth.</p>
   <div class="manual">
-    <div class="mrow"><div class="mkey">👆</div><div class="mtxt"><b>Tap a tile to walk there.</b> Only pale <span class="c">bone</span> tiles are decks you can stand on. Dark ones are bedrock, and gaps are nothing at all.</div></div>
-    <div class="mrow"><div class="mkey">↔</div><div class="mtxt"><b>Drag to turn the cube.</b> Past halfway it commits, short of it springs back. The four ticks above your thumb say which turns have footing on the far side.</div></div>
-    <div class="mrow"><div class="mkey">◫</div><div class="mtxt"><b>Depth is discarded.</b> Everything in a column collapses to the nearest solid thing. Two decks far apart in the cube are <span class="c">neighbours on screen</span>, and you may walk between them.</div></div>
-    <div class="mrow"><div class="mkey">▦</div><div class="mtxt"><b>Brightness is distance.</b> A pale tile is near, a dim one is far. The hairlines between them mark a drop you are allowed to ignore.</div></div>
-    <div class="mrow"><div class="mkey">◈</div><div class="mtxt">Keys and doors can be <b>buried</b> behind bedrock. If something is missing, it is behind you in an axis you are not looking down. Turn.</div></div>
-    <div class="mrow"><div class="mkey" style="color:#a86bff">⊘</div><div class="mtxt"><b>Plates rewrite the cube.</b> Step on one and every deck becomes stone and every wall becomes floor — the same cube, a different place. Step on it again to put it back. They appear from cube 20.</div></div>
-    <div class="mrow"><div class="mkey" style="color:#a86bff">⟲</div><div class="mtxt">A plate is cut clean through the rock, so you can see it from <b>every face</b> — and it always gives you footing, which means <span class="c">every turn is legal while you stand on one</span>. Plates are pivots.</div></div>
+    <div class="meyebrow">The four rules</div>
+    <div class="mrow"><i class="mkey">▣</i><div class="mtxt"><b>TAP TO WALK</b>Pale laid stone is deck. Dark rubble is not. Gaps are nothing at all.</div></div>
+    <div class="mrow"><i class="mkey">↔</i><div class="mtxt"><b>DRAG TO TURN</b>Past halfway it commits. The four ticks say which turns have footing.</div></div>
+    <div class="mrow"><i class="mkey">◫</i><div class="mtxt"><b>DEPTH IS DISCARDED</b>A column collapses to its nearest block. Two decks that line up <span class="c">touch</span>.</div></div>
+    <div class="mrow"><i class="mkey">▦</i><div class="mtxt"><b>BRIGHT IS NEAR</b>Dim is far. You may walk between them anyway.</div></div>
+    <div class="meyebrow">Worth knowing</div>
+    <div class="mrow"><i class="mkey arc">◉</i><div class="mtxt"><b>YOU ARE THE LIGHT</b>The only thing in here that is not stone — and the only cool colour on the board.</div></div>
+    <div class="mrow"><i class="mkey">◱</i><div class="mtxt"><b>HOLD TO LOOK INSIDE</b>The rock goes to glass. Keep holding and drag to turn it any way you like.</div></div>
+    <div class="mrow"><i class="mkey jade">◎</i><div class="mtxt"><b>THE JADE NUMBER</b>Turns still to go. Gold means you spent one you cannot get back.</div></div>
+    <div class="mrow"><i class="mkey gold">◆</i><div class="mtxt"><b>THE GREEN GEM IS A KEY</b>It opens the gate of the same colour. Buried behind bedrock? Turn.</div></div>
+    <div class="mrow"><i class="mkey exit">◎</i><div class="mtxt"><b>THE GOLD RING IS THE WAY OUT</b>Stand in it and the cube is done with you.</div></div>
+    <div class="mrow"><i class="mkey plate">⊘</i><div class="mtxt"><b>PLATES FLIP THE CUBE</b>Floor becomes stone, stone becomes floor — for five seconds, then it springs back and drops you on the nearest square. From cube 20.</div></div>
   </div>
-  <button class="btn" id="btnManualBack" style="margin-top:20px">GOT IT</button>
+  <div class="stick"><button class="btn primary" id="btnManualBack">GOT IT</button></div>
 </div>
 
 <!-- ============ THE PLATE, TAUGHT ONCE ============
@@ -464,25 +701,35 @@ h2{font-size:var(--t-xl);font-weight:800;letter-spacing:.13em;margin:0 0 4px;tex
 <div class="layer hide" id="scPlate">
   <div class="eyebrow" style="text-align:center;color:#a86bff">A NEW THING IN THE ROCK</div>
   <h2 style="margin-top:8px">PLATES</h2>
-  <p class="sub">Everything you know how to do is about to be worth less.</p>
+  <p class="sub tight">Everything you know how to do is about to be worth less.</p>
   <div class="manual">
-    <div class="mrow"><div class="mkey" style="color:#a86bff">⊘</div><div class="mtxt"><b>Step on a plate and the cube turns inside out.</b> Every deck becomes stone. Every wall you have been walking around becomes floor. The geometry does not move — only what you may stand on.</div></div>
-    <div class="mrow"><div class="mkey" style="color:#a86bff">⟲</div><div class="mtxt">Step on it again and it goes back. <b>The plate is a door between two versions of the same cube</b>, and the way out is usually only reachable from one of them.</div></div>
-    <div class="mrow"><div class="mkey" style="color:#a86bff">◎</div><div class="mtxt">A plate is cut clean through the rock, so it is visible from every face however deep it sits — and it always gives footing. <span class="c">While you stand on a plate, every turn is legal.</span></div></div>
+    <div class="mrow"><i class="mkey plate">⊘</i><div class="mtxt"><b>THE CUBE TURNS INSIDE OUT</b>Every deck becomes stone. Every wall becomes floor. Nothing moves — only what you may stand on.</div></div>
+    <div class="mrow"><i class="mkey plate">⏱</i><div class="mtxt"><b>IT LASTS FIVE SECONDS</b>Then the rock springs back to how it was carved — and if you are standing where a deck used to be, <span class="c">you are thrown to the nearest square.</span> Plan the line before you press it.</div></div>
+    <div class="mrow"><i class="mkey plate">⟲</i><div class="mtxt"><b>STEP ON IT AGAIN TO GO BACK EARLY</b>A plate is a door between two versions of the same cube. The way out is usually only in one of them.</div></div>
+    <div class="mrow"><i class="mkey plate">◎</i><div class="mtxt"><b>IT ALWAYS GIVES FOOTING</b>Cut clean through the rock, visible from every face. <span class="c">While you stand on a plate, every turn is legal — and the clock cannot throw you off one.</span></div></div>
   </div>
-  <button class="btn primary" id="btnPlateGo" style="margin-top:20px">STEP ON IT</button>
+  <div class="stick"><button class="btn primary" id="btnPlateGo">STEP ON IT</button></div>
 </div>
 
-<!-- ============ PAUSE ============ -->
+<!-- ============ PAUSE ============
+     Three buttons, one settings card, out. The two secondary actions sit
+     side by side because they are secondary, and every switch that could
+     explain itself in three words now does. -->
 <div class="layer hide" id="scPause">
   <h2 id="pauseName">PAUSED</h2>
-  <p class="sub" id="pauseSub">—</p>
+  <p class="sub tight" id="pauseSub">—</p>
   <button class="btn primary" id="btnResume">RESUME</button>
-  <button class="btn" id="btnRestart">RESTART CUBE</button>
-  <button class="btn" id="btnToCubes">ALL CUBES</button>
-  <div class="row" id="rowSound"><div><div class="lbl">Sound</div><div class="hint">Clicks, latches, and the detent</div></div><div class="sw on" id="swSound"></div></div>
-  <div class="row" id="rowHaptic"><div><div class="lbl">Haptics</div><div class="hint">A tick on every committed turn</div></div><div class="sw on" id="swHaptic"></div></div>
-  <div class="row" id="rowDepth"><div><div class="lbl">Depth numbers</div><div class="hint">Prints each tile's distance from the camera. A crutch, and a good one while the collapse is still new.</div></div><div class="sw" id="swDepth"></div></div>
+  <div class="btn2">
+    <button class="btn" id="btnRestart">RESTART</button>
+    <button class="btn" id="btnToCubes">ALL CUBES</button>
+  </div>
+  <div class="settings">
+    <div class="row" id="rowSound"><div><div class="lbl">Sound</div></div><div class="sw on" id="swSound"></div></div>
+    <div class="row" id="rowHaptic"><div><div class="lbl">Haptics</div></div><div class="sw on" id="swHaptic"></div></div>
+    <div class="row" id="rowFx"><div><div class="lbl">Effects</div><div class="hint">Shake, sparks, bloom</div></div><div class="sw on" id="swFx"></div></div>
+    <div class="row" id="rowToGo"><div><div class="lbl">Turns to go</div><div class="hint">Jade: perfect line. Gold: you slipped</div></div><div class="sw on" id="swToGo"></div></div>
+    <div class="row" id="rowDepth"><div><div class="lbl">Depth numbers</div><div class="hint">Distance printed on every tile</div></div><div class="sw" id="swDepth"></div></div>
+  </div>
   <button class="btn ghost" id="btnManual2">HOW IT WORKS</button>
 </div>
 

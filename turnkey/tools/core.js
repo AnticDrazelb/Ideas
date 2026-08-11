@@ -100,6 +100,30 @@ function oriIndex(m){ return ORIS.index[oriKey(m)]; }
    IS LEGAL WHILE YOU STAND ON ONE. Plates are pivots. In a game where where
    you stand decides which turns you have, a square that gives you all four
    is worth walking a long way for.
+
+   THE FIVE-SECOND LIMIT IS NOT IN HERE, AND THAT IS ON PURPOSE.
+
+   In the game a flipped world springs back after five seconds and throws you
+   to the nearest square. This model has no clock in it — a turn costs one, a
+   step costs nothing, and neither costs any time — so the solver plans as if
+   a flip lasted forever.
+
+   That makes par a LOWER BOUND rather than a promise, and it is the right
+   bound to publish. Everything the guarantee is for still holds: the route
+   the generator carved is still in the cube, the keys still open the doors in
+   some order, the opening cell is still not buried, and the number on the HUD
+   is still the fewest turns the geometry can be beaten in. What the clock
+   adds is a constraint on how many of those turns may be spent on the far
+   side of a plate — a demand on the player's hands, not a change to the
+   cube. A cube whose only line needs eight turns inside one flip is a cube
+   this solver calls winnable and a human may not be able to walk, and that is
+   a tuning question for the generator's difficulty bands, not a lie in the
+   proof.
+
+   Putting the clock in the search would mean carrying real time in the state
+   key, which turns a 0-1 BFS over a few thousand states into a search over a
+   continuum, to answer a question the player is better placed to answer than
+   the solver: whether they can move that fast.
    ============================================================ */
 var GLYPH_BIT = {A:1, B:2};                 /* A inverts, B drains */
 function isGlyph(c){ return c === 'A' || c === 'B'; }
@@ -243,6 +267,53 @@ function doorIndexAt(lv, w){
 }
 function samePos(a,b){ return a[0]===b[0] && a[1]===b[1] && a[2]===b[2]; }
 
+/* THE OTHER SIDE OF THE CUBE, exactly.
+
+   The cell diametrically opposite the one you are standing in — through the
+   centre, not around the outside. If something is sitting there it can be
+   seen through the horizon, faintly, and that is ALL it does: no reach, no
+   route, no bearing on any turn. It is a look through a hole at the far
+   side of the world, and the only reward is noticing.
+
+   Which is worth having precisely because it costs nothing. A player who
+   never sees it has lost nothing; a player who does has found out what the
+   thing they are moving actually is. */
+function antipode(){ return [N-1-pos[0], N-1-pos[1], N-1-pos[2]]; }
+function throughLook(){
+  if(!lv) return null;
+  var a = antipode(), i;
+  if(samePos(a, lv.goal)) return {kind:4};
+  for(i = 0; i < lv.keys.length; i++)
+    if(!(kmask & (1<<i)) && samePos(a, lv.keys[i])) return {kind:2};
+  for(i = 0; i < lv.doors.length; i++)
+    if(samePos(a, lv.doors[i])) return {kind:3, i:i};
+  return null;
+}
+
+/* ONE STEP AWAY, NOT THROUGH THE CENTRE.
+   throughLook() is a peek at the antipode and has no bearing on movement.
+   This is the opposite: real, walkable neighbours — the four cells a single
+   step from where you stand right now — checked for whether one of them is
+   the goal, an uncollected key, or a door. Nothing here changes what you may
+   do; it only tells the eye where the next useful step is before the hand
+   has to work it out. */
+function nearSpecials(){
+  if(!lv) return [];
+  var v = viewOf(N, M, pos), out = [];
+  for(var t = 0; t < 4; t++){
+    var u2 = v[0] + TURNS[t].dx, v2 = v[1] + TURNS[t].dy;
+    var cell = walkable(lv, surf, u2, v2, doors);
+    if(!cell) continue;
+    var w = cell.w;
+    if(samePos(w, lv.goal)){ out.push({u2:u2, v2:v2, kind:4, w:w}); continue; }
+    var ki = keyIndexAt(lv, w);
+    if(ki >= 0 && !(kmask & (1<<ki))){ out.push({u2:u2, v2:v2, kind:2, w:w}); continue; }
+    var di = doorIndexAt(lv, w);
+    if(di >= 0){ out.push({u2:u2, v2:v2, kind:3, i:di, w:w}); continue; }
+  }
+  return out;
+}
+
 /* Turning is legal only when the column you are standing in still has
    footing after the turn. That single rule is what makes WHERE you stand
    gate WHICH turns you have — position gating rotation, rotation gating
@@ -346,7 +417,12 @@ function solve(lv, budget, from){
       }
     }
   }
-  return {ok:false};
+  /* THE TWO WAYS TO FAIL ARE NOT THE SAME ANSWER. Exhausting every reachable
+     state without finding the goal means the cube is dead from here; running
+     out of budget with work still queued means only that the search stopped
+     looking. The live readout says "no way on" to the first and "40+" to the
+     second, and a caller that does not care can keep reading .ok. */
+  return {ok:false, over: !!buckets[budget+1]};
 }
 
 /* ---------- GENERATOR ---------------------------------------------------

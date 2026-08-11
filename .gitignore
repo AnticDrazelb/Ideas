@@ -5,3 +5,4 @@ turnkey/tools/core-inline.js
 turnkey/tools/v-*.png
 turnkey/tools/j-*.png
 turnkey/tools/p-*.png
+turnkey/tools/package-lock.json
