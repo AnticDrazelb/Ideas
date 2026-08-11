@@ -28,8 +28,16 @@ const ok=(n,c,x='')=>{console.log((c?'  ok  ':'FAIL  ')+n+(x?'   '+x:''));if(!c)
       if(state==='play')   await p.evaluate(()=>{store.reached=900;store.taught=1;loadLevel(3);show(null);});
       if(state==='bigcube')await p.evaluate(()=>{loadLevel(44);show(null);});
       await p.waitForTimeout(160);
-      const r=await p.evaluate(()=>({W,H,S,CX,CY,N,
-        l:CX-N*S/2,rt:CX+N*S/2,t:CY-N*S/2,bt:CY+N*S/2}));
+      /* THE FRAME COUNTS AS BOARD. It is drawn outside the tiles, so
+         measuring the tile rect alone was measuring the wrong rectangle the
+         moment a bezel existed — the tiles fit and the frame hung off the
+         edge. Its footprint is the tiles plus its own thickness and
+         clearance, in tiles, which is exactly what layout() subtracts. */
+      const r=await p.evaluate(()=>{
+        const half = N*S/2 + (document.getElementById('hud').classList.contains('on')
+                      ? (FRAME_BW + FRAME_PAD)*S : 0);
+        return {W,H,S,CX,CY,N, l:CX-half, rt:CX+half, t:CY-half, bt:CY+half};
+      });
       const slack=Math.min(r.l, r.W-r.rt, r.t, r.H-r.bt);
       if(slack < 0) over.push(`${name}/${state} by ${Math.round(-slack)}px`);
       if(!worst || slack < worst.slack) worst={n:name+'/'+state, slack:Math.round(slack)};

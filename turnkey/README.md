@@ -315,6 +315,36 @@ thing they must never do is disagree, because the handover happens on the
 first pixel of a drag. A screen-space overlay would have to be written twice,
 in two coordinate systems, and would pop the instant a finger moved.
 
+**Every stone is laid separately.** The block field gives a block a top, an
+underside and a thickness; inside it the material was still perfectly flat.
+The fix needed no new art, because **the height map was already there** — a
+pattern is a field of multipliers, and the places it dips are the places the
+surface dips: mortar courses, cobble seams, the gaps between planks. Read as
+height, differentiated at the render grid off a *bilinear* lift of the coarse
+pattern, and lit from the same direction the bevel says the light is. The
+albedo stays point-sampled and hard-edged while the slope it implies is four
+texels wide and smooth, so a mortar course keeps its crisp dark line and gains
+a lit shoulder on one side and a shaded one on the other. It works for every
+material kit in the game — including ones nobody has written yet — without a
+line of per-material code, and it is built once per vault.
+
+**The board sits in a vault.** The edge used to be two hairlines, which is a
+diagram's convention: it says "the picture ends here" and nothing else. A
+bezel gives the board a *reason* to end where it does, frames the composition
+so the eye is delivered to the puzzle, and is the one surface in the game
+allowed to be made of something other than the cube. It does not turn with the
+cube — drawn in screen space in both renderers, so a drag rotates the cube
+*inside* a vault that stays put, which is the correct reading of the gesture
+and also means it cannot pop at the handover. Bezel, corner hardware, outer
+shadow and the darkness it throws onto the board all bake into one sprite.
+
+Its thickness and clearance are declared **in tiles**, and `layout()` reads the
+same two numbers when it decides how large a tile may be — so the tiles give
+back exactly what the frame takes and it can never grow off the edge of a
+screen. The fit test now measures that footprint rather than the tile rect,
+because the moment a bezel existed, measuring the tiles alone was measuring
+the wrong rectangle.
+
 **The board also stopped floating.** Every block throws a soft shadow down and
 out, drawn under all of them, so it survives only in the void columns and
 around the outside — exactly the places the eye was being told nothing. And

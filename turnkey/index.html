@@ -265,8 +265,12 @@ h1{
 }
 /* the wordmark is a rendered image, so it gets sized by the layout rather
    than by a font stack that may or may not exist on the device */
+/* 86vw put the K hard against the right edge on a 390pt phone and the T
+   against the left. A wordmark touching both bezels does not read as
+   confident, it reads as a screenshot that was cropped — the letterforms need
+   air on either side or the eye has nowhere to leave them. */
 #wordmark{
-  display:block;width:min(86vw,420px);height:auto;margin:0 auto 14px;
+  display:block;width:min(76vw,400px);height:auto;margin:0 auto 18px;
   image-rendering:auto;
   filter:drop-shadow(0 10px 26px rgba(0,0,0,.75)) drop-shadow(0 0 42px rgba(255,150,60,.18));
 }
@@ -2171,6 +2175,15 @@ function layout(){
   var availW = W - ins.l - ins.r - (demo ? 8 : 12);
   var availH = H - topBar - botBar;
   var side = Math.max(60, Math.min(availW, demo ? availH*1.45 : availH));
+  /* THE FRAME IS PART OF THE BOARD'S FOOTPRINT.
+
+     The bezel is drawn outside the tiles, so a board sized to the last
+     available pixel puts its frame off the edge of the screen — which is
+     what happened the moment one existed. Its thickness is a fraction of the
+     tile, so this is one equation rather than a constant: the tiles give back
+     exactly what the frame takes, and every viewport keeps the margin the fit
+     test measures. The attract cube has no frame and gives back nothing. */
+  if(!demo) side = side / (1 + 2*(FRAME_BW + FRAME_PAD)/N);
   S = side / N;
   CX = ins.l + (W - ins.l - ins.r)/2;
   CY = topBar + availH/2 - (demo ? 0 : Math.min(30, (availH - side)*0.14));
@@ -2616,7 +2629,69 @@ function buildPats(band){
   var kit = TEX_KITS[((band % TEX_KITS.length) + TEX_KITS.length) % TEX_KITS.length];
   TEXPAT['+'] = finishTex(kit.deck(mulberry32(0xB10C ^ (band*2654435761))), '+');
   TEXPAT['#'] = finishTex(kit.rock(mulberry32(0xC0BB ^ (band*40503))), '#');
+  buildBump('+'); buildBump('#');
   texReset();
+}
+
+/* ============================================================
+   EVERY STONE IS LAID SEPARATELY — relief taken from the material itself.
+
+   The block-level field gives a block a top, an underside and a thickness.
+   Inside it, the material was still perfectly flat: a brick was a slightly
+   different shade of the brick beside it, and a cobble was a patch. One
+   texel of "lit lip" is what the patterns author by hand, and at sixteen
+   texels across that is all there is room for.
+
+   THE HEIGHT MAP IS ALREADY THERE. A pattern is a field of multipliers, and
+   the places it dips are the places the surface dips: mortar courses, the
+   seams between cobbles, the gaps between planks. Nobody has to author a
+   second map — the one that exists can be read as height, differentiated, and
+   lit. That is why this works for every kit in the game, including the ones
+   nobody will write until later, without a line of per-material code.
+
+   The gradient is taken at the RENDER grid off a bilinear sample of the
+   coarse pattern, which is the whole trick: the albedo stays point-sampled
+   and hard-edged, while the slope it implies is four texels wide and smooth.
+   So a mortar course keeps its crisp dark line and gains a lit shoulder on
+   one side and a shaded one on the other, and the wall stops being a picture
+   of bricks and becomes bricks.
+
+   Light comes from up and to the left, which is where the block bevel already
+   says it is. The two must agree or a block reads as lit twice from two
+   places, which is the specific look of something assembled rather than
+   rendered.
+
+   It samples with WRAP, because these patterns tile — two blocks of cobble
+   side by side must not grow a seam that the material does not have.
+
+   Built once per vault, into one array per material. A frame never sees it.
+   ============================================================ */
+var bumpLUT = {};
+function buildBump(mt){
+  var pat = TEXPAT[mt], h = new Float32Array(TEXR*TEXR), x, y;
+  /* bilinear lift of the coarse pattern to the render grid — the SLOPE field
+     only, never the colour */
+  for(y = 0; y < TEXR; y++) for(x = 0; x < TEXR; x++){
+    var fx = (x + 0.5)/TEXS - 0.5, fy = (y + 0.5)/TEXS - 0.5;
+    var x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+    var xa = ((x0 % TEXN) + TEXN) % TEXN, xb = (xa + 1) % TEXN;
+    var ya = ((y0 % TEXN) + TEXN) % TEXN, yb = (ya + 1) % TEXN;
+    var p00 = pat[ya*TEXN + xa], p10 = pat[ya*TEXN + xb];
+    var p01 = pat[yb*TEXN + xa], p11 = pat[yb*TEXN + xb];
+    h[y*TEXR + x] = (p00 + (p10-p00)*tx) + ((p01 + (p11-p01)*tx) - (p00 + (p10-p00)*tx))*ty;
+  }
+  var out = new Float32Array(TEXR*TEXR);
+  for(y = 0; y < TEXR; y++) for(x = 0; x < TEXR; x++){
+    var xm = (x + TEXR - 1) % TEXR, xp = (x + 1) % TEXR;
+    var ym = (y + TEXR - 1) % TEXR, yp = (y + 1) % TEXR;
+    /* a slope rising to the RIGHT faces left, and the light is on the left,
+       so it brightens; a slope rising DOWNWARD faces up, and brightens too */
+    var gx = h[y*TEXR + xp] - h[y*TEXR + xm];
+    var gy = h[yp*TEXR + x] - h[ym*TEXR + x];
+    var s = (gx*0.62 + gy*0.78) * 2.6;
+    out[y*TEXR + x] = 1 + Math.max(-0.20, Math.min(0.20, s));
+  }
+  bumpLUT[mt] = out;
 }
 function texFor(t, d, lit){
   var mt = isWalkType(t) ? '+' : '#';
@@ -2635,7 +2710,7 @@ function texFor(t, d, lit){
      well clear of what a single cube can ask for so it never fires in the
      middle of a turn. */
   if(texCount > 700) texReset();   /* a baked block is 16 KB now, not 1 */
-  var pat = TEXPAT[mt], base = tileRGB(mt, dq/2, lq/TEX_LIT);
+  var pat = TEXPAT[mt], bump = bumpLUT[mt], base = tileRGB(mt, dq/2, lq/TEX_LIT);
   c = document.createElement('canvas'); c.width = c.height = TEXR;
   var g = c.getContext('2d'), id = g.createImageData(TEXR, TEXR), i, m, o, px2, py2;
   var vd = ST.vd, deck = mt === '+';
@@ -2644,7 +2719,7 @@ function texFor(t, d, lit){
     px2 = i % TEXR; py2 = (i / TEXR) | 0;
     /* the material, point-sampled off the coarse grid so a brick edge stays
        a brick edge, times the smooth field that makes the block a solid */
-    m = pat[((py2/TEXS)|0)*TEXN + ((px2/TEXS)|0)] * shadeAt(i, deck);
+    m = pat[((py2/TEXS)|0)*TEXN + ((px2/TEXS)|0)] * shadeAt(i, deck) * bump[i];
     /* ROUNDED CORNERS, AND THEY ARE NOT A CLIP.
 
        A square block is a diagram; a block with its corners taken off is an
@@ -3088,6 +3163,128 @@ function buildDrops(){
    One blurred sprite, built when the tile size changes and drawn once per
    block. The blur is done by the canvas at build time, so the frame pays for
    a drawImage and nothing else.                                            */
+/* ---------- THE VAULT THE CUBE SITS IN -----------------------------------
+   The board's edge was two hairlines. A hairline is a diagram's convention:
+   it says "the picture ends here" and nothing else, and the whole screen was
+   therefore a rectangle of stone with no reason to be that size, floating in
+   the middle of a starfield.
+
+   A bezel does three jobs a line cannot. It gives the board a REASON to end
+   where it does — the cube is held in something. It gives the composition a
+   frame, so the eye is delivered to the puzzle instead of wandering the
+   background. And it is the one surface in the game that is allowed to be
+   made of something other than the cube, which is what stops the picture
+   being a single material from edge to edge.
+
+   IT DOES NOT TURN WITH THE CUBE, and that is deliberate. Drawn in screen
+   space in both renderers, so a drag rotates the cube INSIDE a vault that
+   stays put — which is the correct reading of what the gesture does, and it
+   also means the frame cannot pop at the moment the flat board hands over to
+   the solid.
+
+   IT IS ONE BLIT. Everything below — the bevel, the corner hardware, the
+   outer shadow, the darkening it throws onto the board — is baked into a
+   sprite when the tile size changes and drawn once a frame after that. It is
+   also drawn in the VAULT'S OWN bedrock colour, so it changes material with
+   the cube it holds without a single extra asset.                          */
+/* thickness and clearance, in TILES — layout() reads the same two numbers
+   when it decides how big a tile may be, so the frame can never grow off the
+   edge of a screen */
+var FRAME_BW = 0.30, FRAME_PAD = 0.10;
+var frameCv = null, frameS = -1, frameBand = -1;
+function rrect(g, x, y, w, h, r){
+  g.beginPath();
+  if(g.roundRect){ g.roundRect(x, y, w, h, r); return; }
+  g.moveTo(x+r, y);
+  g.arcTo(x+w, y, x+w, y+h, r); g.arcTo(x+w, y+h, x, y+h, r);
+  g.arcTo(x, y+h, x, y, r);     g.arcTo(x, y, x+w, y, r);
+  g.closePath();
+}
+function buildFrame(){
+  frameS = S; frameBand = curBand;
+  var board = N*S, bw = Math.max(7, S*FRAME_BW), pad = Math.max(10, S*0.42);
+  var sz = board + bw*2 + pad*2;
+  frameCv = document.createElement('canvas');
+  frameCv.width = frameCv.height = Math.ceil(sz*DPR);
+  var g = frameCv.getContext('2d');
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  var x0 = pad, y0 = pad, side = board + bw*2;
+  var ro = bw*0.9, ri = bw*0.34;
+  var dk = ST.rF, lt = ST.rN;
+  /* the shadow the whole vault throws on the sky */
+  g.save();
+  g.filter = 'blur(' + (bw*0.55).toFixed(2) + 'px)';
+  g.fillStyle = 'rgba(0,0,0,0.55)';
+  rrect(g, x0, y0 + bw*0.22, side, side, ro); g.fill();
+  g.restore();
+  /* the bezel face: a vertical gradient, lighter at the top because the
+     light in this game is up and to the left */
+  var fg = g.createLinearGradient(0, y0, 0, y0 + side);
+  fg.addColorStop(0,    'rgb(' + ((lt[0]*0.92)|0) + ',' + ((lt[1]*0.92)|0) + ',' + ((lt[2]*0.92)|0) + ')');
+  fg.addColorStop(0.5,  'rgb(' + ((dk[0]*1.15)|0) + ',' + ((dk[1]*1.15)|0) + ',' + ((dk[2]*1.15)|0) + ')');
+  fg.addColorStop(1,    'rgb(' + ((dk[0]*0.72)|0) + ',' + ((dk[1]*0.72)|0) + ',' + ((dk[2]*0.72)|0) + ')');
+  g.save();
+  rrect(g, x0, y0, side, side, ro); g.clip();
+  g.fillStyle = fg; g.fillRect(x0, y0, side, side);
+  /* a whisper of the same grain the frame's material has */
+  g.globalAlpha = 0.10;
+  for(var q = 0; q < 220; q++){
+    var qx = x0 + Math.random()*side, qy = y0 + Math.random()*side;
+    g.fillStyle = Math.random() < 0.5 ? '#fff' : '#000';
+    g.fillRect(qx, qy, 1.4, 1.4);
+  }
+  g.globalAlpha = 1;
+  g.restore();
+  /* outer lip: lit along the top-left, lost along the bottom-right */
+  g.save();
+  g.lineWidth = Math.max(1.2, bw*0.13);
+  g.strokeStyle = 'rgba(255,255,255,0.20)';
+  rrect(g, x0 + g.lineWidth/2, y0 + g.lineWidth/2, side - g.lineWidth, side - g.lineWidth, ro);
+  g.stroke();
+  g.restore();
+  /* the well: punch the board out of the middle, then line it with the
+     shadow the bezel casts down onto the stone */
+  g.save();
+  rrect(g, x0 + bw, y0 + bw, board, board, ri);
+  g.save(); g.clip(); g.clearRect(x0 + bw, y0 + bw, board, board); g.restore();
+  g.lineWidth = bw*0.5;
+  g.strokeStyle = 'rgba(0,0,0,0.45)';
+  g.stroke();
+  g.lineWidth = Math.max(1, bw*0.10);
+  g.strokeStyle = 'rgba(0,0,0,0.70)';
+  rrect(g, x0 + bw, y0 + bw, board, board, ri); g.stroke();
+  g.restore();
+  /* CORNER HARDWARE. Four plates, because a frame with nothing at its
+     corners is a border and a frame with something at its corners is a made
+     object. They are the only ornament in the game and they are deliberately
+     plain — a rounded plate and two rivets. */
+  var cs = bw*1.55, rv = Math.max(1.3, bw*0.14);
+  for(var c = 0; c < 4; c++){
+    var cx2 = x0 + (c & 1 ? side - cs : 0), cy2 = y0 + (c & 2 ? side - cs : 0);
+    g.save();
+    var cg = g.createLinearGradient(cx2, cy2, cx2 + cs, cy2 + cs);
+    cg.addColorStop(0, 'rgb(' + ((lt[0]*1.02)|0) + ',' + ((lt[1]*1.02)|0) + ',' + ((lt[2]*1.02)|0) + ')');
+    cg.addColorStop(1, 'rgb(' + ((dk[0]*0.86)|0) + ',' + ((dk[1]*0.86)|0) + ',' + ((dk[2]*0.86)|0) + ')');
+    g.fillStyle = cg;
+    rrect(g, cx2, cy2, cs, cs, bw*0.5); g.fill();
+    g.lineWidth = 1; g.strokeStyle = 'rgba(0,0,0,0.42)'; g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.22)';
+    g.beginPath(); g.arc(cx2 + cs*0.31, cy2 + cs*0.31, rv, 0, 6.284); g.fill();
+    g.beginPath(); g.arc(cx2 + cs*0.69, cy2 + cs*0.69, rv, 0, 6.284); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.34)';
+    g.beginPath(); g.arc(cx2 + cs*0.31 + rv*0.5, cy2 + cs*0.31 + rv*0.6, rv*0.72, 0, 6.284); g.fill();
+    g.beginPath(); g.arc(cx2 + cs*0.69 + rv*0.5, cy2 + cs*0.69 + rv*0.6, rv*0.72, 0, 6.284); g.fill();
+    g.restore();
+  }
+  frameCv.sz = sz;
+}
+function drawFrame(){
+  if(!N || !S) return;
+  if(!frameCv || frameS !== S || frameBand !== curBand) buildFrame();
+  var sz = frameCv.sz;
+  ctx.drawImage(frameCv, CX - sz/2, CY - sz/2, sz, sz);
+}
+
 var contactCv = null;
 function buildContact(){
   var pad = Math.max(6, S*0.28), sz = Math.ceil(S + pad*2);
@@ -4350,6 +4547,7 @@ function draw(){
   var a = liveAngle();
   if(demo || peek.amt > 0.001 || (a && Math.abs(a.ang) > 1e-4)) draw3d();
   else drawFlat();
+  if(!demo) drawFrame();
   drawBeam();
   drawParts();
   camEnd();

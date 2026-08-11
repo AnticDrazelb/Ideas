@@ -265,8 +265,12 @@ h1{
 }
 /* the wordmark is a rendered image, so it gets sized by the layout rather
    than by a font stack that may or may not exist on the device */
+/* 86vw put the K hard against the right edge on a 390pt phone and the T
+   against the left. A wordmark touching both bezels does not read as
+   confident, it reads as a screenshot that was cropped — the letterforms need
+   air on either side or the eye has nowhere to leave them. */
 #wordmark{
-  display:block;width:min(86vw,420px);height:auto;margin:0 auto 14px;
+  display:block;width:min(76vw,400px);height:auto;margin:0 auto 18px;
   image-rendering:auto;
   filter:drop-shadow(0 10px 26px rgba(0,0,0,.75)) drop-shadow(0 0 42px rgba(255,150,60,.18));
 }
