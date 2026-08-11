@@ -1287,7 +1287,6 @@ function buildDrops(){
     g.addColorStop(1, 'rgba(0,0,0,0)');
     shGrad.push(g);
   }
-  buildContact();
 }
 
 /* ---------- THE BOARD STOPS FLOATING -------------------------------------
@@ -1427,41 +1426,82 @@ function buildFrame(){
   }
   frameCv.sz = sz;
 }
+/* AND IT GETS OUT OF THE WAY WHILE THE CUBE IS TURNING.
+
+   The argument for a frame that stays put was that a drag rotates the cube
+   INSIDE a vault — and on paper that is the right reading of the gesture. On
+   a phone it is not what happens. The solid swings wide of the board rect the
+   bezel was cut to fit, so the cube leaves the well, crosses the frame and
+   comes back, and the frame stops reading as a thing the cube is held in and
+   starts reading as a thing drawn on top of it.
+
+   So it fades with the turn: full while the board is flat and the puzzle is
+   being read, gone by the time the cube is properly in the air, back as it
+   lands. The vault is the thing you solve in, not the thing you tumble in. */
+function frameFade(){
+  var a = liveAngle(), t = peek.amt;
+  if(a) t = Math.max(t, Math.min(1, Math.abs(a.ang)/(Math.PI/5)));
+  return 1 - t;
+}
 function drawFrame(){
   if(!N || !S) return;
+  var f = frameFade();
+  if(f <= 0.01) return;
   if(!frameCv || frameS !== S || frameBand !== curBand) buildFrame();
   var sz = frameCv.sz;
+  ctx.save();
+  ctx.globalAlpha = f;
   ctx.drawImage(frameCv, CX - sz/2, CY - sz/2, sz, sz);
+  ctx.restore();
 }
 
-var contactCv = null;
-function buildContact(){
-  var pad = Math.max(6, S*0.28), sz = Math.ceil(S + pad*2);
+var contactCv = null, contactSig = '';
+function buildContact(SF, sig){
+  var pad = Math.max(6, S*0.28), drop = S*0.075;
+  var span = N*S + pad*2 + drop;
   contactCv = document.createElement('canvas');
-  contactCv.width = contactCv.height = Math.ceil(sz*DPR);
+  contactCv.width = contactCv.height = Math.ceil(span*DPR);
   var g = contactCv.getContext('2d');
   g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  /* ONE BLUR OVER THE UNION, NOT FORTY-NINE OVER THE PARTS.
+
+     The first version drew a blurred sprite under every block, every frame.
+     At three device pixels to the CSS pixel that is four million blended
+     pixels a frame for a picture that only changes when the BOARD does — and
+     it did not show up in the draw() timing, it showed up as frames crossing
+     the 64ms dt ceiling, which the plate clock then reported as lost time.
+
+     The silhouette is what casts, so the silhouette is what gets built: every
+     occupied cell into one path, blurred once, cached, and blitted whole. It
+     is also the better picture. Blurring the union means the interior seams
+     between neighbours never cast at all — only the true outline does, which
+     is what a shadow actually is.                                          */
+  var r = S*0.26, i, u, v;
   g.filter = 'blur(' + (S*0.085).toFixed(2) + 'px)';
   g.fillStyle = 'rgba(0,0,0,0.62)';
-  var r = S*0.26, x = pad, y = pad, w = S, h = S;
   g.beginPath();
-  if(g.roundRect) g.roundRect(x, y, w, h, r);
-  else {
-    g.moveTo(x+r, y); g.arcTo(x+w, y, x+w, y+h, r); g.arcTo(x+w, y+h, x, y+h, r);
-    g.arcTo(x, y+h, x, y, r); g.arcTo(x, y, x+w, y, r); g.closePath();
+  for(u = 0; u < N; u++) for(v = 0; v < N; v++){
+    if(!SF[u*N + v]) continue;
+    var x = pad + u*S, y = pad + drop + (N - 1 - v)*S;
+    if(g.roundRect) g.roundRect(x, y, S, S, r);
+    else {
+      g.moveTo(x+r, y); g.arcTo(x+S, y, x+S, y+S, r); g.arcTo(x+S, y+S, x, y+S, r);
+      g.arcTo(x, y+S, x, y, r); g.arcTo(x, y, x+S, y, r);
+    }
   }
   g.fill();
   g.filter = 'none';
-  contactCv.pad = pad; contactCv.sz = sz;
+  contactCv.pad = pad; contactCv.span = span;
+  contactSig = sig;
 }
 function drawContact(SF){
-  if(!contactCv) return;
-  var pad = contactCv.pad, sz = contactCv.sz, drop = S*0.075;
-  for(var u = 0; u < N; u++) for(var v = 0; v < N; v++){
-    if(!SF[u*N + v]) continue;
-    var r = tileRect(u, v);
-    ctx.drawImage(contactCv, r[0] - pad, r[1] - pad + drop, sz, sz);
-  }
+  /* the signature is forty-nine booleans and the tile size — cheap enough to
+     ask every frame, and it is the only thing that can invalidate the sheet */
+  var sig = S + ':' + N, i;
+  for(i = 0; i < N*N; i++) sig += SF[i] ? '1' : '0';
+  if(sig !== contactSig || !contactCv) buildContact(SF, sig);
+  var pad = contactCv.pad, span = contactCv.span;
+  ctx.drawImage(contactCv, CX - N*S/2 - pad, CY - N*S/2 - pad, span, span);
 }
 
 /* ============================================================
@@ -1966,69 +2006,77 @@ function drawFlashes(){
     c.fillStyle = g; c.fillRect(0, 0, W, H); c.restore();
   }
 }
-function drawVignette(){
-  var g = ctx.createRadialGradient(CX, CY, Math.min(W,H)*0.30, CX, CY, Math.max(W,H)*0.76);
-  g.addColorStop(0, 'rgba(0,0,0,0)');
-  g.addColorStop(1, 'rgba(0,0,0,' + (0.28 + vig*0.34).toFixed(3) + ')');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  drawGrain();
-}
+/* ---------- THE VIGNETTE, AND THE GRAIN INSIDE IT ------------------------
+   These are one sheet, and the reason is fill rate.
 
-/* ---------- GRAIN, AND THIS TIME OVER THE WHOLE FRAME ---------------------
-   There was a per-tile noise overlay here once and it was deleted for good
-   reasons: a 64px noise pattern sitting on top of a 16px block texture is a
-   filter smearing the pixels the material is made of, and it fought the very
-   thing it was meant to enrich.
+   Both are full-screen operations, and a full-screen operation at three
+   device pixels to the CSS pixel is three million pixels. Two of them a frame
+   — a radial gradient evaluated and filled, then a noise sheet blended over
+   it — is the single most expensive thing in this file, and it does not show
+   up in draw() timing because the cost lands in the rasteriser. It showed up
+   as frames crossing the 64ms dt ceiling, which the plate clock reported as
+   losing a fifth of its five seconds.
 
-   This is the other kind of grain, and the distinction is the whole point.
-   That one was MATERIAL — it claimed the stone was rough. This one is the
-   IMAGE: it sits over the finished frame, board and sky and interface alike,
-   at an amplitude near the limit of what can be seen, and what it does is
-   break up the perfectly smooth gradients. A radial vignette on a flat dark
-   sky bands on an OLED — visible steps in the falloff — and nothing says
-   "rendered in a browser" faster. A film of noise dithers those steps away,
-   which is exactly the job grain does on a camera.
+   Baked together they cost ONE blit, which is less than the gradient fill
+   alone used to: no gradient to evaluate, no second pass. The extra darkening
+   a refusal adds is the only thing still drawn live, and that happens on the
+   frames where somebody has just been told no.
 
-   IT MUST BE ONE BLIT, and the first version was thirty-two.
-
-   A 128px tile repeated across the screen looks identical to a single sheet
-   and costs thirty-two composited draws a frame. In 'overlay', at three
-   device pixels to the CSS pixel, that is three million pixels blended
-   through a branchy blend mode every frame — and it did not show up as a
-   slow draw() call, it showed up as DROPPED FRAMES, because the cost lands in
-   the compositor rather than in the loop that was being timed.
-
-   It was caught by something that had no business noticing: the plate clock
-   started losing a fifth of a second of its five to frames longer than the
-   64ms dt ceiling. A countdown is a real-time measurement, so it is also an
-   accidental frame-health monitor, and it failed the build over a graphics
-   change. That is the test suite doing its job from an unexpected direction.
-
-   So the sheet is built once at screen size plus a margin, and each frame
-   draws it once at a random whole-pixel offset inside that margin — same
-   picture, same movement, one draw.                                        */
-var grainCv = null, GRAIN_PAD = 64, grainW = 0, grainH = 0;
-function buildGrain(){
-  grainW = Math.ceil(W) + GRAIN_PAD; grainH = Math.ceil(H) + GRAIN_PAD;
-  grainCv = document.createElement('canvas');
-  grainCv.width = grainW; grainCv.height = grainH;
-  var g = grainCv.getContext('2d'), id = g.createImageData(grainW, grainH);
-  var rng = mulberry32(0x6841);
-  for(var i = 0; i < grainW*grainH; i++){
-    var o = i*4, v = (rng() + rng() + rng()) / 3;   /* toward gaussian: less salt-and-pepper */
-    id.data[o] = id.data[o+1] = id.data[o+2] = 255;
-    id.data[o+3] = Math.round(v*255*0.115);
+   THE GRAIN THEREFORE DOES NOT MOVE, and that is a real trade. Moving grain
+   reads as film; still grain reads as texture on the glass. Film would cost a
+   second full-screen blend every frame forever, to animate something at the
+   very limit of visibility. Texture is the honest thing to buy at this price,
+   and it does the job the grain is actually here for: a radial falloff over a
+   flat dark sky bands visibly on an OLED, and noise dithers the steps away
+   whether or not it is moving.                                              */
+var vigCv = null, vigW = 0, vigH = 0;
+function buildVignette(){
+  vigW = Math.ceil(W); vigH = Math.ceil(H);
+  vigCv = document.createElement('canvas');
+  vigCv.width = Math.ceil(vigW*DPR); vigCv.height = Math.ceil(vigH*DPR);
+  var g = vigCv.getContext('2d');
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  var rg = g.createRadialGradient(CX, CY, Math.min(W,H)*0.30, CX, CY, Math.max(W,H)*0.76);
+  rg.addColorStop(0, 'rgba(0,0,0,0)');
+  rg.addColorStop(1, 'rgba(0,0,0,0.28)');
+  g.fillStyle = rg; g.fillRect(0, 0, vigW, vigH);
+  /* the grain, symmetric so it dithers both ways and leaves the mean alone */
+  var id = g.getImageData(0, 0, vigCv.width, vigCv.height);
+  var rng = mulberry32(0x6841), d = id.data;
+  for(var i = 0; i < d.length; i += 4){
+    var n = ((rng() + rng() + rng())/3 - 0.5) * 2;      /* -1..1, centre-weighted */
+    var amt = Math.abs(n) * 0.085;
+    var lit = n > 0;
+    /* composite the noise into the sheet by hand: source-over of a lit or
+       dark texel at `amt` alpha, onto whatever the vignette already put here */
+    var ca = d[i+3]/255, na = amt;
+    var oa = na + ca*(1-na);
+    if(oa <= 0) continue;
+    var nc = lit ? 255 : 0;
+    d[i]   = (nc*na + d[i]  *ca*(1-na)) / oa;
+    d[i+1] = (nc*na + d[i+1]*ca*(1-na)) / oa;
+    d[i+2] = (nc*na + d[i+2]*ca*(1-na)) / oa;
+    d[i+3] = Math.round(oa*255);
   }
   g.putImageData(id, 0, 0);
 }
-function drawGrain(){
-  if(!store.fx) return;
-  if(!grainCv || grainW < W + 1 || grainH < H + 1) buildGrain();
-  ctx.save();
-  ctx.globalCompositeOperation = 'overlay';
-  ctx.globalAlpha = 0.5;
-  ctx.drawImage(grainCv, -((Math.random()*GRAIN_PAD)|0), -((Math.random()*GRAIN_PAD)|0));
-  ctx.restore();
+function drawVignette(){
+  if(!store.fx){
+    var g0 = ctx.createRadialGradient(CX, CY, Math.min(W,H)*0.30, CX, CY, Math.max(W,H)*0.76);
+    g0.addColorStop(0, 'rgba(0,0,0,0)');
+    g0.addColorStop(1, 'rgba(0,0,0,' + (0.28 + vig*0.34).toFixed(3) + ')');
+    ctx.fillStyle = g0; ctx.fillRect(0, 0, W, H);
+    return;
+  }
+  if(!vigCv || vigW !== Math.ceil(W) || vigH !== Math.ceil(H)) buildVignette();
+  ctx.drawImage(vigCv, 0, 0, W, H);
+  /* a refusal deepens it, and only then */
+  if(vig > 0.01){
+    var g2 = ctx.createRadialGradient(CX, CY, Math.min(W,H)*0.30, CX, CY, Math.max(W,H)*0.76);
+    g2.addColorStop(0, 'rgba(0,0,0,0)');
+    g2.addColorStop(1, 'rgba(0,0,0,' + (vig*0.34).toFixed(3) + ')');
+    ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
+  }
 }
 
 /* ---------- PARTICLES -----------------------------------------------------
@@ -3695,40 +3743,43 @@ function draw3d(){
     marker(pos, 1, 0);
   }
 
-  /* THE PLINTH. A object needs something to stand on or it is a diagram of an
-     object. Same projection, same lighting, drawn under everything. */
+  /* THE PLINTH IS GONE, AND WHAT REPLACED IT IS THE POINT.
+
+     There was a stone slab under the attract cube, on the argument that an
+     object needs something to stand on or it is a diagram of an object. The
+     argument is right and the slab was the wrong answer to it. A cube that
+     TUMBLES needs the ground to tumble with it or not exist, and this one sat
+     dead still under a rotating object while being cut from the same rock —
+     so it read as a bug in the cube rather than as a floor, which is exactly
+     what it was taken for.
+
+     What an object actually needs is not a floor, it is CONTACT: something
+     below it that says the light stops here. So it gets a soft dark ellipse
+     and a warm bloom, both squashed flat and both fixed in screen space,
+     which ground the cube without claiming there is a room. It cannot be
+     mistaken for geometry because it has no edges, and it cannot fight the
+     tumble because it is not made of anything that could.                  */
   if(demo){
-    var ph = N/2, pt = ph + 0.75, pb = ph + 0.10, py0 = ph, py1 = ph + 0.62;
-    var corner = [[-pt,-pt],[pt,-pt],[pt,pt],[-pt,pt]], top = [], bot = [];
-    for(i = 0; i < 4; i++){
-      px(c + corner[i][0], c - py0, c + corner[i][1], tmp); top.push([tmp[0], tmp[1], tmp[2]]);
-      px(c + corner[i][0], c - py1, c + corner[i][1], tmp); bot.push([tmp[0], tmp[1], tmp[2]]);
-    }
+    var gy = CY + N*S*0.60, gw = N*S*0.62, gh = N*S*0.11;
     ctx.save();
-    for(i = 0; i < 4; i++){
-      var j = (i+1) % 4;
-      var midz = (top[i][2] + top[j][2]) / 2;
-      if(midz > 0) continue;                       /* the far sides only */
-      ctx.fillStyle = 'rgba(28,26,36,.95)';
-      ctx.beginPath(); ctx.moveTo(top[i][0],top[i][1]); ctx.lineTo(top[j][0],top[j][1]);
-      ctx.lineTo(bot[j][0],bot[j][1]); ctx.lineTo(bot[i][0],bot[i][1]); ctx.closePath(); ctx.fill();
-    }
-    ctx.fillStyle = tileFill('#', N-1, 0.85);
-    ctx.beginPath(); ctx.moveTo(top[0][0],top[0][1]);
-    for(i = 1; i < 4; i++) ctx.lineTo(top[i][0],top[i][1]);
-    ctx.closePath(); ctx.fill();
-    /* and the plinth is cut from the same rock as the vault, so it takes the
-       same texture — one block's worth of it, stretched over the slab */
-    texQuad([top[0][0],top[0][1], top[1][0],top[1][1], top[2][0],top[2][1], top[3][0],top[3][1]],
-            texFor('#', N-1, 0.85));
-    for(i = 0; i < 4; i++){
-      var j2 = (i+1) % 4, midz2 = (top[i][2] + top[j2][2]) / 2;
-      if(midz2 <= 0) continue;                     /* then the near ones, over the top */
-      ctx.fillStyle = 'rgba(22,20,30,.98)';
-      ctx.beginPath(); ctx.moveTo(top[i][0],top[i][1]); ctx.lineTo(top[j2][0],top[j2][1]);
-      ctx.lineTo(bot[j2][0],bot[j2][1]); ctx.lineTo(bot[i][0],bot[i][1]); ctx.closePath(); ctx.fill();
-    }
+    var sg2 = ctx.createRadialGradient(CX, gy, 0, CX, gy, gw);
+    sg2.addColorStop(0,    'rgba(0,0,0,0.55)');
+    sg2.addColorStop(0.55, 'rgba(0,0,0,0.22)');
+    sg2.addColorStop(1,    'rgba(0,0,0,0)');
+    ctx.translate(CX, gy); ctx.scale(1, gh/gw); ctx.translate(-CX, -gy);
+    ctx.fillStyle = sg2;
+    ctx.fillRect(CX - gw, gy - gw, gw*2, gw*2);
     ctx.restore();
+    var lc2 = lightCtx();
+    lc2.save();
+    lc2.globalCompositeOperation = 'lighter';
+    var bg2 = lc2.createRadialGradient(CX, gy, 0, CX, gy, gw*0.8);
+    bg2.addColorStop(0, 'rgba(255,150,60,0.20)');
+    bg2.addColorStop(1, 'rgba(255,150,60,0)');
+    lc2.translate(CX, gy); lc2.scale(1, gh/gw*1.4); lc2.translate(-CX, -gy);
+    lc2.fillStyle = bg2;
+    lc2.fillRect(CX - gw, gy - gw, gw*2, gw*2);
+    lc2.restore();
   }
   list.sort(function(a, b){ return a.d - b.d; });
   var sz = S*z;
@@ -4514,7 +4565,7 @@ var ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 function roman(b){ return b < ROMAN.length ? ROMAN[b] : String(b+1); }
 function refreshHud(){
   if(!lv) return;
-  $('lvName').textContent = levelNo + ' · ' + lv.name;
+  $('lvNameTxt').textContent = levelNo + ' · ' + lv.name;
   var tn = $('turnN');
   if(tn.textContent !== String(turns)){
     tn.textContent = turns;

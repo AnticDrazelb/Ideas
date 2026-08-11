@@ -351,10 +351,16 @@ around the outside — exactly the places the eye was being told nothing. And
 the sky got a far side: a handful of very large, very faint blooms, painted
 once per vault, so no two regions of the screen are the same value.
 
-**Film grain over the finished frame.** Not the per-tile material noise that
-was deleted long ago — that one claimed the stone was rough and fought the
-pixels it sat on. This one is the *image*: a radial vignette on a flat dark
-sky bands visibly on an OLED, and a film of noise dithers the steps away.
+**Grain baked inside the vignette.** Not the per-tile material noise deleted
+long ago — that one claimed the stone was rough and fought the pixels it sat
+on. This is the *image*: a radial falloff over flat dark sky bands visibly on
+an OLED, and noise dithers the steps away. It lives inside the vignette sheet
+because both are full-screen operations and a full-screen operation at DPR 3
+is three million pixels; fused and cached they cost **one blit, less than the
+gradient fill alone used to.** The trade is that the grain does not move —
+moving grain reads as film, still grain reads as texture on the glass, and
+film would cost a second full-screen blend every frame forever to animate
+something at the limit of visibility.
 
 Measured after all of it: **0.4 ms resting, 2.9 ms mid-turn** on the largest
 cube, against an 8 ms budget.
@@ -366,13 +372,17 @@ Two performance traps were found by shipping it, both worth recording:
   plate flip rebakes every block at once, mid-flip, while the frame is already
   spending a hitstop and a slow-motion. It is a lookup now: one multiply per
   texel, ~0.3 ms a block cold.
-- **The grain was thirty-two composited draws a frame.** A 128px tile repeated
-  looks identical to a single sheet and costs three million `overlay`-blended
-  pixels at DPR 3. It did not show up as a slow `draw()` — the cost lands in
-  the compositor — it showed up as *dropped frames*, and it was caught by the
-  plate clock losing a fifth of its five seconds to frames over the 64 ms dt
-  ceiling. A countdown is a real-time measurement, so it is also an accidental
-  frame-health monitor, and it failed the build over a graphics change.
+- **Fill rate, three times, and `draw()` timing never saw any of it.** The
+  grain went from 32 tiled `overlay` draws, to one `overlay` draw, to living
+  inside the vignette on the ordinary blend path; the contact shadow went from
+  49 blurred sprites a frame to one cached silhouette. None of it moved the
+  `draw()` numbers, because the cost lands in the rasteriser rather than the
+  loop being timed. What caught it was the **plate clock**: a countdown is a
+  real-time measurement, so it is also an accidental frame-health monitor, and
+  it failed the build over a graphics change by losing a fifth of its five
+  seconds to frames over the 64 ms dt ceiling. Measured on real `rAF` pacing,
+  frames over that ceiling went **80/180 → 1/180**, better than before the art
+  pass began.
 
 ### The marker is a hole, and it is a real one
 
