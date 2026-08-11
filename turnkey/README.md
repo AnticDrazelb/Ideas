@@ -384,6 +384,37 @@ Two performance traps were found by shipping it, both worth recording:
   frames over that ceiling went **80/180 → 1/180**, better than before the art
   pass began.
 
+### The interface, and one wrong turn on the way to it
+
+Asked for chrome with the confidence of a shipped console game, the first
+attempt grew a moulded face, a lit lip, and a hard offset shadow standing in
+for the *side* of a plaque. That is a real look, and it belongs to a real
+genre — the chunky, bevelled, high-saturation panel of a free-to-play mobile
+title. It is precisely the register the request was trying to get away from.
+Worse, it was a fixed cool navy, so on a warm vault it did not read as part of
+the game at all: it read as a component library dropped on top of one.
+
+**Nintendo's own interface is the opposite of chunky.** It is restraint: few
+elements, generous air, exact type, one accent, and chrome that gets out of
+the way of the thing you are looking at. So:
+
+- No bevel, no offset, no gradient pretending to be a moulding.
+- The plate is **glass over the world** and blurs what is behind it, so it
+  belongs to whatever vault it is sitting on rather than to a stylesheet.
+- A hairline, brighter along the top edge only, because that is where the
+  light is everywhere else in this game.
+- **The tint comes from the vault palette at runtime** — one line in
+  `setStyle()` — so the chrome warms and cools with the stone, and every pane
+  in the game takes the same value. Otherwise it ships two chromes: warm
+  readouts over a warm vault with a cold toast sitting between them.
+- And the type does the work. Label small, wide, dim; number a rung and a half
+  above it, tight, lit and tabular so a 1 and a 4 do not shuffle the pill's
+  width. Hierarchy instead of decoration.
+
+One bug fell out of giving the pills a real edge: the level name's fade mask
+sat on the **pill** rather than the label, so a long name did not read as
+trimmed — it read as a readout with its right-hand end missing.
+
 ### The marker is a hole, and it is a real one
 
 **You are a black hole, and what is inside it is the sky behind the board.**

@@ -1120,6 +1120,21 @@ function setStyle(band){
   r.setProperty('--void', rgbs(ST.vd));
   r.setProperty('--void-2', rgbs([ST.vd[0]+8, ST.vd[1]+7, ST.vd[2]+10]));
   r.setProperty('--void-3', rgbs([ST.vd[0]+17, ST.vd[1]+15, ST.vd[2]+22]));
+  /* THE CHROME BELONGS TO THE VAULT IT IS SITTING ON.
+
+     A fixed cool navy readout on a warm red cube reads as a component
+     library dropped on top of a game. The HUD glass is tinted from the
+     vault's own bedrock instead — dragged well down toward black so it stays
+     a dark plate rather than becoming a coloured one, but far enough toward
+     the stone that it warms and cools as the vaults do. One line, and the
+     interface stops being a separate product. */
+  var hb = ST.rF;
+  r.setProperty('--hud-bg', 'rgba(' + ((hb[0]*0.42)|0) + ',' + ((hb[1]*0.42)|0) + ',' + ((hb[2]*0.42)|0) + ',0.50)');
+  r.setProperty('--hud-line', 'rgba(' + ((hb[0]*1.6 + 90)|0) + ',' + ((hb[1]*1.6 + 88)|0) + ',' + ((hb[2]*1.6 + 96)|0) + ',0.30)');
+  /* and every other pane in the interface takes the same tint, or the game
+     ships two chromes: warm readouts over a warm vault, and a cold toast
+     sitting between them */
+  r.setProperty('--glass', 'rgba(' + ((hb[0]*0.50)|0) + ',' + ((hb[1]*0.50)|0) + ',' + ((hb[2]*0.50)|0) + ',0.80)');
   buildSky();
 }
 

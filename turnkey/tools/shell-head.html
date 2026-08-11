@@ -353,40 +353,52 @@ h2+.manual{margin-top:14px;}
 #barTop .pill{height:var(--h-read);min-width:var(--h-read);padding:0 13px;}
 #barBot .pill{height:var(--h-ctl);min-width:var(--h-ctl);}
 #barBot .pill.icon{width:var(--h-ctl);}
-#barBot #btnUndo{padding:0 24px;}
+/* UNDO is the only control down here with a word on it and the only one
+   anybody presses in a hurry, so it gets the width and the ink; the other two
+   are icons and stay quiet. A disabled control fades — it does not go grey,
+   because grey is a colour and absence is not. */
+#barBot #btnUndo{padding:0 26px;font-size:var(--t-fine);letter-spacing:.2em;color:var(--ink);}
+#barBot .pill[disabled]{opacity:.34;pointer-events:none;}
+#barBot .pill.icon{font-size:var(--t-md);color:var(--dim);}
 
-/* ---- THE READOUTS ARE OBJECTS -------------------------------------------
-   These were dark glass with a one-pixel rim: correct, quiet, and made of
-   nothing. A readout in a game people pay for is a physical thing — it has a
-   moulded face, a lit top edge, a shaded underside, a visible THICKNESS and
-   a shadow on whatever is behind it. That is not decoration, it is the same
-   argument the blocks won: an object reads instantly and a rectangle has to
-   be parsed.
+/* ---- THE READOUTS -------------------------------------------------------
+   THE PREVIOUS VERSION OVERSHOT AND IT IS WORTH SAYING WHY.
 
-   Four shadows do all of it and none of them is a filter:
-     inset top     a lip catching the same light the board is lit by
-     inset bottom  the inside of the far edge, falling away
-     hard offset   the SIDE of the plaque — the one that makes it a slab
-                   sitting on the screen rather than a hole cut in it
-     soft cast     what it throws on the game behind
+   Asked for interface with the confidence of a shipped console game, it grew
+   a moulded face, a lit lip and a hard offset shadow standing in for the SIDE
+   of a plaque. That is a real look and it belongs to a real genre — the
+   chunky, bevelled, high-saturation panel of a free-to-play mobile title —
+   and it is exactly the register the request was trying to get away from.
+   Worse, it was made of a fixed cool navy, so on a warm vault it did not read
+   as part of the game at all: it read as a component library.
 
-   The hard offset is the whole trick and it is the thing dark-glass UI never
-   has. It also gives the press somewhere to go: on :active the plaque drops
-   onto its own shadow, which is a button being pushed rather than a rectangle
-   being scaled.                                                            */
+   Nintendo's own interface is the opposite of chunky. It is RESTRAINT: very
+   few elements, generous air, exact type, one accent, and chrome that gets
+   out of the way of the thing you are looking at. That is what is here now.
+
+     — no bevel, no offset, no gradient pretending to be a moulding
+     — the plate is glass over the world, and it BLURS what is behind it, so
+       it belongs to whatever vault it happens to be sitting on rather than
+       to a stylesheet
+     — a hairline, brighter along the top edge only, because that is where
+       the light is everywhere else in this game
+     — the tint comes from the vault palette at runtime, so the chrome warms
+       and cools with the stone
+     — and the type does the work: label small, wide and dim; number large,
+       tight and lit. Hierarchy instead of decoration.                       */
 .pill{
-  height:var(--h-ctl);min-width:var(--h-ctl);padding:0 16px;
+  height:var(--h-ctl);min-width:var(--h-ctl);padding:0 15px;
   display:flex;align-items:center;justify-content:center;gap:9px;
   border-radius:var(--r-pill);
-  background:linear-gradient(180deg,#2b2740 0%,#211d33 46%,#15121f 100%);
+  background:var(--hud-bg,rgba(12,10,18,.50));
+  -webkit-backdrop-filter:blur(14px) saturate(1.25);
+          backdrop-filter:blur(14px) saturate(1.25);
   box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,.17),
-    inset 0 -2px 1px rgba(0,0,0,.55),
-    inset 0 0 0 1.5px rgba(255,255,255,.075),
-    0 3px 0 rgba(0,0,0,.42),
-    0 9px 18px -7px rgba(0,0,0,.85);
-  font-size:var(--t-sm);font-weight:900;letter-spacing:.1em;
-  text-shadow:0 1px 0 rgba(0,0,0,.6);
+    inset 0 1px 0 rgba(255,255,255,.13),
+    inset 0 0 0 1px rgba(255,255,255,.065),
+    0 8px 22px -12px rgba(0,0,0,.9);
+  font-size:var(--t-tiny);font-weight:700;letter-spacing:.19em;
+  color:var(--dim);
   transition:transform .16s var(--seat),opacity .18s var(--ease),box-shadow .18s var(--ease);
 }
 /* A GUMMY PRESS. Nothing in this interface used to move when you touched
@@ -397,12 +409,7 @@ h2+.manual{margin-top:14px;}
 .btn,.pill{transition:transform .13s var(--seat),opacity .18s var(--ease),box-shadow .18s var(--ease);}
 .row:active .sw{transform:scale(.94);}
 .cube:active{transform:scale(.95);}
-/* pressed = the plaque drops onto its own side, and the side goes away with
-   it. Scaling alone is a rectangle getting smaller; this is a thing moving. */
-.pill:active{transform:translateY(3px) scale(.97);
-  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.10),inset 0 -1px 1px rgba(0,0,0,.5),
-    inset 0 0 0 1.5px rgba(255,255,255,.07),0 0 0 rgba(0,0,0,.42),
-    0 4px 10px -6px rgba(0,0,0,.8);}
+.pill:active{transform:scale(.94);}
 /* the counter flinches when a key lands in it, so the number changing is
    something you SEE rather than something you have to have been watching */
 @keyframes keyPop{
@@ -415,7 +422,11 @@ h2+.manual{margin-top:14px;}
 #turnPill.bump .n{display:inline-block;animation:turnBump .34s var(--seat);}
 .pill[disabled]{opacity:.32;pointer-events:none;}
 .pill.icon{padding:0;width:var(--h-ctl);}
-.pill .n{font-family:var(--mono);font-size:var(--t-lg);font-weight:800;letter-spacing:0;}
+/* the number is the thing being read, so it is the only part with weight:
+   a rung and a half above its own label, tight, lit, and tabular so a 1 and
+   a 4 do not shuffle the pill's width between them */
+.pill .n{font-family:var(--mono);font-size:var(--t-md);font-weight:800;letter-spacing:0;
+  color:var(--ink);font-variant-numeric:tabular-nums;}
 /* The name is the first thing to go when the bar runs out of room, and on a
    320px phone with keys, a live par and a turn counter it goes entirely.
    That is the right order — the cube's NUMBER is what a player needs and it
@@ -434,16 +445,15 @@ h2+.manual{margin-top:14px;}
    end missing, and once the pill had a moulded edge and a thickness the
    damage was obvious. The plaque is now whole and the TEXT inside it is what
    dissolves. Tighter tracking too, so most names never reach the fade. */
-#lvName{flex:0 1 auto;min-width:0;justify-content:flex-start;letter-spacing:.12em;overflow:hidden;}
+#lvName{flex:0 1 auto;min-width:0;justify-content:flex-start;letter-spacing:.10em;overflow:hidden;color:var(--dim);}
 #lvName span{overflow:hidden;white-space:nowrap;display:block;
   -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 14px),transparent);
           mask-image:linear-gradient(90deg,#000 calc(100% - 14px),transparent);}
 #turnPill .n{color:var(--rust);}
 #turnPill.over .n{color:var(--gold);}
 #keyPill{color:var(--emerald);
-  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.17),inset 0 -2px 1px rgba(0,0,0,.55),
-    inset 0 0 0 1.5px rgba(34,224,106,.45),0 3px 0 rgba(0,0,0,.42),
-    0 9px 18px -7px rgba(0,0,0,.85),0 0 20px -8px rgba(34,224,106,.8);}
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(34,224,106,.30),
+    0 8px 22px -12px rgba(0,0,0,.9);}
 
 /* FEWEST FROM HERE. Shaped like the key pill because it is the same kind of
    thing — a live count of something you are carrying — and coloured jade
@@ -451,19 +461,16 @@ h2+.manual{margin-top:14px;}
    to say you have left the perfect line, and it is the one readout allowed
    to say a cube is dead. */
 #goPill{color:var(--jade);
-  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.17),inset 0 -2px 1px rgba(0,0,0,.55),
-    inset 0 0 0 1.5px rgba(53,215,161,.44),0 3px 0 rgba(0,0,0,.42),
-    0 9px 18px -7px rgba(0,0,0,.85),0 0 20px -8px rgba(53,215,161,.75);}
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(53,215,161,.28),
+    0 8px 22px -12px rgba(0,0,0,.9);}
 #goPill .n{color:var(--jade);}
 #goPill.slip{color:var(--gold);
-  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.17),inset 0 -2px 1px rgba(0,0,0,.55),
-    inset 0 0 0 1.5px rgba(255,196,77,.48),0 3px 0 rgba(0,0,0,.42),
-    0 9px 18px -7px rgba(0,0,0,.85),0 0 20px -8px rgba(255,196,77,.8);}
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(255,196,77,.32),
+    0 8px 22px -12px rgba(0,0,0,.9);}
 #goPill.slip .n{color:var(--gold);}
 #goPill.dead{color:var(--danger);
-  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.17),inset 0 -2px 1px rgba(0,0,0,.55),
-    inset 0 0 0 1.5px rgba(255,90,90,.55),0 3px 0 rgba(0,0,0,.42),
-    0 9px 18px -7px rgba(0,0,0,.85),0 0 22px -7px rgba(255,90,90,.9);}
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(255,90,90,.40),
+    0 8px 22px -12px rgba(0,0,0,.9);}
 #goPill.dead .n{color:var(--danger);}
 #goPill.think{opacity:.5;}
 #goPill.bump .n{display:inline-block;animation:turnBump .34s var(--seat);}
@@ -528,7 +535,11 @@ h2+.manual{margin-top:14px;}
   position:absolute;left:50%;bottom:calc(var(--sa-bottom) + 120px);
   transform:translate(-50%,12px);
   padding:11px 18px;border-radius:var(--r-pill);
-  background:var(--glass);box-shadow:inset 0 0 0 1px var(--edge);
+  background:var(--glass);
+  -webkit-backdrop-filter:blur(14px) saturate(1.25);
+          backdrop-filter:blur(14px) saturate(1.25);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(255,255,255,.065),
+             0 10px 26px -14px rgba(0,0,0,.9);
   font-size:var(--t-sm);font-weight:700;letter-spacing:.05em;white-space:nowrap;
   opacity:0;transition:opacity .22s ease,transform .22s ease;pointer-events:none;
 }
