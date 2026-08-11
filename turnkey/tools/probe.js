@@ -117,10 +117,30 @@ const ok = (n, c, extra='') => { console.log((c?'  ok  ':'FAIL  ') + n + (extra?
   // ---- the dead-end detector actually reaches the player
   const dead = await p.evaluate(async () => {
     loadLevel(7); show(null);
+    /* loadLevel schedules a teaching toast 1100ms out. This assertion is
+       about a toast, so starting it inside that window is a race — and one
+       that has failed the build twice on unrelated graphics work. Wait the
+       teaching toast out first, then ask the question. */
+    await new Promise(r => setTimeout(r, 1400));
     const real = window.solve;
     window.solve = () => ({ok:false});                 // pretend this cube is now a lie
+    /* AND EMPTY THE ANSWER CACHE, or the stub is never asked. scheduleRemain()
+       returns the memoised answer for a state it has already solved — which is
+       the right behaviour and the reason undo is instant — so a test that
+       swaps the solver out has to invalidate it too. Without this the
+       assertion passed or failed on whether the deferred first solve had
+       landed yet, which is a race, and it failed the build on unrelated
+       graphics work twice. */
+    remainCache = {};
     afterAction();
-    await new Promise(r => setTimeout(r, 220));
+    /* THE DETECTOR IS DEFERRED ON PURPOSE and this has to wait it out. The
+       search is pushed past the frame by 70ms and then handed to
+       requestIdleCallback with a 500ms timeout, because the worst cube is a
+       tenth of a second of solve and a tenth of a second landing inside a
+       turn is the one stutter this file is written to avoid. Asserting at
+       220ms was asking whether the answer had arrived early, which on a busy
+       machine it does not. */
+    await new Promise(r => setTimeout(r, 900));
     const fired = stuck && document.getElementById('toast').classList.contains('on');
     const msg = document.getElementById('toast').textContent;
     window.solve = real;

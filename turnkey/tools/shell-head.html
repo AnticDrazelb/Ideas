@@ -340,8 +340,8 @@ h2+.manual{margin-top:14px;}
 #hud>*{pointer-events:auto;}
 
 .bar{
-  position:absolute;left:0;right:0;display:flex;align-items:center;gap:9px;
-  padding:0 calc(var(--sa-left) + 14px) 0 calc(var(--sa-right) + 14px);
+  position:absolute;left:0;right:0;display:flex;align-items:center;gap:8px;
+  padding:0 calc(var(--sa-left) + 12px) 0 calc(var(--sa-right) + 12px);
   /* --barw is the board's width, written by layout(). On a phone it is the
      screen and this does nothing; in landscape it is what stops the HUD
      from being flung into the corners of a television. */
@@ -351,6 +351,12 @@ h2+.manual{margin-top:14px;}
 #barBot{bottom:calc(var(--sa-bottom) + 12px);justify-content:center;gap:12px;}
 /* the readouts shrink; the three things a thumb actually presses grow */
 #barTop .pill{height:var(--h-read);min-width:var(--h-read);padding:0 13px;}
+/* TURNS carries a word, two numbers and a slash — the widest thing on the
+   bar, and every pixel it gives back is a pixel the cube's name keeps */
+/* the word is a label and the count is the readout, so the word drops a
+   rung — better hierarchy, and it is the last few pixels the longest cube
+   name in the game needs to sit whole on a 390pt phone */
+#turnPill{letter-spacing:.13em;padding:0 12px;gap:6px;font-size:var(--t-micro);}
 #barBot .pill{height:var(--h-ctl);min-width:var(--h-ctl);}
 #barBot .pill.icon{width:var(--h-ctl);}
 /* UNDO is the only control down here with a word on it and the only one
@@ -445,10 +451,44 @@ h2+.manual{margin-top:14px;}
    end missing, and once the pill had a moulded edge and a thickness the
    damage was obvious. The plaque is now whole and the TEXT inside it is what
    dissolves. Tighter tracking too, so most names never reach the fade. */
-#lvName{flex:0 1 auto;min-width:0;justify-content:flex-start;letter-spacing:.10em;overflow:hidden;color:var(--dim);}
-#lvName span{overflow:hidden;white-space:nowrap;display:block;
-  -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 14px),transparent);
-          mask-image:linear-gradient(90deg,#000 calc(100% - 14px),transparent);}
+/* THE SPACER WAS EATING THE LABEL.
+
+   This bar used to be: name plate, an empty <div class="grow">, then the
+   three readouts. The spacer was flex:1 and the name was flex:0 1 auto — so
+   every spare pixel on the screen went to the element with NOTHING IN IT,
+   and the only element carrying text was the one being squeezed until it
+   truncated. A wide phone made the gap wider and the name shorter.
+
+   The name plate is the spacer now. It takes the leftover width itself,
+   which removes the arbitrary hole in the middle of the bar, and means the
+   label is the last thing to give rather than the first. The three readouts
+   sit as one group on the right at an even gap, so the composition is a
+   weighted pair — a long plate against a tight cluster — instead of four
+   things at four unrelated intervals. */
+#lvName{flex:1 1 0;min-width:0;justify-content:flex-start;letter-spacing:.055em;
+  overflow:hidden;color:var(--dim);padding:0 12px;gap:0;}
+/* THE NUMBER AND THE NAME ARE TWO DIFFERENT THINGS. They used to be one
+   string joined by a middle dot, which spends about fourteen pixels on
+   punctuation and whitespace and gives a three-digit cube the same emphasis
+   as its name. The index is quiet and small; the name is the label. It reads
+   better and it is what stops the longest names in the game truncating on a
+   390pt phone. */
+#lvName .no{font-size:var(--t-micro);color:var(--dim-2);letter-spacing:.06em;
+  font-style:normal;font-weight:800;margin-right:8px;flex:0 0 auto;}
+
+/* AND THE TWO GLYPH READOUTS ARE THE SAME SIZE AS EACH OTHER. They carry one
+   icon and one digit each and they are read as a pair, so a keys pill a few
+   pixels wider than the par pill — because a diamond is wider than a ring —
+   reads as a mistake rather than as two different numbers. */
+#keyPill,#goPill{width:calc(var(--h-read) + 12px);min-width:0;flex:0 0 auto;padding:0;gap:6px;}
+/* AND THE FADE ONLY EXISTS WHEN THERE IS SOMETHING TO HIDE. A mask applied
+   unconditionally dissolves the last few characters of every name, fitting or
+   not — so a cube called LOW CROSS came out with a ghosted S for no reason.
+   refreshHud() asks whether the label actually overflows and turns it on. */
+#lvName span{overflow:hidden;white-space:nowrap;display:block;}
+#lvName.fade span{
+  -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 15px),transparent);
+          mask-image:linear-gradient(90deg,#000 calc(100% - 15px),transparent);}
 #turnPill .n{color:var(--rust);}
 #turnPill.over .n{color:var(--gold);}
 #keyPill{color:var(--emerald);
@@ -686,8 +726,7 @@ h2+.manual{margin-top:14px;}
 <!-- ============ HUD ============ -->
 <div id="hud">
   <div class="bar" id="barTop">
-    <div class="pill" id="lvName"><span id="lvNameTxt">—</span></div>
-    <div class="grow"></div>
+    <div class="pill" id="lvName"><i class="no" id="lvNo">—</i><span id="lvNameTxt">—</span></div>
     <div class="pill" id="keyPill" style="display:none">◈ <span class="n" id="keyN">0</span></div>
     <div class="pill" id="goPill" aria-label="fewest turns from here">◎ <span class="n" id="goN">·</span></div>
     <div class="pill" id="turnPill">TURNS <span class="n" id="turnN">0</span><span class="n" id="parN" style="color:var(--dim-2)">/0</span></div>

@@ -4580,7 +4580,11 @@ var ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 function roman(b){ return b < ROMAN.length ? ROMAN[b] : String(b+1); }
 function refreshHud(){
   if(!lv) return;
-  $('lvNameTxt').textContent = levelNo + ' · ' + lv.name;
+  $('lvNo').textContent = levelNo;
+  var lvt = $('lvNameTxt');
+  lvt.textContent = lv.name;
+  /* the fade is for names that do not fit, and only those */
+  $('lvName').classList.toggle('fade', lvt.scrollWidth > lvt.clientWidth + 1);
   var tn = $('turnN');
   if(tn.textContent !== String(turns)){
     tn.textContent = turns;
