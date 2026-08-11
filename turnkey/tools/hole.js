@@ -103,6 +103,18 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
   ok('...and that is a real claim: the deck beside it is nothing like it',
      Math.abs(lum(seen.live[0]) - lum(seen.deck)) > 40 || seen.live[0][3] < 200,
      `hole a=${seen.live[0][3]} lum ${lum(seen.live[0]).toFixed(0)} vs deck lum ${lum(seen.deck).toFixed(0)}`);
+  /* THE HOLE MUST HAVE SOMETHING IN IT.
+
+     Registering the sky 1:1 is correct and, on a sparse starfield, produces a
+     flat black dot: at 190 stars over a whole screen the expected number
+     inside a thirty-pixel disc is four tenths, so the honest window came out
+     emptier than the dishonest magnified one it replaced. The sky carries a
+     dust population now for exactly this reason, and this is the assertion
+     that stops it being tuned back out by accident. */
+  const lums = seen.live.map(lum);
+  ok('...and there is actually sky in it, not a flat black dot',
+     Math.max.apply(null, lums) - Math.min.apply(null, lums) > 3,
+     'luminance spread ' + (Math.max.apply(null, lums) - Math.min.apply(null, lums)).toFixed(1) + ' across the disc');
   ok('...and the deck under the marker is removed, not covered',
      seen.live.every(c => c[3] < 250),
      `alpha ${seen.live.map(c => c[3]).join(',')}`);

@@ -922,13 +922,36 @@ function buildSky(){
   g.addColorStop(0, 'rgba(' + (ST.at[0]|0) + ',' + (ST.at[1]|0) + ',' + (ST.at[2]|0) + ',0.13)');
   g.addColorStop(1, 'rgba(' + (ST.at[0]|0) + ',' + (ST.at[1]|0) + ',' + (ST.at[2]|0) + ',0)');
   c.fillStyle = g; c.fillRect(0, 0, W+PAD*2, H+PAD*2);
-  for(var i = 0; i < 190; i++){
-    var x = rng()*(W+PAD*2), y = rng()*(H+PAD*2);
-    var r = rng()*rng()*1.7 + 0.32, a = 0.12 + rng()*rng()*0.7;
+  var area = (W + PAD*2) * (H + PAD*2), i, x, y, r, a;
+  c.fillStyle = rgbs(ST.st);
+  /* THE BRIGHT ONES — the sky you actually notice, and there are as many of
+     them as there always were. Count is off AREA now rather than a flat 190,
+     so a tablet does not get a thinner sky than a phone. */
+  for(i = 0; i < Math.round(area/2080); i++){
+    x = rng()*(W+PAD*2); y = rng()*(H+PAD*2);
+    r = rng()*rng()*1.7 + 0.32; a = 0.12 + rng()*rng()*0.7;
     c.globalAlpha = a;
-    c.fillStyle = rgbs(ST.st);
     c.beginPath(); c.arc(x, y, r, 0, 6.284); c.fill();
     if(r > 1.3){ c.globalAlpha = a*0.28; c.beginPath(); c.arc(x, y, r*3.2, 0, 6.284); c.fill(); }
+  }
+  /* AND THE DUST, WHICH EXISTS FOR THE KEYHOLES.
+
+     The player marker is a hole showing the sky behind the board, in register
+     with it to the pixel — and at 190 stars over a whole screen, the expected
+     number of stars inside a thirty-pixel disc is FOUR TENTHS. The honest
+     window onto a sparse sky is a black dot, which is worse than the dishonest
+     magnified one it replaced, and the same is true of every narrow void
+     column on the board.
+
+     The fix belongs in the sky, not in the hole: make the starfield dense
+     enough to survive being looked at through a keyhole. These are small and
+     faint by construction, so open sky reads about as it did — the difference
+     is that no aperture of any size now lands on nothing.                  */
+  for(i = 0; i < Math.round(area/240); i++){
+    x = rng()*(W+PAD*2); y = rng()*(H+PAD*2);
+    r = 0.24 + rng()*rng()*0.5;
+    c.globalAlpha = 0.05 + rng()*rng()*0.30;
+    c.beginPath(); c.arc(x, y, r, 0, 6.284); c.fill();
   }
 }
 
@@ -1866,52 +1889,74 @@ function revertWorld(){
   hitstop(90); slowmo(0.42, 520); squash('y', 0.08);
   ring(cx, cy, {r0:S*0.2, r1:N*S*1.05, dur:700, col:'255,120,120', a:0.7, w:5, sq:true});
   burst(cx, cy, 22, {kind:'chip', spd:150, life:900, r:2.2, col:chipCol('#', N-1), g:300});
-  throwToNearest();
+  throwToPlate();
   settle();
   afterAction();
 }
 
-/* THROWN TO THE NEAREST SQUARE.
+/* PUT BACK ON A PLATE, NOT DROPPED WHERE YOU STOOD.
 
-   Nearest on SCREEN, not in the cube. The board is the flat face and the
-   flat face is what the player was reading, so being thrown two columns left
-   has to mean two columns left as seen — a "nearest" measured through the
-   solid, which could put you on the far side of the world, would read as
-   teleportation rather than as falling.
+   This is the whole reason the clock is survivable, and getting it wrong the
+   first time made 39 of the 41 plate cubes unfinishable.
 
-   You are only moved if you have to be. If the square you are standing in
-   survived the revert — you are still the surface of your own column, and
-   that surface is still footing — nothing happens at all, which is what
-   makes standing ON the plate the safe play and is the whole of the strategy
-   the timer creates.
+   On almost every cube carrying a plate, THE EXIT DOES NOT EXIST IN WORLD 0.
+   It is carved into cells that are rock until the material inverts, which is
+   the entire point of the second verb — the way out is only in one of the two
+   cubes. So a spring-back that dropped you on the nearest walkable SQUARE was
+   dropping you into the world where the level cannot be won, several moves
+   from the only thing that could put you back. That reads exactly as it
+   played: gates and an exit sitting on stone that you cannot reach, forever.
 
-   A PLATE YOU LAND ON DOES NOT FIRE. Same rule as turning onto one: you
-   press a plate with a foot, and being thrown at one is not pressing it.
-   Without that, a throw could flip the world straight back and put the
-   player on a clock they never started.
+   So the spring-back returns you to the nearest PLATE you can stand on. A
+   plate is exempt from the material flip and is always the surface of its
+   column, so one always qualifies — there is no world in which the thing that
+   gets you back out is itself out of reach. Running out of time costs you the
+   walk, not the level: you are put back at the pivot, and you go again.
 
-   walkable() is doing the rest of the work quietly: it refuses shut doors,
-   so the throw can never post you inside a gate you have no key for.      */
-function throwToNearest(){
+   Nearest on SCREEN, not through the cube. The flat face is what the player
+   was reading, so two columns left has to mean two columns left as seen; a
+   nearest measured through the solid could land you on the far side of the
+   world, and that reads as teleportation rather than as falling.
+
+   You are only moved if you have to be — if you were standing on the plate
+   when the clock ran out, nothing happens at all.
+
+   LANDING ON A PLATE DOES NOT FIRE IT. Same rule as turning onto one: you
+   press a plate with a foot, and being put on one is not pressing it.
+   Otherwise the spring-back would flip the world straight back and start a
+   clock nobody asked for. Tapping the plate under you is how you press it
+   again — see tapCell().                                                   */
+function throwToPlate(){
   var v = viewOf(N, M, pos), here = surfaceAt(N, surf, M, pos);
-  if(here && walkable(lv, surf, here[0], here[1], doors)) return false;
-  var best = null, bd = 1e9;
-  for(var u = 0; u < N; u++) for(var w = 0; w < N; w++){
-    var cell = walkable(lv, surf, u, w, doors);
-    if(!cell) continue;
-    var d = (u - v[0])*(u - v[0]) + (w - v[1])*(w - v[1]);
+  var onPlate = here && walkable(lv, surf, here[0], here[1], doors)
+                     && isGlyph(surf[here[0]*N + here[1]].t);
+  if(onPlate) return false;
+  var best = null, bd = 1e9, u, w, cell, d;
+  for(u = 0; u < N; u++) for(w = 0; w < N; w++){
+    cell = walkable(lv, surf, u, w, doors);
+    if(!cell || !isGlyph(cell.t)) continue;
+    d = (u - v[0])*(u - v[0]) + (w - v[1])*(w - v[1]);
     if(d < bd){ bd = d; best = cell; }
   }
-  /* no footing anywhere on this face is not a state the carve can produce —
-     world 0 always has a start and a goal in it — but a marker with nowhere
-     to stand would be a crash, so it stays where it is and the live readout
-     says the cube is dead */
+  /* a cube can only be in a flipped world if it has a plate in it, so the
+     search above cannot come up empty in practice. The fallback is the old
+     behaviour — nearest square of any kind — because a marker with nowhere to
+     stand would be a crash, and a crash is worse than a bad landing. */
+  if(!best){
+    if(here && walkable(lv, surf, here[0], here[1], doors)) return false;
+    for(u = 0; u < N; u++) for(w = 0; w < N; w++){
+      cell = walkable(lv, surf, u, w, doors);
+      if(!cell) continue;
+      d = (u - v[0])*(u - v[0]) + (w - v[1])*(w - v[1]);
+      if(d < bd){ bd = d; best = cell; }
+    }
+  }
   if(!best) return false;
   pos = best.w.slice();
   var pv = viewOf(N, M, pos), pr = tileRect(pv[0], pv[1]);
   var px = pr[0] + S/2, py = pr[1] + S/2;
   hopT = 0; faceSet('wide', 620);
-  toast('thrown clear');
+  toast('back to the plate — press it again');
   sfx.deny(); buzz(40);
   shake(0.42); kick(9, 0, 1);
   ring(px, py, {r0:S*1.6, r1:S*0.34, dur:380, col:'255,120,120', a:0.8, w:3.5, sq:true});
@@ -2078,6 +2123,43 @@ function drawCage(m, z, alpha, pv){
 function tileRect(u, v, z){
   z = z || 1;
   return [CX + (u - N/2)*S*z, CY + (N/2 - 1 - v)*S*z, S*z, S*z];
+}
+
+/* IS THIS THING IN THIS WORLD? — and if so, where on screen.
+
+   A key, a gate and the way out are carved into cells, and a plate rewrites
+   what those cells are MADE of. On almost every cube that carries a plate,
+   the exit is cut into material that is rock until the flip: it exists, it is
+   the surface of its column, and it cannot be stood on until the cube turns
+   inside out.
+
+   Those used to be drawn anyway, which was the single most misleading thing
+   on the board. A gate sitting on stone with no way to reach it does not read
+   as "not in this world yet" — it reads as a broken game, and a player is
+   right to read it that way, because nothing on screen distinguishes it from
+   one they simply have not found the route to. So it is not drawn at all. It
+   arrives when the flip arrives, which is also the moment it becomes true.
+
+   THE TEST IS THE MATERIAL, NOT THE ROUTE. isWalkType() asks what the cell is
+   made of in the world you are in; it says nothing about whether you can get
+   there from where you stand. That distinction is load-bearing: showing you a
+   way out you cannot walk to from this face IS the game — it is the whole of
+   what the first two cubes teach. Hiding it because it is far away would
+   delete the lesson. Hiding it because it is not made of floor yet is the
+   opposite: it stops the board claiming something that is not so.
+
+   walkable() would have been the wrong test for the same reason in the other
+   direction — it refuses SHUT doors, so every locked gate in the game would
+   have vanished, which is precisely the thing you most need to see.        */
+function inThisWorld(w){
+  return !!lv && isWalkType(effType(lv.vox[vidx(N, w[0], w[1], w[2])], world));
+}
+function shownAt(cell){
+  if(!inThisWorld(cell)) return null;
+  var v = surfaceAt(N, surf, M, cell);
+  if(!v) return null;
+  var s = surf[v[0]*N + v[1]];
+  return (s && isWalkType(s.t)) ? v : null;
 }
 
 /* THE ORDER OF A FRAME, and every line of it is a decision:
@@ -2331,17 +2413,17 @@ function drawFlat(){
     if(gs && isGlyph(gs.t)) drawPlate(tileRect(u, v), GLYPH_BIT[gs.t], gs.d);
   }
   for(i = 0; i < lv.doors.length; i++){
-    var dv = surfaceAt(N, surf, M, lv.doors[i]); if(!dv) continue;
+    var dv = shownAt(lv.doors[i]); if(!dv) continue;
     var dr = tileRect(dv[0], dv[1]);
     drawDoor(dr[0] + S/2, dr[1] + S/2, S, doorT[i] || 0);
   }
   for(i = 0; i < lv.keys.length; i++){
     if(kmask & (1<<i)) continue;
-    var kv = surfaceAt(N, surf, M, lv.keys[i]); if(!kv) continue;
+    var kv = shownAt(lv.keys[i]); if(!kv) continue;
     var kr = tileRect(kv[0], kv[1]);
     drawKey(kr[0] + S/2, kr[1] + S/2, S);
   }
-  var gv = surfaceAt(N, surf, M, lv.goal);
+  var gv = shownAt(lv.goal);
   if(gv){ var grr = tileRect(gv[0], gv[1]); drawGoal(grr[0] + S/2, grr[1] + S/2, S); }
   /* 5b. ONE STEP AWAY. A short lit bridge from the tile you occupy to any
      walkable neighbour that is the goal, a key, or a door — the same
@@ -3128,9 +3210,11 @@ function draw3d(){
     list.push({d:tmp[2] + 0.62 + (xr > 0.35 ? 1000 : 0), k:kind, x:tmp[0], y:tmp[1], extra:extra});
   }
   if(!demo){
-    for(i = 0; i < lv.doors.length; i++) marker(lv.doors[i], 3, i);
-    for(i = 0; i < lv.keys.length; i++) if(!(kmask & (1<<i))) marker(lv.keys[i], 2, 0);
-    marker(lv.goal, 4, 0);
+    /* same rule as the flat board: a thing that is rock in this world is not
+       in this world, and looking inside the cube does not make it so */
+    for(i = 0; i < lv.doors.length; i++) if(inThisWorld(lv.doors[i])) marker(lv.doors[i], 3, i);
+    for(i = 0; i < lv.keys.length; i++) if(!(kmask & (1<<i)) && inThisWorld(lv.keys[i])) marker(lv.keys[i], 2, 0);
+    if(inThisWorld(lv.goal)) marker(lv.goal, 4, 0);
     marker(pos, 1, 0);
   }
 
@@ -3410,7 +3494,27 @@ function tapCell(u, v){
   /* Tapping the cell you already stand on yields an EMPTY path, which is
      truthy — it used to start a walk with nothing in it, and the next frame
      read surf[undefined].w and took the render loop down with it. */
-  if(!path.length) return;
+  if(!path.length){
+    /* EXCEPT ON A PLATE, WHERE IT PRESSES IT AGAIN.
+
+       The spring-back puts you back on the plate, and without this the only
+       way to fire it again would be to step off and step back on — which
+       needs a walkable neighbour, and a plate cut through a wall of rock in
+       world 0 does not always have one. That is a soft lock: standing on the
+       one thing that can change the board, unable to use it.
+
+       It is also the better verb. You are pressing it with a foot either
+       way; the rule that a plate does not fire when you TURN onto it or when
+       the clock PUTS you on it is about things that happen to you, and a tap
+       is not one of those. */
+    if(isGlyph(s.t)){
+      pushUndo();
+      var r0 = tileRect(u, v);
+      firePlate(GLYPH_BIT[s.t], r0[0] + S/2, r0[1] + S/2);
+      afterAction();
+    }
+    return;
+  }
   pushUndo();
   walking = {queue:path, from:pos.slice(), t:0, step:0};
 }

@@ -157,14 +157,13 @@ let bad=0; const ok=(n,c,x='')=>{console.log((c?'  ok  ':'FAIL  ')+n+(x?'   '+x:
      sprung && (!sprung.before.on || String(sprung.before.pos)===String(sprung.pos)),
      sprung && sprung.before.on ? 'was on the plate' : 'had already stepped off');
 
-  /* the throw itself, staged rather than waited for: put the player in a
-     flipped world on a cell the carve does not give footing to, spring it
-     back, and see where they end up */
+  /* the spring-back landing, staged rather than waited for: put the player in
+     a flipped world on a cell the carve gives no footing to, spring it back,
+     and check they end up ON A PLATE rather than stranded in world 0 — which
+     is the state 39 of 41 plate cubes cannot be finished from. */
   const thrown=await p.evaluate(async()=>{
     loadLevel(21); show(null);
     await new Promise(r=>setTimeout(r,500));
-    /* find a cell that is deck in world 1 and NOT deck in world 0 — exactly
-       the ground the spring-back pulls out from under you */
     world=1; clearEff(lv); settle(); plateT=PLATE_MS;
     let victim=null;
     for(let u=0;u<N&&!victim;u++)for(let v=0;v<N&&!victim;v++){
@@ -178,64 +177,40 @@ let bad=0; const ok=(n,c,x='')=>{console.log((c?'  ok  ':'FAIL  ')+n+(x?'   '+x:
     pos=victim.w.slice(); settle();
     const from=viewOf(N,M,pos).slice();
     revertWorld();
-    const to=viewOf(N,M,pos);
-    return {from, to, world, footing:window.__footing(),
-            moved:String(from)!==String(to),
-            dist:Math.max(Math.abs(from[0]-to[0]),Math.abs(from[1]-to[1]))};
+    const to=viewOf(N,M,pos), landed=surf[to[0]*N+to[1]];
+    // and pressing the plate underfoot must flip it again
+    const w0=world;
+    tapCell(to[0], to[1]);
+    await new Promise(r=>setTimeout(r,200));
+    return {from, to, world, onPlate:!!(landed&&isGlyph(landed.t)),
+            landedWorld:w0, repressed:world!==w0,
+            footing:window.__footing()};
   });
-  ok('losing your footing to the clock throws you to a square that is real',
-     thrown && (thrown.skipped || (thrown.footing && thrown.moved)),
+  ok('the clock puts you back on a plate, not down in the world you cannot finish',
+     thrown && (thrown.skipped || (thrown.onPlate && thrown.footing)),
      thrown && !thrown.skipped ? `${thrown.from} -> ${thrown.to}` : 'no such cell on this cube');
-  ok('...to the NEAREST one, not across the board',
-     thrown && (thrown.skipped || thrown.dist<=2), thrown&&!thrown.skipped?`${thrown.dist} squares`:'');
-  ok('...and being thrown onto a plate does not fire it',
-     thrown && (thrown.skipped || thrown.world===0), thrown?`world ${thrown.world}`:'');
+  ok('...and landing on it does not fire it',
+     thrown && (thrown.skipped || thrown.landedWorld===0), thrown?`world ${thrown.landedWorld}`:'');
+  ok('...but tapping the plate under you does, so the loop can never lock',
+     thrown && (thrown.skipped || thrown.repressed), thrown?`world ${thrown.landedWorld} -> ${thrown.world}`:'');
 
-  /* THE PROMISE, WITH THE CLOCK RUNNING.
+  /* THE PROMISE UNDER THE CLOCK IS NOT TESTED HERE, AND THE REASON IS WORTH
+     WRITING DOWN, BECAUSE THE TEST THAT USED TO SIT HERE WAS WORTHLESS.
 
-     The solver has no clock in it, so par is a lower bound and nothing in the
-     model can tell you whether five seconds is enough to walk the line it
-     found. That is a question only the running game can answer, so it is
-     asked here: twelve plate cubes played through the real input path at
-     human-ish timings, re-asking the solver after every action the way a
-     player re-reads the board.
+     It replayed the SOLVER'S OWN ANSWER at machine speed and reported 12/12
+     at par. That only ever proved the route fits in five seconds if you
+     already know the route — which is not the question. The question is
+     whether a person working the board out can do it, and a harness that is
+     handed the answer can never answer that. It shipped a broken game with a
+     green tick next to it.
 
-     If a cube needed more turns inside one flip than five seconds allows,
-     this is where it would show up — as a level that never finishes, or one
-     that only finishes after a spring-back has thrown the player and the
-     route has been replanned from wherever they landed. */
-  const clocked=await p.evaluate(async()=>{
-    const rows=[];
-    for(let L=20; L<=31; L++){
-      loadLevel(L); show(null);
-      await new Promise(r=>setTimeout(r,420));
-      let acts=0, sprung=0;
-      while(acts++ < 200 && !won){
-        const r=solve(lv,40,{pos,ori:oriIndex(M),kmask,doors,world});
-        if(!r.ok||!r.first) break;
-        const w0=world;
-        if(r.first.kind==='turn'){ tryTurn(r.first.dir); await new Promise(x=>setTimeout(x,360)); }
-        else {
-          const v=viewOf(N,M,pos), t=TURNS[r.first.dir];
-          tapCell(v[0]+t.dx, v[1]+t.dy);
-          await new Promise(x=>setTimeout(x,170));
-        }
-        if(world!==w0 && world===0 && plateT===0) sprung++;
-      }
-      rows.push({L, won, turns, par:lv.par, sprung});
-      won=false;
-    }
-    return rows;
-  });
-  const beaten=clocked.filter(r=>r.won).length;
-  ok('every plate cube is still beatable with the clock running',
-     beaten===clocked.length, `${beaten}/${clocked.length} cubes 20-31`);
-  ok('...at exactly par, so the clock costs turns nobody has to spend',
-     clocked.every(r=>r.won && r.turns===r.par),
-     clocked.map(r=>`${r.turns}/${r.par}`).join(' '));
-  ok('...and a line walked at par never even reaches the spring-back',
-     clocked.every(r=>r.sprung===0),
-     `${clocked.reduce((a,r)=>a+r.sprung,0)} spring-backs across 12 cubes`);
+     What replaces it is the pair of properties that make running out of time
+     SURVIVABLE rather than fatal, which are testable and are tested above: you
+     are put back on a plate, and the plate under you can always be pressed
+     again. Those two together mean the clock can cost you the walk and never
+     the cube. Whether five seconds is the right number for the hardest cubes
+     is a play question, and it is answered by playing, not by a harness that
+     has been handed the answer. */
 
   ok('no page errors', errs.length===0, errs.slice(0,3).join(' | '));
   await b.close(); process.exit(bad);

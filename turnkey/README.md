@@ -110,66 +110,76 @@ board every later step was planned against, which also makes standing on a
 plate a decision rather than something that happens to you on the way past.
 And a plate you *turn* onto does not fire; you press it with a foot.
 
-### Five seconds, and then the floor goes
+### Five seconds, and then back to the plate
 
 **A flipped world lasts five seconds.** Then the rock springs back to how it
-was carved, and if you are standing where a deck used to be, **you are thrown
-to the nearest square.**
+was carved, and you are put back on **the nearest plate you can stand on.**
 
-The plate was the biggest verb in the game and it had no cost attached: flip,
-look around, think about it, flip back. Every decision it created could be
-made at leisure, which made the second world a second *board* rather than a
-second *state* — and boards are things you study. The clock turns the flip
-from a place you visit into a thing you commit to. You read the inverted cube
-*before* you press the plate, because afterwards there is only time to walk
-the line you already have.
+The plate was the biggest verb in the game and it cost nothing: flip, look
+around, think, flip back. The clock turns it from a place you visit into a
+thing you commit to — you read the inverted cube *before* you press it,
+because afterwards there is only time to walk the line you already have.
 
-The countdown sits under the world tag as a number and a draining bar, and
-ticks audibly over the last three seconds — the one readout in this game you
-are not expected to look at, because your eyes are needed on the board.
+**Where you land is not a detail, it is the whole design.** Measured across
+the plate cubes:
 
-Four rules keep it a challenge rather than a punishment:
+> **39 of 41 have an exit that does not exist in world 0.**
 
-- **The plate itself is safe.** It is exempt from the material flip and always
-  the surface of its column, so the spring-back can never throw you off one.
-  Standing on the plate is the deliberate out.
-- **Nearest is nearest *on screen*.** The board is the flat face and the flat
-  face is what you were reading, so a throw two columns left has to mean two
-  columns left as seen. A "nearest" measured through the solid could put you
-  on the far side of the world, and that reads as teleportation rather than as
-  falling. `walkable()` does the rest quietly: the throw can never post you
-  inside a gate you have no key for, and a plate you land on does not fire.
-- **The expiry takes an undo point first.** It is the only thing in the game
-  that moves you without being asked, so undo puts you back one instant before
-  it landed — with a full five seconds, not the tenth you had left. That is
-  deliberately generous. Undo is a retry, so it is a whole run at it.
-- **It runs on game time and stops for a card.** The flip itself spends a
-  hitstop and most of a second of slow motion, and you cannot act during
-  either; charging you for frames you were not allowed to move in would be
-  taking the time back with the other hand. Pause, the manual and the win
-  screen are not play. A held peek *is* play, and the clock keeps running —
-  thinking is the thing being rationed.
+The way out is carved into cells that are rock until the material inverts —
+that is the point of the second verb. So a spring-back that dropped you on the
+nearest walkable *square* dropped you into the world where the level cannot be
+finished, several moves from the only thing that could put you back. It read
+exactly as it played: gates and an exit sitting on stone, forever out of
+reach. A plate is exempt from the flip and always the surface of its column,
+so one always qualifies as a landing — there is no world in which the thing
+that gets you out is itself out of reach. **Running out of time costs you the
+walk, never the cube.**
 
-**The solver has no clock in it, and that is on purpose.** Par stays a lower
-bound rather than a promise, which is the right bound to publish: the carved
+**Tapping the plate under you presses it again.** Without that, re-firing
+would need a walkable neighbour to step off to and back onto, and a plate cut
+through a wall of rock does not always have one — that is a soft lock, stood
+on the one thing that can change the board and unable to use it. Being *put*
+on a plate does not fire it (same rule as turning onto one: things that happen
+to you are not you pressing it); tapping it does, because that is a foot.
+
+Two more rules keep it a challenge rather than a punishment:
+
+- **The expiry takes an undo point first,** and hands back a full five
+  seconds rather than the tenth you had left. Undo is a retry, so it is a
+  whole run at it.
+- **It runs on game time and stops for a card.** The flip spends a hitstop and
+  most of a second of slow motion and you cannot act in either. Pause, the
+  manual and the win screen are not play. A held peek *is* play, and the clock
+  keeps running — thinking is the thing being rationed.
+
+**The solver has no clock in it,** so par stays a lower bound: the carved
 route is still in the cube, the keys still open the doors in some order, and
-the number on the HUD is still the fewest turns the *geometry* can be beaten
-in. What the clock adds is a demand on the player's hands, not a change to the
-cube. Putting it in the search would mean carrying real time in the state key
-— turning a 0-1 BFS over a few thousand states into a search over a continuum
-— to answer a question the player is better placed to answer than the solver:
-whether they can move that fast.
+the HUD number is still the fewest turns the *geometry* can be beaten in. What
+the clock adds is a demand on the hands, not a change to the cube. Putting it
+in the search would mean carrying real time in the state key — a 0-1 BFS over
+a few thousand states becoming a search over a continuum — to answer a
+question the player is better placed to answer than the solver.
 
-So the question the model *cannot* answer is asked of the running game
-instead. `tools/plate.js` plays cubes 20–31 through the real input path at
-human timings, re-asking the solver after every action the way a player
-re-reads the board:
+### Things that are not in this world are not drawn
 
-> **12/12 beaten, every one at exactly par, with zero spring-backs.**
+A key, a gate and the way out are carved into cells, and a plate rewrites what
+those cells are *made of*. They used to be drawn regardless, which was the
+single most misleading thing on the board: **a gate sitting on stone with no
+way to reach it does not read as "not in this world yet", it reads as a broken
+game** — and a player is right to read it that way, because nothing on screen
+distinguished it from one they simply had not found the route to.
 
-A line walked at par never even reaches the five seconds — the clock is a
-constraint on dithering, not on the answer. That measurement is the reason
-the timer is allowed to sit on top of a guarantee it is not part of.
+So they are not drawn until they are real. The exit arrives with the flip,
+which is also the moment it becomes true.
+
+**The test is the material, not the route,** and that distinction is
+load-bearing. Showing you a way out you cannot walk to *from this face* is the
+game — it is the whole of what the first two cubes teach, and hiding it
+because it is far away would delete the lesson. Hiding it because it is not
+made of floor yet is the opposite: it stops the board claiming something that
+is not so. (`walkable()` would have been the wrong test for the mirror reason
+— it refuses shut doors, so every locked gate would have vanished, which is
+precisely the thing you most need to see.)
 
 ### The difficulty curve, and its ceiling
 
@@ -486,10 +496,10 @@ sizes rather than two different layouts.
   solvable with valid footing, undo restores the world, and the pivot property
   holds across every orientation × turn. Then the clock: it starts at five
   seconds and drains on the HUD as well as in the state, the world springs
-  back on its own, and the spring-back never leaves the player standing in
-  rock — with the throw itself staged rather than waited for, by putting the
-  player on a cell the carve gives no footing to and springing it back under
-  them.
+  back on its own, and the landing is staged rather than waited for — the
+  player is put on a cell the carve gives no footing to and the world is
+  sprung back under them, which must leave them on a plate, must not fire it,
+  and must leave that plate pressable.
 - **`hole.js`** — the two claims the player marker makes. That what is inside
   the horizon *is* the starfield behind the board, checked by compositing the
   sky by itself and demanding the pixels match (they do, to 0/255 across nine

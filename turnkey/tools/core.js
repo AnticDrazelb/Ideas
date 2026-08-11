@@ -103,22 +103,26 @@ function oriIndex(m){ return ORIS.index[oriKey(m)]; }
 
    THE FIVE-SECOND LIMIT IS NOT IN HERE, AND THAT IS ON PURPOSE.
 
-   In the game a flipped world springs back after five seconds and throws you
-   to the nearest square. This model has no clock in it — a turn costs one, a
-   step costs nothing, and neither costs any time — so the solver plans as if
-   a flip lasted forever.
+   In the game a flipped world springs back after five seconds and puts you
+   back on the nearest plate. This model has no clock in it — a turn costs
+   one, a step costs nothing, and neither costs any time — so the solver plans
+   as if a flip lasted forever.
 
    That makes par a LOWER BOUND rather than a promise, and it is the right
    bound to publish. Everything the guarantee is for still holds: the route
    the generator carved is still in the cube, the keys still open the doors in
    some order, the opening cell is still not buried, and the number on the HUD
    is still the fewest turns the geometry can be beaten in. What the clock
-   adds is a constraint on how many of those turns may be spent on the far
-   side of a plate — a demand on the player's hands, not a change to the
-   cube. A cube whose only line needs eight turns inside one flip is a cube
-   this solver calls winnable and a human may not be able to walk, and that is
-   a tuning question for the generator's difficulty bands, not a lie in the
-   proof.
+   adds is a demand on the player's hands, not a change to the cube.
+
+   AND THE SPRING-BACK IS WHY IT CANNOT COST THEM THE LEVEL. On 39 of the 41
+   plate cubes measured, THE EXIT DOES NOT EXIST IN WORLD 0 — it is carved
+   into cells that are rock until the material inverts, which is the whole
+   point of the second verb. So running out of time must never leave the
+   player in world 0 away from the plate: that is the state in which the cube
+   genuinely cannot be finished, and it is where an earlier version of this
+   dropped them. Putting them back ON the plate makes the clock cost the walk
+   and nothing else. Press it again and go.
 
    Putting the clock in the search would mean carrying real time in the state
    key, which turns a 0-1 BFS over a few thousand states into a search over a
@@ -282,6 +286,9 @@ function antipode(){ return [N-1-pos[0], N-1-pos[1], N-1-pos[2]]; }
 function throughLook(){
   if(!lv) return null;
   var a = antipode(), i;
+  /* a thing that is rock in this world is not in this world, and the far
+     side of a hole is no exception — same rule the flat board draws by */
+  if(!isWalkType(effType(lv.vox[vidx(lv.n, a[0], a[1], a[2])], world))) return null;
   if(samePos(a, lv.goal)) return {kind:4};
   for(i = 0; i < lv.keys.length; i++)
     if(!(kmask & (1<<i)) && samePos(a, lv.keys[i])) return {kind:2};
