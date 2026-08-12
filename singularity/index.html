@@ -589,7 +589,7 @@ h2+.manual{margin-top:14px;}
   flex-direction:column;align-items:flex-start;gap:3px;
 }
 .hudline{display:flex;align-items:baseline;gap:14px;width:100%;min-width:0;flex-wrap:nowrap;}
-#hudCtx{gap:8px;justify-content:space-between;}
+#hudCtx{gap:8px;justify-content:space-between;font-size:var(--t-fine);}
 #hudVault{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
           margin-left:auto;}
 /* ---------- THE CHIP ------------------------------------------------------
@@ -600,19 +600,34 @@ h2+.manual{margin-top:14px;}
    state changes. */
 .chips{display:flex;align-items:center;gap:0;width:100%;min-width:0;}
 .chip{
-  display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;
-  padding:5px 9px;border-radius:var(--r-chip);
-  box-shadow:inset 0 0 0 var(--hair) currentColor;
-  font-size:var(--t-fine);letter-spacing:.10em;color:var(--dim);
+  display:inline-flex;align-items:center;gap:clamp(5px,1.9vw,9px);flex:0 0 auto;
+  padding:clamp(7px,2.4vw,12px) clamp(9px,3.3vw,16px);border-radius:var(--r-chip);
+  box-shadow:inset 0 0 0 var(--rule) currentColor;
+  font-size:var(--t-sm);letter-spacing:.10em;color:var(--dim);
   white-space:nowrap;
 }
-.chip .ic{width:15px;height:15px;flex:0 0 auto;fill:none;stroke:currentColor;
+.chip .ic{width:clamp(15px,4.6vw,21px);height:clamp(15px,4.6vw,21px);flex:0 0 auto;
+          fill:none;stroke:currentColor;
           stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round;}
-.chip .n{font-size:var(--t-lg);letter-spacing:0;color:var(--ink);font-variant-numeric:tabular-nums;}
-.chip .sub2{font-size:var(--t-fine);color:var(--dim);letter-spacing:0;margin-left:-3px;}
-.chip .lbl2{font-size:var(--t-micro);letter-spacing:.14em;}
-/* the dividers are the instrument's own ruling, not part of any chip */
-.csep{flex:1 1 auto;height:1px;background:var(--edge-2);min-width:6px;margin:0 7px;}
+.chip .n{font-size:clamp(17px,5.6vw,26px);letter-spacing:0;color:var(--ink);
+         font-variant-numeric:tabular-nums;line-height:1;}
+/* THE DENOMINATOR HAD A NEGATIVE MARGIN. -3px pulled "/5" hard against the
+   value it belongs to, so 11/5 read as one mangled token rather than as a
+   count out of a total — and at any size above tiny the two actually
+   collided. It is a related number, not a suffix: it sits a little apart,
+   dim, a rung down. */
+.chip .sub2{font-size:clamp(12px,3.6vw,17px);color:var(--dim);letter-spacing:0;
+            margin-left:3px;line-height:1;}
+.chip .lbl2{font-size:clamp(10px,3.0vw,14px);letter-spacing:.12em;}
+/* the dividers are the instrument's own ruling, not part of any chip — and
+   they are the first thing to give when the readouts need the room */
+.csep{flex:1 1 auto;height:1px;background:var(--edge-2);min-width:0;
+      margin:0 clamp(3px,1.6vw,9px);}
+/* ON A NARROW SCREEN THE WORD GOES AND THE NUMBER STAYS. Four readouts on a
+   320pt phone leaves each of them eighty points, and "TO GO" spends a third
+   of one on a label whose icon already says it. The value is the thing that
+   has to be legible; the word is the thing that can be inferred. */
+@media (max-width:379px){ .chip .lbl2{display:none;} }
 
 /* ---------- THE READOUT HAS TO BE READ -----------------------------------
    IT WAS NINE PIXELS TALL WITH A TENTH OF AN EM OF TRACKING.
@@ -638,7 +653,7 @@ h2+.manual{margin-top:14px;}
   white-space:nowrap;flex:0 1 auto;
   font-size:var(--t-fine);letter-spacing:.14em;color:var(--ink);
 }
-#barTop #lvNo{font-size:var(--t-fine);color:var(--rust);}
+#barTop #lvNo{font-size:var(--t-sm);color:var(--rust);}
 #hudVault{font-size:var(--t-fine);letter-spacing:.16em;}
 #barTop{gap:7px;}
 #turnPill{color:var(--rust);}
@@ -2880,6 +2895,22 @@ function layout(){
      below it, and the whole composition read as top-heavy on a tall phone.
      They are measured against the chrome that is actually there. */
   var topBar = ins.t + 62, botBar = ins.b + 84;
+  /* AND THE PLAY BOARD MEASURES ITS CHROME TOO.
+
+     62 and 84 were measured by hand against the HUD as it was, which means
+     the board's top margin was a constant describing something that can
+     change — and the moment the readouts grew, the board slid under them.
+     Same failure as the hero, same fix: ask the bars how tall they are. The
+     hand-written numbers stay as the floor, so a bar that has not been laid
+     out yet cannot collapse the board. */
+  if(!demo){
+    var bT = document.getElementById('barTop'), bB = document.getElementById('barBot');
+    if(bT && bB){
+      var rbT = bT.getBoundingClientRect(), rbB = bB.getBoundingClientRect();
+      if(rbT.height > 4) topBar = Math.max(topBar, rbT.bottom + 10);
+      if(rbB.height > 4) botBar = Math.max(botBar, H - rbB.top + 10);
+    }
+  }
   if(demo){
     /* MEASURE THE CHROME ITSELF, not the gap it was expected to leave.
 
@@ -7127,11 +7158,16 @@ if(window.ResizeObserver){
   var reFitQ = 0;
   var reFit = new ResizeObserver(function(){
     if(reFitQ) return;
-    reFitQ = requestAnimationFrame(function(){ reFitQ = 0; if(demo) layout(); });
+    reFitQ = requestAnimationFrame(function(){ reFitQ = 0; layout(); });
   });
   var tT = document.querySelector('.titleTop'), tB = document.querySelector('.titleBottom');
   if(tT) reFit.observe(tT);
   if(tB) reFit.observe(tB);
+  /* the play HUD reflows too — a node counter appearing, a three-digit fold
+     count, a longer vault name — and the board is sized against it */
+  var hT = document.getElementById('barTop'), hB = document.getElementById('barBot');
+  if(hT) reFit.observe(hT);
+  if(hB) reFit.observe(hB);
 }
 if(window.visualViewport){
   /* Safari collapses and expands its bars as you play; without this the board

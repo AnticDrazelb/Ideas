@@ -13,3 +13,6 @@ turnkey/tools/sgfit.js
 turnkey/tools/sgreflow.js
 turnkey/tools/sgvis.js
 turnkey/tools/sgios.js
+turnkey/tools/sghud.js
+turnkey/tools/sgboard.js
+turnkey/tools/sgplay.js
