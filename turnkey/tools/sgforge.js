@@ -246,6 +246,102 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
      edit.name === 'MY BCUBEB' && !edit.injected, JSON.stringify(edit.name));
   ok('...and it appears on the shelf', edit.tiles === 1, `${edit.tiles} tiles`);
 
+  /* ---- getting the code back out of the app ----------------------------- */
+  /* It was printed into the verdict line, on a page that sets
+     user-select:none globally, next to a navigator.clipboard call that does
+     not exist on file:// because that is not a secure context. The code was
+     on screen and there was no way to obtain it. */
+  const copy = await p.evaluate(async () => {
+    store.made = {}; store.draft = null; ed = null;
+    const row = () => !document.getElementById('edCodeRow').classList.contains('hide');
+    edNew(5); openEditor(null);
+    const atStart = row();
+
+    const src = BAKED[0];
+    edFrom({n:src.n, vox:src.vox.replace('#','+'), start:src.start, goal:src.goal,
+            keys:[], doors:[], name:'COPYME'}, null);
+    document.getElementById('edName').value = 'COPYME';
+    edDraw();
+    document.getElementById('edSave').click();
+    const afterSave = {shown: row(), code: document.getElementById('edCode').value};
+
+    /* editing retires the code rather than leaving a stale one under it */
+    ed.tool = '#';
+    let painted = false;
+    for(let z = 0; z < ed.n && !painted; z++) for(let x = 0; x < ed.n && !painted; x++)
+      if(ed.vox[vidx(ed.n, x, ed.layer, z)] === '+'){ edApply(x, z); painted = true; }
+    const afterEdit = row();
+
+    /* and a saved cube offers its code the moment it is opened */
+    const id = Object.keys(store.made)[0];
+    ed = null; openEditor(store.made[id], id);
+    const onOpen = {shown: row(), code: document.getElementById('edCode').value};
+
+    /* the copy path itself, with no host and no modern API */
+    const hadHost = !!window.AndroidHost;
+    try{ delete window.AndroidHost; }catch(e){ window.AndroidHost = null; }
+    const realClip = navigator.clipboard;
+    try{ Object.defineProperty(navigator, 'clipboard', {value: undefined, configurable: true}); }catch(e){}
+    let legacyCalled = null;
+    const realExec = document.execCommand;
+    document.execCommand = function(c){ if(c === 'copy'){ legacyCalled = document.activeElement.value; return true; } return false; };
+    document.getElementById('edCopy').click();
+    const legacy = {msg: document.getElementById('edMsg').textContent, got: legacyCalled};
+    document.execCommand = realExec;
+    try{ Object.defineProperty(navigator, 'clipboard', {value: realClip, configurable: true}); }catch(e){}
+
+    /* and with an Android host it goes straight there */
+    let hostGot = null;
+    window.AndroidHost = {copy:(t) => { hostGot = t; }};
+    document.getElementById('edCopy').click();
+    const viaHost = {msg: document.getElementById('edMsg').textContent, got: hostGot};
+    if(!hadHost){ try{ delete window.AndroidHost; }catch(e){} }
+
+    const sel = document.getElementById('edCode');
+    return {atStart, afterSave, afterEdit, onOpen, legacy, viaHost,
+            selectable: getComputedStyle(sel).webkitUserSelect || getComputedStyle(sel).userSelect,
+            readonly: sel.hasAttribute('readonly')};
+  });
+  ok('a new cube offers no code, because it has none yet', copy.atStart === false);
+  ok('saving puts the code in a field you can reach',
+     copy.afterSave.shown && copy.afterSave.code.length > 40, `${copy.afterSave.code.length} chars`);
+  ok('...in a readonly field that is selectable on a page that is not',
+     copy.readonly && /text/.test(copy.selectable), `user-select: ${copy.selectable}`);
+  ok('editing the cube retires the code rather than leaving a stale one',
+     copy.afterEdit === false);
+  ok('opening a saved cube offers its code straight away',
+     copy.onOpen.shown && copy.onOpen.code === copy.afterSave.code);
+  ok('with no host and no clipboard API it still copies, via the old path',
+     copy.legacy.got === copy.afterSave.code && /COPIED/.test(copy.legacy.msg), copy.legacy.msg);
+  ok('...and with an Android host it goes straight there',
+     copy.viaHost.got === copy.afterSave.code && /COPIED/.test(copy.viaHost.msg), copy.viaHost.msg);
+
+  /* A CODE THAT HAS BEEN THROUGH A SMART-PUNCTUATION FIELD MUST STILL WORK.
+     The alphabet contains a hyphen; Notes, Messages and half the web turn one
+     into an en or em dash on the way past. Not every code happens to contain
+     a hyphen, so this hunts for one that does — testing a code without one
+     proves nothing at all. */
+  const dashes = await p.evaluate(() => {
+    let code = null;
+    for(let i = 0; i < BAKED.length && !code; i++){
+      const c = shareEncode(BAKED[i]);
+      if(c.indexOf('-') >= 0) code = c;
+    }
+    if(!code) for(let L = 1; L < 60 && !code; L++){
+      const c = shareEncode(levelData(L));
+      if(c.indexOf('-') >= 0) code = c;
+    }
+    if(!code) return {found: false};
+    const want = canonId(shareDecode(code));
+    const via = ch => { const r = shareDecode(code.replace(/-/g, ch)); return !!r && canonId(r) === want; };
+    return {found: true, hyphens: (code.match(/-/g) || []).length,
+            em: via('\u2014'), en: via('\u2013'), fig: via('\u2012'), minus: via('\u2212')};
+  });
+  ok('a code mangled into unicode dashes by a share sheet still decodes',
+     dashes.found && dashes.em && dashes.en && dashes.fig && dashes.minus,
+     dashes.found ? `${dashes.hyphens} hyphen(s) · em ${dashes.em} en ${dashes.en} fig ${dashes.fig} minus ${dashes.minus}`
+                  : 'could not find a code containing a hyphen');
+
   /* ---- importing -------------------------------------------------------- */
   const imp = await p.evaluate(() => {
     store.made = {}; buildMadeGrid();

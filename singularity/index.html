@@ -1066,6 +1066,10 @@ html.vpLand #dpad{
       color:var(--ink);background:var(--panel);border:0;padding:10px 12px;
       border-radius:var(--r-card);box-shadow:inset 0 0 0 var(--hair) var(--edge-2);}
 .edIn::placeholder{color:var(--dim-2);}
+/* the whole document is user-select:none so a drag never selects the board;
+   a field holding a code you have to get out of the app is the exception */
+.edIn{user-select:text;-webkit-user-select:text;}
+.edIn.code{font-size:var(--t-micro);letter-spacing:.04em;color:var(--arc);}
 /* a verdict is the only thing this screen says, so it is given room to say
    it — including a share code, which is long and must wrap rather than
    stretch the column it sits in */
@@ -1430,6 +1434,14 @@ html.disp #stage, html.disp .layer, html.disp #hud{
     <input class="edIn" id="edName" placeholder="NAME THIS CUBE" maxlength="18" autocomplete="off" spellcheck="false">
     <button class="pill" id="edSize">[ 5 ]</button>
     <button class="pill" id="edTeach" aria-label="Show me how">[ ? ]</button>
+  </div>
+  <!-- The code used to be printed into the verdict line, which this file
+       makes unselectable along with everything else, next to a clipboard
+       call that does not exist on file://. It was on screen and there was no
+       way on earth to get it off. -->
+  <div class="edRow hide" id="edCodeRow">
+    <input class="edIn code" id="edCode" readonly autocomplete="off" spellcheck="false">
+    <button class="pill" id="edCopy">[ COPY ]</button>
   </div>
   <div class="edMsg" id="edMsg"></div>
   <div class="btn2">
@@ -3136,11 +3148,17 @@ function collisionOf(lv, skipKey){
    one. Both are shown, and they are not interchangeable.                  */
 var VOXC = '.#+AB', SHARE_V = 1;
 function shareEncode(lv){
+  /* `vox` is a STRING on a baked cube and an ARRAY on a freshly minted one.
+     Everything that reads it by index works either way and never noticed;
+     this is the one place that called a string method, so it worked on
+     everything it was ever handed and would have thrown the first time
+     somebody encoded a generated cube. */
+  var vx = Array.isArray(lv.vox) ? lv.vox.join('') : lv.vox;
   var n = lv.n, bytes = [SHARE_V, n], i, t, p;
   for(i = 0; i < n*n*n; i += 3){
     t = 0;
     for(var j = 0; j < 3; j++){
-      var ch = (i + j < n*n*n) ? lv.vox.charAt(i + j) : '.';
+      var ch = (i + j < n*n*n) ? vx.charAt(i + j) : '.';
       var k = VOXC.indexOf(ch);
       t = t*5 + (k < 0 ? 0 : k);
     }
@@ -3164,7 +3182,14 @@ function shareEncode(lv){
   return out;
 }
 function shareDecode(code){
-  var s = String(code || '').replace(/[^A-Za-z0-9_-]/g, ''), bytes = [], i, t, have;
+  /* THE ALPHABET CONTAINS A HYPHEN AND THE WORLD IS FULL OF THINGS THAT
+     "HELPFULLY" REPLACE ONE. A code pasted through Notes, Messages or any
+     smart-punctuation field comes back with en and em dashes in it, and
+     stripping those as junk would silently shorten the payload and fail the
+     checksum. They are put back rather than thrown away. */
+  var s = String(code || '')
+            .replace(/[\u2010-\u2015\u2212]/g, '-')
+            .replace(/[^A-Za-z0-9_-]/g, ''), bytes = [], i, t, have;
   if(s.length < 8) return null;
   for(i = 0; i < s.length; i += 4){
     have = Math.min(4, s.length - i);
@@ -7948,7 +7973,7 @@ function edApply(x,z){
     ed.vox[i] = t;
     if(!isWalkType(t)) edUnmark(w);
   }
-  edDraw(); edStatus(''); edSaveDraft();
+  edDraw(); edStatus(''); edSaveDraft(); edHideCode();
 }
 /* nodes and locks are collected in whatever order they were placed; pairing
    them by position keeps the arrays aligned and the holes visible */
@@ -7964,7 +7989,7 @@ function edClearDeck(){
     ed.vox[vidx(n,x,ed.layer,z)] = '.';
     edUnmark([x, ed.layer, z]);
   }
-  edDraw(); edStatus(''); edSaveDraft();
+  edDraw(); edStatus(''); edSaveDraft(); edHideCode();
 }
 function edStatus(msg, kind){
   var e = $('edMsg');
@@ -8034,9 +8059,8 @@ function edSaveCube(){
   else { store.made[id].name = lv0.name; store.made[id].par = lv0.par; }
   ed.from = id;
   save();
-  var code = shareEncode(lv0);
-  edStatus('SAVED · ' + id + '\n' + code, 2);
-  try{ if(navigator.clipboard) navigator.clipboard.writeText(code); }catch(e){}
+  edShowCode(shareEncode(lv0));
+  edStatus('SAVED · ' + id + ' · THE CODE BELOW IS HOW SOMEBODY ELSE PLAYS IT', 2);
 }
 function edPlay(){
   var lv0 = edVerify();
@@ -8161,12 +8185,24 @@ function edCoachTick(){
   var st = FORGE_STEPS[coach];
   $('edCoachT').textContent = (coachMissed && st.alt) ? st.alt : st.t;
 }
+function edShowCode(code){
+  $('edCode').value = code || '';
+  $('edCodeRow').classList.toggle('hide', !code);
+}
+/* a code belongs to the cube that was saved, so any edit retires it rather
+   than leaving a stale string sitting under a changed cube */
+function edHideCode(){ edShowCode(''); }
 function openEditor(rec, key){
   if(rec) edFrom(rec, key); else if(!ed) edRestore();
   /* offered once, on the first cube anyone opens the editor for */
   if(!store.taughtForge && coach < 0 && !rec) coachStart();
   $('edName').value = ed.name || '';
-  edStatus(''); edDraw(); show('scEdit');
+  /* a saved cube already has an identity, so its code can be offered on
+     sight rather than only after somebody saves it again */
+  edStatus('');
+  edHideCode();
+  if(rec && rec.vox) edShowCode(shareEncode(recToLevel(rec)));
+  edDraw(); show('scEdit');
 }
 function buildMadeGrid(){
   var g = $('madeGrid'); g.innerHTML = '';
@@ -8445,6 +8481,42 @@ function recToLevel(rec){
    over, and ALSO copied to the clipboard — because a WebView with no mail
    client would otherwise swallow the whole thing silently and the player
    would think they had reported something. */
+/* COPYING, ON A PAGE THAT HAS NONE OF THE USUAL WAYS TO DO IT.
+
+   navigator.clipboard requires a SECURE CONTEXT. A game loaded from file://
+   inside a WebView is not one, so on the actual device that API is simply
+   absent — every clipboard call in here was failing silently and saying
+   nothing, which is worse than not having offered.
+
+   Three ways, cheapest first: the host if it is there, the modern API if it
+   exists, and a throwaway textarea driven by execCommand, which is deprecated
+   everywhere and is the one that actually runs on the phone. iOS needs the
+   explicit setSelectionRange as well as select(). */
+function copyText(t){
+  var v = String(t == null ? '' : t);
+  try{ var h = window.AndroidHost; if(h && h.copy){ h.copy(v); return true; } }catch(e){}
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(v).then(null, function(){ legacyCopy(v); });
+      return true;
+    }
+  }catch(e){}
+  return legacyCopy(v);
+}
+function legacyCopy(v){
+  try{
+    var ta = document.createElement('textarea');
+    ta.value = v;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    if(ta.setSelectionRange) ta.setSelectionRange(0, v.length);
+    var done = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return !!done;
+  }catch(e){ return false; }
+}
 var REPORT_TO = 'jeffrey_blezard@icloud.com';
 var reportArmed = '';
 var HOST = (function(){
@@ -8503,12 +8575,13 @@ function reportCube(id){
         '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
     }catch(e){}
   }
-  try{ if(navigator.clipboard) navigator.clipboard.writeText(REPORT_TO + '\r\n' + subject + '\r\n\r\n' + body); }catch(e){}
+  var copied = copyText(REPORT_TO + '\r\n' + subject + '\r\n\r\n' + body);
   /* whatever the mail app does, the reporter should not have to look at it
      again — hidden rather than deleted, so a failed send can be retried */
   store.hidden[id] = 1; save();
   buildMadeGrid();
-  reportSay('REPORT READY IN YOUR MAIL APP, AND COPIED. THIS CUBE IS HIDDEN HERE NOW.', 2);
+  reportSay('REPORT READY IN YOUR MAIL APP' + (copied ? ', AND COPIED' : '') +
+            '. THIS CUBE IS HIDDEN HERE NOW.', 2);
   return true;
 }
 
@@ -8558,6 +8631,18 @@ $('edSave').onclick  = edSaveCube;
 $('edPlay').onclick  = edPlay;
 $('edBack').onclick  = openMade;
 $('edTeach').onclick = coachStart;
+$('edCopy').onclick = function(){
+  var f = $('edCode'), c = f.value;
+  if(!c) return;
+  /* selected either way: if the copy fails the player can still get it out
+     by hand, and a field that is already highlighted says how */
+  f.focus(); f.select();
+  if(f.setSelectionRange) f.setSelectionRange(0, c.length);
+  var done = copyText(c);
+  edStatus(done ? 'CODE COPIED — PASTE IT TO ANYBODY'
+                : 'COULD NOT REACH THE CLIPBOARD — THE CODE IS SELECTED, HOLD IT AND COPY',
+           done ? 2 : 1);
+};
 $('btnReport').onclick = function(){ if(madeKey) reportCube(madeKey); };
 /* applied to what is already stored, once, at boot: a cube blocked by an
    update is sitting in somebody's shelf right now */
