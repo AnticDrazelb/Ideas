@@ -1019,6 +1019,48 @@ html.vpLand #dpad{
   .vaultId i{width:min(180px,52vw);height:3px;border-radius:0;flex:0 0 auto;
              box-shadow:inset 0 0 0 var(--hair) var(--edge-2);}
 
+/* ---------- THE FORGE ----------------------------------------------------
+   The deck grid is the whole interface, so it gets the width and everything
+   else is a strip. Cells carry their MATERIAL as a background and their ROLE
+   as a mark on top, because a cell is both at once — the exit is a trace you
+   leave from, not a third kind of thing — and a single combined swatch would
+   have to invent a colour for every pairing. The colours are the ones the
+   board already uses: nothing here teaches a vocabulary the game then
+   contradicts. */
+.edBar{display:flex;align-items:center;gap:10px;width:100%;max-width:440px;margin:0 auto 12px;}
+.edSlice{display:grid;gap:4px;width:100%;max-width:380px;margin:0 auto 12px;}
+.edCell{aspect-ratio:1;border-radius:2px;background:var(--void-2);padding:0;
+        box-shadow:inset 0 0 0 var(--hair) var(--dim-2);
+        display:flex;align-items:center;justify-content:center;}
+.edCell.g{background:var(--grid);box-shadow:inset 0 0 0 var(--hair) var(--grid-hi);}
+.edCell.t{background:var(--trace-lo);box-shadow:inset 0 0 0 var(--hair) var(--trace);}
+.edCell.pa{background:var(--trace-lo);box-shadow:inset 0 0 0 2px var(--arc);}
+.edCell.pb{background:var(--trace-lo);box-shadow:inset 0 0 0 2px var(--rust);}
+.edCell b{width:44%;height:44%;display:block;border-radius:50%;}
+.edCell b.s{background:var(--rust);}
+.edCell b.e{background:var(--core);}
+.edCell b.k{background:var(--node);border-radius:0;}
+.edCell b.d{background:var(--lock);border-radius:0;transform:rotate(45deg);}
+.edTools{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;
+         width:100%;max-width:380px;margin:0 auto 12px;}
+.edTool{font-family:var(--mono);font-size:var(--t-micro);letter-spacing:.05em;
+        padding:9px 2px;border-radius:var(--r-card);color:var(--dim);line-height:1.1;
+        background:var(--panel);box-shadow:inset 0 0 0 var(--hair) var(--edge-2);}
+.edTool.on{color:var(--ink);background:var(--panel-hi);box-shadow:inset 0 0 0 var(--hair) var(--edge-on);}
+.edRow{display:flex;gap:8px;width:100%;max-width:380px;margin:0 auto 10px;align-items:stretch;}
+.edIn{flex:1;min-width:0;font-family:var(--mono);font-size:var(--t-tiny);letter-spacing:.1em;
+      color:var(--ink);background:var(--panel);border:0;padding:10px 12px;
+      border-radius:var(--r-card);box-shadow:inset 0 0 0 var(--hair) var(--edge-2);}
+.edIn::placeholder{color:var(--dim-2);}
+/* a verdict is the only thing this screen says, so it is given room to say
+   it — including a share code, which is long and must wrap rather than
+   stretch the column it sits in */
+.edMsg{font-family:var(--mono);font-size:var(--t-micro);letter-spacing:.09em;
+       text-align:center;color:var(--dim);min-height:2.6em;line-height:1.4;
+       width:100%;max-width:380px;margin:0 auto 10px;word-break:break-all;}
+.edMsg.bad{color:var(--fault);}
+.edMsg.good{color:var(--arc);}
+
 /* ---------- CARDS ---------- */
 .card{
   width:100%;max-width:360px;margin:0 auto;padding:26px 22px 20px;
@@ -1287,7 +1329,59 @@ html.vpLand #dpad{
     <button class="pill" id="vaultNext" aria-label="Next vault">[ &gt; ]</button>
   </div>
   <div class="grid" id="cubeGrid"></div>
-  <button class="btn ghost" id="btnCubesBack">[ BACK ]</button>
+  <div class="btn2">
+    <button class="btn" id="btnForge">[ FORGE ]</button>
+    <button class="btn ghost" id="btnCubesBack">[ BACK ]</button>
+  </div>
+</div>
+
+<!-- ============ THE FORGE — cubes this player built ============
+     Reached from the vault shelf rather than the title, because the title
+     is a composition with a cube in the middle of it and a fifth button
+     would be the thing that finally covered it. -->
+<div class="layer hide" id="scMade">
+  <div class="vaultBar">
+    <div class="vaultId"><i id="madeRail"></i><span id="madeCount">FORGE</span></div>
+  </div>
+  <div class="grid" id="madeGrid"></div>
+  <div class="edRow">
+    <input class="edIn" id="impCode" placeholder="PASTE A CUBE CODE" autocomplete="off" spellcheck="false">
+    <button class="pill" id="btnImport">[ LOAD ]</button>
+  </div>
+  <div class="edMsg" id="madeMsg"></div>
+  <div class="btn2">
+    <button class="btn" id="btnNewCube">[ NEW CUBE ]</button>
+    <button class="btn ghost" id="btnMadeBack">[ BACK ]</button>
+  </div>
+</div>
+
+<!-- ============ THE FORGE — the editor ============
+     A CUBE IS EDITED ONE DECK AT A TIME. Direct manipulation of a projected
+     solid is a lovely demo and a miserable tool: the thing you want to click
+     is behind the thing you can see, and on a phone your thumb covers both.
+     A deck is an n-by-n grid you can hit accurately, and the deck stepper is
+     the only spatial reasoning the editor asks for. -->
+<div class="layer hide" id="scEdit">
+  <div class="edBar">
+    <button class="pill" id="edDown" aria-label="Lower deck">[ &lt; ]</button>
+    <div class="vaultId"><span id="edLayerTxt">DECK 1 / 5</span></div>
+    <button class="pill" id="edUp" aria-label="Higher deck">[ &gt; ]</button>
+  </div>
+  <div class="edSlice" id="edSlice"></div>
+  <div class="edTools" id="edTools"></div>
+  <div class="edRow">
+    <input class="edIn" id="edName" placeholder="NAME THIS CUBE" maxlength="18" autocomplete="off" spellcheck="false">
+    <button class="pill" id="edSize">[ 5 ]</button>
+  </div>
+  <div class="edMsg" id="edMsg"></div>
+  <div class="btn2">
+    <button class="btn" id="edCheck">[ VERIFY ]</button>
+    <button class="btn primary" id="edSave">[ SAVE ]</button>
+  </div>
+  <div class="btn2">
+    <button class="btn" id="edPlay">[ PLAY ]</button>
+    <button class="btn ghost" id="edBack">[ BACK ]</button>
+  </div>
 </div>
 
 <!-- ============ MANUAL ============
@@ -2647,7 +2741,10 @@ var store = {best:{}, tbest:{}, vbest:{}, reached:1, sound:1, haptic:1, depth:0,
              taught:0, sawPlate:0,
              sawPeek:0, peekHinted:0, togo:1, fx: reduceMotion ? 0 : 1,
              buzz:100, daily:{day:-1, best:0, solved:0},
-             dhist:{}, dstreak:{cur:0, best:0, last:-1}, dpost:{w:-1, m:-1, s:-1}};
+             dhist:{}, dstreak:{cur:0, best:0, last:-1}, dpost:{w:-1, m:-1, s:-1},
+             /* authored and imported cubes, keyed by their own identity, so
+                storing the same cube twice is impossible by construction */
+             made:{}, draft:null};
 try{ var raw = localStorage.getItem('turnkey-v2'); if(raw) store = Object.assign(store, JSON.parse(raw)); }catch(e){}
 var saveT = 0;
 function save(){
@@ -2826,6 +2923,222 @@ function recordDaily(folds){
   postPeriods(today);
   pruneDaily(today);
   save();
+}
+
+/* ============================================================
+   IDENTITY — what makes two cubes the same cube.
+
+   A CUBE ROTATED IS THE SAME CUBE. The game is played in twenty-four
+   orientations and `viewOf` is an exact integer round trip, so a level's
+   identity is the smallest of the twenty-four ways it can be written down.
+   Rebuilding VAULT III / 34 lying on its side is still rebuilding VAULT III
+   / 34, and a plain byte compare would not notice.
+
+   Keys stay married to their doors through the transform. Sorting the two
+   lists apart would let a cube with its pairings swapped — a completely
+   different puzzle — hash as a duplicate.                                 */
+function levelForm(lv, m){
+  var n = lv.n, vox = new Array(n*n*n), x, y, z, v, i;
+  for(y = 0; y < n; y++) for(z = 0; z < n; z++) for(x = 0; x < n; x++){
+    v = viewOf(n, m, [x,y,z]);
+    vox[vidx(n, v[0], v[1], v[2])] = lv.vox[vidx(n,x,y,z)];
+  }
+  var pt = function(w){ var q = viewOf(n, m, w); return q[0] + ',' + q[1] + ',' + q[2]; };
+  var pairs = [];
+  for(i = 0; i < lv.keys.length; i++){
+    pairs.push(pt(lv.keys[i]) + '>' + (lv.doors[i] ? pt(lv.doors[i]) : '-'));
+  }
+  pairs.sort();
+  return n + '|' + vox.join('') + '|' + pt(lv.start) + '|' + pt(lv.goal) + '|' + pairs.join(';');
+}
+function canonForm(lv){
+  var best = null, i, f;
+  for(i = 0; i < ORIS.length; i++){ f = levelForm(lv, ORIS[i]); if(best === null || f < best) best = f; }
+  return best;
+}
+
+var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+/* forty-eight bits, eight characters, and no padding to strip. Across the
+   whole ranked catalogue the odds of two different cubes colliding are about
+   one in a hundred and thirty million — a false accusation of plagiarism is
+   the one failure this must not have. */
+function canonId(lv){
+  var s = canonForm(lv), a = 0x811c9dc5, b = 0x9e3779b9, i, c;
+  for(i = 0; i < s.length; i++){
+    c = s.charCodeAt(i);
+    a = Math.imul(a ^ c, 16777619) >>> 0;
+    b = Math.imul(b ^ c, 2246822507) >>> 0; b = (b ^ (b >>> 13)) >>> 0;
+  }
+  a = (a ^ (a >>> 16)) >>> 0; b = (b ^ (b >>> 15)) >>> 0;
+  var v = [(b >>> 8) & 255, b & 255, (a >>> 24) & 255, (a >>> 16) & 255, (a >>> 8) & 255, a & 255], out = '', t;
+  for(i = 0; i < 6; i += 3){
+    t = (v[i] << 16) | (v[i+1] << 8) | v[i+2];
+    out += B64[(t >>> 18) & 63] + B64[(t >>> 12) & 63] + B64[(t >>> 6) & 63] + B64[t & 63];
+  }
+  return out;
+}
+
+/* THE CATALOGUE, BAKED. Minting a cube costs a quarter of a second, so
+   asking "does this already exist" against the ranked game would be nine
+   minutes of work on a desktop and the better part of an hour on a phone.
+   The identities are computed once at build time by tools/sgbake.js and
+   pasted in as one string of eight-character ids — every cube in the ranked
+   region, in level order, so a hit can name the level it collided with.
+
+   This is the ONLY thing a device can check without a server, and it is
+   worth being exact about what it therefore covers: the ranked catalogue,
+   the ten authored cubes, and this player's own creations. It cannot know
+   what somebody else built on their own phone. Cross-player uniqueness is
+   not a harder version of this problem, it is a different one, and it needs
+   a backend to answer.                                                    */
+var MINTED_IDS = 'DXotfZaXxLPgZQpslKnlFiHVxKBDhJiWwIGRExADEOCQ526e-rCPxlohAwZ9EiT5EMnzdJV_sdNz9vhSbrmN8qb8juS8SicZX4EL-yuFlYZMf7LrnvtffdG0EvNFVRDe-8XSMeK9K0qqXTexbXJ6AF12ekDErnwFWvgBVWTornG16Gg7A7dkuMP1hyq-4aEEmj_L66uKIFL22GPXsVFiAHWqnTGIayPw4_esyQRqPHBerKx4D1eez7QI2sXIQAH4TAGUFjOZ1fhis8s_ZxsV01oCcXQ6e1QLh0feIoeeNvPUk9EtRo0EawJx2V5bGoV7-0Y1i5rcRZWaCE5N8PGD-7vFbtTfh7nG4pnjZKzRuLVQ9NaJcLC4ghhu56bZRLI6cb9SjBxw_TWlNIDEv66UDGKjznP_9epwCSrjxRH0Zf_visbQo5qTMPuex0PuYSa9RuV-wnBRiEUHeMyRN-9FEkgLKaOAkFZEb_BI1pK51qH516SysOq75690tHNNudOHzcaTD30teESpYzqDV_Bc5FkYoGZwMpv3uaxTQ4od0P2Kd876w7QOtCz9gkV3L-ADZszzHakjsfUM_8_-DYfIOWeTYufEmVJ9Ks884inFFfUtwZ09WeT_6f3DL6QBo5Fe1x1sF4TzehcB5_2fnjB8CCH-T5JBXUHAmgKlsmihGuBilxW_PrWRwCXcDjrEkJW91N1LwxOO60OX_xxuDyLHjkYchfzcCmd5tL2Fc623Tn59ilAPGnLx2m6P1pWailUQagLED0SyJnXzoy2BOuvmYYK2YCCVZ9KCYj9XjnC5b4whaRvntEi4v7McbuqGi2114k81BZe6P9FHiJTyDZ_4gwSxu7K7CQKqFtFB59_sNdJZBwV83xABnunE5FUxWwNlHBN-qsooNFTNanHre6mchSbx5Enw4ZHyZn5nGL9_94E1lKAvAG3UxwwpVBUjH4XKRErbbBLcFACJrYueJcYX5QVK0qhuNMFp4oeuAdMMoZCMe8BY4uEeF2VXN-Kk-bxhgTnfYQAh44CjonnNj960IOyInHn30pWTwTbL0sssBDOEaxZE395KvhtvggoZIVKvKnSIFWty_NsDd5iMs67AJnU0_nnI4hEt499OV8cChSZQox00R7X5p1OoRLQJYg12HtKINo_u092_2TAhAzE5J8ErldT4O4-_eIS1vNiOv1FGkDDeOGyhQc1iY_i8GFhD3nH4Nf3pBspoMo7Pn4nEQz_htfR8PLHgDUMZ4dOETeuwP1bHUKPC_Y2dFIX9D871571ECbtOb4ocsLGXbPFtuW--OsnZSl64rMb6qqPBDvLhhVi2DYcwpLIILNoAvvwBDjESQqSPNAQaxuYU-gxHgC4k2aFytwzcNcDN0YUNqxV-yJXcx-Luc7FjXKbT_iwwJHoVDIjTmcDRXIZr_lsL_Fzxgur4-tPpJ_TEnXTKW739Ub0ta2MTZ38_SOGZtuIXc8E4xTn0Ncu3vS-c3a7spDPASD0m-unyzV3cXb876-Vd-DgFpg3cHuRzvSVXgTkhU1ACNF9JzZHzyL5TQc4G9VcAUnQy2S-aMubXqJPbaFQo9uvFhi3oUrWoq5UqXozvCkEU-LXA161VbO8LuIgLsnBd777KGWXeFXU8mwndM0wxWcqDEP3lhH79EAlrR06Zx2aTiQmIuYARQAcmvVYAttHp10xgLhL1hl5cuH_AdLc1iGQlZPF_P_OWj095NSWD62_yhpZfeeFSrUqbunRwriyB_5ZOq5XKVAoV5BQMFc6ThqupplsyGtzVuKnUrIP5-BoIw190kKNseVBIHOvoLXkfHvJJb1q0cUB6FIM0hsOHgbWXiR_0Yw1i_myXHz47czrP-e59Km5NTEchX0hLjJbUIY36EUR4Ubhn40tWbhkAYSqxmFeqGBUJrNh6F-VeWqPz7k5kcisFvuWeAOL29BYQvf20lBnRLoDzdBvq-fH-6NbJko-L5xj2YIo32jAWMn1faF7LX0OOr5ds8qWtl9M4GHl855ZKn-RMJAMAI5kT9Xu4VZMAvmRkQphdx8v-7TMOcMYyfCP1aRM3M8FeLkY-t2qIoGSVDE7VfVkmaGu1i6f2WzngRmPrPFj4HU8t1KggQ2VZGtOlILsfsyCHG3b2GGjocS9xvYQAIszdextYaEoAaaj3MVyRNKSrYi7KUTECmSNAfF67trwN36fMr2lUY2GvHgdxQLAR31JopZUDTDpC4CjhU_T6XUF6q0-y6QPx6p0L2sJmPkB3sTowbdeKEN5fgXFyLiRDqKZxW4siG7spTPvWJUAgdQovXUnGo502kgFQlWsI1-_qAKcVHQ1f2bR9C1-f98abisOlkNmCxhBrwv07CyfmJOIxMMgcRzh2gqVrKhg2GgjEoV9-T22Q6fzApq6prFyHXaq7aVvKMT7uziMmy3FNoFz-_UMywaxXi9mkehaSM8WpGVj0fJKyPU0o1fUmwGorIV9xus-p2Sqi0pAmQATJPKEIu5iUDMnt9J1cCNlYACQZRq5FOqDIdcDGTEJEDBgBp6gfMPu7Az1sumIfoYTpjOpH3yteDlbfXHJ_xSEwPXIA8ODR-jZIplFlZsmDcfb4ErxHn3Y2b8osQeQI3FgKaxcH_gPKKBWbyxQsodGVy0mdW42-n5ABZ5DHHhZn2mUOIg2ktYep9XM3TrTjtDi4n4KL3PfppIB4RG0jDBN9KUsSucWGwdwZy6kJu3IXAv8JHRRg-OKEyBKAcNsAONxu9ufBGGcKQF0insTiQ283CWkPkoxY4NC9N1A8bYJjtSvyUiTZLDA1Rt1OYnhnbmYycGwgsJ_3FeQi51Wz8h2mbe-eRE4DPlgHCACn6-cg5wL-IjQ2GtYJg2tQ6drCQWw4QVR4NY3T2CSCU3BIIJeG0TYjzX562VJm4txtzeDRU1wIzS9evy4YKvavWzQ1puEtqUc9FETYycjQt9ls5CLmBKyaNpSXuF3uyCTs5dyW7ALsSxqeUkMZyqWuoOA6lWKJ0qaRR7FvQITkMzI6K45OYyeW4amOgWMqhoOPm9opKRUur8PK4lsUp5UlEEUtgIDWrk0wWBNwR1nuiL9u7hIoXKGvzmi18d7aALlfu929iJXpC1qmhJxwofXiPO-l4jP6tcW3jSjpEivnES2VeA30AedauZ2H7ga6e1LgiT4ZI-eMUFbnRFVVa3IWECUbZ7Kt791x4f-vOfItSwFepqA4K6xEndj9AZtpk9DcftCugElEGFzw1sawBY5yh9--6PW-nQU4D2VLK-eHcQ2ln1gC2B4flKrdiNr2ucOe3IERDCsuv9GSk1UWFHvPvMQXW5oGssY8rZ8P1tpS1hZLLvD62BoQgQhKw4AnupCXVXsRQznoIUesYJY-HBz_xnCeV-HeN-rnlS1Xt2-GfrTpHcij9tpn-T8vcJ3-_BcrYgldTJJ_Hv-3RH3TCDo97nvfEoFXWbJwu9GQYufuUS4pDI_SjoXKJbUkOsHSz2rArPXQ7d9TUe-hPCvaRmK609j7lpQzfBWqauYLnfqxE3bUIdoAlU35hIQaZ-OUz0l2I15JROWMB_ZksGL3iJBlRBIq15RctIVtfQ6BOHACH7hBYAi6OaXxiJmfZAjY7bUR4y4IMNFN172MCv_rVdhLVHj2e-Ig5pqTSI5jZHF7-pP58JGwFpbdKpdJfaamyPNLa4VSrJp7VjrVOB3IrJeHNRjfWdVRHtqtK2yDPCjesg-tHlkA8HP0_m42QBzVy39GA4F4WjNeAX0aOYSc4xO3TpXrQyHO5oPD6NL381DMKh6mvceIJ0mapbXa4OFjwIIF6WwjM2gYrY47Yb_mMMy48vvFtAJgx3SrictDgGmt91lYKX1qu4-QrEAUs6t-77Fncrg97iVXSNoH-nVgSgZtotOox_t0XlaDJoQITXudMmhh6_x5aANGMep77hGdxdcc2UrwPDtEnOhdJkP8vGTgF8LJyJmIrCiF7wKqTsg91kLj0ByhFjithaVVSHaLKyBtlF-kad1THXoHDp8UvA1YZXkx0noW2DYqYH4RKBCzG116cTtdA2d_rNmce021ykAvrJeIisQHFlog6XqInUt2YXk_-QuRvGw2xrztkPiK0lhkMKJo-JyUS89JNGFqmg7z58fRdOf4MtHXTtJRdD2X8AO4L0BgjzXlvMYwqljK1osvmxkENmBzUktqbIF_wteq-uV8dGi39t6TXEC06Im0ma9TlxZEEvUEwiK2joEFdKICrNKA0mfH3_GD53FDkAWYfh0oKmdcBy2GKIwLBMy9eJm857F9vjrsEt6mj-It6YhzM3dstdmHw1sG1GsyfOhkUv6LFOEvOlKg4uN6MmG2jBOIjC4G_CRJC_yYjiTqw04mdz9Jisawf4_7h8X3TDNzUz1uhKJEYtE7NCE_mJPn984a2ks2li-fPMC13LxSPkj6G93oi5vVf3v_JXzahz8yx1_NF7YbbP4-cn5CQo3T3mf1KTQ0dGsLiG6FdpPNU1AZGXihi7NRNZT6kQk5Y6l1UmdhTwUt0qqkglyZTvtRSxWt1MCBLWv63ZeY_XlMC6f3rptg1eYxx-_53uXHAY-LuVk2BetMHkPjU0HUQ_wFknLSq_MspzBIRYeszmYXil7T1Zes-dRmsWMnGWfBGGf7NGlvCmWQ-VLfi7pvCc1KqKAuqRrhlaa_CbnQb7jsX12gn8_oKvksKv-8DpT9SaMKt2lr-lIRqHPvKNM2HAPJEy7hIfjKwhhORSscVV3BBVcqd9DeJ0HjLTC4uyxvL3SZF_jZG1sUpNpnd-yNiUPVEKostAvhXCMHkXnDlHf-Abgbxk033GVeN9dMTImsdncvzXB6OXULkPA-uI1N5AobJsYf7qVmDt2e2udYcQgEm1QcUYHN-EeEvCBgilLzNQXiLNvoNMxYMf-siUd16BLOANVd6nEzz9SlCx32ODGaZN6ieR-ZKuFpT6KtLwcUh6Xir6obuLK4cYMA_TIZKM1S8pfmb2Ijnno5eDfr9p6p2PjmNZfJKyuHyl-mzBIaXcPhulGiRnANOUcMFmneKt6Q_BiDJq5M0IIR1CYS-9jrlni1UQgsJnBwK7kUISZvmINt4JXtWeNYMhgtGyst_BD7kI9F340Mdvkh2Ywzd2EJRNDmtnZAcksYbr5cvthFag8StqCARuRRN5v99RgLqZU0yil7kdUmMumxyNMec7-IB4qvwmjHRtyG2ittX_WFxFoRAxzCLUw5PZPqloQPxCSvBipfOORVq0W4mkIxKIYLMDV6X21j2yK1Y4l4RedIvpqV_tGXWTqX_YZf2teX2yjnmIViBlaq-86ER_V-Jjkm535uacLBUL_uBnM_aLFbHMfxfE6EVJ0RsP1Mcf3ZWC4VXeARDqbkhSGTMkj8y0lglsi1K0P9ErIstcS6zqv_E_afeP4R5F-AzMzGyORRL5AKwxyNRfd14Dd32bW5uejlziRpEYH0HM_Vw6Wt7539LkMUywA-dyDotlziqg-cFbucHiptZSpkQiSkIKIRK2cwIUy7jbVJz9Xc0PUHDwleSEWzXeyi8Ne-v349ge5ZV8fPjB7lGEyWQaHcRfBm0UdEYihNa_GvAJ38LjWRbUmaIKzP4EGXIuVq-MhL8DL5doO2rK5fXalWpxyQcygAzPtApxqkdgb2Y-1rMEd4QaG_bIAaZf9dUnpPAofrDbY3PlK-Mvq5bLwi03qB2-SQ1qe6y4e0rotA1h25Q8Ctw_t7zAQh0alRtPGdTZcw0RJUxj6JtsW99xKEf07YqSMqAivZkmy6Qh4BbNCLM7jhsLrerfYgintq14Q5zKq6BfkpfgD91A2sFi3ADSwOt1c-svH3f7VP_7cBKiGNA49H4AlgbMeQJq75j2RvmyfDUzIw5i1aOMWLf02-oSW9KAVxy5cRkPlVisuPrPtADkPupapQep44K9btdLusSl7zlwo95SqBaeKDMvVY64GJ5SoHusgAn_HIqOCMMtUvurkob_i8sCWoKzdsmmSkoHr0H31tCvh8epTbCoo3C2LTXD3XYOXxAhZDhzDyxlW3haW-eIhEqlFk7cIxSpG2AAjU2aXbWyw3Clc5MjJnWFXLZIrxQAFUowBQfPAOXBnwhOz04Z4pfJXk9BwXc9bwLAH9hsxvZLU1eKmPSsyIfr-zn23hhl0TaRgxYJc-4AmoxSjIVjzeeIwPt3sEEoP3_bE6upc2vcgJ-HxHDnFD_R85ig8EJAQ_xXkK5dp65cx9gjroVkFZOYL47l_uJFwyJCDq_vlT7ZWPpZSg7zwOvlYYYYRNmTHmXMJ4OxzUjMVnbQs-LonhSItrrW26jtp47zZO3jxFpTDU7US4L6-WFHhKgnRWEtT26WHDapNnu-X7_7PNyJ8e-Mrq8WMdoKcAKsAXr0M49ACowI3pAZEUWU2aYtePqnbqOE5jTHRMNoXQpu5rE0CFOx3BxWsLoJqPSGEJkTVGvPGSZPqs9hOQUwyxcZMgbQLrz4Eog5Bj8RUPQU6_dh-dj7UNSq2g7NCMq4hVviV2Rkwic6UiOYDkdw1Sw91MDDS4nIlSbXvVze-C9FcyDiymXHT_9VVVGmLfENvfJkeJmBLfJBijZFtQcZvTb_CoCNiVrSSZ_KniPshq1Qm8Bm4fmJUGOROoJlITBJo6VUKK9dLpGSOJHTkVWxv6FNxsAUHpkT6IUBeSeNmAPmHVrh2pq8ECU29vNrIsmcS_7ZX9IxFhoHivGOqbUAOHjZjsgavC7IGt3C5tNuwc6n6lULdikml_KM8wi8qHrB_htNG2yl7gmj3iLdvb3NOIOCTIEfUL85kyEqawvBfJpevMxG7SVbbElwxYN6JnAa24orvkWe2V4F8M8Yb_nl7cnDieeR8GWEanFDZuEO_b2ste9CayfEv8wYH813P0YmDqHHVRklGlY-krPQTo36MkD6r7EkmDoxCKNkur1sPJbSMMRUcTp9YjyX6qACv1EXlFF2fQEBHSeACw4a1Q2tlQGwzLecaftW71e619iwNosS-nGj8BQDXV7Z7CyXDtECSPuHuCDSIvc6FT-TPViYZs-PcpwtW-tFcuhw1ZcCRuHy9F4k4mphxq79iOJspLpT7JJ9hHndLAKsR9fv0aWbAZPlTPncNtHAWvb1ogw20Db0-OEjYr22QKY1DClf3YDz90wK3JJbYY_A2icBBdiaeMozAe6lc5-YW1qFzexYnMQY4t41VuVI7dXUrLxkJZPKnfARJniTC2Ge1-rG1KPvruU9TVbc9XMR046LajSF8OzbLnL048LCyWXG6l-OGCMfAHlO41VYrufEABhQcinSrnSDDg7vSUgyAwD6DZbGgX0_e0akcSDeikzxgiWBO6J08PzI-1EObuhQxIrGIDwyswf-TMMLAQgN0jTJvrldUrDoICFU4ybt_mtoDqsdTVBb-NX9lAAXMxH8cuNDGkRDdkUW0208xCYbhm43B-huWmDaTiMVD-7WmYJevpA52OxOV0e19I8tvqYIJRgzv78R0XiQnKiOvbkH67oa9jgVJY_Jrk3KeNHksC2GCHy7AIR0WWCDdzbCnK6aM_HjZ0CIzNY8kRMOCs-SNIkglOjmstOaimBxDKH7cOVdxcwHjcG6BRJ0ldDZVJEYBVURshW41JkvLjd5G2j8L4T5iraWFRHErBHC0Pkyjw_dB63JpisW0tGCTw3dtU_Astl7fqqS31M_A87SQbxEXFMZlXPsr1YblTOEvR93S5OK2ql33_qkNIfuJJHwAThy-eQ1ZowNGPTm9uau-ksFob5XD9z-cS9uAKa9XASu--Y2BY0bz79snXUanbe9zYVxT00_FFFhoQXqn99d_sCg0sCAazRyeL9xi7iyb1ki-bDZhvlNB4cLqwRt0nO4HvswZo1bybcFQ-dLMtzrxLsv7nbb_kTFfXo7Zekt93aI7RU6jFyHecrAt4KjQ4xF3Xm3j649pAiEGmBXckbtKVABL-LjV4ap4UW9fnx_ZlDPzgNdrHO1eDLhFz7e7NRrcphDuVrPtqMNYhvRp9iEyUMFSbgDZ8A16Pvm4sDtLURZt3Cc0MSqihKKLh7xIkUVUzu04HL2ct8aU1RIR_ULkKFe8vbtsYQzP6PfaLMqeISfQKuSJ0yNzJfrLIRUbGlp5vxhbXlii6jRGXX9V-VWPCTq0_MDZbs4NBVVZRQCY8JTweUgok-ldsXfvoRWmQLSC2_0GTC91OWumYOt6AE2DczXO-x_8xPJ-UznMLYukrRx11WE_yUPDm3e4sOvl0qXMLqu-lBZ1zdlM_VEPDXRS9pDJWQ72YewyoxqhowpJ1swIUxrkDE2sVBJgC_AuZNEQFCfyiI535AWSR0LOgt_XmYVjiURNwBvze_ceNk4ktpG-rHdimgSPd3ICNP-yGNeLXB-M-PW7h3VP21S9HsXhGD9GlbgzGcFbbEum6CvCIBH_1mfy1zHo61Z8LF0ybL9tYZBwd9MmuTvmxs1NpVSUb5R2EpN1vvj3Cv7ebyNzrLq6CGc3fRgZkafSoymmIJOb8-vKirxVRoPVgMmSrt8lLApnwTPdTn47zKM2G34_VHRwLykw0IP8gbtzYIrxPt6ykTUyQ_G3PI4tLrNkiQpJvORoqR9nmKPut11kb3Dx8RA8kMKoLQpIxZjo64svSUeH-xW75Od10TcopRGG0IAygeHTYisnnbAyx5VLCnpuPsvM-olOocXZWo7QM_dMV5CyFLur0-ZdQ-Ku15at_KwS1WWqW2ai5IfwKNxU82aVCyrmSPNCZN2yfeyDqMWYm6R6l-Pu1PG61Owt6I2FcufpQeIi732gw-vDZrzeSFaKdIDWofLYcnQVqWuWfXyDRKNRwphc4aWliAqIm8F3sqfDjtqTsTPKIuDx75IdMJRVh6uGoeFw2ucY78ni7mtpk1-mkFE7QS3CUhPRTXy0DOqvLn6siTEUkW-YIO8bVKaGD0AHq2UVmMPzigywN56gHtP23LSQsvhWX2mVSx65bWOycg3nF2seYC0jfgjdNEQU9XKkVcYktKgDCCnDPddlW4K7kJulOxlIiwQ3QA1_Z-V9tT7XeJaklrJ67jnlSEWre_EsbeUSwODnwTxXmVv2kYhwuPsHZlt04V6ZZcicQ-rzu-lK5UVa1_TFb2JShAq29ts2RncR6x7ak5CEzXwKvUIVwtY6fTH_gmgwxJgNkW6oJBgA5ri9coOR2tzAW0d6dl5O5bJS4_HaoZti9qsvAB6fcspL-WONH3Ihyd-G4AmA6w2ngpBKHkXvdscSBNjCkzo5Ic_N-swxU7jBn75RqcqLqcnk9KnF51gmIKNFmY14aBLmukfmlsXtYznuTAQnlj4FUnc-nZE--vZZBg0BbXtVwVgvjQW0jxqJF32_hz1l_jogkLlatjbUG68Mbyi_4lG_a83-bPBMM7MyTA_BxROw84SlXe5OgdyGBvWHT-rL1Py5FgD_6hEbP4XPtmMnXDs57o29fucbsLnKW87LK1nk__sVdlzZ6OYnmLMM9uWeL3DDOKzjy3WVPsKtOgDne_gebTZLp2gnmnIERSTAAup1PQHO0g0MgQbQcxNHB80TNqib3qbINHHL2AGECWPo0atR5CUAF0i6Ss9rmjUy0LftYzkCxqtxI3jYHYIm-KPaY-vm8p0zM_CkJTShrVkDa2UiKa823HzdYcM4Cdtm5L09Rf5qDZIQFhAnm5cEDeinBiWyL7atpYr8RUO-_gX3N3RxOMs93s_IO7auBd1ZR_hXFRLSBr3NBp0LHt23YyCqRn2-jDfBmTHfIefAjxyahUfBNe5eOzWhHeGUgoxX5UlXvlKMjZA5EHmdo0eU4x774wdSc3OiV0Z0KwqW0QBYecS7DtV0iJ4V7k8VfYthzYxeGy6_XsCdscx2Dz-u9H0RmflZW0uCuEzdww8Dian4QXXO2XU4gMdRansSv-0-B1iJogpruifznMfSfWuk05vFrihKFQNIyaFoscTRDCXGWL7MHUjtV99FArrlMc_v_fpMqvtd3VZmelJRFMgSZ-oDwTpGpBTj6hPwMznEOYoFXHNIfEdi6Pp8_nIUeX2lQM8iLwof-rNoAi88pF8647193H7u_SeSPgsmOyuCLL7VI6h-zoUZ2alDNp1v9nrg4hjzrK5MGs6BVn6qvq_78uH-FDnuoa-mgKRJiqtTBhBKvnswD4h50f621kUDaMyOXtu24dsPe7CPd8Jy97w_p50VA79vMd5OxuOlAfLqhmRhixImWnSTnwuXjozBugQRtrHPT9-9f-JZlk_J4sjHQ0Ws2mdSEgHTopOz5oE7TjAZMIhBdPOnmPLrBFuH0MYkzwKwPKyhqEcDQSJbazXBC9WcZX0cnmfzUi4cP-wNSfGwx9ZGHFyrO9DeR4JFD6BSp2CUUM8gAkP0RArw1mlN2VKq0XWUtVrwcAEnHDrSAPq4sWnU_5vuijRsXG0IPKuVPtLD8KvzDSoApFiQB16cZnVk77dPuCyX-klyJ_GXiT2dc7qEN1534Cvci9NOMtWOYR3tzGPS6UD9oqA-J8Qap4sjshqDb3jJ3kBpI8KQeXtqI1EBbeYOQcPLPJgDuNuRPnsZpOfnvsb9XodFunM4auGqFd9OlfmGH6Fpig68ej3Hew9eJtg8-No3FX6H6IjLZqc19SOXUA2VKUngJZxec8k37f2c-sBwA5XidvP6iGgjcgsEtONMk-ln_tyQfdA-aFIjyaVAR5s0IVOnCWSgxIozK0mOG45S9Qcdp2uOnKYFKYsp3HYc-ooFyjbMos_UkNaQlQq6jIB6bXvq9EkFSJ3RJgqlpAvqtQHSyfGIq9vVg71iCO3tZA1zMhe0gKWko_f04sf-xLVQXvR7FxNEibkD2X6tRyxtESSGVGGQrKOlQxAvh_kB0sfekTi8E6WoDl7ye-blN3kkYKeDREHXmrk2wpLWc2a0e3yQIuF_wBGlB2vklNGaXRVZNcwdzp1ztsSDxuj11fKIivoQCKaTA9BZt4NjX3xy_es6zHTttg3DjSymwg8lYlsd48u23SIxT-9HHlczd9TNxiY7ql7w1Zfv-qST_82ZhnRAz8qjrOKHTyLvo0SPMtkfL0jN-cii4xRlq_sY4NZ16bpzLeJs9-V5C68FPEEkpA65r_y_ckJH8h5NE0sYviL7JqH_JEp3E5C5Uwvur0KWIKVYSkG8MfDhqaP1k2fIrSfwBvEmDDfpnqWWGXZ4kVcMpdcnM3xPiUE0HcZIkL9mI6zLvIINjKc4BjNXjhU1CDVMMHiXXl9joV2IBWVCUpvxqEsvBdB2SyXa5MFGf_uoNxTGwMVoWKNJgSD-sh7SSL6MCUL_Bs1Oh1FE2IkSXwbKw_uhioZGsh75M8lgzSb3UJEV9YtYj9onu0lTcsfCPfjF7K7CiJRfKV2PFixnWMr87aEKb0fSM0lPTOWiYlsJpak3BZHjVNCT4EXJobEBTeQ4Y51gAay5NgbhRRrWHCJidPbVlE21Y69c4Qdj1k6-WHvqZf7Uzw5OxkBum6KJga0Lbx7bJLBvft4v7UHHAI2b1ylbq9sX5X9TD_-HR5cov5qJ9QxPf49eELgWzhh1rBWU70ouI8p3rfG6PAgbi-W-ahkNBQs9ADrq1J_3oE1U7jmId5HjTH6yxJVBy7VLo_acMWtpu5KJPZ2DWkMgsrncUXhHjKfotR64PauL72GCeooDrbgrQx3ojenMg8ufBdDIJHaIl1F9JtOro4JEMt-GEXtMU6_oovz2YDI1TlCDyBxHdTZGIlQUfdkG0q2lOPjsCSeWS7Zfk2wYZ3bIWlU9hfqxDRGmoSkMAskJUC20Y79c6aRxcSpCSxnC75fc0haV3pwy1eEhndZtGzkJ4KtQGDMnsZgc2VR8BIGKdAuY_8Ent7dpR_BNfCckkx7dxw2sZ7pMj0wfGErrRoNu1dlQ5eVQYdzLMzQSFZG8EmPfdwNdBHrigFB45e7lFyGgZ7J00fsk4xHgnNEM_gbfvr6yAVEScWUDylzIMfuckXaToPPUaPL_km9U0SnaWRe4kPJGDSpxQYyAamGASlB-n0ZV2sJHlZC9ujlFv_Uex2XG2Vbqi3O0npOxSobruXQ0xhfFD4ZECcwsaN6r15j1ytlQHR0nIcql_EU3d-kvh8APDJ7ISDMrb8w4BPCOE2jj6hXJPpk_IUXusPYEF-MqdDUw30SKS1xYKgdRROIinPJJo66SglOk3v3SumjPRmsAsiJdYwUpj7pmmu911ve8t2FPMiDcp1DLV3ygoTGGtUNYZDQPtj0HfuoL7oB9Ls9qm5yahL1psDB5MN3q7H-kTZ9vOuymNp6Z8A6mIYRg2GCXR_upQ6_xyF2iZ022VXQcdGITbnWErGcttowRRVjkgQZm8rPfHka2g50wJsaf54fHSNKFB-6S6AoRE13NC8XmM5b4o7QrSl85sFvErwtHXRKgckTGT9UmHkoDpKPb-swxG3kmWQv10BLctuc8dmo9JHJWDNL8m-GNYlQCwzJ4zFX1n6ExFzem47jXJFvitp1_XaG2FnIQraw5-BSPEwJDQbk1i6DiBHEJvpct1YhJfd6uLCsOT7LrLDPmpTsxTHbAZNW8MBln0fnA3Zwax5mche7VA05k9InXs5A6ftXJtAvt8DY7VNI_dzFzoiFsK8slO77nLRmH6_LHpDJ7sM9ShEe0zu8PYRaqhh3Q0ibedTM-xYAWC5Oj5KVZUBxIci6Gx6vJMzNAGL2k47plfGE65pgU7Tm6G2cVOjCqrVFeMuTdI5WLHA1sqjh6M-KvJ7Pn9XNdhb9AxaVYlZRRKloo-oEjP74BqN-e7pteex5YqzVOPe3sFLxYPmOQ16B6HYuPAg7W5CHv79GiPP9bCYYFafJpEHcqVOKuzT8DvK7MaLKU0Lw5ssGA5Hh-NvSi8vrGCPg9K5ogkaqWTs01XGhfZHP7Ul9OJm8JsvYK9wAT5WtKLiSdoEIHz8CYgKzXdQGK4hL-zOr_2QENBWRpmgugM_ZIXpwPIFL4xJc50AbROsH8Rdm7S6k6uVvebCA8rPbR21-1aai0JS2NymVoNBkqKTiRNYpIwRrSy-epG-rhUE5XBCRGx6CA-wTH8YdrG7biBXlQHgn0xAHT7wQi6mPzT0_fqDIx3-8KFuoZuJH4iMjjvTem_smenQW1zLo2gBgAz3zzH2YPM8mbPy02rAfDef2ZB2Kk6afBMX7Gi2dUvzat9aHPdX9JudfbIOD40KK7DVoHs3LNFrc7JqG9AmUHKCSHnpLhJNBmRWGxxKp_pumnCYCJTW2qquyaIwvg06tSU6VPIGSn5IswszrcO6KcrzX0P8Vru6IxvbzsyAcv1vLVGMfIN6qajfhh8zta-uaqHGF64dHHOd9oMWuIpgnOZSBBerMUefJDNrdw020OCW_93HwprV2bRgzB5C6OpXyLL0LtwM7VEuzhGW1LN1_npk_tCK8wL8i9H4EfnuP72oN6azQLTRqMbeqDAQlo19Vib5IaY0YW-xiAXP78nRySyHb65AzDdQeDIewjtYrbwNsv2AJNsHPd5nPwpzR_vDtaI90nlwfLqT_t8H7t2sHm70kFrZZ550VMBeSnnN5WFQK6wSkpNZJ_3ZlaNy1dt9txi8-2RpOOtShI_rOskDGKHWDyFewgXmvm8jEHK96zp1l-tSOJri-R0G49JsiLAqUV8oisid_Vj_SI9mUjSE9jcbbhTrnIm6HNchbe14_YN_OGioAw_XVJ8rqFJkeF2xLunQcppKO5yPNGf8PgzHAvPgyiTxi2L7gjGFuq1zHWI-khqfSvq8w-DyLzpNFk1LpSQj0AP0ylZQ7TfrsDuw6YkUAsoWwbWVJGIheOafDGSfkjJ5tJhlAO7dwK32Y2OHi7HAKhzOYwb5wY2_9A7tUGW-YvgVDh_1TFuBVRB4B9u3f1IHT1nMSwwaxxz_CoTd8l0K-mkD_s-pVlJ99s6P0UDuivLdegi6qy9aYCwm3BouxPZ9RUGtGH4k3caV5plr-CF64V9SeV2Nrs3dg9sF5Ig3sMPCiWZWlLq-DK90AUE8o6dhEcx4O0Jqjd6LLFws9lHh8Bw2LAXGnwsZ1ACmc7qnp9Da-xcVqmjD_IxPXAjyJ14vT1yVhM_tZWGwnJPJoehrBQnTlft7BkOpws-IXdkCBlyWVr-x1P_UFcUnMnib9ome1SUiQLthGPZ09SygXHaW5lvVMaIPLDT9KApgopCQU7qEh62EJq6pmPdcI1ZYYoqP1YUXtiv0DAN6m6q8LnlZkoIhCvglXpMYExxsWsNRSQy2FpupKo46s9-hWuUaU__puuzgB4mWhcDYIncNCzSqCmjl3tu2ZpEzOJuwY8i8oCONVT8_yZfIjUC4DgZNck1ptKYTHLfZ5qXCG7j-HESLML4D_OYbLR6RS_HjsMfFNSD9bniUYXTH510eclIpWYQF68rDK6zbSfLy6KlSGRCvH-hODEo_ThpLBvnXjuqoLetVaMD7fI53iPg7pbmniOTRN_R4Mu5AkJ0fgmz2Dhl6jTJKtBwg9Zm46zJSJMxerZ4qRqMNYmZAgPKPAqRrl_K-tbGRETk3qq2-NOQnGRimYMtRrbOPjVG362L534UDQ9hC-8NF3dr1PxZjsZN_q4hySsh3eaVSmRhXkLctjIBxTDwFVn4DvXRZWRy9TT69wFgdg8Pd5oUyTIOtw5uG5YhDSUw329uiRspFUgAdByPElEik4FO_kAAAdi6llVQq64UNetZvQoFqGQeZwpL7tIuI9gjIeDjo_WmJV1Uu1j1GSFEtJWySEV__KDeuoG-L1MLUK-NicpqMtjcLgtvhMVPxoG3sVzSeWVrNuG2p4WQJI0ofcfPLdtsUYGmarWrzjOlO3GdCJ2LxyW1Fua_V9UPyy8DY-oD4LwvoH4UDqpJLGI-15hqeQtVHjyYh4mH7saubYXP8jf84mJo9gm_NLZ-nDJXOZtmU--OK_xZwo-OaPOj1XOy6qN_ldJp15SbQcytRB1KaJd3YQCFGj5WZlfTiXEAR3IEIG_4EZ-pXBMdqA3c16HvsM7KRHjKQrVNHd70anUKoaGXQr_Mu-jFxvscIDTZ4wyrAR7h0PxCvkAibrr3iRO8HqqgTc12pFxJcfqlXQzZ5eMxR10FGma9HwRSqMrpHp9HNOvIKFlRGyt9cY9ryTDm1oZsNrtGKTDgjU4Nb7mefdTJDMVY1tYw7ADDtYIQRhbtn4erchswV_Yi17IzzQhvYY5fUVMHRihoKskkzQV8BbfBDOEQIVZzDo1FOcONU3DKno4Qib7LGyqp1ZiJu5Kf0PfLkz-4r_wnPc8noYu-uogIrbR-jeCoJI5PgEniEln_8R9i0T0mYQVs0r5GsJVPug54qQpR9o8ziOkFp40q0Sqi0kHHMP6n-eS_SYKv_QEZwz4oDg1l9pswEXMgepyJedumwBFHIIMa2q6yxddN4IxAx4x4kc8zh6a9eC9uEg716Kr25d7arwQGMNLfkYz13fc7PG_WXluW8eTyCtwoyv3G8lPOD-48ru-vjRqk68DrIt0jTKVSz3887vbZgTfx89Rx-nQvLjXutlo0g0NbsYax-1uyeUsq824jbZI4w3qgJnAkiWSwBqnm5WpfxHGwD-rBxRScz2vQvhidHXOrXVGzpelUazo2YoRvh0AQICtGQNwBefUIzthRD8Ej-fkX35_KFBDbic4dKkBaWxPkYdORB_rCBqs_EzFD71YPHNu0m3CLDYuNWsRdWZLxehj82bPBhUwY3EHk-uIm2C1QQlcCZQjoa6TQEKQTTHnTCtVf4P_LX7eoLPmRxk5YNYv5pjHQ4K52k1AMtKxcP7huZE3fipsUMDFLXthzZcozeAGPIuxE6guHkFT37rhnXDtoJccVtUYWCm-1fxFL4AVooJWQPzZOicUE5x1eodKZltm-5i6ojXwZviXw3b_uYOA6lBXAG0jnTHUrC1husMfuCo1qRJMZYCkndfLSDT-73qXIehePk0TVZHbPE-LZzipl8tgsc_av1qtqp_QAMQgedWOuAxU7EyapOZGVL-LaRcAO7MLR0v9Ir5ewgeW_JZcAra1coLU7i6MPt9CEFA8b0fRrtiBsNd8DQIq3NipB3btenC-QCRgGEqgXjCTgRc-u_u0WeZvGyQrSUM6UXdNy8FWWXwNKdYrpb1gFi6ttuHxwoi6R3bKJg1oRtAecEAoMJF1QMZbsi9dpoe8Rz_jFZQV1L32HxV7LB8e-maOCdmUqYvtmPv5EyFrrLZZos22FzIEzyGbKbW70DEvmN8mfHNXPZpRrs7Qdf3hRRtQhDfs332PkUfOjAQqf3lOSzIC8b-dWiXzX1Rgi1YDUOEyM_foGMiWLzjrzG6DvnOq2jVUvcw50sXVr8xXFgTBGLppdzTeSF5qQZ0DC67f1xR4r_P7r9YxEr_s9sfNTCRkTrkijG2f0Od0pwcAAQn1NKgbd31fRoE866Nr1Hu9U6ILhZC3vq3lCZdCWVofLWMMggL3qnUQUbqq_a-rn8FE4c6gVlhwXTeznSSxtdg83KtK52ES2iCsoTQkH_g4pDbcXL7IFg6iWqVe6NM1Eo69hVqAb-b25PfexxCLrKMTibMkIBk0XfBsm8z6pmzPLrikHyESmaAus';
+var mintedSet = null, MINTED_W = 8;
+function mintedIndex(){
+  if(mintedSet) return mintedSet;
+  mintedSet = {};
+  for(var i = 0; i + MINTED_W <= MINTED_IDS.length; i += MINTED_W){
+    var id = MINTED_IDS.substr(i, MINTED_W);
+    if(mintedSet[id] === undefined) mintedSet[id] = (i / MINTED_W) + 1;   /* level number */
+  }
+  return mintedSet;
+}
+/* Returns null when the cube is new, or a description of what it already is. */
+function collisionOf(lv, skipKey){
+  var id = canonId(lv), i, c;
+  for(i = 0; i < BAKED.length; i++){
+    if(canonId(BAKED[i]) === id) return {kind:'baked', level:i+1, name:BAKED[i].name, id:id};
+  }
+  var lvl = mintedIndex()[id];
+  if(lvl !== undefined) return {kind:'minted', level:lvl, name:levelName(lvl), id:id};
+  for(c in store.made){
+    if(c !== skipKey && store.made[c].id === id) return {kind:'mine', name:store.made[c].name, id:id};
+  }
+  return null;
+}
+
+/* ============================================================
+   SHARE CODES — and why they are not seeds.
+
+   A generated cube has a seed because a seed is what made it: the level
+   number goes in, `mint` runs, the cube comes out. An AUTHORED cube was not
+   made by anything. There is no number that reproduces it, and no amount of
+   cleverness produces one, because the whole point of an editor is that the
+   player chose the voxels rather than a generator choosing them.
+
+   So the code carries the cube. Five voxel states pack three to a byte
+   (5^3 = 125 fits), points are two bytes each while n stays under nine, and
+   the whole thing is base64url with a checksum — about 180 characters for a
+   seven cube. That is long to type and irrelevant to paste, which is how a
+   code actually travels.
+
+   THE EIGHT-CHARACTER ID IS THE NAME, THE CODE IS THE CARGO. The id says
+   which cube this is and is short enough to say out loud; it cannot rebuild
+   one. Both are shown, and they are not interchangeable.                  */
+var VOXC = '.#+AB', SHARE_V = 1;
+function shareEncode(lv){
+  var n = lv.n, bytes = [SHARE_V, n], i, t, p;
+  for(i = 0; i < n*n*n; i += 3){
+    t = 0;
+    for(var j = 0; j < 3; j++){
+      var ch = (i + j < n*n*n) ? lv.vox.charAt(i + j) : '.';
+      var k = VOXC.indexOf(ch);
+      t = t*5 + (k < 0 ? 0 : k);
+    }
+    bytes.push(t);
+  }
+  var put = function(w){ var v = (w[1]*n + w[2])*n + w[0]; bytes.push((v >> 8) & 255, v & 255); };
+  put(lv.start); put(lv.goal);
+  bytes.push(lv.keys.length);
+  for(i = 0; i < lv.keys.length; i++){ put(lv.keys[i]); put(lv.doors[i]); }
+  var sum = 0;
+  for(i = 0; i < bytes.length; i++) sum = (sum*31 + bytes[i]) & 255;
+  bytes.push(sum);
+  var out = '';
+  for(i = 0; i < bytes.length; i += 3){
+    var b0 = bytes[i], b1 = bytes[i+1], b2 = bytes[i+2], have = bytes.length - i;
+    t = (b0 << 16) | ((b1 || 0) << 8) | (b2 || 0);
+    out += B64[(t >>> 18) & 63] + B64[(t >>> 12) & 63];
+    if(have > 1) out += B64[(t >>> 6) & 63];
+    if(have > 2) out += B64[t & 63];
+  }
+  return out;
+}
+function shareDecode(code){
+  var s = String(code || '').replace(/[^A-Za-z0-9_-]/g, ''), bytes = [], i, t, have;
+  if(s.length < 8) return null;
+  for(i = 0; i < s.length; i += 4){
+    have = Math.min(4, s.length - i);
+    t = 0;
+    for(var j = 0; j < 4; j++){
+      var k = j < have ? B64.indexOf(s.charAt(i + j)) : 0;
+      if(j < have && k < 0) return null;
+      t = (t << 6) | k;
+    }
+    bytes.push((t >>> 16) & 255);
+    if(have > 2) bytes.push((t >>> 8) & 255);
+    if(have > 3) bytes.push(t & 255);
+  }
+  var sum = 0, end = bytes.length - 1;
+  if(end < 2) return null;
+  for(i = 0; i < end; i++) sum = (sum*31 + bytes[i]) & 255;
+  if(sum !== bytes[end]) return null;                    /* a mistyped code */
+  if(bytes[0] !== SHARE_V) return null;
+  var n = bytes[1];
+  if(n < 3 || n > 8) return null;
+  var cells = n*n*n, need = 2 + Math.ceil(cells/3);
+  if(end < need + 5) return null;
+  var vox = '', at = 2;
+  for(i = 0; i < cells; i += 3){
+    t = bytes[at++];
+    if(t === undefined || t > 124) return null;
+    var d = [Math.floor(t/25) % 5, Math.floor(t/5) % 5, t % 5];
+    for(var q = 0; q < 3 && i + q < cells; q++) vox += VOXC.charAt(d[q]);
+  }
+  var get = function(){
+    var v = (bytes[at] << 8) | bytes[at+1]; at += 2;
+    if(v >= cells) return null;
+    return [v % n, Math.floor(v / (n*n)), Math.floor(v / n) % n];
+  };
+  var start = get(), goal = get();
+  if(!start || !goal) return null;
+  var kn = bytes[at++], keys = [], doors = [];
+  if(kn === undefined || kn > 8) return null;
+  for(i = 0; i < kn; i++){
+    var k = get(), d2 = get();
+    if(!k || !d2) return null;
+    keys.push(k); doors.push(d2);
+  }
+  return {n:n, vox:vox, start:start, goal:goal, keys:keys, doors:doors, par:0, name:'SHARED'};
+}
+
+/* ============================================================
+   THE RULES A CUBE HAS TO PASS.
+
+   Par is the solver's proven minimum, and every scored thing in this game
+   reads it, so a cube without one cannot be played — which makes the solver
+   the editor's real validator rather than a nicety bolted on at the end. A
+   level that cannot be finished is not a hard level, it is a broken one.
+
+   The geometry checks are the same three `mint` applies to its own
+   candidates, in the same order, so a hand-built cube is held to exactly the
+   standard a generated one is.                                            */
+function validateLevel(lv){
+  var n = lv.n;
+  if(!lv.start || !lv.goal) return {ok:false, why:'NEEDS A START AND AN EXIT'};
+  if(String(lv.start) === String(lv.goal)) return {ok:false, why:'START AND EXIT ARE THE SAME CELL'};
+  if(lv.keys.length !== lv.doors.length) return {ok:false, why:'EVERY NODE NEEDS A LOCK'};
+  if(!isWalkType(lv.vox.charAt(vidx(n, lv.start[0], lv.start[1], lv.start[2]))))
+    return {ok:false, why:'START IS NOT ON A TRACE'};
+  if(!isWalkType(lv.vox.charAt(vidx(n, lv.goal[0], lv.goal[1], lv.goal[2]))))
+    return {ok:false, why:'EXIT IS NOT ON A TRACE'};
+  clearEff(lv);
+  var s0 = project(n, effVox(lv, 0), ORI_ID);
+  if(!surfaceAt(n, s0, ORI_ID, lv.start)) return {ok:false, why:'START IS BURIED'};
+  if(doorIndexAt(lv, lv.start) >= 0 || doorIndexAt(lv, lv.goal) >= 0)
+    return {ok:false, why:'A LOCK SITS ON THE START OR THE EXIT'};
+  var r = solve(lv, 60);
+  if(!r.ok) return {ok:false, why:'NO SOLUTION EXISTS'};
+  return {ok:true, par:r.turns, steps:r.steps};
 }
 
 /* ============================================================
@@ -3437,13 +3750,19 @@ function liveZoom(){
    flagged once here and every one of those decisions reads the flag rather
    than trying to infer it from a magic number. */
 var DAILY = -1;
+/* A CUBE THE PLAYER BUILT IS THE SAME KIND OF EXCEPTION THE DAILY IS: it is
+   not a level in the progression, it does not advance `reached`, it has no
+   successor to prebuild, and it writes its score somewhere else. So it gets
+   the same treatment — one flag, read everywhere, never inferred. */
+var MADE = -2, made = false, madeKey = null;
 function loadLevel(level){
+  made  = (level === MADE);
   daily = (level === DAILY);
-  levelNo = daily ? DAILY_SPEC_LEVEL : Math.max(1, level|0);
-  var src = daily ? dailyData() : levelData(levelNo);
+  levelNo = (daily || made) ? DAILY_SPEC_LEVEL : Math.max(1, level|0);
+  var src = made ? store.made[madeKey] : daily ? dailyData() : levelData(levelNo);
   lv = {n:src.n, vox:src.vox.slice(), start:src.start, goal:src.goal,
         keys:src.keys, doors:src.doors, par:src.par,
-        name:daily ? ('DAILY ' + dayLabel()) : levelName(levelNo)};
+        name:made ? (src.name || 'UNTITLED') : daily ? ('DAILY ' + dayLabel()) : levelName(levelNo)};
   N = lv.n;
   /* the tinted blocks are keyed on depth, and depth is read against N — a
      cube of a different size means every one of them is the wrong colour */
@@ -3476,7 +3795,7 @@ function loadLevel(level){
   /* the cube is up and the clock starts with it — including the 380ms of
      intro wave, which every player and every device pays identically */
   clockReset();
-  if(!daily && levelNo > store.reached){ store.reached = levelNo; save(); }
+  if(!daily && !made && levelNo > store.reached){ store.reached = levelNo; save(); }
   /* THE ONE NUDGE. A gesture nobody can see is a gesture nobody has, and the
      peek is the answer to the exact frustration that starts around here — so
      it is offered once, on the third cube, and never mentioned again. */
@@ -3491,7 +3810,7 @@ function loadLevel(level){
     store.sawPlate = 1; save();
     setTimeout(function(){ if(!won && !walking && !anim) show('scPlate'); }, 260);
   }
-  if(!daily) prebuild(levelNo + 1);  /* cut the next one while this one is played */
+  if(!daily && !made) prebuild(levelNo + 1);  /* cut the next one while this one is played */
 }
 
 /* Jumping somewhere far from the cache costs a real mint, so say so rather
@@ -6952,6 +7271,17 @@ function finish(){
     else d0.best = Math.min(d0.best || 999, turns);
     d0.solved = 1;
     recordDaily(turns);                /* saves; also posts the boards */
+  } else if(made){
+    /* A CUBE THE PLAYER BUILT KEEPS ITS OWN TWO RECORDS AND TOUCHES NOTHING
+       ELSE — no progression, no vault total, no board. Its par is real (the
+       solver proved it) but its AUTHOR is not trustworthy, and every board
+       in this game is defended by the cube being one the service can check. */
+    var mr = store.made[madeKey];
+    if(mr){
+      if(mr.best  === undefined || turns  < mr.best)  mr.best  = turns;
+      if(mr.tbest === undefined || solved < mr.tbest) mr.tbest = solved;
+      save();
+    }
   } else {
     var best = store.best[levelNo];
     if(best === undefined || turns < best){ store.best[levelNo] = turns; save(); }
@@ -7024,7 +7354,8 @@ function finish(){
   setTimeout(function(){
     $('winTurns').textContent = turns;
     $('winPar').textContent = lv.par;
-    $('winBest').textContent = daily ? store.daily.best : store.best[levelNo];
+    $('winBest').textContent = made ? ((store.made[madeKey]||{}).best || turns)
+                             : daily ? store.daily.best : store.best[levelNo];
     var vd = $('winVerdict');
     vd.className = 'verdict ' + (turns <= lv.par ? 'par' : 'over');
     vd.textContent = turns < lv.par ? 'BELOW PAR' : turns === lv.par ? 'PERFECT COLLAPSE' : (turns - lv.par) + ' OVER PAR';
@@ -7035,7 +7366,7 @@ function finish(){
       : crossing ? 'VAULT ' + roman(vaultOf(levelNo+1)) + ' / ' + vaultName(vaultOf(levelNo+1)) : '';
     $('winVault').style.display = (daily || crossing) ? '' : 'none';
     /* there is no next cube after the daily — there is tomorrow */
-    $('btnNext').style.display = daily ? 'none' : '';
+    $('btnNext').style.display = (daily || made) ? 'none' : '';
     $('btnRetry').style.display = turns <= lv.par ? 'none' : '';
     if(crossing) sfx.vault();
     show('scWin');
@@ -7177,7 +7508,7 @@ function show(id){
      behind a card, and a thumb still down when a menu appears is no longer
      holding anything */
   dropHold(); peekOff(); drag = null;
-  ['scTitle','scCubes','scManual','scPause','scWin','scPlate'].forEach(function(s){
+  ['scTitle','scCubes','scManual','scPause','scWin','scPlate','scMade','scEdit'].forEach(function(s){
     $(s).classList.toggle('hide', s !== id);
   });
   $('hud').classList.toggle('on', !id);
@@ -7350,6 +7681,289 @@ function buildCubeGrid(){
 }
 function openCubes(){ viewBand = vaultOf(levelNo); buildCubeGrid(); show('scCubes'); }
 
+/* ============================================================
+   THE FORGE — the editor, and the shelf of what comes out of it.
+
+   A NAME IS THE ONLY FREE TEXT IN THIS GAME, so it is folded to the
+   character set the interface already speaks — capitals, digits, spaces and
+   a dash. That is a house-style decision and, usefully, it also means no
+   authored string can ever be markup: a cube called `<img onerror=...>`
+   imported from a stranger's share code is simply not representable.
+
+   CUSTOM CUBES ARE NOT RANKED, and that is not an oversight. Every board in
+   this game is defended by par being the solver's proven minimum on a cube
+   whose identity the service can check. A cube the player wrote themselves
+   has neither property — you could author a one-fold cube and post a perfect
+   score to a shared board in ten seconds. They keep their own bests locally
+   and touch nothing else.                                                  */
+var ED_TOOLS = [
+  {k:'.', n:'VOID'},    {k:'#', n:'LATTICE'}, {k:'+', n:'TRACE'},
+  {k:'A', n:'PLATE A'}, {k:'B', n:'PLATE B'},
+  {k:'S', n:'START'},   {k:'G', n:'EXIT'},    {k:'K', n:'NODE'},
+  {k:'D', n:'LOCK'},    {k:'C', n:'WIPE DECK'}
+];
+var EDCLS = {'.':'', '#':'g', '+':'t', 'A':'pa', 'B':'pb'};
+var ED_SIZES = [5,6,7];
+var ed = null;
+
+function edSame(a,b){ return !!a && !!b && a[0]===b[0] && a[1]===b[1] && a[2]===b[2]; }
+function edFind(list,w){ for(var i=0;i<list.length;i++) if(edSame(list[i],w)) return i; return -1; }
+function edCleanName(s){
+  return String(s||'').toUpperCase().replace(/[^A-Z0-9 \-]/g,'').replace(/\s+/g,' ').trim().slice(0,18);
+}
+function edNew(n){
+  n = n || 5;
+  ed = {n:n, vox:[], start:null, goal:null, keys:[], doors:[], layer:0, tool:'+', name:'', from:null};
+  for(var i = 0; i < n*n*n; i++) ed.vox.push('.');
+}
+/* start and goal are optional here and nowhere else. A SAVED cube always has
+   both — nothing without them passes validation — but a DRAFT is a cube in
+   the middle of being built, and the first thing a player does is place
+   voxels, not a start. Assuming they exist threw on restoring exactly the
+   half-finished cube the draft is for. */
+function edFrom(rec, key){
+  ed = {n:rec.n, vox:rec.vox.split(''),
+        start:rec.start ? rec.start.slice() : null,
+        goal:rec.goal ? rec.goal.slice() : null,
+        keys:rec.keys.map(function(a){return a.slice();}),
+        doors:rec.doors.map(function(a){return a.slice();}),
+        layer:0, tool:'+', name:rec.name || '', from:key || null};
+}
+/* Growing keeps everything and adds empty space; shrinking keeps what still
+   fits and drops what does not, marks included — silently keeping a start
+   that is now outside the cube would fail validation with no way to see why. */
+function edResize(n){
+  var v = [], i, x, y, z, m = Math.min(n, ed.n);
+  for(i = 0; i < n*n*n; i++) v.push('.');
+  for(y = 0; y < m; y++) for(z = 0; z < m; z++) for(x = 0; x < m; x++)
+    v[vidx(n,x,y,z)] = ed.vox[vidx(ed.n,x,y,z)];
+  var fits = function(w){ return !!w && w[0] < n && w[1] < n && w[2] < n; };
+  var k2 = [], d2 = [];
+  for(i = 0; i < ed.keys.length; i++)
+    if(fits(ed.keys[i]) && fits(ed.doors[i])){ k2.push(ed.keys[i]); d2.push(ed.doors[i]); }
+  ed.n = n; ed.vox = v; ed.keys = k2; ed.doors = d2;
+  if(!fits(ed.start)) ed.start = null;
+  if(!fits(ed.goal))  ed.goal  = null;
+  if(ed.layer >= n) ed.layer = n - 1;
+}
+function edMark(w){
+  if(edSame(ed.start,w)) return 's';
+  if(edSame(ed.goal,w))  return 'e';
+  if(edFind(ed.keys,w) >= 0)  return 'k';
+  if(edFind(ed.doors,w) >= 0) return 'd';
+  return '';
+}
+/* a mark can only sit on something you can stand on, so emptying a cell has
+   to take its role with it rather than leave a start floating in a void */
+function edUnmark(w){
+  if(edSame(ed.start,w)) ed.start = null;
+  if(edSame(ed.goal,w))  ed.goal  = null;
+  var i = edFind(ed.keys,w);  if(i >= 0){ ed.keys.splice(i,1); ed.doors.splice(i,1); }
+  var j = edFind(ed.doors,w); if(j >= 0){ ed.doors.splice(j,1); ed.keys.splice(j,1); }
+}
+function edApply(x,z){
+  var n = ed.n, y = ed.layer, w = [x,y,z], i = vidx(n,x,y,z), t = ed.tool;
+  if(t === 'S' || t === 'G'){
+    if(!isWalkType(ed.vox[i])) ed.vox[i] = '+';
+    if(t === 'S'){ if(edSame(ed.goal,w)) ed.goal = null; ed.start = w; }
+    else         { if(edSame(ed.start,w)) ed.start = null; ed.goal = w; }
+  } else if(t === 'K' || t === 'D'){
+    /* nodes and locks are added and removed in pairs, because a node with no
+       lock is decoration and a lock with no node is a wall */
+    var at = t === 'K' ? edFind(ed.keys,w) : edFind(ed.doors,w);
+    if(at >= 0){ ed.keys.splice(at,1); ed.doors.splice(at,1); }
+    else{
+      if(!isWalkType(ed.vox[i])) ed.vox[i] = '+';
+      if(t === 'K'){ ed.keys.push(w); ed.doors.push(null); }
+      else         { ed.doors.push(w); ed.keys.push(null); }
+      edPair();
+    }
+  } else {
+    ed.vox[i] = t;
+    if(!isWalkType(t)) edUnmark(w);
+  }
+  edDraw(); edStatus(''); edSaveDraft();
+}
+/* nodes and locks are collected in whatever order they were placed; pairing
+   them by position keeps the arrays aligned and the holes visible */
+function edPair(){
+  var k = [], d = [], i;
+  for(i = 0; i < ed.keys.length; i++) if(ed.keys[i]) k.push(ed.keys[i]);
+  for(i = 0; i < ed.doors.length; i++) if(ed.doors[i]) d.push(ed.doors[i]);
+  ed.keys = k; ed.doors = d;
+}
+function edClearDeck(){
+  var n = ed.n, x, z;
+  for(z = 0; z < n; z++) for(x = 0; x < n; x++){
+    ed.vox[vidx(n,x,ed.layer,z)] = '.';
+    edUnmark([x, ed.layer, z]);
+  }
+  edDraw(); edStatus(''); edSaveDraft();
+}
+function edStatus(msg, kind){
+  var e = $('edMsg');
+  e.textContent = msg || '';
+  e.className = 'edMsg' + (kind === 1 ? ' bad' : kind === 2 ? ' good' : '');
+}
+function madeStatus(msg, kind){
+  var e = $('madeMsg');
+  e.textContent = msg || '';
+  e.className = 'edMsg' + (kind === 1 ? ' bad' : kind === 2 ? ' good' : '');
+}
+function edLevel(){
+  ed.name = edCleanName($('edName').value);
+  edPair();
+  edSaveDraft();
+  return {n:ed.n, vox:ed.vox.join(''), start:ed.start, goal:ed.goal,
+          keys:ed.keys.map(function(a){return a.slice();}),
+          doors:ed.doors.map(function(a){return a.slice();}),
+          par:0, name:ed.name || 'UNTITLED'};
+}
+function colWhat(col){
+  if(col.kind === 'baked')  return 'IT IS ' + col.name + ', CUBE ' + col.level;
+  if(col.kind === 'minted') return 'IT IS CUBE ' + col.level + ' — ' + col.name;
+  return 'YOU ALREADY BUILT IT: ' + col.name;
+}
+/* THE ONE ANSWER THE EDITOR OWES YOU. Solvable, and new. Both are refusals
+   rather than warnings: an unsolvable cube has no par and nothing in this
+   game can score it, and a duplicate is a cube that already exists. */
+function edVerify(quiet){
+  var lv0 = edLevel(), v = validateLevel(lv0);
+  if(!v.ok){ if(!quiet) edStatus(v.why, 1); return null; }
+  lv0.par = v.par; lv0.steps = v.steps;
+  var col = collisionOf(lv0, ed.from);
+  if(col){ if(!quiet) edStatus('THIS CUBE ALREADY EXISTS — ' + colWhat(col), 1); return null; }
+  if(!quiet) edStatus('VERIFIED · PAR ' + v.par + ' · ' + v.steps + ' STEPS', 2);
+  return lv0;
+}
+function edRecord(lv0){
+  var id = canonId(lv0);
+  return {id:id, name:lv0.name, n:lv0.n, vox:lv0.vox, start:lv0.start, goal:lv0.goal,
+          keys:lv0.keys, doors:lv0.doors, par:lv0.par, made:dayIndex()};
+}
+function edSaveCube(){
+  var lv0 = edVerify();
+  if(!lv0) return;
+  var id = canonId(lv0);
+  /* editing a cube and saving it REPLACES it rather than forking it — the
+     old identity is gone the moment the geometry changed */
+  if(ed.from && ed.from !== id){
+    var old = store.made[ed.from];
+    if(old){
+      store.made[id] = edRecord(lv0);
+      /* the geometry changed, so the records do not carry over unless they
+         exist — an absent best must stay absent rather than become zero */
+      if(old.best  !== undefined) store.made[id].best  = old.best;
+      if(old.tbest !== undefined) store.made[id].tbest = old.tbest;
+    }
+    delete store.made[ed.from];
+  }
+  if(!store.made[id]) store.made[id] = edRecord(lv0);
+  else { store.made[id].name = lv0.name; store.made[id].par = lv0.par; }
+  ed.from = id;
+  save();
+  var code = shareEncode(lv0);
+  edStatus('SAVED · ' + id + '\n' + code, 2);
+  try{ if(navigator.clipboard) navigator.clipboard.writeText(code); }catch(e){}
+}
+function edPlay(){
+  var lv0 = edVerify();
+  if(!lv0) return;
+  madeKey = canonId(lv0);
+  if(!store.made[madeKey]) store.made[madeKey] = edRecord(lv0);
+  save();
+  loadLevel(MADE); show(null);
+}
+function edDraw(){
+  var g = $('edSlice'), n = ed.n, x, z;
+  g.style.gridTemplateColumns = 'repeat(' + n + ',1fr)';
+  g.innerHTML = '';
+  for(z = 0; z < n; z++) for(x = 0; x < n; x++){
+    var w = [x, ed.layer, z], m = edMark(w);
+    var el = document.createElement('button');
+    el.className = 'edCell ' + (EDCLS[ed.vox[vidx(n,x,ed.layer,z)]] || '');
+    if(m){ var dot = document.createElement('b'); dot.className = m; el.appendChild(dot); }
+    (function(X,Z){ el.onclick = function(){ edApply(X,Z); }; })(x,z);
+    g.appendChild(el);
+  }
+  $('edLayerTxt').textContent = 'DECK ' + (ed.layer+1) + ' / ' + n;
+  $('edSize').textContent = '[ ' + n + ' ]';
+  var t = $('edTools');
+  t.innerHTML = '';
+  ED_TOOLS.forEach(function(tool){
+    var el = document.createElement('button');
+    el.className = 'edTool' + (ed.tool === tool.k ? ' on' : '');
+    el.textContent = tool.n;
+    el.onclick = function(){
+      if(tool.k === 'C'){ edClearDeck(); return; }
+      ed.tool = tool.k; edDraw();
+    };
+    t.appendChild(el);
+  });
+}
+/* AN UNSAVED CUBE SURVIVES THE APP BEING KILLED. Android reclaims a
+   backgrounded Activity whenever it likes, and half an hour of placing
+   voxels is exactly the kind of work a player does not get to do twice. The
+   draft mirrors the editor after every change; it is not a save, it is the
+   editor's own memory of where it was. */
+function edSaveDraft(){
+  if(!ed) return;
+  store.draft = {n:ed.n, vox:ed.vox.join(''), start:ed.start, goal:ed.goal,
+                 keys:ed.keys, doors:ed.doors, name:ed.name, layer:ed.layer, from:ed.from};
+  save();
+}
+function edRestore(){
+  var d = store.draft;
+  if(d && d.vox && d.vox.length === d.n*d.n*d.n){
+    edFrom({n:d.n, vox:d.vox, start:d.start || null, goal:d.goal || null,
+            keys:d.keys || [], doors:d.doors || [], name:d.name || ''}, d.from);
+    ed.layer = Math.min(d.layer || 0, ed.n - 1);
+  } else edNew(5);
+}
+function openEditor(rec, key){
+  if(rec) edFrom(rec, key); else if(!ed) edRestore();
+  $('edName').value = ed.name || '';
+  edStatus(''); edDraw(); show('scEdit');
+}
+function buildMadeGrid(){
+  var g = $('madeGrid'); g.innerHTML = '';
+  var keys = Object.keys(store.made);
+  keys.sort(function(a,b){ return (store.made[b].made||0) - (store.made[a].made||0); });
+  $('madeCount').textContent = keys.length
+    ? keys.length + ' CUBE' + (keys.length === 1 ? '' : 'S') + ' BUILT'
+    : 'NOTHING BUILT YET';
+  $('madeRail').style.background =
+    'linear-gradient(90deg,var(--arc) 0 ' + Math.min(100, keys.length*10) + '%,transparent 0)';
+  keys.forEach(function(k){
+    var rec = store.made[k];
+    var el = document.createElement('button');
+    el.className = 'cube done';
+    var a = document.createElement('div'); a.className = 'idx'; a.textContent = rec.n;
+    var b2 = document.createElement('div'); b2.className = 'nm'; b2.textContent = rec.name || 'UNTITLED';
+    var c = document.createElement('div'); c.className = 'nm';
+    c.style.color = 'var(--dim-2)';
+    c.textContent = 'PAR ' + rec.par + (rec.best ? ' · BEST ' + rec.best : '');
+    el.appendChild(a); el.appendChild(b2); el.appendChild(c);
+    el.onclick = function(){ openEditor(rec, k); };
+    g.appendChild(el);
+  });
+}
+function edImport(){
+  var lv0 = shareDecode($('impCode').value);
+  if(!lv0){ madeStatus('THAT IS NOT A CUBE CODE', 1); return; }
+  var v = validateLevel(lv0);
+  if(!v.ok){ madeStatus('THE CODE READS, BUT: ' + v.why, 1); return; }
+  lv0.par = v.par;
+  var col = collisionOf(lv0, null);
+  if(col){ madeStatus('ALREADY HERE — ' + colWhat(col), 1); return; }
+  var id = canonId(lv0);
+  lv0.name = edCleanName(lv0.name) || ('CUBE ' + id.slice(0,4));
+  store.made[id] = edRecord(lv0);
+  save(); $('impCode').value = '';
+  buildMadeGrid();
+  madeStatus('IMPORTED · PAR ' + v.par + ' · ' + id, 2);
+}
+
 /* ---------- bindings, each exactly once ---------- */
 $('btnPlay').onclick = function(){
   audio();
@@ -7427,8 +8041,28 @@ $('btnHint').onclick = hint;
   r.onclick = function(e){ e.stopPropagation(); };
 })();
 $('btnNext').onclick = function(){ goLevel(levelNo + 1); };
-$('btnRetry').onclick = function(){ loadLevel(daily ? DAILY : levelNo); show(null); };
-$('btnWinCubes').onclick = function(){ if(daily) show('scTitle'); else openCubes(); };
+$('btnRetry').onclick = function(){ loadLevel(made ? MADE : daily ? DAILY : levelNo); show(null); };
+$('btnWinCubes').onclick = function(){
+  if(made){ buildMadeGrid(); show('scMade'); } else if(daily) show('scTitle'); else openCubes();
+};
+
+/* ---------- the forge ---------- */
+function openMade(){ buildMadeGrid(); madeStatus(''); show('scMade'); }
+$('btnForge').onclick    = openMade;
+$('btnMadeBack').onclick = function(){ buildCubeGrid(); show('scCubes'); };
+$('btnNewCube').onclick  = function(){ edNew(5); edSaveDraft(); openEditor(null); };
+$('btnImport').onclick   = edImport;
+$('edUp').onclick        = function(){ if(ed.layer < ed.n - 1){ ed.layer++; edDraw(); } };
+$('edDown').onclick      = function(){ if(ed.layer > 0){ ed.layer--; edDraw(); } };
+$('edSize').onclick      = function(){
+  var i = ED_SIZES.indexOf(ed.n);
+  edResize(ED_SIZES[(i + 1) % ED_SIZES.length]);
+  edDraw(); edStatus(''); edSaveDraft();
+};
+$('edCheck').onclick = function(){ edVerify(); };
+$('edSave').onclick  = edSaveCube;
+$('edPlay').onclick  = edPlay;
+$('edBack').onclick  = openMade;
 function bindSwitch(id, key){
   var el = $(id);
   el.classList.toggle('on', !!store[key]);
@@ -7495,6 +8129,8 @@ window.TURNKEY = {
     if(!$('scManual').classList.contains('hide')){ show(lv ? 'scPause' : 'scTitle'); return true; }
     if(!$('scPause').classList.contains('hide')){ show(null); return true; }
     if(!$('scPlate').classList.contains('hide')){ show(null); return true; }
+    if(!$('scEdit').classList.contains('hide')){ openMade(); return true; }
+    if(!$('scMade').classList.contains('hide')){ buildCubeGrid(); show('scCubes'); return true; }
     if(!$('scCubes').classList.contains('hide')){
       if(viewBand > 0){ viewBand--; buildCubeGrid(); return true; }
       refreshDaily(); show('scTitle'); return true;
