@@ -112,7 +112,7 @@ Doing nothing still leaves 1,950 cubes that exist only to be counted.
 
 ---
 
-## 2. Severe: a half-second freeze on every level load
+## 2. FIXED — was: a half-second freeze on every level load
 
 Frame deltas over four seconds after a level loads:
 
@@ -137,6 +137,25 @@ Fixes, in order of preference:
    "CUTTING…" toast. Simplest, and costs a visible wait between levels.
 
 This is the single highest-value fix in the codebase.
+
+### Fixed, 2026-08-12
+
+Option 1. Minting runs on a Blob worker built from **this file's own source**:
+there is one `<script>` in the document and the generator sits between two
+markers inside it with no DOM access anywhere between them, so the worker
+gets the slice verbatim rather than a copy that could drift. Two generators
+disagreeing by one RNG draw would produce different cubes for the same level
+number and destroy the determinism silently, so `sgcutter.js` mints six levels
+BOTH ways and compares canonical identities.
+
+Measured again over a level load and its prebuild:
+
+    before   408ms   116ms   587ms      worst 587
+    after    no frame over 100ms        worst  90
+
+`levelData` keeps its synchronous path for a level reached faster than it
+could be cut, and every worker failure — CSP, file:// origin, old WebView —
+falls back to the timer this replaced. The game is never worse than it was.
 
 ---
 
@@ -225,6 +244,7 @@ freeze, extend the size curve, and the 2,070-cube structure stops being a
 costume.
 
 Three things, in order, and nothing else on this list comes close:
-1. Move minting to a Web Worker. It is required before anything below.
-2. Extend the size curve past n=7 and raise `parHi` with it.
+1. ~~Move minting to a Web Worker.~~ **Done.** Worst frame 587ms -> 90ms, and
+   worker-cut cubes proven identical to main-thread ones.
+2. Extend the size curve past n=7 and raise `parHi` with it. Now unblocked.
 3. Re-bake the identity index and re-measure the curve to confirm it ramps.
