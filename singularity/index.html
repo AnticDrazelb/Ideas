@@ -668,6 +668,65 @@ html.hudTight .chip .lbl2{display:none;}
 #hintPill.spent .n{color:var(--dim-2);}
 #turnPill.over{color:var(--fault);}
 #barBot{bottom:calc(var(--sa-bottom) + 12px);justify-content:center;gap:12px;}
+
+/* ---------- LANDSCAPE: THE CHROME GOES TO THE SIDES ----------------------
+   The board is square and the screen is not, so in portrait the width binds
+   and the height has slack — which is why the readouts live along the top and
+   the controls along the bottom, in the slack.
+
+   Turn the phone and that reverses exactly: the HEIGHT binds and the width
+   has slack, and a full-width bar at each end is now taking the one dimension
+   the board has none of, while both sides of the screen sit empty. The board
+   came out barely half the height it could have been.
+
+   So the two bars become columns and move to the edges: readouts down the
+   left, controls down the right, and the whole height belongs to the cube.
+   Nothing about them changes except their axis — same chips, same order, same
+   fitter — because they are the same instrument turned on its side.
+
+   The separators go. They are horizontal rules between chips in a row; in a
+   column they would be a different thing pretending to be the same one, and
+   the gap already says what they said. */
+/* THE TITLE IS TWO COLUMNS IN LANDSCAPE. Stacked vertically it needs more
+   height than a landscape phone has, so the masthead scrolled off the top and
+   the hero was squeezed to nothing — the panel scrolls, so it "worked" and
+   was unusable. Masthead over actions on one side, the engine on the other,
+   and the whole height belongs to the cube again. */
+html.vpLand #scTitle{
+  display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;
+  align-content:center;column-gap:clamp(12px,3vw,40px);
+  padding:calc(var(--sa-top) + 12px) calc(var(--sa-right) + 16px)
+          calc(var(--sa-bottom) + 12px) calc(var(--sa-left) + 16px);
+}
+html.vpLand #scTitle .titleTop{grid-column:1;grid-row:1;align-self:end;}
+html.vpLand #scTitle .titleBottom{grid-column:1;grid-row:2;align-self:start;padding-top:10px;}
+/* align-self:stretch is load-bearing. The panel sets align-items:center, and
+   that carries into grid — so this item, which is EMPTY (the engine is drawn
+   on the canvas behind it, not in the DOM), collapsed to zero height and the
+   hero fell back to centring on the whole screen, landing behind the buttons.
+   An empty box that exists only to be measured has to be told to fill its
+   area. */
+html.vpLand #scTitle .heroSlot{grid-column:2;grid-row:1 / span 2;
+  min-height:0;height:auto;align-self:stretch;justify-self:stretch;}
+html.vpLand #wordmark{width:auto;}
+
+html.vpLand .bar{max-width:none;margin:0;left:auto;right:auto;}
+html.vpLand #barTop{
+  top:calc(var(--sa-top) + 10px);bottom:calc(var(--sa-bottom) + 10px);
+  left:calc(var(--sa-left) + 10px);
+  width:auto;padding:0;justify-content:center;gap:10px;
+}
+html.vpLand #barBot{
+  top:calc(var(--sa-top) + 10px);bottom:calc(var(--sa-bottom) + 10px);
+  right:calc(var(--sa-right) + 10px);
+  width:auto;padding:0;flex-direction:column;justify-content:center;gap:10px;
+}
+html.vpLand .chips{flex-direction:column;align-items:stretch;gap:8px;width:auto;}
+html.vpLand .csep{display:none;}
+html.vpLand .chip{justify-content:flex-start;}
+html.vpLand .hudline{flex-direction:column;align-items:flex-start;gap:4px;}
+html.vpLand #hudVault{margin-left:0;}
+html.vpLand #barBot .pill{width:100%;}
 /* TURNS carries a word, two numbers and a slash — the widest thing on the
    bar, and every pixel it gives back is a pixel the cube's name keeps */
 /* the word is a label and the count is the readout, so the word drops a
@@ -850,6 +909,19 @@ html.hudTight .chip .lbl2{display:none;}
 .tick{transition:background .2s var(--ease),opacity .2s var(--ease),transform .18s var(--seat),box-shadow .2s var(--ease);}
 .tick.armed{transform:scaleX(1.55) scaleY(1.7);}
 .tick.no{background:var(--edge-2);}
+
+/* IN LANDSCAPE THE TICKS GO UNDER THE CONTROLS, not under the board. They
+   are pinned above where the bottom bar used to be — and in landscape there
+   is no bottom bar, so they landed in the middle of the board with a fold
+   indicator sitting on top of the puzzle. They belong with the thing they
+   describe, which is the hand: a column of four beside the buttons, in the
+   right-hand rail, reading the same way the cube does. */
+html.vpLand #dpad{
+  left:auto;right:calc(var(--sa-right) + 10px);
+  bottom:calc(var(--sa-bottom) + 14px);
+  transform:none;flex-direction:row;justify-content:center;
+  width:calc(var(--h-ctl) * 2.6);
+}
 
 /* A MODE YOU CANNOT SEE YOU ARE IN IS A MODE YOU FILE AS A BUG.
    The board looks different after a plate fires, but "different" is not the
@@ -2830,6 +2902,7 @@ function fit(){
   de.style.setProperty('--vph', H + 'px');
   de.classList.toggle('vpShort', H < 640);
   de.classList.toggle('vpTiny',  H < 520);
+  de.classList.toggle('vpLand',  landscape());
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   /* SETTING THE CANVAS SIZE RESETS EVERY BIT OF CONTEXT STATE, so this lives
      here and nowhere else: without it a 16px block scaled up to a 40px tile
@@ -2924,35 +2997,52 @@ function layout(){
     }
   }
   if(demo){
-    /* MEASURE THE CHROME ITSELF, not the gap it was expected to leave.
+    /* THE HERO BAND IS THE SLOT, MEASURED.
 
-       Asking the slot was asking a proxy. The two blocks that can actually
-       collide with the hero are the title text above it and the button stack
-       below it, so those are the two things measured — and the answer is
-       clamped into the viewport the CANVAS is using, so a rect that came back
-       in a different viewport's coordinates can never push the cube out of
-       the picture. If the measurement is nonsense, the old fractional split
-       is still here to fall back on. */
+       This used to measure the title text and the button stack and infer the
+       gap between them, because the slot was a CSS clamp() that could not be
+       trusted to describe the space that actually existed. The slot is the
+       flex/grid REMAINDER now — it is defined as whatever the chrome did not
+       take — so it is the honest thing to ask, and unlike the inference it
+       keeps working when the two blocks are side by side rather than stacked,
+       which is exactly what landscape does to them. */
     var sc = document.getElementById('scTitle');
-    var tTop = document.querySelector('.titleTop');
-    var tBot = document.querySelector('.titleBottom');
-    var ok = false;
-    if(sc && tTop && tBot && !sc.classList.contains('hide')){
-      var rT = tTop.getBoundingClientRect(), rB = tBot.getBoundingClientRect();
-      var t2 = Math.min(H, Math.max(ins.t + 4, rT.bottom + 6));
-      var b2 = Math.min(H, Math.max(ins.b + 4, H - rB.top + 6));
-      if(H - t2 - b2 >= 90){ topBar = t2; botBar = b2; ok = true; }
+    var slot = document.getElementById('heroSlot');
+    var okS = false;
+    if(sc && slot && !sc.classList.contains('hide')){
+      var rS = slot.getBoundingClientRect();
+      if(rS.width > 60 && rS.height > 60){
+        heroCX = rS.left + rS.width/2;
+        heroCY = rS.top + rS.height/2;
+        /* and capped in CANVAS coordinates, because a measured number is only
+           as good as the space it was measured in */
+        heroBoxW = Math.min(rS.width - 10, W * (landscape() ? 0.52 : 0.92));
+        heroBoxH = Math.min(rS.height - 10, H * (landscape() ? 0.88 : 0.46));
+        okS = true;
+      }
     }
-    if(!ok){
-      topBar = ins.t + Math.round(H*0.26);
-      botBar = ins.b + Math.round(H*0.34);
+    if(!okS){
+      heroCX = W/2; heroCY = H/2;
+      heroBoxW = W*0.72; heroBoxH = H*0.34;
     }
   }
-  /* the rule was landing seven points off the bezel, which is not a margin,
-     it is a near miss. A board is allowed to give up two percent to have
-     air around it. */
-  var availW = W - ins.l - ins.r - (demo ? 8 : 30);
-  var availH = H - topBar - botBar;
+  /* THE CHROME EATS WHICHEVER AXIS IT IS ON. In portrait the bars are along
+     the top and bottom and cost height; in landscape they are down the sides
+     and cost width. The board is then centred in whatever rectangle is left,
+     which is the same sentence in both orientations — only the axis the
+     measurement is taken on changes. */
+  var padL = ins.l, padR = ins.r, padT = topBar, padB = botBar;
+  if(!demo && landscape()){
+    var lT = document.getElementById('barTop'), lB = document.getElementById('barBot');
+    if(lT && lB){
+      var rlT = lT.getBoundingClientRect(), rlB = lB.getBoundingClientRect();
+      if(rlT.width > 4) padL = Math.max(ins.l + 6, rlT.right + 12);
+      if(rlB.width > 4) padR = Math.max(ins.r + 6, W - rlB.left + 12);
+      padT = ins.t + 10; padB = ins.b + 10;
+    }
+  }
+  var availW = W - padL - padR - (demo ? 8 : 30);
+  var availH = H - padT - padB;
   /* A TUMBLING CUBE IS WIDER THAN ITS OWN SIDE, AND THAT WAS ALLOWED FOR
      TWICE.
 
@@ -2970,25 +3060,13 @@ function layout(){
      the one that knows what the projection actually did — so the side here
      is simply the band, and the trigonometric guess is gone. */
   var side = Math.max(60, Math.min(availW, availH));
-  /* THE BAND IS CAPPED IN CANVAS COORDINATES, whatever the DOM claimed.
-
-     Everything above this line came from measuring elements, and a measured
-     number is only as good as the space it was measured in. This is the
-     backstop: the hero may never be given more than a fixed fraction of the
-     screen the RENDERER can see, so even a rect returned in some other
-     viewport's coordinates cannot put the cube through the buttons or off
-     the sides. When the measurement is right the cap does not bind; when it
-     is wrong it is the difference between a slightly small cube and a broken
-     screen. */
-  heroBoxW = Math.max(40, Math.min(availW - 10, W*0.92));
-  heroBoxH = Math.max(40, Math.min(availH - 10, H*0.46));
   if(!demo) side = side / (1 + 2*FRAME_GAP/N);
   S = side / N;
-  CX = ins.l + (W - ins.l - ins.r)/2;
+  CX = demo ? heroCX : padL + (W - padL - padR)/2;
   /* and it is CENTRED in that band. The nudge upward existed to make room
      for a bottom bar that has since got shorter, and all it does now is
      re-introduce the imbalance the numbers above just removed. */
-  CY = topBar + availH/2;
+  CY = demo ? heroCY : padT + availH/2;
   /* the chrome follows the board rather than the screen */
   document.documentElement.style.setProperty('--barw',
     Math.round(Math.max(300, Math.min(W - ins.l - ins.r, side + S*1.2))) + 'px');
@@ -3047,9 +3125,9 @@ function heroBasis(){
    Cached on everything that can change the answer, which is the box and the
    tile size; the sweep itself is 24 projections of eight corners and only
    runs when one of those moves. */
-var heroBoxW = 0, heroBoxH = 0, heroFitV = 0, heroFitKey = '';
+var heroBoxW = 0, heroBoxH = 0, heroCX = 0, heroCY = 0, heroFitV = 0, heroFitKey = '';
 function heroFit(){
-  var key = heroBoxW + ':' + heroBoxH + ':' + S + ':' + N;
+  var key = (heroBoxW|0) + ':' + (heroBoxH|0) + ':' + S + ':' + N;
   if(key === heroFitKey) return heroFitV;
   /* EVERY ORIENTATION, not just the ones reachable from identity. The first
      version sampled a quarter turn from ORI_ID and asserted symmetry covered

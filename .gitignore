@@ -16,3 +16,7 @@ turnkey/tools/sgios.js
 turnkey/tools/sghud.js
 turnkey/tools/sgboard.js
 turnkey/tools/sgplay.js
+turnkey/tools/sgland.js
+turnkey/tools/sglandvis.js
+turnkey/tools/sgprobe.js
+singularity/shot-*.png
