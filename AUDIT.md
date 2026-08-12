@@ -57,21 +57,58 @@ Related: `minSteps` is `5 + band*2 + w` with an **uncapped** band, so by level
 5-21. The demand has been unreachable since roughly level 60, which means the
 term has been silently inert in the candidate scorer for 97% of the game.
 
-### What would fix it
+### CORRECTION: the ceiling is the CUBE SIZE, not the mechanic
 
-Two honest options, and they are different products.
+The paragraph above said a six-turn ceiling is a property of the mechanic.
+**That is wrong, and it was wrong for a measurable reason.**
 
-**(a) Accept the ceiling.** Sixty to a hundred hand-curated cubes plus the
-daily. Drop to six or eight vaults and six or eight leaderboards. This is a
-finished, tight, excellent small game and the structure stops lying.
+`mint` solves each candidate with `solve(lv, spec.parHi)` — a BOUNDED search
+that discards anything harder than the band it was asked for. Every ceiling
+measurement was therefore taken through a filter set at 6. Re-running the
+generator with the bound removed, 900 candidates at each size:
 
-**(b) Raise the ceiling with a mechanic.** Something that multiplies the state
-space the way plates were supposed to: a second mobile piece, a fold that
-changes the cube's shape, an exit that moves. Only worth doing if the ceiling
-moves to 10-12, and that needs prototyping against the solver before any
-content is built on it.
+    n     solved   max par   par>=6      par>=7        ms/solve   code
+    7      849        7      5  (0.6%)   1 in 849       12.3ms    175
+    8      857        7      19 (2.2%)   1 in 214       18.8ms    250
+    9      843        9      40 (4.7%)   1 in  56       37.3ms    346
+    10     721        8      54 (7.5%)   1 in  48       55.6ms    467
 
-Doing neither leaves 1,950 cubes that exist only to be counted.
+**A bigger cube raises the ceiling and raises it a lot.** n=9 reaches par 9
+against n=7's 6, and makes a par-7-or-better cube **fifteen times more
+likely** to exist. The generator caps n at 7 (`b < 1 ? 5 : b < 3 ? 6 : 7`),
+so the game has never once cut a cube at a size where hard cubes are common.
+
+Why size matters when the rotation group does not: the orientation graph has
+24 nodes, 4 generators and a **diameter of 4**, so pure rotation distance can
+never exceed four turns. The extra turns come from FOOTING — you cannot turn
+where you have nowhere to stand, so a large cube forces detours through
+orientations you did not want. More surface is more places for the route to be
+forced, and that is what the ceiling was actually made of.
+
+A 9-cube also already works: it renders and fits at 390x844, 320x568 and in
+landscape, tiles come out 30-38px, `draw()` stays at 0.45ms, no errors.
+
+### What to do
+
+**Extend the size curve past 7.** Keep 5 and 6 where they are, run 7 through
+the mid game, then 8 and 9 for the late vaults, and raise `parHi` with them.
+That is a real difficulty ramp built from parts that already exist, and it
+uses the vault and leaderboard structure rather than retiring it.
+
+The costs are real and none of them are blockers:
+
+- **Minting gets much slower.** Finding a par-7 cube at n=9 takes about 56
+  solves at 37ms — two seconds on this desktop, plausibly six to ten on a
+  phone. This makes the Web Worker in section 2 **mandatory rather than
+  merely advisable**.
+- **Share codes grow** from 175 to ~350 characters. Still pasteable.
+- **Tap targets shrink** to 30px on a 320px-wide phone. Workable, tight.
+- **The baked identity index must be regenerated**, and the bake gets slower
+  in proportion.
+- **The editor needs 8 and 9 in `ED_SIZES`**, and a 9x9 deck grid on the
+  smallest phone gives ~29px cells.
+
+Doing nothing still leaves 1,950 cubes that exist only to be counted.
 
 ---
 
@@ -173,16 +210,21 @@ decode after passing through a share sheet.
 editor validation and the test discipline are all well above what this genre
 normally ships, and several are things most studios would not attempt.
 
-**Design: capped, and the structure does not admit it.** The mechanic tops out
-at par 6. Everything past level 50 is the same puzzle at the same difficulty,
-and the vault/leaderboard architecture was built as though that were not true —
-including, in fairness, by me over the last several sessions.
+**Design: capped by a parameter, not by the idea.** Everything past level 50
+is the same difficulty and the vault/leaderboard architecture was built as
+though that were not true — including, in fairness, by me over the last
+several sessions. But the cap is `n <= 7` and a bounded solver call, not the
+mechanic: at n=9 the ceiling is par 9 and hard cubes are fifteen times more
+common. The curve that the structure needs is available and has simply never
+been switched on.
 
-**Revolutionary: no, not yet, and not on the current mechanic.** It is an
-unusually well engineered small puzzle game. The gap between what it is and
-what it is dressed as is the biggest single problem, and it is a design problem
-rather than a code one.
+**Revolutionary: not yet — but closer than the first draft of this audit
+said.** It is an unusually well engineered puzzle game whose difficulty range
+has been running at roughly two thirds of what the mechanic supports. Fix the
+freeze, extend the size curve, and the 2,070-cube structure stops being a
+costume.
 
-The two things that would change the answer, in order: fix the prebuild
-freeze, then decide between option (a) and option (b) in section 1. Nothing
-else on this list matters as much as those two.
+Three things, in order, and nothing else on this list comes close:
+1. Move minting to a Web Worker. It is required before anything below.
+2. Extend the size curve past n=7 and raise `parHi` with it.
+3. Re-bake the identity index and re-measure the curve to confirm it ramps.
