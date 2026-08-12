@@ -1369,6 +1369,14 @@ html.disp #stage, html.disp .layer, html.disp #hud{
     <button class="pill" id="vaultNext" aria-label="Next vault">[ &gt; ]</button>
   </div>
   <div class="grid" id="cubeGrid"></div>
+  <!-- THE SEED BOX. Every generated cube in this game is a pure function of
+       its number, so the number IS the seed — three characters that cut the
+       same puzzle on every device, forever. There was no way to type one. -->
+  <div class="edRow">
+    <input class="edIn" id="jumpNo" placeholder="CUBE NUMBER" inputmode="numeric" autocomplete="off">
+    <button class="pill" id="btnJump">[ GO ]</button>
+  </div>
+  <div class="edMsg" id="jumpMsg"></div>
   <div class="btn2">
     <button class="btn" id="btnForge">[ FORGE ]</button>
     <button class="btn ghost" id="btnCubesBack">[ BACK ]</button>
@@ -2628,6 +2636,9 @@ var NAME_B  = ['CANT','HINGE','LATCH','WARD','DROP','SPINE','SEAM','FOLD','TURN'
    they are simply no longer ranked, because a board nobody finishes is a
    board that is not there.                                                 */
 var VAULT_TAIL0 = 25, VAULT_GROW = 5, RANKED_VAULTS = 30;
+/* the generator has no last cube, but a text field needs a ceiling: a
+   fat-fingered 99999999 is otherwise a minute of minting nobody asked for */
+var MAX_CUBE = 100000;
 var VAULT_AT = (function(){
   var a = [0], i;
   for(i = 0; i < VAULTS.length; i++) a.push(a[i] + VAULTS[i].n);
@@ -3839,7 +3850,14 @@ var DAILY = -1;
    successor to prebuild, and it writes its score somewhere else. So it gets
    the same treatment — one flag, read everywhere, never inferred. */
 var MADE = -2, made = false, madeKey = null;
-function loadLevel(level){
+/* PRACTICE — visiting a cube you have not earned.
+   Typing a number is a seed viewer, not a shortcut: a jump past `reached`
+   records nothing, unlocks nothing and posts nothing, or the whole
+   progression would be one text field wide. A jump to something already
+   cleared is just playing it again, and counts normally. */
+var practice = false;
+function loadLevel(level, asPractice){
+  practice = !!asPractice;
   made  = (level === MADE);
   daily = (level === DAILY);
   levelNo = (daily || made) ? DAILY_SPEC_LEVEL : Math.max(1, level|0);
@@ -3882,7 +3900,7 @@ function loadLevel(level){
   /* the cube is up and the clock starts with it — including the 380ms of
      intro wave, which every player and every device pays identically */
   clockReset();
-  if(!daily && !made && levelNo > store.reached){ store.reached = levelNo; save(); }
+  if(!daily && !made && !practice && levelNo > store.reached){ store.reached = levelNo; save(); }
   /* THE ONE NUDGE. A gesture nobody can see is a gesture nobody has, and the
      peek is the answer to the exact frustration that starts around here — so
      it is offered once, on the third cube, and never mentioned again. */
@@ -3897,7 +3915,7 @@ function loadLevel(level){
     store.sawPlate = 1; save();
     setTimeout(function(){ if(!won && !walking && !anim) show('scPlate'); }, 260);
   }
-  if(!daily && !made) prebuild(levelNo + 1);  /* cut the next one while this one is played */
+  if(!daily && !made && !practice) prebuild(levelNo + 1);  /* cut the next one while this one is played */
 }
 
 /* Jumping somewhere far from the cache costs a real mint, so say so rather
@@ -7369,6 +7387,8 @@ function finish(){
       if(mr.tbest === undefined || solved < mr.tbest) mr.tbest = solved;
       save();
     }
+  } else if(practice){
+    /* nothing. A cube visited by number is a cube seen, not a cube cleared. */
   } else {
     var best = store.best[levelNo];
     if(best === undefined || turns < best){ store.best[levelNo] = turns; save(); }
@@ -8240,7 +8260,7 @@ $('btnHint').onclick = hint;
   r.onclick = function(e){ e.stopPropagation(); };
 })();
 $('btnNext').onclick = function(){ goLevel(levelNo + 1); };
-$('btnRetry').onclick = function(){ loadLevel(made ? MADE : daily ? DAILY : levelNo); show(null); };
+$('btnRetry').onclick = function(){ loadLevel(made ? MADE : daily ? DAILY : levelNo, practice); show(null); };
 $('btnWinCubes').onclick = function(){
   if(made){ buildMadeGrid(); show('scMade'); } else if(daily) show('scTitle'); else openCubes();
 };
@@ -8461,6 +8481,34 @@ function reportCube(id){
 
 /* ---------- the forge ---------- */
 function openMade(){ buildMadeGrid(); madeStatus(''); show('scMade'); }
+/* THE SEED BOX. `mint` is a pure function of the level number, so a number
+   typed here cuts exactly the cube everybody else's phone cuts for it —
+   which is what a Minecraft seed is, and it is the one part of that idea
+   this game had no way to use. Past what you have reached it is a viewer:
+   see any cube in the game, keep nothing. */
+function jumpCube(){
+  var raw = String($('jumpNo').value || '').replace(/[^0-9]/g, '');
+  var n = parseInt(raw, 10);
+  if(!raw || !isFinite(n) || n < 1){ jumpSay('TYPE A CUBE NUMBER', 1); return; }
+  if(n > MAX_CUBE){ jumpSay('CUBES RUN OUT AT ' + MAX_CUBE, 1); return; }
+  var ahead = n > store.reached;
+  $('jumpNo').blur();
+  jumpSay(ahead ? 'CUTTING CUBE ' + n + ' — NOTHING WILL BE RECORDED' : 'CUTTING CUBE ' + n, 0);
+  /* minting is a quarter-second of work, so let the message paint first */
+  setTimeout(function(){
+    loadLevel(n, ahead);
+    show(null);
+    if(ahead) toast('PRACTICE · CUBE ' + n);
+    jumpSay('');
+  }, 30);
+}
+function jumpSay(t, kind){
+  var e = $('jumpMsg');
+  e.textContent = t || '';
+  e.className = 'edMsg' + (kind === 1 ? ' bad' : kind === 2 ? ' good' : '');
+}
+$('btnJump').onclick = jumpCube;
+$('jumpNo').onkeydown = function(e){ if(e.key === 'Enter') jumpCube(); };
 $('btnForge').onclick    = openMade;
 $('btnMadeBack').onclick = function(){ buildCubeGrid(); show('scCubes'); };
 $('btnNewCube').onclick  = function(){ edNew(5); edSaveDraft(); openEditor(null); };

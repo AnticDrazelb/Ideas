@@ -71,6 +71,47 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
   ok('thirty ranked vaults hold 2070 cubes', part.last === 2070, `${part.last} cubes`);
   ok('...and the longest of them is 140', part.biggest === 140, `${part.biggest} cubes`);
 
+  /* ---- the seed box ------------------------------------------------------ */
+  /* `mint` is a pure function of the level number, so the number is the seed.
+     Typing one has to be a VIEWER past what you have reached, or the entire
+     progression is one text field wide. */
+  const jump = await p.evaluate(async () => {
+    store.reached = 5; store.best = {}; store.tbest = {}; store.vbest = {};
+    const go = async v => {
+      document.getElementById('jumpNo').value = v;
+      document.getElementById('btnJump').click();
+      await new Promise(r => setTimeout(r, 900));
+    };
+    await go('900');
+    const ahead = {lvl: levelNo, prac: practice, reached: store.reached};
+    turns = 3; finish();
+    await new Promise(r => setTimeout(r, 60));
+    const kept = {reached: store.reached, best: store.best[900], tbest: store.tbest[900]};
+
+    await go('3');                       /* already cleared: an ordinary play */
+    const behind = {lvl: levelNo, prac: practice};
+    turns = 2; finish();
+    await new Promise(r => setTimeout(r, 60));
+
+    const say = v => { document.getElementById('jumpNo').value = v;
+                       document.getElementById('btnJump').click();
+                       return document.getElementById('jumpMsg').textContent; };
+    return {ahead, kept, behind, best3: store.best[3], reached3: store.reached,
+            zero: say('0'), huge: say('99999999'), junk: say('abc')};
+  });
+  ok('a number cuts that cube, wherever it is in the game',
+     jump.ahead.lvl === 900, String(jump.ahead.lvl));
+  ok('...as practice when it is past what you have reached', jump.ahead.prac === true);
+  ok('...and clearing it unlocks nothing and records nothing',
+     jump.kept.reached === 5 && jump.kept.best === undefined && jump.kept.tbest === undefined,
+     JSON.stringify(jump.kept));
+  ok('a cube already reached is played for real, not as practice',
+     jump.behind.lvl === 3 && jump.behind.prac === false && jump.best3 === 2 && jump.reached3 === 5,
+     `best ${jump.best3}, reached ${jump.reached3}`);
+  ok('nonsense and absurd numbers are refused',
+     /TYPE A CUBE NUMBER/.test(jump.zero) && /RUN OUT AT/.test(jump.huge) && /TYPE A CUBE NUMBER/.test(jump.junk),
+     [jump.zero, jump.huge, jump.junk].join(' | '));
+
   /* ---- the clock -------------------------------------------------------- */
   const clock = await p.evaluate(async () => {
     store.reached = 900; store.taught = 1;
