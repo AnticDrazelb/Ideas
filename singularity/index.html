@@ -1042,11 +1042,19 @@ html.vpLand #dpad{
 .edCell.t{background:var(--trace-lo);box-shadow:inset 0 0 0 var(--hair) var(--trace);}
 .edCell.pa{background:var(--trace-lo);box-shadow:inset 0 0 0 2px var(--arc);}
 .edCell.pb{background:var(--trace-lo);box-shadow:inset 0 0 0 2px var(--rust);}
-.edCell b{width:44%;height:44%;display:block;border-radius:50%;}
+/* A MARK SAYS WHICH MARK IT IS, IN A LETTER.
+   START was --rust and EXIT was --core: #ea580c against #f97316, two oranges
+   nobody can tell apart on a phone, on the two marks it matters most to tell
+   apart. Colour still carries the meaning it carries everywhere else in the
+   game, but it is no longer the only thing carrying it — shape and a letter
+   do too, which also makes the grid readable without colour vision. */
+.edCell b{width:54%;height:54%;display:flex;align-items:center;justify-content:center;
+          border-radius:50%;font-family:var(--mono);font-size:11px;font-weight:700;
+          color:#000;line-height:1;}
 .edCell b.s{background:var(--rust);}
-.edCell b.e{background:var(--core);}
+.edCell b.e{background:var(--core);border-radius:2px;}
 .edCell b.k{background:var(--node);border-radius:0;}
-.edCell b.d{background:var(--lock);border-radius:0;transform:rotate(45deg);}
+.edCell b.d{background:var(--lock);border-radius:0;}
 .edTools{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;
          width:100%;max-width:380px;margin:0 auto 12px;}
 .edTool{font-family:var(--mono);font-size:var(--t-micro);letter-spacing:.05em;
@@ -3214,6 +3222,17 @@ function shareDecode(code){
    The geometry checks are the same three `mint` applies to its own
    candidates, in the same order, so a hand-built cube is held to exactly the
    standard a generated one is.                                            */
+/* how many of the twenty-four orientations put the exit on a visible face.
+   Zero means it is walled in on all six sides and no amount of folding will
+   ever expose it. */
+function goalEverShows(lv){
+  var n = lv.n, i, s;
+  for(i = 0; i < ORIS.length; i++){
+    s = project(n, effVox(lv, 0), ORIS[i]);
+    if(surfaceAt(n, s, ORIS[i], lv.goal)) return true;
+  }
+  return false;
+}
 function validateLevel(lv){
   var n = lv.n;
   if(!lv.start || !lv.goal) return {ok:false, why:'NEEDS A START AND AN EXIT'};
@@ -3226,6 +3245,15 @@ function validateLevel(lv){
   clearEff(lv);
   var s0 = project(n, effVox(lv, 0), ORI_ID);
   if(!surfaceAt(n, s0, ORI_ID, lv.start)) return {ok:false, why:'START IS BURIED'};
+  /* AND THE EXIT HAS TO BE ON A FACE OF SOMETHING, EVER.
+     The start was checked and the exit was not, which let the commonest
+     authoring mistake there is — filling a deck solid and putting the exit
+     in the middle of it — get all the way to the solver and come back as
+     "NO SOLUTION EXISTS". True, and useless: a cell sealed inside the solid
+     is not a hard puzzle, it is a cell no face of the cube ever shows. This
+     is cheap to test exactly (twenty-four projections of an n-cube) and it
+     is worth saying in its own words. */
+  if(!goalEverShows(lv)) return {ok:false, why:'EXIT IS SEALED INSIDE THE SOLID'};
   if(doorIndexAt(lv, lv.start) >= 0 || doorIndexAt(lv, lv.goal) >= 0)
     return {ok:false, why:'A LOCK SITS ON THE START OR THE EXIT'};
   var r = solve(lv, 60);
@@ -7840,6 +7868,7 @@ var ED_TOOLS = [
   {k:'D', n:'LOCK'},    {k:'C', n:'WIPE DECK'}
 ];
 var EDCLS = {'.':'', '#':'g', '+':'t', 'A':'pa', 'B':'pb'};
+var EDMARK = {s:'S', e:'E', k:'N', d:'L'};
 var ED_SIZES = [5,6,7];
 var ed = null;
 
@@ -8025,7 +8054,11 @@ function edDraw(){
     var w = [x, ed.layer, z], m = edMark(w);
     var el = document.createElement('button');
     el.className = 'edCell ' + (EDCLS[ed.vox[vidx(n,x,ed.layer,z)]] || '');
-    if(m){ var dot = document.createElement('b'); dot.className = m; el.appendChild(dot); }
+    if(m){
+      var dot = document.createElement('b');
+      dot.className = m; dot.textContent = EDMARK[m];
+      el.appendChild(dot);
+    }
     (function(X,Z){ el.onclick = function(){ edApply(X,Z); }; })(x,z);
     g.appendChild(el);
   }

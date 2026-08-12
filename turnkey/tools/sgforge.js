@@ -91,6 +91,47 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
   ok('an authored cube offered back is recognised as already existing',
      deny.asIs === 'baked' && deny.asIsLevel === 1, `${deny.asIs} ${deny.asIsLevel} ${deny.asIsName}`);
   ok('a cube with no route is refused', deny.dead === 'NO SOLUTION EXISTS', String(deny.dead));
+
+  /* THE MISTAKE A REAL PLAYER ACTUALLY MADE, on the third cube they built:
+     fill a deck solid, put the exit in the middle of it. The exit is then
+     enclosed on all six sides and no orientation ever shows it, but the only
+     thing the editor said was "NO SOLUTION EXISTS" — true, and useless. */
+  const sealed = await p.evaluate(() => {
+    const n = 5, v = new Array(n*n*n).fill('.');
+    for(let y = 2; y <= 4; y++) for(let z = 0; z < n; z++) for(let x = 0; x < n; x++)
+      v[vidx(n,x,y,z)] = '+';                    /* three solid decks */
+    for(let x = 0; x < n; x++) v[vidx(n,x,1,0)] = '+';   /* a lip to stand on */
+    const lv = {n, vox:v.join(''), start:[0,1,0], goal:[2,3,2], keys:[], doors:[], par:0};
+    const shows = goalEverShows(lv);
+    /* and the same cube with the exit moved out to a face must pass the check */
+    const okLv = {n, vox:lv.vox, start:[0,1,0], goal:[2,4,2], keys:[], doors:[], par:0};
+    return {why: validateLevel(lv).why, shows, freed: goalEverShows(okLv)};
+  });
+  ok('an exit sealed inside the solid is named, not left to the solver',
+     sealed.why === 'EXIT IS SEALED INSIDE THE SOLID' && sealed.shows === false, String(sealed.why));
+  ok('...and an exit on a face is not accused of it', sealed.freed === true);
+
+  /* the two marks that matter most to tell apart were two oranges nobody
+     can tell apart, so they carry a letter and a shape as well now */
+  const marks = await p.evaluate(() => {
+    edNew(5);
+    ed.tool = '+'; for(let x = 0; x < 5; x++) edApply(x, 0);
+    ed.tool = 'S'; edApply(0, 0);
+    ed.tool = 'G'; edApply(1, 0);
+    ed.tool = 'K'; edApply(2, 0);
+    ed.tool = 'D'; edApply(3, 0);
+    const cells = [...document.getElementById('edSlice').children];
+    const seen = cells.map(c => c.querySelector('b')).filter(Boolean)
+                      .map(b => [b.className, b.textContent,
+                                 getComputedStyle(b).backgroundColor,
+                                 getComputedStyle(b).borderRadius]);
+    return seen;
+  });
+  const letters = marks.map(m => m[1]).join('');
+  ok('every mark says which mark it is', letters === 'SENL', letters || '(none)');
+  ok('...and start and exit are no longer two indistinguishable oranges',
+     marks[0][2] !== marks[1][2] && marks[0][3] !== marks[1][3],
+     `${marks[0][2]} ${marks[0][3]} vs ${marks[1][2]} ${marks[1][3]}`);
   ok('a cube of pure void is refused', !!deny.empty, String(deny.empty));
   ok('a node with no lock is refused', deny.lop === 'EVERY NODE NEEDS A LOCK', String(deny.lop));
   ok('a start that is also the exit is refused', !!deny.same, String(deny.same));
