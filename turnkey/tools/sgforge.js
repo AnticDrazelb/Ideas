@@ -314,6 +314,54 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
   ok('...and a cell stays big enough to hit on the smallest phone',
      fits.every(f => f.cell >= 36), fits.map(f => f.cell).join(','));
 
+  /* ---- no tile may ever draw on top of another --------------------------- */
+  /* This is what `aspect-ratio` on a content-sized grid row cost: the row
+     wanted the item's height and the item wanted its own width, and Safari
+     broke that cycle by letting the item exceed its row. Every tile in the
+     vault shelf drew over the one below it. The row height is a measured
+     number now, so the cycle is gone — this is the assertion that keeps
+     anyone from putting `aspect-ratio` back. */
+  const laps = [];
+  for(const [w, h] of [[320,568],[360,640],[390,844],[414,736],[430,932]]){
+    const q = await b.newPage({viewport:{width:w,height:h}, deviceScaleFactor:2, isMobile:true, hasTouch:true});
+    await q.goto('file:///home/user/Ideas/singularity/index.html');
+    await q.waitForTimeout(350);
+    laps.push(await q.evaluate(([w2, h2]) => {
+      const over = g => {
+        const r = [...g.children].map(c => c.getBoundingClientRect());
+        let n = 0;
+        for(let i = 0; i < r.length; i++) for(let j = i+1; j < r.length; j++){
+          const a = r[i], c = r[j];
+          if(Math.min(a.right,c.right) - Math.max(a.left,c.left) > 1 &&
+             Math.min(a.bottom,c.bottom) - Math.max(a.top,c.top) > 1) n++;
+        }
+        return {n, sq: r.length ? Math.abs(r[0].width - r[0].height) : 0};
+      };
+      store.reached = 30; buildCubeGrid(); show('scCubes');
+      const vault = over(document.getElementById('cubeGrid'));
+      store.made = {};
+      for(let i = 0; i < 5; i++){
+        const src = BAKED[i];
+        store.made['x'+i] = {id:'x'+i, name:'C'+i, n:src.n, vox:src.vox, start:src.start,
+                             goal:src.goal, keys:src.keys, doors:src.doors, par:1, made:i};
+      }
+      buildMadeGrid(); show('scMade');
+      const shelf = over(document.getElementById('madeGrid'));
+      edNew(7); openEditor(null);
+      const slice = over(document.getElementById('edSlice'));
+      return {at:w2+'x'+h2, vault, shelf, slice};
+    }, [w, h]));
+    await q.close();
+  }
+  const bad3 = laps.filter(l => l.vault.n || l.shelf.n || l.slice.n);
+  ok('no tile overlaps another, on any grid, at any portrait size',
+     bad3.length === 0,
+     bad3.length ? bad3.map(l => `${l.at} vault:${l.vault.n} shelf:${l.shelf.n} slice:${l.slice.n}`).join('  ')
+                 : laps.map(l => l.at).join('  '));
+  ok('...and the tiles are still square',
+     laps.every(l => l.vault.sq <= 1 && l.slice.sq <= 1),
+     laps.map(l => l.at + ':' + l.vault.sq.toFixed(1)).join(' '));
+
   ok('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
 
   await b.close();

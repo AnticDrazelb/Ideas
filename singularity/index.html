@@ -988,7 +988,13 @@ html.vpLand #dpad{
   gap:11px;width:100%;max-width:440px;margin:0 auto 18px;
 }
 .cube{
-  aspect-ratio:1;border-radius:var(--r-card);position:relative;
+  /* NO aspect-ratio HERE — see squareRows(). A square grid item whose row is
+     content-sized asks the engine to size the row from the item and the item
+     from the row, and engines break that cycle differently. Chromium sized
+     the row to the item; Safari sized the item past its row, so every tile
+     overflowed into the one below and the whole shelf drew on top of itself.
+     The row height is set in pixels instead, from the measured column width. */
+  border-radius:var(--r-card);position:relative;
   background:var(--panel);box-shadow:inset 0 0 0 var(--hair) var(--edge-2);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
   min-height:88px;transition:background .1s linear,box-shadow .1s linear,color .1s linear;
@@ -1029,7 +1035,7 @@ html.vpLand #dpad{
    contradicts. */
 .edBar{display:flex;align-items:center;gap:10px;width:100%;max-width:440px;margin:0 auto 12px;}
 .edSlice{display:grid;gap:4px;width:100%;max-width:380px;margin:0 auto 12px;}
-.edCell{aspect-ratio:1;border-radius:2px;background:var(--void-2);padding:0;
+.edCell{border-radius:2px;background:var(--void-2);padding:0;   /* square via squareRows() */
         box-shadow:inset 0 0 0 var(--hair) var(--dim-2);
         display:flex;align-items:center;justify-content:center;}
 .edCell.g{background:var(--grid);box-shadow:inset 0 0 0 var(--hair) var(--grid-hi);}
@@ -3465,6 +3471,9 @@ function fit(){
      it would silently come back on. */
   ctx.imageSmoothingEnabled = false;
   fitHud(); layout(); buildSky(); buildGlow(); buildSmear(); shS = -1;
+  /* the tile grids are sized in pixels, so a rotation or a resize has to
+     re-measure them — the column width changed underneath */
+  squareAll();
 }
 var S = 40, CX = 0, CY = 0;
 /* LAYOUT — MOBILE FIRST, AND THE BOARD ALWAYS FITS.
@@ -7650,6 +7659,28 @@ function hint(){
    rather than trying to be a list of everything. Par is not shown for a
    cube you have not opened — it is a fact about a level that does not
    exist yet, and minting ten of them to fill in a grid would cost seconds. */
+/* SQUARE TILES, MEASURED RATHER THAN DERIVED.
+
+   `aspect-ratio` on a grid item whose row track is content-sized is a cycle:
+   the row wants the item's height, the item wants its own width, and the
+   width depends on the track. Every engine breaks that cycle, and they do
+   not break it the same way — Safari let the item exceed its row, so on a
+   portrait phone every tile in the vault shelf drew over the one below it
+   and the FORGE button landed on top of cube ten.
+
+   So the row height is a NUMBER. One measurement of the first tile's width
+   after the grid is built, written to grid-auto-rows, and the items stretch
+   into it the way grid items already do. If this never runs the tiles are
+   merely short rather than overlapping, which is the right way round for a
+   layout to fail. */
+function squareRows(g){
+  if(!g || !g.firstElementChild) return;
+  var w = g.firstElementChild.getBoundingClientRect().width;
+  if(w > 1) g.style.gridAutoRows = Math.round(w) + 'px';
+}
+function squareAll(){
+  squareRows($('cubeGrid')); squareRows($('madeGrid')); squareRows($('edSlice'));
+}
 function buildCubeGrid(){
   var g = $('cubeGrid'); g.innerHTML = '';
   $('vaultName').textContent = 'VAULT ' + roman(viewBand) + ' / ' + vaultName(viewBand);
@@ -7678,6 +7709,7 @@ function buildCubeGrid(){
     }; })(level, locked);
     g.appendChild(el);
   }
+  squareRows(g);
 }
 function openCubes(){ viewBand = vaultOf(levelNo); buildCubeGrid(); show('scCubes'); }
 
@@ -7886,6 +7918,7 @@ function edDraw(){
     (function(X,Z){ el.onclick = function(){ edApply(X,Z); }; })(x,z);
     g.appendChild(el);
   }
+  squareRows(g);
   $('edLayerTxt').textContent = 'DECK ' + (ed.layer+1) + ' / ' + n;
   $('edSize').textContent = '[ ' + n + ' ]';
   var t = $('edTools');
@@ -7947,6 +7980,7 @@ function buildMadeGrid(){
     el.onclick = function(){ openEditor(rec, k); };
     g.appendChild(el);
   });
+  squareRows(g);
 }
 function edImport(){
   var lv0 = shareDecode($('impCode').value);
