@@ -219,8 +219,22 @@ html,body{
 button{font-family:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer;}
 
 /* ---------- LAYERS ---------- */
+/* THE PANEL IS AS TALL AS THE CANVAS THINKS THE SCREEN IS.
+
+   It was top:0;bottom:0, which on iOS resolves against the LARGE viewport —
+   the one you get with the browser bars hidden — while the canvas sizes
+   itself from visualViewport, the small one you can actually see. Two
+   notions of "the screen", and every layout number derived from a DOM rect
+   was therefore in a different space from every number the renderer used.
+   That is the whole family of bugs: first the hero came out too small, then
+   too large, and neither could be reproduced on a desktop viewport because
+   there the two are equal.
+
+   --vph is written by fit(), from the same measurement the canvas uses. One
+   number, one space, and a DOM rect is now something the renderer is allowed
+   to trust. */
 .layer{
-  position:fixed;top:0;right:0;bottom:0;left:0;z-index:10;
+  position:fixed;top:0;right:0;left:0;height:var(--vph,100%);z-index:10;
   display:flex;flex-direction:column;align-items:center;
   padding:calc(var(--sa-top) + 22px) calc(var(--sa-right) + 20px)
           calc(var(--sa-bottom) + 22px) calc(var(--sa-left) + 20px);
@@ -335,15 +349,14 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
    truncated and nothing overlaps: the copy is simply not the best use of the
    last hundred points, and the hero re-fits itself the moment it leaves
    because the band is measured rather than assumed. */
-@media (max-height:640px){
-  .layer#scTitle .sub{display:none;}
-  .heroSlot{min-height:132px;}
-  #scTitle .mastRule{margin-bottom:2px;}
-}
-@media (max-height:520px){
-  #wordmark{font-size:var(--t-2xl);}
-  .layer#scTitle{padding-top:calc(var(--sa-top) + 10px);}
-}
+/* driven by a class fit() sets, NOT by max-height: a CSS height query
+   resolves against the large viewport on iOS and would happily leave four
+   lines of prose on a screen that has no room for them */
+html.vpShort .layer#scTitle .sub{display:none;}
+html.vpShort .heroSlot{min-height:132px;}
+html.vpShort #scTitle .mastRule{margin-bottom:2px;}
+html.vpTiny #wordmark{font-size:var(--t-2xl);}
+html.vpTiny .layer#scTitle{padding-top:calc(var(--sa-top) + 10px);}
 /* the spacers are what pushed the bands apart; the column centres itself */
 #scTitle::before,#scTitle::after{flex:0 1 auto;}
 .titleTop{padding-top:2px;}
@@ -2784,6 +2797,12 @@ function fit(){
   var vp = vpSize(); W = vp.w; H = vp.h;
   cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  /* the single source of truth, handed to CSS so the panels agree with the
+     renderer about how tall the screen is */
+  var de = document.documentElement;
+  de.style.setProperty('--vph', H + 'px');
+  de.classList.toggle('vpShort', H < 640);
+  de.classList.toggle('vpTiny',  H < 520);
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   /* SETTING THE CANVAS SIZE RESETS EVERY BIT OF CONTEXT STATE, so this lives
      here and nowhere else: without it a 16px block scaled up to a 40px tile
@@ -2908,9 +2927,18 @@ function layout(){
      the one that knows what the projection actually did — so the side here
      is simply the band, and the trigonometric guess is gone. */
   var side = Math.max(60, Math.min(availW, availH));
-  /* the band the hero is fitted into, in pixels, recorded for liveZoom */
-  heroBoxW = Math.max(40, availW - 10);
-  heroBoxH = Math.max(40, availH - 10);
+  /* THE BAND IS CAPPED IN CANVAS COORDINATES, whatever the DOM claimed.
+
+     Everything above this line came from measuring elements, and a measured
+     number is only as good as the space it was measured in. This is the
+     backstop: the hero may never be given more than a fixed fraction of the
+     screen the RENDERER can see, so even a rect returned in some other
+     viewport's coordinates cannot put the cube through the buttons or off
+     the sides. When the measurement is right the cap does not bind; when it
+     is wrong it is the difference between a slightly small cube and a broken
+     screen. */
+  heroBoxW = Math.max(40, Math.min(availW - 10, W*0.92));
+  heroBoxH = Math.max(40, Math.min(availH - 10, H*0.46));
   if(!demo) side = side / (1 + 2*FRAME_GAP/N);
   S = side / N;
   CX = ins.l + (W - ins.l - ins.r)/2;
@@ -2980,11 +3008,20 @@ var heroBoxW = 0, heroBoxH = 0, heroFitV = 0, heroFitKey = '';
 function heroFit(){
   var key = heroBoxW + ':' + heroBoxH + ':' + S + ':' + N;
   if(key === heroFitKey) return heroFitV;
+  /* EVERY ORIENTATION, not just the ones reachable from identity. The first
+     version sampled a quarter turn from ORI_ID and asserted symmetry covered
+     the rest — which is false once a fixed pitch is applied on top, because
+     pitching a cube that has already been folded onto a different axis
+     presents a silhouette that sweep never sees. 24 orientations x a quarter
+     turn is 600 poses of eight corners, once per layout, and it cannot be
+     wrong. */
   var worst = 1e9;
-  for(var i = 0; i <= 24; i++){
-    var ang = (i/24) * Math.PI/2;
-    var m = pitchBasis(yawBasis(ORI_ID, ang), HERO_PITCH);
-    worst = Math.min(worst, fitScale(m, heroBoxW, heroBoxH));
+  for(var o = 0; o < ORIS.length; o++){
+    for(var i = 0; i <= 12; i++){
+      var ang = (i/12) * Math.PI/2;
+      var m = pitchBasis(yawBasis(ORIS[o], ang), HERO_PITCH);
+      worst = Math.min(worst, fitScale(m, heroBoxW, heroBoxH));
+    }
   }
   heroFitKey = key;
   return (heroFitV = worst * 0.97);      /* a hair of air, not a safety factor */
