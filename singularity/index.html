@@ -1549,6 +1549,10 @@ html.disp #stage, html.disp .layer, html.disp #hud{
     <button class="btn" id="btnRestart">[ RESET ]</button>
     <button class="btn" id="btnToCubes">[ VAULTS ]</button>
   </div>
+  <!-- Only ever visible while a cube somebody else built is on screen.
+       A report is about content this device did not author. -->
+  <button class="btn ghost hide" id="btnReport">[ REPORT THIS CUBE ]</button>
+  <div class="edMsg" id="reportMsg"></div>
   <div class="settings">
     <div class="setHead">SETTINGS</div>
     <div class="row" id="rowSound"><div class="rowL">
@@ -2819,7 +2823,7 @@ var store = {best:{}, tbest:{}, vbest:{}, reached:1, sound:1, haptic:1, depth:0,
              dhist:{}, dstreak:{cur:0, best:0, last:-1}, dpost:{w:-1, m:-1, s:-1},
              /* authored and imported cubes, keyed by their own identity, so
                 storing the same cube twice is impossible by construction */
-             made:{}, draft:null,
+             made:{}, draft:null, hidden:{},
              /* 100 is "off": at 100/100 no filter is applied at all */
              bright:100, contrast:100, taughtForge:0};
 try{ var raw = localStorage.getItem('turnkey-v2'); if(raw) store = Object.assign(store, JSON.parse(raw)); }catch(e){}
@@ -3839,6 +3843,9 @@ function loadLevel(level){
   made  = (level === MADE);
   daily = (level === DAILY);
   levelNo = (daily || made) ? DAILY_SPEC_LEVEL : Math.max(1, level|0);
+  /* a reported or blocked cube can be gone by the time something tries to
+     load it, and `src.n` on undefined is not a useful way to find that out */
+  if(made && !store.made[madeKey]){ made = false; madeKey = null; toast('THAT CUBE IS NO LONGER HERE'); }
   var src = made ? store.made[madeKey] : daily ? dailyData() : levelData(levelNo);
   lv = {n:src.n, vox:src.vox.slice(), start:src.start, goal:src.goal,
         keys:src.keys, doors:src.doors, par:src.par,
@@ -7604,6 +7611,13 @@ function show(id){
   if(demo && !lv){ loadLevel(1); wave = null; }
   if(!demo) demoAng = 0;
   if(demo !== wasDemo){ if(demo) demoStart(); setStyle(curBand); layout(); }
+  var rb = $('btnReport');
+  if(rb){
+    rb.classList.toggle('hide', !(id === 'scPause' && made && madeKey && store.made[madeKey]));
+    /* leaving the screen disarms it — a half-tapped report must not still be
+       waiting the next time somebody pauses */
+    if(id !== 'scPause'){ reportArmed = ''; reportSay(''); }
+  }
 }
 var ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 function roman(b){ return b < ROMAN.length ? ROMAN[b] : String(b+1); }
@@ -7943,10 +7957,11 @@ function edVerify(quiet){
   if(!quiet && coach >= 0){ coachOK = 1; edCoachTick(); }
   return lv0;
 }
-function edRecord(lv0){
+function edRecord(lv0, src){
   var id = canonId(lv0);
   return {id:id, name:lv0.name, n:lv0.n, vox:lv0.vox, start:lv0.start, goal:lv0.goal,
-          keys:lv0.keys, doors:lv0.doors, par:lv0.par, made:dayIndex()};
+          keys:lv0.keys, doors:lv0.doors, par:lv0.par, made:dayIndex(),
+          src:src || 'built'};
 }
 function edSaveCube(){
   var lv0 = edVerify();
@@ -7962,6 +7977,7 @@ function edSaveCube(){
          exist — an absent best must stay absent rather than become zero */
       if(old.best  !== undefined) store.made[id].best  = old.best;
       if(old.tbest !== undefined) store.made[id].tbest = old.tbest;
+      if(old.src) store.made[id].src = old.src;
     }
     delete store.made[ed.from];
   }
@@ -8101,11 +8117,13 @@ function openEditor(rec, key){
 }
 function buildMadeGrid(){
   var g = $('madeGrid'); g.innerHTML = '';
-  var keys = Object.keys(store.made);
+  var all = Object.keys(store.made);
+  var keys = all.filter(function(k){ return !store.hidden[k]; });
+  var gone = all.length - keys.length;
   keys.sort(function(a,b){ return (store.made[b].made||0) - (store.made[a].made||0); });
-  $('madeCount').textContent = keys.length
-    ? keys.length + ' CUBE' + (keys.length === 1 ? '' : 'S') + ' BUILT'
-    : 'NOTHING BUILT YET';
+  $('madeCount').textContent = (keys.length
+    ? keys.length + ' CUBE' + (keys.length === 1 ? '' : 'S')
+    : 'NOTHING HERE') + (gone ? ' · ' + gone + ' REPORTED' : '');
   $('madeRail').style.background =
     'linear-gradient(90deg,var(--arc) 0 ' + Math.min(100, keys.length*10) + '%,transparent 0)';
   keys.forEach(function(k){
@@ -8126,14 +8144,20 @@ function buildMadeGrid(){
 function edImport(){
   var lv0 = shareDecode($('impCode').value);
   if(!lv0){ madeStatus('THAT IS NOT A CUBE CODE', 1); return; }
+  /* THE BLOCK IS CHECKED FIRST AND ANSWERS FOR ITSELF. It used to run after
+     validation, which meant a blocked cube that also failed a geometry check
+     was refused for the geometry — refused either way, but reported as a
+     broken cube rather than a blocked one, which is the wrong thing to tell
+     somebody and the wrong thing to see in a bug report. */
+  var id = canonId(lv0);
+  if(blockedId(id)){ madeStatus('THAT CUBE HAS BEEN BLOCKED AND WILL NOT LOAD', 1); return; }
   var v = validateLevel(lv0);
   if(!v.ok){ madeStatus('THE CODE READS, BUT: ' + v.why, 1); return; }
   lv0.par = v.par;
   var col = collisionOf(lv0, null);
   if(col){ madeStatus('ALREADY HERE — ' + colWhat(col), 1); return; }
-  var id = canonId(lv0);
   lv0.name = edCleanName(lv0.name) || ('CUBE ' + id.slice(0,4));
-  store.made[id] = edRecord(lv0);
+  store.made[id] = edRecord(lv0, 'import');
   save(); $('impCode').value = '';
   buildMadeGrid();
   madeStatus('IMPORTED · PAR ' + v.par + ' · ' + id, 2);
@@ -8328,6 +8352,113 @@ function buildBoards(){
 }
 function openBoards(from){ boardsFrom = from || 'scPause'; buildBoards(); show('scBoards'); }
 
+/* ============================================================
+   REPORTING, AND THE BLACKLIST IT FEEDS.
+
+   THE BLACKLIST IS KEYED ON THE CANONICAL IDENTITY, and that is the whole
+   reason it works. The identity is taken over all twenty-four orientations,
+   so a blocked cube cannot come back by being shared lying on its side —
+   which is the first thing anybody tries. A hash of the raw voxel string
+   would have been evaded in about a minute.
+
+   Blocking is a SHIPPED list, not a fetched one. This game has never talked
+   to anything and is not going to start for this: a report arrives by mail,
+   the identity goes in the table below, and the next build refuses it. That
+   is slower than a server and it is the honest cost of an offline game.
+
+   Add entries with tools/sgblock.js rather than by hand — it keeps the
+   format and checks the id is really eight characters.
+   ============================================================ */
+var BLOCKED = {
+  /* 'aBcDeFgH': '2026-08-12 reported' */
+};
+function blockedId(id){ return Object.prototype.hasOwnProperty.call(BLOCKED, id); }
+/* a cube blocked by an update is already sitting in somebody's shelf, so the
+   list is applied to what is stored, once, at boot */
+function purgeBlocked(){
+  var k, n = 0;
+  for(k in store.made) if(blockedId(k)){ delete store.made[k]; n++; }
+  if(n) save();
+  return n;
+}
+function recToLevel(rec){
+  return {n:rec.n, vox:rec.vox, start:rec.start, goal:rec.goal,
+          keys:rec.keys, doors:rec.doors, par:rec.par, name:rec.name};
+}
+
+/* THIS CANNOT SEND MAIL AND DOES NOT PRETEND TO. One offline HTML file has
+   no way to deliver anything; what it can do is hand a finished message to
+   whatever mail app the phone has. So the report is composed here, handed
+   over, and ALSO copied to the clipboard — because a WebView with no mail
+   client would otherwise swallow the whole thing silently and the player
+   would think they had reported something. */
+var REPORT_TO = 'jeffrey_blezard@icloud.com';
+var reportArmed = '';
+var HOST = (function(){
+  function h(){ try{ return window.AndroidHost || null; }catch(e){ return null; } }
+  return {
+    mail: function(to, subject, body){
+      var g = h();
+      if(g && g.mail){ try{ g.mail(to, subject, body); return true; }catch(e){} }
+      return false;
+    }
+  };
+})();
+function reportSay(t, kind){
+  var e = $('reportMsg');
+  if(!e) return;
+  e.textContent = t || '';
+  e.className = 'edMsg' + (kind === 1 ? ' bad' : kind === 2 ? ' good' : '');
+}
+function reportBody(id, rec){
+  return [
+    'Reporting a cube shared through SINGULARITY.',
+    '',
+    'IDENTITY : ' + id,
+    'NAME     : ' + (rec.name || 'UNTITLED'),
+    'SIZE     : ' + rec.n,
+    'PAR      : ' + rec.par,
+    'SOURCE   : ' + (rec.src === 'import' ? 'imported from a share code' : 'built on this device'),
+    '',
+    'The identity above is what goes in the blacklist. It is taken over all',
+    'twenty-four orientations, so blocking it also blocks the same cube',
+    'shared rotated.',
+    '',
+    'CODE (paste into FORGE to load it and see it):',
+    shareEncode(recToLevel(rec)),
+    '',
+    'REASON FOR THE REPORT:',
+    ''
+  ].join('\r\n');
+}
+/* two taps, deliberately. A report names a person's work to a stranger and
+   is not something to do by brushing a button on the way past RESUME. */
+function reportCube(id){
+  var rec = store.made[id];
+  if(!rec){ reportSay('THERE IS NOTHING HERE TO REPORT', 1); return false; }
+  if(reportArmed !== id){
+    reportArmed = id;
+    reportSay('TAP AGAIN TO REPORT ' + id + '. THIS OPENS YOUR MAIL APP.', 0);
+    return false;
+  }
+  reportArmed = '';
+  var subject = 'SINGULARITY cube report ' + id;
+  var body = reportBody(id, rec);
+  if(!HOST.mail(REPORT_TO, subject, body)){
+    try{
+      window.location.href = 'mailto:' + REPORT_TO +
+        '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    }catch(e){}
+  }
+  try{ if(navigator.clipboard) navigator.clipboard.writeText(REPORT_TO + '\r\n' + subject + '\r\n\r\n' + body); }catch(e){}
+  /* whatever the mail app does, the reporter should not have to look at it
+     again — hidden rather than deleted, so a failed send can be retried */
+  store.hidden[id] = 1; save();
+  buildMadeGrid();
+  reportSay('REPORT READY IN YOUR MAIL APP, AND COPIED. THIS CUBE IS HIDDEN HERE NOW.', 2);
+  return true;
+}
+
 /* ---------- the forge ---------- */
 function openMade(){ buildMadeGrid(); madeStatus(''); show('scMade'); }
 $('btnForge').onclick    = openMade;
@@ -8346,6 +8477,10 @@ $('edSave').onclick  = edSaveCube;
 $('edPlay').onclick  = edPlay;
 $('edBack').onclick  = openMade;
 $('edTeach').onclick = coachStart;
+$('btnReport').onclick = function(){ if(madeKey) reportCube(madeKey); };
+/* applied to what is already stored, once, at boot: a cube blocked by an
+   update is sitting in somebody's shelf right now */
+purgeBlocked();
 $('btnBoards').onclick     = function(){ openBoards('scPause'); };
 $('btnBoardsBack').onclick = function(){ show(boardsFrom); };
 function bindSwitch(id, key){
