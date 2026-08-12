@@ -6,3 +6,6 @@ turnkey/tools/v-*.png
 turnkey/tools/j-*.png
 turnkey/tools/p-*.png
 turnkey/tools/package-lock.json
+singularity/shot-*.png
+turnkey/tools/sgshot.js
+turnkey/tools/sgbar.js
