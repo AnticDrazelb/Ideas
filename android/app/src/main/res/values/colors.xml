@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only what Android itself paints. Every colour the GAME uses lives in
+     index.html and is deliberately not duplicated here: two sources of truth
+     about a palette is how a splash screen ends up a different black from
+     the first frame. -->
+<resources>
+    <color name="void_black">#FF000000</color>
+    <color name="rust">#FFEA580C</color>
+</resources>

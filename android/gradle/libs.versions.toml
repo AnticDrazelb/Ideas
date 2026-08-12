@@ -1,0 +1,25 @@
+# Versions live here so Android Studio's update inspections can find them.
+# Bumping any of these is expected and should not need a code change.
+[versions]
+agp = "8.7.3"
+kotlin = "2.0.21"
+coreKtx = "1.15.0"
+appcompat = "1.7.0"
+webkit = "1.12.1"
+activity = "1.9.3"
+splashscreen = "1.0.1"
+# Play Games Services v2. v2 signs the player in automatically at launch --
+# there is no sign-in button and no GoogleSignInClient anywhere in this app.
+playGames = "20.1.2"
+
+[libraries]
+androidx-core-ktx   = { group = "androidx.core",      name = "core-ktx",          version.ref = "coreKtx" }
+androidx-appcompat  = { group = "androidx.appcompat", name = "appcompat",         version.ref = "appcompat" }
+androidx-webkit     = { group = "androidx.webkit",    name = "webkit",            version.ref = "webkit" }
+androidx-activity   = { group = "androidx.activity",  name = "activity-ktx",      version.ref = "activity" }
+androidx-splash     = { group = "androidx.core",      name = "core-splashscreen", version.ref = "splashscreen" }
+play-services-games = { group = "com.google.android.gms", name = "play-services-games-v2", version.ref = "playGames" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android      = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

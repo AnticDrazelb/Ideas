@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="Theme.Singularity" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/void_black</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- draw into the notch rather than letterboxing around it; the game
+             is told where the cutout is and lays out around it itself -->
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="o_mr1">shortEdges</item>
+    </style>
+
+    <!-- The window is black before the first frame and black after it, so
+         there is no flash to cover and the splash exists only to satisfy the
+         API and hold the icon for the instant the WebView takes to attach. -->
+    <style name="Theme.Singularity.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/void_black</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Singularity</item>
+    </style>
+</resources>

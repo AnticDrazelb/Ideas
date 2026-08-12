@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SINGULARITY</string>
+    <string name="send_report">Send report</string>
+    <string name="share_cube">Share cube</string>
+    <string name="clip_label">Cube code</string>
+
+    <!--
+        THE PLAY GAMES PROJECT ID, AS A STRING AND NOT A NUMBER.
+        Written into the manifest inline as a bare numeral the merger treats
+        it as an integer and the SDK rejects it at runtime with an error that
+        does not mention the manifest. It is the numeric id at the top of the
+        Play Games Services configuration page.
+    -->
+    <string name="game_services_project_id" translatable="false">000000000000</string>
+</resources>

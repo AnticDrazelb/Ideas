@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    PASTE THE PLAY CONSOLE IDS HERE AND NOWHERE ELSE.
+
+    Every one of these is the opaque id Google assigns a leaderboard, of the
+    form CgkI...  The game itself never sees them: index.html sends a logical
+    name and Boards.kt maps it here, so ids can be reissued or a whole game
+    re-created in the console without the web layer being touched.
+
+    An entry left empty means "not configured". The bridge logs and declines
+    rather than calling the SDK with a blank id, so a half-configured build
+    runs fine and simply has fewer boards.
+
+    tools/gpg-boards.js creates all thirty-five over the Play Games
+    Publishing API and prints them in exactly this format.
+-->
+<resources>
+    <string name="lb_daily"        translatable="false"></string>
+    <string name="lb_daily_week"   translatable="false"></string>
+    <string name="lb_daily_month"  translatable="false"></string>
+    <string name="lb_daily_season" translatable="false"></string>
+    <string name="lb_daily_streak" translatable="false"></string>
+
+    <string name="lb_vault_01" translatable="false"></string>
+    <string name="lb_vault_02" translatable="false"></string>
+    <string name="lb_vault_03" translatable="false"></string>
+    <string name="lb_vault_04" translatable="false"></string>
+    <string name="lb_vault_05" translatable="false"></string>
+    <string name="lb_vault_06" translatable="false"></string>
+    <string name="lb_vault_07" translatable="false"></string>
+    <string name="lb_vault_08" translatable="false"></string>
+    <string name="lb_vault_09" translatable="false"></string>
+    <string name="lb_vault_10" translatable="false"></string>
+    <string name="lb_vault_11" translatable="false"></string>
+    <string name="lb_vault_12" translatable="false"></string>
+    <string name="lb_vault_13" translatable="false"></string>
+    <string name="lb_vault_14" translatable="false"></string>
+    <string name="lb_vault_15" translatable="false"></string>
+    <string name="lb_vault_16" translatable="false"></string>
+    <string name="lb_vault_17" translatable="false"></string>
+    <string name="lb_vault_18" translatable="false"></string>
+    <string name="lb_vault_19" translatable="false"></string>
+    <string name="lb_vault_20" translatable="false"></string>
+    <string name="lb_vault_21" translatable="false"></string>
+    <string name="lb_vault_22" translatable="false"></string>
+    <string name="lb_vault_23" translatable="false"></string>
+    <string name="lb_vault_24" translatable="false"></string>
+    <string name="lb_vault_25" translatable="false"></string>
+    <string name="lb_vault_26" translatable="false"></string>
+    <string name="lb_vault_27" translatable="false"></string>
+    <string name="lb_vault_28" translatable="false"></string>
+    <string name="lb_vault_29" translatable="false"></string>
+    <string name="lb_vault_30" translatable="false"></string>
+</resources>

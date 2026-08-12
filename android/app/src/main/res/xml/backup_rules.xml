@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The save is one localStorage key inside the WebView's own data, which
+     lives under the app's databases/ directory. Backing it up carries a
+     player's progress to a new phone; nothing here is a secret. -->
+<full-backup-content>
+    <include domain="database" path="." />
+    <include domain="file" path="app_webview" />
+</full-backup-content>
