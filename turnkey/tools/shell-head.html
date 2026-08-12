@@ -19,14 +19,20 @@
    every one of those would be a second copy of information the cube
    is already showing. Colour carries exactly one meaning each:
 
-     bone    walkable deck       — you may stand here
-     slate   bedrock             — solid, and no footing on this face
-     void    nothing at all      — the ground shows through; impassable
+     live    walkable surface    — powered, you may stand here
+     lattice dead structure      — real geometry, no footing on this face
+     void    unrendered space    — the ground shows through; impassable
      arc     you                 — and only you
-     emerald keys
-     jade    the gates they open
-     gold    the way out
+     node    keys
+     lock    the gates they open
+     core    the way out
      rust    the interface — reach hints, ticks, buttons. Never an object.
+
+   The names changed with the register and the JOBS did not. Brown brick and
+   jade gems were telling the player they were in a dungeon while the
+   mechanics were telling them they were folding a projection; the palette is
+   state now rather than material. Which colour means which thing is exactly
+   as fixed as it ever was.
 
    The player used to be rust, which is also what every control in this game
    is painted. That made the one thing you must find instantly the same
@@ -82,15 +88,17 @@
 
   --bone:#e9e1d1;      --bone-lo:#b6ac97;
   --slate:#454b60;     --slate-lo:#272c3c;
-  --rust:#ff6a3d;      --rust-hi:#ff9a70;
-  --jade:#35d7a1;      --jade-lo:#1c8f6b;
-  --gold:#ffc44d;
+  --rust:#ea580c;      --rust-hi:#fb923c;
+  /* the gate a key opens */
+  --jade:#facc15;      --jade-lo:#a16207;
+  /* the way out */
+  --gold:#f97316;
   /* Emerald is pushed off jade's teal lean toward a true green on purpose:
      they now mean two different things a metre apart on the same board — the
      key, and the gate it opens — and two greens that agree about hue would
      be one colour with extra steps. */
-  --emerald:#22e06a;
-  --arc:#38d6ff;       /* you, and nothing else in the file */
+  --emerald:#a3e635;
+  --arc:#22d3ee;       /* you, and nothing else in the file */
 
   --ink:#f3efe7;
   --dim:#9a92a8;
@@ -104,7 +112,11 @@
   /* ROUNDER. Every corner in the interface is softer than it was, because
      the shape language on the board is now round and a UI of tight
      rectangles around it reads as two games stapled together. */
-  --r-chip:16px; --r-ctl:22px; --r-btn:26px; --r-card:28px; --r-sheet:32px; --r-pill:999px;
+  /* SQUARED OFF. Rounded chrome around a schematic board reads as two games
+   stapled together — the same argument that made these round in the first
+   place, pointed the other way now that the board is a readout rather than a
+   set of pebbles. A lab instrument has corners. */
+  --r-chip:3px; --r-ctl:4px; --r-btn:4px; --r-card:6px; --r-sheet:8px; --r-pill:4px;
 
   /* ---- CONTROL HEIGHTS --------------------------------------------
      These scale with the viewport rather than stepping at hand-written
@@ -145,7 +157,12 @@
   --snap:cubic-bezier(.4,0,.2,1);
   --ease:cubic-bezier(.33,0,.2,1);
 
-  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,system-ui,sans-serif;
+/* MONOSPACE IS THE WHOLE VOICE, and it is a system stack rather than a
+   webfont on purpose: this game is one file with no network, and the nearest
+   good grotesque mono costs about a hundred kilobytes of base64 to embed —
+   more than a fifth of the entire game — to say something SF Mono, Menlo,
+   Roboto Mono and Consolas already say on the devices that will run it. */
+  --ui:ui-monospace,SFMono-Regular,"SF Mono",Menlo,"Roboto Mono",Consolas,"Liberation Mono",monospace;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
 }
 
@@ -357,6 +374,7 @@ h2+.manual{margin-top:14px;}
    rung — better hierarchy, and it is the last few pixels the longest cube
    name in the game needs to sit whole on a 390pt phone */
 #turnPill{letter-spacing:.13em;padding:0 12px;gap:6px;font-size:var(--t-micro);}
+#lvName .no::before{content:"SEC ";opacity:.7;}
 #barBot .pill{height:var(--h-ctl);min-width:var(--h-ctl);}
 #barBot .pill.icon{width:var(--h-ctl);}
 /* UNDO is the only control down here with a word on it and the only one
@@ -420,7 +438,7 @@ h2+.manual{margin-top:14px;}
    something you SEE rather than something you have to have been watching */
 @keyframes keyPop{
   0%{transform:scale(1);}
-  38%{transform:scale(1.26);box-shadow:inset 0 0 0 1px rgba(34,224,106,.95),0 0 26px -4px rgba(34,224,106,.85);}
+  38%{transform:scale(1.26);box-shadow:inset 0 0 0 1px rgba(163,230,53,.95),0 0 26px -4px rgba(163,230,53,.85);}
   100%{transform:scale(1);}
 }
 #keyPill.pop{animation:keyPop .46s var(--seat);}
@@ -492,7 +510,7 @@ h2+.manual{margin-top:14px;}
 #turnPill .n{color:var(--rust);}
 #turnPill.over .n{color:var(--gold);}
 #keyPill{color:var(--emerald);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(34,224,106,.30),
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(163,230,53,.30),
     0 8px 22px -12px rgba(0,0,0,.9);}
 
 /* FEWEST FROM HERE. Shaped like the key pill because it is the same kind of
@@ -501,11 +519,11 @@ h2+.manual{margin-top:14px;}
    to say you have left the perfect line, and it is the one readout allowed
    to say a cube is dead. */
 #goPill{color:var(--jade);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(53,215,161,.28),
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(250,204,21,.28),
     0 8px 22px -12px rgba(0,0,0,.9);}
 #goPill .n{color:var(--jade);}
 #goPill.slip{color:var(--gold);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(255,196,77,.32),
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(249,115,22,.32),
     0 8px 22px -12px rgba(0,0,0,.9);}
 #goPill.slip .n{color:var(--gold);}
 #goPill.dead{color:var(--danger);
@@ -601,9 +619,9 @@ h2+.manual{margin-top:14px;}
 .cube .idx{font-family:var(--mono);font-size:var(--t-2xl);font-weight:700;color:var(--dim-2);line-height:1;}
 .cube .nm{font-size:var(--t-micro);letter-spacing:.13em;color:var(--dim);font-weight:800;
           text-align:center;padding:0 6px;line-height:1.25;}
-.cube.done{box-shadow:inset 0 0 0 1px rgba(53,215,161,.34);}
+.cube.done{box-shadow:inset 0 0 0 1px rgba(250,204,21,.34);}
 .cube.done .idx{color:var(--jade);}
-.cube.perfect{background:rgba(53,215,161,.1);}
+.cube.perfect{background:rgba(250,204,21,.1);}
 .cube.locked{opacity:.34;}
 .cube .marks{display:flex;gap:3px;height:6px;}
 .cube .marks i{width:6px;height:6px;border-radius:50%;background:var(--edge);}
@@ -729,7 +747,7 @@ h2+.manual{margin-top:14px;}
     <div class="pill" id="lvName"><i class="no" id="lvNo">—</i><span id="lvNameTxt">—</span></div>
     <div class="pill" id="keyPill" style="display:none">◈ <span class="n" id="keyN">0</span></div>
     <div class="pill" id="goPill" aria-label="fewest turns from here">◎ <span class="n" id="goN">·</span></div>
-    <div class="pill" id="turnPill">TURNS <span class="n" id="turnN">0</span><span class="n" id="parN" style="color:var(--dim-2)">/0</span></div>
+    <div class="pill" id="turnPill">FOLDS <span class="n" id="turnN">0</span><span class="n" id="parN" style="color:var(--dim-2)">/0</span></div>
   </div>
   <div id="worldTag"><span id="worldName"></span><span class="wclock" id="worldClock"></span><i class="wbar" id="worldBar"></i></div>
   <div id="dpad">

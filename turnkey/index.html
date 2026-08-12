@@ -19,14 +19,20 @@
    every one of those would be a second copy of information the cube
    is already showing. Colour carries exactly one meaning each:
 
-     bone    walkable deck       — you may stand here
-     slate   bedrock             — solid, and no footing on this face
-     void    nothing at all      — the ground shows through; impassable
+     live    walkable surface    — powered, you may stand here
+     lattice dead structure      — real geometry, no footing on this face
+     void    unrendered space    — the ground shows through; impassable
      arc     you                 — and only you
-     emerald keys
-     jade    the gates they open
-     gold    the way out
+     node    keys
+     lock    the gates they open
+     core    the way out
      rust    the interface — reach hints, ticks, buttons. Never an object.
+
+   The names changed with the register and the JOBS did not. Brown brick and
+   jade gems were telling the player they were in a dungeon while the
+   mechanics were telling them they were folding a projection; the palette is
+   state now rather than material. Which colour means which thing is exactly
+   as fixed as it ever was.
 
    The player used to be rust, which is also what every control in this game
    is painted. That made the one thing you must find instantly the same
@@ -82,15 +88,17 @@
 
   --bone:#e9e1d1;      --bone-lo:#b6ac97;
   --slate:#454b60;     --slate-lo:#272c3c;
-  --rust:#ff6a3d;      --rust-hi:#ff9a70;
-  --jade:#35d7a1;      --jade-lo:#1c8f6b;
-  --gold:#ffc44d;
+  --rust:#ea580c;      --rust-hi:#fb923c;
+  /* the gate a key opens */
+  --jade:#facc15;      --jade-lo:#a16207;
+  /* the way out */
+  --gold:#f97316;
   /* Emerald is pushed off jade's teal lean toward a true green on purpose:
      they now mean two different things a metre apart on the same board — the
      key, and the gate it opens — and two greens that agree about hue would
      be one colour with extra steps. */
-  --emerald:#22e06a;
-  --arc:#38d6ff;       /* you, and nothing else in the file */
+  --emerald:#a3e635;
+  --arc:#22d3ee;       /* you, and nothing else in the file */
 
   --ink:#f3efe7;
   --dim:#9a92a8;
@@ -104,7 +112,11 @@
   /* ROUNDER. Every corner in the interface is softer than it was, because
      the shape language on the board is now round and a UI of tight
      rectangles around it reads as two games stapled together. */
-  --r-chip:16px; --r-ctl:22px; --r-btn:26px; --r-card:28px; --r-sheet:32px; --r-pill:999px;
+  /* SQUARED OFF. Rounded chrome around a schematic board reads as two games
+   stapled together — the same argument that made these round in the first
+   place, pointed the other way now that the board is a readout rather than a
+   set of pebbles. A lab instrument has corners. */
+  --r-chip:3px; --r-ctl:4px; --r-btn:4px; --r-card:6px; --r-sheet:8px; --r-pill:4px;
 
   /* ---- CONTROL HEIGHTS --------------------------------------------
      These scale with the viewport rather than stepping at hand-written
@@ -145,7 +157,12 @@
   --snap:cubic-bezier(.4,0,.2,1);
   --ease:cubic-bezier(.33,0,.2,1);
 
-  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,system-ui,sans-serif;
+/* MONOSPACE IS THE WHOLE VOICE, and it is a system stack rather than a
+   webfont on purpose: this game is one file with no network, and the nearest
+   good grotesque mono costs about a hundred kilobytes of base64 to embed —
+   more than a fifth of the entire game — to say something SF Mono, Menlo,
+   Roboto Mono and Consolas already say on the devices that will run it. */
+  --ui:ui-monospace,SFMono-Regular,"SF Mono",Menlo,"Roboto Mono",Consolas,"Liberation Mono",monospace;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
 }
 
@@ -357,6 +374,7 @@ h2+.manual{margin-top:14px;}
    rung — better hierarchy, and it is the last few pixels the longest cube
    name in the game needs to sit whole on a 390pt phone */
 #turnPill{letter-spacing:.13em;padding:0 12px;gap:6px;font-size:var(--t-micro);}
+#lvName .no::before{content:"SEC ";opacity:.7;}
 #barBot .pill{height:var(--h-ctl);min-width:var(--h-ctl);}
 #barBot .pill.icon{width:var(--h-ctl);}
 /* UNDO is the only control down here with a word on it and the only one
@@ -420,7 +438,7 @@ h2+.manual{margin-top:14px;}
    something you SEE rather than something you have to have been watching */
 @keyframes keyPop{
   0%{transform:scale(1);}
-  38%{transform:scale(1.26);box-shadow:inset 0 0 0 1px rgba(34,224,106,.95),0 0 26px -4px rgba(34,224,106,.85);}
+  38%{transform:scale(1.26);box-shadow:inset 0 0 0 1px rgba(163,230,53,.95),0 0 26px -4px rgba(163,230,53,.85);}
   100%{transform:scale(1);}
 }
 #keyPill.pop{animation:keyPop .46s var(--seat);}
@@ -492,7 +510,7 @@ h2+.manual{margin-top:14px;}
 #turnPill .n{color:var(--rust);}
 #turnPill.over .n{color:var(--gold);}
 #keyPill{color:var(--emerald);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(34,224,106,.30),
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(163,230,53,.30),
     0 8px 22px -12px rgba(0,0,0,.9);}
 
 /* FEWEST FROM HERE. Shaped like the key pill because it is the same kind of
@@ -501,11 +519,11 @@ h2+.manual{margin-top:14px;}
    to say you have left the perfect line, and it is the one readout allowed
    to say a cube is dead. */
 #goPill{color:var(--jade);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(53,215,161,.28),
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(250,204,21,.28),
     0 8px 22px -12px rgba(0,0,0,.9);}
 #goPill .n{color:var(--jade);}
 #goPill.slip{color:var(--gold);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(255,196,77,.32),
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.13),inset 0 0 0 1px rgba(249,115,22,.32),
     0 8px 22px -12px rgba(0,0,0,.9);}
 #goPill.slip .n{color:var(--gold);}
 #goPill.dead{color:var(--danger);
@@ -601,9 +619,9 @@ h2+.manual{margin-top:14px;}
 .cube .idx{font-family:var(--mono);font-size:var(--t-2xl);font-weight:700;color:var(--dim-2);line-height:1;}
 .cube .nm{font-size:var(--t-micro);letter-spacing:.13em;color:var(--dim);font-weight:800;
           text-align:center;padding:0 6px;line-height:1.25;}
-.cube.done{box-shadow:inset 0 0 0 1px rgba(53,215,161,.34);}
+.cube.done{box-shadow:inset 0 0 0 1px rgba(250,204,21,.34);}
 .cube.done .idx{color:var(--jade);}
-.cube.perfect{background:rgba(53,215,161,.1);}
+.cube.perfect{background:rgba(250,204,21,.1);}
 .cube.locked{opacity:.34;}
 .cube .marks{display:flex;gap:3px;height:6px;}
 .cube .marks i{width:6px;height:6px;border-radius:50%;background:var(--edge);}
@@ -729,7 +747,7 @@ h2+.manual{margin-top:14px;}
     <div class="pill" id="lvName"><i class="no" id="lvNo">—</i><span id="lvNameTxt">—</span></div>
     <div class="pill" id="keyPill" style="display:none">◈ <span class="n" id="keyN">0</span></div>
     <div class="pill" id="goPill" aria-label="fewest turns from here">◎ <span class="n" id="goN">·</span></div>
-    <div class="pill" id="turnPill">TURNS <span class="n" id="turnN">0</span><span class="n" id="parN" style="color:var(--dim-2)">/0</span></div>
+    <div class="pill" id="turnPill">FOLDS <span class="n" id="turnN">0</span><span class="n" id="parN" style="color:var(--dim-2)">/0</span></div>
   </div>
   <div id="worldTag"><span id="worldName"></span><span class="wclock" id="worldClock"></span><i class="wbar" id="worldBar"></i></div>
   <div id="dpad">
@@ -1767,45 +1785,49 @@ var BAKED = [
 /* ============================================================
    VAULTS — ten cubes to a block, and a block owns a look.
 
-   COLOUR THAT MEANS SOMETHING NEVER CHANGES. You are always rust, the way
-   out is always jade, keys are always gold — a player who learns those on
-   cube three must still be able to read cube nine hundred at a glance. What
-   changes with the vault is the MATERIAL: what the deck is made of, what
-   the bedrock is made of, and what colour the nothing behind it is.
+   COLOUR THAT MEANS SOMETHING NEVER CHANGES. You are always arc, the way
+   out is always core, keys are always node, gates are always lock — a player
+   who learns those on cube three must still be able to read cube nine hundred
+   at a glance. What changes with the vault is the MATERIAL: what the live
+   surface is made of, what the dead lattice is made of, and what colour the
+   unrendered space behind it is.
 
    Eight are authored. Past those the palette keeps going by rotating the
    authored hues, so vault ninety has a look nobody chose but nobody has
    seen either — which is the honest deal for a game with no last level.
    ============================================================ */
-/* EIGHT WORLDS, NOT EIGHT QUARRIES.
+/* EIGHT SECTIONS OF ONE ENGINE, NOT EIGHT QUARRIES.
 
-   These were named for industry and lit like one: eight variations on wet
-   stone in a dark room, every deck a shade of bone and every sky within a
-   few points of black. It read as serious, which is not the same as good,
-   and it is the opposite of what this game is — a bright object turning in
-   your hands.
+   These were named for industry and lit like one: brown brick, bone slab,
+   jade gem. That art was fighting the mechanics. Nothing in this game is a
+   PLACE — you are not walking a dungeon, you are folding a projection until
+   two things that were never adjacent become adjacent, and the one view that
+   ever said so honestly was the wireframe you get when you hold the cube up
+   to the light. Stone was the flat board disagreeing with its own peek.
 
-   So each vault is a PLACE with a colour it could only be. The rule that
-   makes them work is the one Galaxy uses: the ground is candy-saturated and
-   the sky behind it is deep and SATURATED TOO — never grey, never black.
-   A dark violet sky makes a lime platform sing; a dark grey one makes it
-   look like a lime platform in a car park.
+   So the palette is no longer material, it is STATE. A deck is a live
+   surface: lit, saturated, carrying current. Bedrock is dead lattice —
+   near-black, cold, structured but unpowered. Void is unrendered space
+   rather than a pit. Each vault is one section of the same engine, and what
+   changes between them is which frequency it runs at.
 
-   The bands still hold. Deck luminance stays high, bedrock is walked down
-   by enforceBands as it always was, and the guarantee has not moved an inch
-   — it is the hues that changed, not the contract.                        */
+   THE BANDS HAVE NOT MOVED AN INCH. Deck luminance stays high, bedrock is
+   walked down by enforceBands exactly as before, and the guarantee is
+   measured the same way it always was. Hues changed; the contract did not.
+   Which is also why the traces cannot be bright lines on a dark board —
+   see the note over TEX_LO.                                              */
 var VAULTS = [
-  {name:'MEADOW',     dF:[104,168,72],  dN:[196,246,150], rF:[38,44,30],  rN:[88,74,52],   vd:[14,18,34],  st:[210,240,255], at:[70,120,220]},
-  {name:'SANDCASTLE', dF:[186,148,72],  dN:[255,232,168], rF:[62,42,30],  rN:[126,84,52],  vd:[20,16,34],  st:[255,226,180], at:[210,140,70]},
-  {name:'BUBBLEGUM',  dF:[196,110,158], dN:[255,196,228], rF:[52,28,58],  rN:[104,58,116], vd:[26,12,36],  st:[255,206,246], at:[214,90,190]},
-  {name:'GLACIER',    dF:[112,168,196], dN:[206,244,255], rF:[26,42,64],  rN:[62,92,134],  vd:[10,18,40],  st:[220,244,255], at:[80,150,240]},
-  {name:'EMBERFALL',  dF:[204,116,64],  dN:[255,206,158], rF:[62,24,20],  rN:[128,50,34],  vd:[28,10,14],  st:[255,190,150], at:[240,96,54]},
-  {name:'LAGOON',     dF:[86,178,166],  dN:[186,250,238], rF:[20,48,52],  rN:[48,104,110], vd:[8,24,34],   st:[190,255,246], at:[54,190,196]},
-  {name:'TWILIGHT',   dF:[146,128,208], dN:[218,208,255], rF:[36,28,64],  rN:[78,64,134],  vd:[16,10,34],  st:[226,210,255], at:[140,96,240]},
-  {name:'HONEYCOMB',  dF:[204,158,60],  dN:[255,224,146], rF:[58,40,18],  rN:[122,86,34],  vd:[26,18,10],  st:[255,232,176], at:[236,160,50]}
+  {name:'ARC CORE',    dF:[54,124,156],  dN:[142,214,238], rF:[12,18,26],  rN:[30,42,56],  vd:[4,7,12],   st:[196,232,250], at:[38,138,196]},
+  {name:'COLD BUS',    dF:[72,110,164],  dN:[158,192,238], rF:[14,18,30],  rN:[34,42,64],  vd:[5,7,15],   st:[204,220,248], at:[58,106,206]},
+  {name:'PHASE DRIFT', dF:[116,106,172], dN:[194,186,238], rF:[20,17,30],  rN:[46,40,66],  vd:[8,6,15],   st:[216,208,246], at:[118,92,204]},
+  {name:'NULL FIELD',  dF:[104,118,138], dN:[198,214,232], rF:[15,18,23],  rN:[38,44,54],  vd:[6,7,10],   st:[214,228,244], at:[92,114,148]},
+  {name:'EMBER TRACE', dF:[168,110,62],  dN:[240,196,144], rF:[28,16,10],  rN:[64,38,22],  vd:[12,6,5],   st:[248,210,176], at:[210,110,48]},
+  {name:'LIME LATTICE',dF:[118,150,72],  dN:[204,232,152], rF:[19,25,13],  rN:[44,56,28],  vd:[7,10,6],   st:[222,242,190], at:[124,176,64]},
+  {name:'TEAL SPINE',  dF:[52,144,138],  dN:[148,226,216], rF:[10,24,23],  rN:[26,54,52],  vd:[4,10,10],   st:[196,244,236], at:[38,172,164]},
+  {name:'SHUNT ROW',   dF:[150,104,124], dN:[228,190,204], rF:[24,15,19],  rN:[54,36,44],  vd:[10,5,7],   st:[240,212,222], at:[178,88,116]}
 ];
-var VAULT_A = ['IRON','SALT','GLASS','ASH','BONE','SLATE','AMBER','TIDE','EMBER','FROST','COPPER','SHALE'];
-var VAULT_B = ['REACH','WELL','SPINE','GATE','HOLLOW','WORKS','MARCH','VAULT','TERRACE','CANT'];
+var VAULT_A = ['ARC','FLUX','NULL','PHASE','DRIFT','CORE','ECHO','GRID','PULSE','RAIL','SHUNT','VECTOR'];
+var VAULT_B = ['ARRAY','BUS','LATTICE','MANIFOLD','SPINE','SECTOR','TRACE','WELL','NODE','LOOP'];
 var NAME_A  = ['THE','LOW','HIGH','OLD','DEEP','LONG','BLIND','CLOSE','FAR','LOST'];
 var NAME_B  = ['CANT','HINGE','LATCH','WARD','DROP','SPINE','SEAM','FOLD','TURN','GATE','WELL','STEP','CROSS','MOUTH','KEEP'];
 
@@ -1864,6 +1886,19 @@ var DECK_FLOOR = 108;                         /* the dimmest a deck may ever be 
    make two materials confusable, so bedrock is allowed to go very dark
    indeed. That is what buys rubble its contrast — a mortar line at 0.55 of
    an already-dark rock is visible, where the same line at 0.74 was a rumour. */
+/* THE CLAMP IS WHY A TRACE IS NOT A BRIGHT LINE ON A DARK BOARD.
+
+   Every texel of a live surface is held between 0.80 and 1.12 of its palette
+   colour — a contrast range of 1.4:1 — because that is what keeps the
+   DARKEST deck texel above the BRIGHTEST bedrock texel with a shadow on it.
+   A schematic drawn the obvious way, dark substrate with glowing copper on
+   top, would put its substrate squarely inside the bedrock band and destroy
+   the one question the player asks every frame.
+
+   So the technical read is carried by GEOMETRY instead: orthogonal runs,
+   junction pads, right angles, registration ticks. Shape says "system" at
+   exactly the luminance that brick said "stone", and the guarantee never
+   hears about it.                                                         */
 var TEX_LO = {'+':0.80, '#':0.55};            /* darkest texel each material may paint */
 var TEX_HI = {'+':1.12, '#':1.10};            /* brightest */
 function bandGap(st){
@@ -2522,13 +2557,34 @@ function rgbs(c){ return 'rgb(' + (c[0]|0) + ',' + (c[1]|0) + ',' + (c[2]|0) + '
 function mixc(a, b, t){
   return 'rgb(' + Math.round(a[0]+(b[0]-a[0])*t) + ',' + Math.round(a[1]+(b[1]-a[1])*t) + ',' + Math.round(a[2]+(b[2]-a[2])*t) + ')';
 }
+/* DEPTH IS SIGNAL STRENGTH.
+
+   The bevels and the cast shadows are gone — a schematic is drawn with a
+   plotter and a plotter has no light source. But depth cannot go with them,
+   because depth is not decoration here: it is the ONLY thing on the flat view
+   that says a collapse happened. Two traces three cells apart in depth sit
+   side by side on screen, and if they render identically the player never
+   sees the one idea the whole game is built on.
+
+   So it moves into the channel this palette already speaks: a far run is DIM
+   AND DESATURATED — a weak signal, barely powered — and a near one is bright
+   and fully saturated, carrying current. Same information, no lighting model,
+   nothing drawn that a pen could not draw. Colour is data.
+
+   The chroma term is applied around the colour's own luminance, so pulling
+   the saturation out never changes how BRIGHT a texel is — which means the
+   deck/bedrock band is untouched by it and enforceBands never hears about
+   this at all. */
 function tileRGB(t, d, lightMul){
   var near = Math.max(0, Math.min(1, d / Math.max(1, N-1)));
   var lm = lightMul === undefined ? 1 : lightMul;
   var a = t === '+' ? ST.dF : ST.rF, b = t === '+' ? ST.dN : ST.rN;
-  return [(a[0] + (b[0]-a[0])*near) * lm,
-          (a[1] + (b[1]-a[1])*near) * lm,
-          (a[2] + (b[2]-a[2])*near) * lm];
+  var r = (a[0] + (b[0]-a[0])*near) * lm,
+      g = (a[1] + (b[1]-a[1])*near) * lm,
+      bl = (a[2] + (b[2]-a[2])*near) * lm;
+  var sat = 0.40 + 0.60*near;
+  var L = 0.2126*r + 0.7152*g + 0.0722*bl;
+  return [L + (r - L)*sat, L + (g - L)*sat, L + (bl - L)*sat];
 }
 function tileFill(t, d, lightMul){ return rgbs(tileRGB(t, d, lightMul)); }
 
@@ -2682,10 +2738,119 @@ function patOre(rng){
    nobody has seen either. Deck and bedrock are never drawn from the same
    generator, because "is this laid or is this raw" is the second channel
    the material read runs on after brightness. */
+/* ============================================================
+   SCHEMATIC MATERIALS — the flat board stops being a floor.
+
+   Every one of these is drawn inside the 1.4:1 clamp the band contract
+   allows (see TEX_LO), so none of them is a bright line on a dark substrate.
+   What makes them read as circuitry rather than masonry is that every edge
+   in them is ORTHOGONAL and every feature is on a pitch: runs, pads, vias,
+   registration ticks. Brick is irregular by nature and a laid course reads
+   as a made-by-hand thing; a bus is regular by necessity and reads as a
+   made-by-machine one. Same luminance, opposite sentence.
+
+   The per-stone relief pass then differentiates these as height, which is
+   what turns a drawn trace into a raised one — copper standing proud of its
+   substrate, lit from the same corner as everything else.               */
+
+/* LIVE SURFACE — a bus. Runs on a four-texel pitch with a dark groove down
+   one side of each, pads where they cross, and a via bored through some of
+   the pads. It is the deck of a thing that is carrying current. */
+function patBus(rng, pitch){
+  var a = texNew(0.94), x, y, i;
+  var rows = [], cols = [];
+  for(i = pitch >> 1; i < TEXN; i += pitch){ rows.push(i); cols.push(i); }
+  for(i = 0; i < rows.length; i++){
+    var ry = rows[i];
+    for(x = 0; x < TEXN; x++){
+      a[ry*TEXN + x] = 1.10;                                  /* the run */
+      a[((ry+1) % TEXN)*TEXN + x] = 0.84;                     /* its groove */
+    }
+  }
+  for(i = 0; i < cols.length; i++){
+    var cx = cols[i];
+    /* only some verticals, so the board is not a plaid */
+    if(rng() < 0.34) continue;
+    for(y = 0; y < TEXN; y++){
+      a[y*TEXN + cx] = 1.10;
+      a[y*TEXN + ((cx+1) % TEXN)] = 0.84;
+    }
+  }
+  /* pads at the junctions, and a via through a third of them */
+  for(i = 0; i < rows.length; i++) for(var j = 0; j < cols.length; j++){
+    var px = cols[j], py = rows[i];
+    if(rng() < 0.42) continue;
+    for(var dy = -1; dy <= 1; dy++) for(var dx = -1; dx <= 1; dx++)
+      a[(((py+dy) % TEXN + TEXN) % TEXN)*TEXN + (((px+dx) % TEXN + TEXN) % TEXN)] = 1.12;
+    if(rng() < 0.45) a[py*TEXN + px] = 0.82;                  /* bored through */
+  }
+  return a;
+}
+
+/* LIVE SURFACE — a graph field. Finer, quieter, and the one to reach for
+   when a vault should read as a measuring surface rather than a wired one:
+   a fine lattice, a heavier rule every fourth line, and corner ticks. */
+function patGraph(rng){
+  var a = texNew(0.97), x, y;
+  for(y = 0; y < TEXN; y++) for(x = 0; x < TEXN; x++){
+    var maj = (x % 8 === 0) || (y % 8 === 0);
+    var min = (x % 2 === 0) || (y % 2 === 0);
+    var v = maj ? 1.11 : (min ? 1.02 : 0.90);
+    v += (rng() - 0.5) * 0.012;
+    a[y*TEXN + x] = v;
+  }
+  /* registration ticks in the corners: the mark that says somebody aligned
+     this, which is the difference between a grid and graph paper */
+  for(var i = 0; i < 3; i++){
+    a[i] = 1.12; a[i*TEXN] = 1.12;
+    a[(TEXN-1)*TEXN + (TEXN-1-i)] = 1.12; a[(TEXN-1-i)*TEXN + (TEXN-1)] = 1.12;
+  }
+  return a;
+}
+
+/* LIVE SURFACE — a plate with a seam. The quietest of the three: two panels
+   butted together with a scribed joint and a row of fixings, for vaults
+   where the board should recede and let the glyphs carry the screen. */
+function patPlate(rng){
+  var a = texNew(1.0), x, y;
+  for(y = 0; y < TEXN; y++) for(x = 0; x < TEXN; x++){
+    var v = 0.99 + (rng() - 0.5)*0.03;
+    if(x === 7 || y === 7) v = 0.85;                          /* the scribed seam */
+    else if(x === 8 || y === 8) v = 1.09;                     /* its lit shoulder */
+    a[y*TEXN + x] = v;
+  }
+  for(x = 2; x < TEXN; x += 5){ a[2*TEXN + x] = 1.12; a[13*TEXN + x] = 0.86; }
+  return a;
+}
+
+/* DEAD LATTICE — structure without power. A cold regular frame with nothing
+   running in it, which is exactly what bedrock is in this game: real
+   geometry that happens to be no use on this face. */
+function patLattice(rng, pitch){
+  var a = texNew(0.72), x, y;
+  for(y = 0; y < TEXN; y++) for(x = 0; x < TEXN; x++){
+    var onx = (x % pitch === 0), ony = (y % pitch === 0);
+    var v = (onx || ony) ? 0.88 : 0.72;
+    if(onx && ony) v = 0.96;                                  /* the node */
+    a[y*TEXN + x] = v + (rng() - 0.5)*0.02;
+  }
+  return a;
+}
+
+/* DEAD LATTICE — hatched fill. Diagonals are the draughtsman's mark for
+   "solid, do not enter", and they are the one non-orthogonal thing allowed
+   in here for exactly that reason. */
+function patHatch(rng){
+  var a = texNew(0.74), x, y;
+  for(y = 0; y < TEXN; y++) for(x = 0; x < TEXN; x++)
+    a[y*TEXN + x] = (((x + y) % 4) === 0 ? 0.92 : 0.72) + (rng() - 0.5)*0.02;
+  return a;
+}
+
 var TEX_KITS = [
-  {deck:function(r){ return patBricks(r, 8, 4, 1); }, rock:function(r){ return patCobble(r, 8, 0.06); }},
-  {deck:patPlanks,                                    rock:function(r){ return patCobble(r, 15, 0.11); }},
-  {deck:patSmooth,                                    rock:patOre}
+  {deck:function(r){ return patBus(r, 5); },  rock:function(r){ return patLattice(r, 4); }},
+  {deck:patGraph,                             rock:patHatch},
+  {deck:patPlate,                             rock:function(r){ return patLattice(r, 5); }}
 ];
 
 /* THE EDGE, AND THE CLAMP.
@@ -2864,7 +3029,12 @@ function drawBlock(t, d, x, y, w, h, lit){
    falling to 0 outside the corner arc. Precomputed once at the block's RENDER
    resolution, which is what makes the corner an actual arc rather than four
    pixels of staircase. */
-var CORNER_R = 4.2, cornerLUT = null;
+/* 4.2 of 16 is a twenty-six percent radius — a soft-edged toy. A cut panel
+   is nearly square with the corner just broken, which is what this is now.
+   It is also the difference between a grid of tiles and a lattice of cells:
+   the smaller the radius, the more the gaps between blocks read as a ruled
+   line rather than as gutters between pebbles. */
+var CORNER_R = 1.9, cornerLUT = null;
 function cornerFade(x, y){
   if(!cornerLUT){
     var rr = CORNER_R * TEXS;
@@ -2925,31 +3095,18 @@ function blockShade(nx, ny, deck){
   /* distance to the nearest edge, 0 at the boundary, 0.5 dead centre */
   var e = Math.min(nx, ny, 1 - nx, 1 - ny);
   var m = 1;
-  /* occlusion — the outer seventh only */
-  if(e < 0.15){
-    var q = e / 0.15; q = q*q*(3 - 2*q);
-    m *= 0.78 + 0.22*q;
-  }
-  /* THE LIP HAS A DIRECTION, and the first version of this did not — the rim
-     ran all the way round every block, which is not a solid catching a light,
-     it is a button. A lit top, a dark underside and a much weaker pair of
-     sides is what says "this has thickness and the light is up there". */
-  if(ny < 0.12){ var t0 = 1 - ny/0.12; m *= 1 + 0.135*t0*t0; }
-  if(ny > 0.84){ var b0 = (ny - 0.84)/0.16; m *= 1 - 0.19*b0*b0; }
-  if(nx < 0.10){ var l0 = 1 - nx/0.10; m *= 1 + 0.05*l0*l0; }
-  if(nx > 0.90){ var r0 = (nx - 0.90)/0.10; m *= 1 - 0.085*r0*r0; }
-  /* the rim: one thin bright line, and only along the two edges facing the
-     light. Away from the top-left it falls off to nothing. */
-  var lit = Math.max(0, 1 - (nx*0.55 + ny*1.05));
-  if(lit > 0){
-    var rim = Math.max(0, 1 - Math.abs(e - 0.035)/0.035);
-    m *= 1 + 0.20*rim*lit;
-  }
-  /* and the sheen, decks only */
-  if(deck){
-    var sx = nx - 0.30, sy = ny - 0.26;
-    m *= 1 + 0.05*Math.exp(-(sx*sx + sy*sy)*3.4);
-  }
+  /* NOT A PANEL EITHER — A CELL ON A SCHEMATIC.
+
+     Everything that was modelling a light source is gone: the lit lip, the
+     underside, the sheen, the directional rim. A plotter has no lamp.
+
+     ONE THING SURVIVES AND IT IS NOT LIGHTING. A cell needs an edge or
+     forty-nine of them in the same material merge into one sheet and the
+     grid — which IS the board — stops being visible. So the outer eighth
+     steps down to a fixed value, hard, with no gradient: that is a GUTTER
+     between two cells, the kind of line you would rule on a drawing, not a
+     surface curving away from a light. It reads as a cut, not a bead. */
+  if(e < 0.085) m *= 0.84;
   return m;
 }
 
@@ -4026,6 +4183,39 @@ function buildVignette(){
   }
   g.putImageData(id, 0, 0);
 }
+/* ---------- IT IS A DISPLAY, AND IT SAYS SO ------------------------------
+   One band of very slightly lifted scanlines crossing the board every few
+   seconds. It is the cheapest possible statement that what you are looking
+   at is a readout of a system rather than a room you are standing in — and
+   unlike a permanent scanline overlay it costs nothing at rest, because
+   outside the sweep there is nothing to draw at all.
+
+   It is clipped to the board and it is ADDITIVE and faint, so it can never
+   darken a cell toward the bedrock band. The one thing on this screen that
+   is not allowed to be touched by atmosphere is the question "may I stand
+   there".                                                                 */
+var sweepT = 3000;
+function stepSweep(dt){ sweepT += dt; }
+function drawSweep(){
+  if(!store.fx || !lv || demo) return;
+  var period = 5200, dur = 900, t = sweepT % period;
+  if(t > dur) return;
+  var p = t/dur, half = N*S/2;
+  var y = CY - half - S*0.5 + p*(N*S + S);
+  var h = S*0.9;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(CX - half, CY - half, N*S, N*S); ctx.clip();
+  ctx.globalCompositeOperation = 'lighter';
+  var g = ctx.createLinearGradient(0, y - h, 0, y + h);
+  var a = (0.055 * Math.sin(p*Math.PI)).toFixed(4);
+  g.addColorStop(0,   'rgba(140,220,255,0)');
+  g.addColorStop(0.5, 'rgba(140,220,255,' + a + ')');
+  g.addColorStop(1,   'rgba(140,220,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(CX - half, y - h, N*S, h*2);
+  ctx.restore();
+}
+
 function drawVignette(){
   if(!store.fx){
     var g0 = ctx.createRadialGradient(CX, CY, Math.min(W,H)*0.30, CX, CY, Math.max(W,H)*0.76);
@@ -4175,7 +4365,7 @@ function drawBeam(){
   var w = S*0.85 * (1 - p*0.4) * Math.min(1, p*7), a = (1-p)*(1-p)*0.6;
   if(a <= 0.004 || w <= 0) return;
   var g = c.createLinearGradient(beam.x, beam.y - H, beam.x, beam.y + S*0.5);
-  g.addColorStop(0, 'rgba(255,196,77,0)');
+  g.addColorStop(0, 'rgba(249,115,22,0)');
   g.addColorStop(0.70, 'rgba(255,214,120,' + (a*0.5).toFixed(3) + ')');
   g.addColorStop(1, 'rgba(255,242,214,' + a.toFixed(3) + ')');
   c.save(); c.globalCompositeOperation = 'lighter';
@@ -4226,7 +4416,7 @@ function stepFlyers(dt){
       var p = $('keyPill'); p.classList.remove('pop'); void p.offsetWidth; p.classList.add('pop');
       sfx.keyIn();
       var r = p.getBoundingClientRect();
-      burst(r.left+r.width*0.32, r.top+r.height/2, 10, {spd:70, life:380, r:1.8, col:'34,224,106', g:0});
+      burst(r.left+r.width*0.32, r.top+r.height/2, 10, {spd:70, life:380, r:1.8, col:'163,230,53', g:0});
     }
   }
 }
@@ -4234,7 +4424,7 @@ function drawFlyers(){
   for(var i = 0; i < flyers.length; i++){
     var f = flyers[i], p = f.t/f.dur, e = p*p*(3-2*p);
     var x = f.x0 + (f.x1-f.x0)*e, y = f.y0 + (f.y1-f.y0)*e - Math.sin(p*Math.PI)*70;
-    halo(x, y, 24, '34,224,106', 0.5*(1-p*0.5));
+    halo(x, y, 24, '163,230,53', 0.5*(1-p*0.5));
     ctx.save(); ctx.fillStyle = '#22e06a';
     ctx.beginPath(); ctx.arc(x, y, 5*(1-p*0.35), 0, 6.284); ctx.fill(); ctx.restore();
   }
@@ -4711,6 +4901,7 @@ function draw(){
   if(demo || peek.amt > 0.001 || (a && Math.abs(a.ang) > 1e-4)) draw3d();
   else drawFlat();
   if(!demo) drawFrame();
+  drawSweep();
   drawBeam();
   drawParts();
   camEnd();
@@ -4722,7 +4913,7 @@ function draw(){
     c1.save(); c1.globalCompositeOperation = 'lighter';
     c1.globalAlpha = exitFlash * 0.5;
     var eg = c1.createRadialGradient(CX, CY, 0, CX, CY, Math.max(W,H)*0.7);
-    eg.addColorStop(0, 'rgba(255,196,77,0.5)'); eg.addColorStop(1, 'rgba(255,196,77,0)');
+    eg.addColorStop(0, 'rgba(249,115,22,0.5)'); eg.addColorStop(1, 'rgba(249,115,22,0)');
     c1.fillStyle = eg; c1.fillRect(0,0,W,H); c1.restore();
   }
   if(impact > 0){
@@ -4926,7 +5117,7 @@ function drawFlat(){
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
     for(i = 0; i < nsFlat.length; i++){
       var nf = nsFlat[i], nr = tileRect(nf.u2, nf.v2);
-      var ncol = nf.kind === 2 ? S_KEY : nf.kind === 4 ? S_EXIT : '53,215,161';
+      var ncol = nf.kind === 2 ? S_KEY : nf.kind === 4 ? S_EXIT : '250,204,21';
       var tx = nr[0] + S/2, ty = nr[1] + S/2;
       var g4 = ctx.createLinearGradient(p0f[0], p0f[1], tx, ty);
       g4.addColorStop(0, 'rgba(206,244,255,0.55)');
@@ -5123,7 +5314,7 @@ function drawOrbTrail(){
   for(var i = 0; i < orbTrail.length; i++){
     var q = orbTrail[i], a = 1 - q.t/300;
     c.globalAlpha = a*a*0.34;
-    c.fillStyle = 'rgb(56,214,255)';
+    c.fillStyle = 'rgb(34,211,238)';
     c.beginPath(); c.arc(q.x, q.y, S*0.16*a, 0, 6.284); c.fill();
   }
   c.restore();
@@ -5607,7 +5798,7 @@ function stepDoors(dt){
    two axes of spin means a key is never showing you the same face twice,
    which is what makes an object on a shelf read as worth crossing a board
    for. */
-var C_KEY = [34, 224, 106], S_KEY = '34,224,106';
+var C_KEY = [34, 224, 106], S_KEY = '163,230,53';
 function drawKey(cx, cy, sz){
   var t = Date.now()/1000;
   var y = cy - sz*0.05 - sz*0.045*Math.sin(t*1.9);
@@ -5626,7 +5817,7 @@ function drawKey(cx, cy, sz){
    reads as a ring from the first frame to the last while the light travels
    around it. Tilted a little off face-on so it is plainly a solid and not a
    drawn circle. */
-var C_EXIT = [255, 196, 77], S_EXIT = '255,196,77';
+var C_EXIT = [255, 196, 77], S_EXIT = '249,115,22';
 function drawGoal(cx, cy, sz){
   var t = Date.now()/1000, p = (Date.now() % 2400)/2400;
   var y = cy - sz*0.06 - sz*0.04*Math.sin(t*1.35);
@@ -5820,7 +6011,7 @@ function draw3d(){
     for(var si = 0; si < specials.length; si++){
       var sp = specials[si];
       px(sp.w[0] + m.F[0]*0.62, sp.w[1] + m.F[1]*0.62, sp.w[2] + m.F[2]*0.62, tmp);
-      var col = sp.kind === 2 ? S_KEY : sp.kind === 4 ? S_EXIT : '53,215,161';
+      var col = sp.kind === 2 ? S_KEY : sp.kind === 4 ? S_EXIT : '250,204,21';
       var g5 = ctx.createLinearGradient(p0[0], p0[1], tmp[0], tmp[1]);
       g5.addColorStop(0, 'rgba(206,244,255,0.55)');
       g5.addColorStop(1, 'rgba(' + col + ',0.85)');
@@ -5891,7 +6082,7 @@ function draw3d(){
          thing being revealed has to be the thing you notice */
       if(xr > 0.02){
         flushWire();
-        var mc = e.k === 2 ? S_KEY : e.k === 1 ? '56,214,255' : e.k === 4 ? S_EXIT : '53,215,161';
+        var mc = e.k === 2 ? S_KEY : e.k === 1 ? '34,211,238' : e.k === 4 ? S_EXIT : '250,204,21';
         halo(e.x, e.y, sz*(1.0 + xr*0.8), mc, (e.k === 1 ? 0.52 : 0.32)*xr);
       }
       /* and YOU grow under a peek. Every other marker is a place; you are
@@ -5982,7 +6173,7 @@ function tapCell(u, v){
   if(!s){ toast('nothing there'); sfx.deny(); denyAt(u, v); return; }
   if(!isWalkType(s.t)){ toast('bedrock — no footing on this face'); sfx.deny(); denyAt(u, v); return; }
   var di = doorIndexAt(lv, s.w), shut = di >= 0 && !(doors & (1<<di));
-  if(shut && keysHeld() < 1){ toast('locked — find a key'); sfx.deny(); buzz(14); denyAt(u, v, '34,224,106'); return; }
+  if(shut && keysHeld() < 1){ toast('locked — find a key'); sfx.deny(); buzz(14); denyAt(u, v, '163,230,53'); return; }
   var path = pathTo(u, v);
   if(!path){ toast(shut ? 'no way to that door' : 'not connected — turn the cube'); sfx.deny(); denyAt(u, v); return; }
   /* Tapping the cell you already stand on yields an EMPTY path, which is
@@ -6031,10 +6222,10 @@ function advanceWalk(dt){
        something, so it gets the whole kit: shards off the bars, a jade front
        running out across the board, and the room lit green for a beat. */
     doors |= (1<<di); sfx.door(); buzz(24); toast('unlocked'); faceSet('happy', 800);
-    kick(5, 0, 1); shake(0.34); punch(0.030); hitstop(46); flash('53,215,161', 0.30, 520);
-    burst(cx2, cy2, 26, {spd:150, life:640, r:2.4, col:'53,215,161', g:110});
-    burst(cx2, cy2, 10, {kind:'chip', spd:110, life:760, r:2.0, col:'40,150,116', g:340});
-    ring(cx2, cy2, {r0:S*0.2, r1:S*2.6, dur:520, col:'53,215,161', a:0.65, w:3.5});
+    kick(5, 0, 1); shake(0.34); punch(0.030); hitstop(46); flash('250,204,21', 0.30, 520);
+    burst(cx2, cy2, 26, {spd:150, life:640, r:2.4, col:'250,204,21', g:110});
+    burst(cx2, cy2, 10, {kind:'chip', spd:110, life:760, r:2.0, col:'150,120,14', g:340});
+    ring(cx2, cy2, {r0:S*0.2, r1:S*2.6, dur:520, col:'250,204,21', a:0.65, w:3.5});
   } else {
     sfx.step();
     /* a footfall knocks grit off the block, and the block answers with a
@@ -6042,16 +6233,16 @@ function advanceWalk(dt){
        a marker moving and a thing landing on stone */
     burst(cx2, cy2 + S*0.20, 4, {kind:'chip', spd:34, life:420, r:1.5,
                                  col:chipCol(cell.t, cell.d), g:260, fade:0.9});
-    ring(cx2, cy2, {r0:S*0.30, r1:S*0.62, dur:260, col:'56,214,255', a:0.30, w:2, sq:true});
+    ring(cx2, cy2, {r0:S*0.30, r1:S*0.62, dur:260, col:'34,211,238', a:0.30, w:2, sq:true});
     shake(0.045);
   }
   var ki = keyIndexAt(lv, pos);
   if(ki >= 0 && !(kmask & (1<<ki))){
     kmask |= (1<<ki); sfx.key(); buzz(12); toast('key'); faceSet('happy', 900);
-    shake(0.20); punch(0.022); hitstop(30); flash('34,224,106', 0.26, 460);
-    burst(cx2, cy2, 20, {spd:130, life:560, r:2.2, col:'34,224,106', g:20});
-    burst(cx2, cy2, 8, {kind:'ember', spd:26, lift:40, life:900, r:2.0, col:'170,255,200', g:-24});
-    ring(cx2, cy2, {r0:S*0.15, r1:S*1.9, dur:460, col:'34,224,106', a:0.7, w:3});
+    shake(0.20); punch(0.022); hitstop(30); flash('163,230,53', 0.26, 460);
+    burst(cx2, cy2, 20, {spd:130, life:560, r:2.2, col:'163,230,53', g:20});
+    burst(cx2, cy2, 8, {kind:'ember', spd:26, lift:40, life:900, r:2.0, col:'214,246,150', g:-24});
+    ring(cx2, cy2, {r0:S*0.15, r1:S*1.9, dur:460, col:'163,230,53', a:0.7, w:3});
     flyKey();
   }
   var gb = glyphAt(lv, pos);
@@ -6062,7 +6253,7 @@ function advanceWalk(dt){
     hopT = 0; faceSet('land', 260);
     burst(cx2, cy2 + S*0.24, 7, {kind:'chip', spd:44, life:460, r:1.7,
                                  col:chipCol(cell.t, cell.d), g:300, fade:0.8});
-    burst(cx2, cy2, 5, {kind:'ember', spd:20, lift:26, life:700, r:1.6, col:'150,250,255', g:-18});
+    burst(cx2, cy2, 5, {kind:'ember', spd:20, lift:26, life:700, r:1.6, col:'170,240,250', g:-18});
     settle(); afterAction();
   }
   else { computeReach(); refreshHud(); }
@@ -6166,7 +6357,7 @@ function advanceAnim(dt){
           {kind:'chip', spd:30, life:760, r:1.6, g:300, fade:0.65,
            col: gs ? chipCol(gs.t, gs.d) : '190,180,160'});
   }
-  burst(pr[0]+S/2, pr[1]+S/2, 10, {spd:78, life:440, r:2.1, col:'150,250,255', g:60});
+  burst(pr[0]+S/2, pr[1]+S/2, 10, {spd:78, life:440, r:2.1, col:'170,240,250', g:60});
   revealT = 0;
   sfx.turn(); buzz(11);
   settle(); afterAction();
@@ -6321,11 +6512,11 @@ function finish(){
      restraint — you are leaving, so nothing after this has to stay legible.
      The orb is drawn INTO the door: a ring of sparks falls inward first,
      then everything leaves outward. */
-  burst(gx, gy, 34, {spd:190, life:800, r:2.6, col:'255,196,77', g:0});
+  burst(gx, gy, 34, {spd:190, life:800, r:2.6, col:'249,115,22', g:0});
   burst(gx, gy, 18, {spd:70, life:1000, r:3.4, col:'255,246,224', g:-14});
   burst(gx, gy, 22, {kind:'ember', spd:14, lift:70, life:1500, r:2.4, col:'255,226,150', g:-40, fade:0.8});
   beam = {x:gx, y:gy, t:0, dur:1100};
-  ring(gx, gy, {r0:S*0.2, r1:N*S*1.2, dur:900, col:'255,196,77', a:0.85, w:7, sq:true});
+  ring(gx, gy, {r0:S*0.2, r1:N*S*1.2, dur:900, col:'249,115,22', a:0.85, w:7, sq:true});
   ring(gx, gy, {r0:S*0.2, r1:N*S*0.7, dur:600, col:'255,246,224', a:0.6, w:4});
   kick(11, 0, 1); shake(1); punch(0.09);
   /* THE ONE PLACE THE CLOCK REALLY BENDS. A long stop, then a third of
@@ -6335,7 +6526,7 @@ function finish(){
   /* exitFlash already floods the frame green for most of a second; this one
      only has to be the leading edge of it, and two full-strength washes
      stacked read as a white-out rather than as a door opening */
-  flash('255,196,77', 0.22, 620);
+  flash('249,115,22', 0.22, 620);
   exitFlash = 1;
   /* A PERFECT LINE IS A DIFFERENT EVENT, and it has never once looked like
      one. Par is the whole scoring system in this game; clearing at par with
@@ -6950,6 +7141,7 @@ function loop(ts){
     advanceAnim(dt);
     advanceWalk(dt);
     stepPlateClock(dt); paintPlateClock();          /* before anything reads the board */
+    stepSweep(dt);
     stepMotes(dt); stepParts(dt); stepWave(dt); stepFlip(dt); stepFlyers(dt); stepDemo(dt);
     stepCam(dt); stepFlashes(dt); stepPeek(dt); stepOrb(dt); stepBeam(dt); stepDoors(dt);
     stepFace(dt);

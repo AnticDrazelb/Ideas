@@ -1,45 +1,49 @@
 /* ============================================================
    VAULTS — ten cubes to a block, and a block owns a look.
 
-   COLOUR THAT MEANS SOMETHING NEVER CHANGES. You are always rust, the way
-   out is always jade, keys are always gold — a player who learns those on
-   cube three must still be able to read cube nine hundred at a glance. What
-   changes with the vault is the MATERIAL: what the deck is made of, what
-   the bedrock is made of, and what colour the nothing behind it is.
+   COLOUR THAT MEANS SOMETHING NEVER CHANGES. You are always arc, the way
+   out is always core, keys are always node, gates are always lock — a player
+   who learns those on cube three must still be able to read cube nine hundred
+   at a glance. What changes with the vault is the MATERIAL: what the live
+   surface is made of, what the dead lattice is made of, and what colour the
+   unrendered space behind it is.
 
    Eight are authored. Past those the palette keeps going by rotating the
    authored hues, so vault ninety has a look nobody chose but nobody has
    seen either — which is the honest deal for a game with no last level.
    ============================================================ */
-/* EIGHT WORLDS, NOT EIGHT QUARRIES.
+/* EIGHT SECTIONS OF ONE ENGINE, NOT EIGHT QUARRIES.
 
-   These were named for industry and lit like one: eight variations on wet
-   stone in a dark room, every deck a shade of bone and every sky within a
-   few points of black. It read as serious, which is not the same as good,
-   and it is the opposite of what this game is — a bright object turning in
-   your hands.
+   These were named for industry and lit like one: brown brick, bone slab,
+   jade gem. That art was fighting the mechanics. Nothing in this game is a
+   PLACE — you are not walking a dungeon, you are folding a projection until
+   two things that were never adjacent become adjacent, and the one view that
+   ever said so honestly was the wireframe you get when you hold the cube up
+   to the light. Stone was the flat board disagreeing with its own peek.
 
-   So each vault is a PLACE with a colour it could only be. The rule that
-   makes them work is the one Galaxy uses: the ground is candy-saturated and
-   the sky behind it is deep and SATURATED TOO — never grey, never black.
-   A dark violet sky makes a lime platform sing; a dark grey one makes it
-   look like a lime platform in a car park.
+   So the palette is no longer material, it is STATE. A deck is a live
+   surface: lit, saturated, carrying current. Bedrock is dead lattice —
+   near-black, cold, structured but unpowered. Void is unrendered space
+   rather than a pit. Each vault is one section of the same engine, and what
+   changes between them is which frequency it runs at.
 
-   The bands still hold. Deck luminance stays high, bedrock is walked down
-   by enforceBands as it always was, and the guarantee has not moved an inch
-   — it is the hues that changed, not the contract.                        */
+   THE BANDS HAVE NOT MOVED AN INCH. Deck luminance stays high, bedrock is
+   walked down by enforceBands exactly as before, and the guarantee is
+   measured the same way it always was. Hues changed; the contract did not.
+   Which is also why the traces cannot be bright lines on a dark board —
+   see the note over TEX_LO.                                              */
 var VAULTS = [
-  {name:'MEADOW',     dF:[104,168,72],  dN:[196,246,150], rF:[38,44,30],  rN:[88,74,52],   vd:[14,18,34],  st:[210,240,255], at:[70,120,220]},
-  {name:'SANDCASTLE', dF:[186,148,72],  dN:[255,232,168], rF:[62,42,30],  rN:[126,84,52],  vd:[20,16,34],  st:[255,226,180], at:[210,140,70]},
-  {name:'BUBBLEGUM',  dF:[196,110,158], dN:[255,196,228], rF:[52,28,58],  rN:[104,58,116], vd:[26,12,36],  st:[255,206,246], at:[214,90,190]},
-  {name:'GLACIER',    dF:[112,168,196], dN:[206,244,255], rF:[26,42,64],  rN:[62,92,134],  vd:[10,18,40],  st:[220,244,255], at:[80,150,240]},
-  {name:'EMBERFALL',  dF:[204,116,64],  dN:[255,206,158], rF:[62,24,20],  rN:[128,50,34],  vd:[28,10,14],  st:[255,190,150], at:[240,96,54]},
-  {name:'LAGOON',     dF:[86,178,166],  dN:[186,250,238], rF:[20,48,52],  rN:[48,104,110], vd:[8,24,34],   st:[190,255,246], at:[54,190,196]},
-  {name:'TWILIGHT',   dF:[146,128,208], dN:[218,208,255], rF:[36,28,64],  rN:[78,64,134],  vd:[16,10,34],  st:[226,210,255], at:[140,96,240]},
-  {name:'HONEYCOMB',  dF:[204,158,60],  dN:[255,224,146], rF:[58,40,18],  rN:[122,86,34],  vd:[26,18,10],  st:[255,232,176], at:[236,160,50]}
+  {name:'ARC CORE',    dF:[54,124,156],  dN:[142,214,238], rF:[12,18,26],  rN:[30,42,56],  vd:[4,7,12],   st:[196,232,250], at:[38,138,196]},
+  {name:'COLD BUS',    dF:[72,110,164],  dN:[158,192,238], rF:[14,18,30],  rN:[34,42,64],  vd:[5,7,15],   st:[204,220,248], at:[58,106,206]},
+  {name:'PHASE DRIFT', dF:[116,106,172], dN:[194,186,238], rF:[20,17,30],  rN:[46,40,66],  vd:[8,6,15],   st:[216,208,246], at:[118,92,204]},
+  {name:'NULL FIELD',  dF:[104,118,138], dN:[198,214,232], rF:[15,18,23],  rN:[38,44,54],  vd:[6,7,10],   st:[214,228,244], at:[92,114,148]},
+  {name:'EMBER TRACE', dF:[168,110,62],  dN:[240,196,144], rF:[28,16,10],  rN:[64,38,22],  vd:[12,6,5],   st:[248,210,176], at:[210,110,48]},
+  {name:'LIME LATTICE',dF:[118,150,72],  dN:[204,232,152], rF:[19,25,13],  rN:[44,56,28],  vd:[7,10,6],   st:[222,242,190], at:[124,176,64]},
+  {name:'TEAL SPINE',  dF:[52,144,138],  dN:[148,226,216], rF:[10,24,23],  rN:[26,54,52],  vd:[4,10,10],   st:[196,244,236], at:[38,172,164]},
+  {name:'SHUNT ROW',   dF:[150,104,124], dN:[228,190,204], rF:[24,15,19],  rN:[54,36,44],  vd:[10,5,7],   st:[240,212,222], at:[178,88,116]}
 ];
-var VAULT_A = ['IRON','SALT','GLASS','ASH','BONE','SLATE','AMBER','TIDE','EMBER','FROST','COPPER','SHALE'];
-var VAULT_B = ['REACH','WELL','SPINE','GATE','HOLLOW','WORKS','MARCH','VAULT','TERRACE','CANT'];
+var VAULT_A = ['ARC','FLUX','NULL','PHASE','DRIFT','CORE','ECHO','GRID','PULSE','RAIL','SHUNT','VECTOR'];
+var VAULT_B = ['ARRAY','BUS','LATTICE','MANIFOLD','SPINE','SECTOR','TRACE','WELL','NODE','LOOP'];
 var NAME_A  = ['THE','LOW','HIGH','OLD','DEEP','LONG','BLIND','CLOSE','FAR','LOST'];
 var NAME_B  = ['CANT','HINGE','LATCH','WARD','DROP','SPINE','SEAM','FOLD','TURN','GATE','WELL','STEP','CROSS','MOUTH','KEEP'];
 
@@ -98,6 +102,19 @@ var DECK_FLOOR = 108;                         /* the dimmest a deck may ever be 
    make two materials confusable, so bedrock is allowed to go very dark
    indeed. That is what buys rubble its contrast — a mortar line at 0.55 of
    an already-dark rock is visible, where the same line at 0.74 was a rumour. */
+/* THE CLAMP IS WHY A TRACE IS NOT A BRIGHT LINE ON A DARK BOARD.
+
+   Every texel of a live surface is held between 0.80 and 1.12 of its palette
+   colour — a contrast range of 1.4:1 — because that is what keeps the
+   DARKEST deck texel above the BRIGHTEST bedrock texel with a shadow on it.
+   A schematic drawn the obvious way, dark substrate with glowing copper on
+   top, would put its substrate squarely inside the bedrock band and destroy
+   the one question the player asks every frame.
+
+   So the technical read is carried by GEOMETRY instead: orthogonal runs,
+   junction pads, right angles, registration ticks. Shape says "system" at
+   exactly the luminance that brick said "stone", and the guarantee never
+   hears about it.                                                         */
 var TEX_LO = {'+':0.80, '#':0.55};            /* darkest texel each material may paint */
 var TEX_HI = {'+':1.12, '#':1.10};            /* brightest */
 function bandGap(st){
