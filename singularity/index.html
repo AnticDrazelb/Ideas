@@ -1067,6 +1067,40 @@ html.vpLand #dpad{
 .edMsg.bad{color:var(--fault);}
 .edMsg.good{color:var(--arc);}
 
+/* THE COACH — one instruction, and it watches rather than asks.
+   A tutorial with a NEXT button is a slideshow you click through without
+   reading. This one advances only when the thing it asked for has actually
+   happened in the editor's own state, so the only way forward is to do it. */
+.edCoach{display:flex;align-items:center;gap:10px;width:100%;max-width:380px;
+         margin:0 auto 10px;padding:10px 12px;border-radius:var(--r-card);
+         background:var(--panel-hi);box-shadow:inset 0 0 0 var(--hair) var(--edge-on);
+         font-family:var(--mono);font-size:var(--t-micro);letter-spacing:.08em;
+         color:var(--ink);line-height:1.45;flex-shrink:0;text-align:left;}
+.edCoach.hide{display:none;}
+.edCoach.done{box-shadow:inset 0 0 0 var(--hair) var(--arc);}
+#edCoachN{flex:0 0 auto;width:20px;height:20px;border-radius:50%;
+          display:flex;align-items:center;justify-content:center;
+          background:var(--rust);color:#000;font-weight:600;font-size:10px;
+          font-family:var(--mono);}
+.edCoach.done #edCoachN{background:var(--arc);}
+
+/* DISPLAY TRIM.
+   `filter` makes an element a containing block for its positioned
+   descendants, so this deliberately does NOT go on a wrapper around the
+   whole app — it goes on the three surfaces themselves. And it is applied
+   only while html.disp is set, which happens only when a value is off its
+   default: a full-screen filter pass every frame is not a cost to make
+   everybody pay for a control most players never touch. */
+html.disp #stage, html.disp .layer, html.disp #hud{
+  filter:brightness(var(--disp-b,1)) contrast(var(--disp-c,1));
+}
+
+/* a board row's own record, on the right where a switch would be */
+.bVal{font-family:var(--mono);font-size:var(--t-tiny);letter-spacing:.1em;
+      color:var(--arc);flex:0 0 auto;padding-left:10px;white-space:nowrap;}
+.row.off .bVal{color:var(--dim);}
+.row.off .lbl{color:var(--dim);}
+
 /* ---------- CARDS ---------- */
 .card{
   width:100%;max-width:360px;margin:0 auto;padding:26px 22px 20px;
@@ -1373,11 +1407,13 @@ html.vpLand #dpad{
     <div class="vaultId"><span id="edLayerTxt">DECK 1 / 5</span></div>
     <button class="pill" id="edUp" aria-label="Higher deck">[ &gt; ]</button>
   </div>
+  <div class="edCoach hide" id="edCoach"><span id="edCoachN">1</span><span id="edCoachT"></span></div>
   <div class="edSlice" id="edSlice"></div>
   <div class="edTools" id="edTools"></div>
   <div class="edRow">
     <input class="edIn" id="edName" placeholder="NAME THIS CUBE" maxlength="18" autocomplete="off" spellcheck="false">
     <button class="pill" id="edSize">[ 5 ]</button>
+    <button class="pill" id="edTeach" aria-label="Show me how">[ ? ]</button>
   </div>
   <div class="edMsg" id="edMsg"></div>
   <div class="btn2">
@@ -1540,8 +1576,41 @@ html.vpLand #dpad{
         <div class="slide"><span class="sLbl">INTENSITY</span>
           <input type="range" id="buzzRange" min="0" max="150" step="10" value="100"></div>
       </div></div></div>
+    <!-- A DARK GAME ON A BRIGHT DAY IS AN UNREADABLE GAME, and the phone's
+         own brightness slider moves the whole system, not this. Both default
+         to 100, and at 100 no filter is applied at all — the cost of these
+         two controls is zero for anyone who leaves them alone. -->
+    <div class="row rowSlide" id="rowBright"><div class="rowL">
+      <svg viewBox="0 0 16 16" class="rIc"><circle cx="8" cy="8" r="3.1"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M12.9 3.1l-1.4 1.4M4.5 11.5l-1.4 1.4"/></svg>
+      <div style="flex:1"><div class="lbl">BRIGHTNESS</div>
+        <div class="slide"><span class="sLbl" id="brightVal">100%</span>
+          <input type="range" id="brightRange" min="60" max="160" step="5" value="100"></div>
+      </div></div></div>
+    <div class="row rowSlide" id="rowContrast"><div class="rowL">
+      <svg viewBox="0 0 16 16" class="rIc"><circle cx="8" cy="8" r="6.2"/><path d="M8 1.8v12.4a6.2 6.2 0 0 0 0-12.4Z"/></svg>
+      <div style="flex:1"><div class="lbl">CONTRAST</div>
+        <div class="slide"><span class="sLbl" id="contrastVal">100%</span>
+          <input type="range" id="contrastRange" min="70" max="150" step="5" value="100"></div>
+      </div></div></div>
   </div>
-  <button class="btn ghost" id="btnManual2">[ CALIBRATE ]</button>
+  <div class="btn2">
+    <button class="btn ghost" id="btnBoards">[ BOARDS ]</button>
+    <button class="btn ghost" id="btnManual2">[ CALIBRATE ]</button>
+  </div>
+</div>
+
+<!-- ============ BOARDS ============
+     The bridge could always POST a score and there was never anywhere to go
+     and look at one. Every row here reads its own local record too, so the
+     screen is worth opening on a plane — the ranking is the part that needs
+     a host, not the number. -->
+<div class="layer hide" id="scBoards">
+  <div class="vaultBar">
+    <div class="vaultId"><i id="boardRail"></i><span id="boardHead">BOARDS</span></div>
+  </div>
+  <div class="settings" id="boardList"></div>
+  <div class="edMsg" id="boardMsg"></div>
+  <button class="btn ghost" id="btnBoardsBack">[ BACK ]</button>
 </div>
 
 <!-- ============ CLEARED ============ -->
@@ -2750,7 +2819,9 @@ var store = {best:{}, tbest:{}, vbest:{}, reached:1, sound:1, haptic:1, depth:0,
              dhist:{}, dstreak:{cur:0, best:0, last:-1}, dpost:{w:-1, m:-1, s:-1},
              /* authored and imported cubes, keyed by their own identity, so
                 storing the same cube twice is impossible by construction */
-             made:{}, draft:null};
+             made:{}, draft:null,
+             /* 100 is "off": at 100/100 no filter is applied at all */
+             bright:100, contrast:100, taughtForge:0};
 try{ var raw = localStorage.getItem('turnkey-v2'); if(raw) store = Object.assign(store, JSON.parse(raw)); }catch(e){}
 var saveT = 0;
 function save(){
@@ -7517,7 +7588,7 @@ function show(id){
      behind a card, and a thumb still down when a menu appears is no longer
      holding anything */
   dropHold(); peekOff(); drag = null;
-  ['scTitle','scCubes','scManual','scPause','scWin','scPlate','scMade','scEdit'].forEach(function(s){
+  ['scTitle','scCubes','scManual','scPause','scWin','scPlate','scMade','scEdit','scBoards'].forEach(function(s){
     $(s).classList.toggle('hide', s !== id);
   });
   $('hud').classList.toggle('on', !id);
@@ -7861,11 +7932,15 @@ function colWhat(col){
    game can score it, and a duplicate is a cube that already exists. */
 function edVerify(quiet){
   var lv0 = edLevel(), v = validateLevel(lv0);
-  if(!v.ok){ if(!quiet) edStatus(v.why, 1); return null; }
+  if(!v.ok){
+    if(!quiet){ edStatus(v.why, 1); if(coach >= 0){ coachMissed = 1; edCoachTick(); } }
+    return null;
+  }
   lv0.par = v.par; lv0.steps = v.steps;
   var col = collisionOf(lv0, ed.from);
   if(col){ if(!quiet) edStatus('THIS CUBE ALREADY EXISTS — ' + colWhat(col), 1); return null; }
   if(!quiet) edStatus('VERIFIED · PAR ' + v.par + ' · ' + v.steps + ' STEPS', 2);
+  if(!quiet && coach >= 0){ coachOK = 1; edCoachTick(); }
   return lv0;
 }
 function edRecord(lv0){
@@ -7919,6 +7994,7 @@ function edDraw(){
     g.appendChild(el);
   }
   squareRows(g);
+  edCoachTick();
   $('edLayerTxt').textContent = 'DECK ' + (ed.layer+1) + ' / ' + n;
   $('edSize').textContent = '[ ' + n + ' ]';
   var t = $('edTools');
@@ -7953,8 +8029,73 @@ function edRestore(){
     ed.layer = Math.min(d.layer || 0, ed.n - 1);
   } else edNew(5);
 }
+/* ============================================================
+   THE COACH — a tutorial with no NEXT button.
+
+   A walkthrough you advance by pressing NEXT is a slideshow, and it is read
+   the way slideshows are read, which is not at all. Every step here watches
+   the editor's real state and moves on when the thing it asked for has
+   actually happened. The only way forward is to do it.
+
+   It also has to survive being WRONG. Step six asks for a verify, and a
+   first cube very often will not solve — so the failure is part of the
+   lesson rather than a dead end: the coach says what an unsolvable cube
+   means and leaves the step open.
+   ============================================================ */
+function edCountWalk(){
+  var n = 0, i;
+  for(i = 0; i < ed.vox.length; i++) if(isWalkType(ed.vox[i])) n++;
+  return n;
+}
+function edDecks(){
+  var n = ed.n, y, z, x, d = 0, any;
+  for(y = 0; y < n; y++){
+    any = false;
+    for(z = 0; z < n && !any; z++) for(x = 0; x < n && !any; x++)
+      if(isWalkType(ed.vox[vidx(n,x,y,z)])) any = true;
+    if(any) d++;
+  }
+  return d;
+}
+var FORGE_STEPS = [
+  {t:'TRACE IS WHAT YOU STAND ON. TAP CELLS TO LAY EIGHT OF IT.',
+   done:function(){ return edCountWalk() >= 8; }},
+  {t:'A CUBE HAS DECKS. STEP UP ONE WITH THE ARROW ABOVE.',
+   done:function(){ return ed.layer > 0; }},
+  {t:'LAY TRACE UP HERE TOO. A FLAT CUBE FOLDS INTO NOTHING.',
+   done:function(){ return edDecks() >= 2 && edCountWalk() >= 12; }},
+  {t:'PICK START, THEN TAP THE CELL YOU BEGIN ON.',
+   done:function(){ return !!ed.start; }},
+  {t:'NOW EXIT — AND PUT IT ON THE OTHER DECK, SO GETTING THERE TAKES A FOLD.',
+   done:function(){ return !!ed.goal; }},
+  {t:'HIT VERIFY. THE SOLVER HAS TO PROVE THIS CAN BE DONE BEFORE IT COUNTS.',
+   alt:'AN UNSOLVABLE CUBE IS NOT A HARD ONE, IT IS A BROKEN ONE. GIVE THE EXIT A ROUTE AND VERIFY AGAIN.',
+   done:function(){ return !!coachOK; }}
+];
+var coach = -1, coachOK = 0, coachMissed = 0;
+function coachStart(){ coach = 0; coachOK = 0; coachMissed = 0; edCoachTick(); }
+function coachStop(){ coach = -1; $('edCoach').classList.add('hide'); }
+function edCoachTick(){
+  var el = $('edCoach');
+  if(coach < 0 || !ed){ el.classList.add('hide'); return; }
+  while(coach < FORGE_STEPS.length && FORGE_STEPS[coach].done()) coach++;
+  el.classList.remove('hide');
+  if(coach >= FORGE_STEPS.length){
+    el.classList.add('done');
+    $('edCoachN').textContent = '+';
+    $('edCoachT').textContent = 'THAT IS THE WHOLE JOB. SAVE IT AND YOU GET A CODE — THAT CODE IS HOW SOMEBODY ELSE PLAYS YOUR CUBE.';
+    if(!store.taughtForge){ store.taughtForge = 1; save(); }
+    return;
+  }
+  el.classList.remove('done');
+  $('edCoachN').textContent = String(coach + 1);
+  var st = FORGE_STEPS[coach];
+  $('edCoachT').textContent = (coachMissed && st.alt) ? st.alt : st.t;
+}
 function openEditor(rec, key){
   if(rec) edFrom(rec, key); else if(!ed) edRestore();
+  /* offered once, on the first cube anyone opens the editor for */
+  if(!store.taughtForge && coach < 0 && !rec) coachStart();
   $('edName').value = ed.name || '';
   edStatus(''); edDraw(); show('scEdit');
 }
@@ -8080,6 +8221,113 @@ $('btnWinCubes').onclick = function(){
   if(made){ buildMadeGrid(); show('scMade'); } else if(daily) show('scTitle'); else openCubes();
 };
 
+/* ============================================================
+   DISPLAY TRIM — brightness and contrast, and the cost of having them.
+
+   The phone's own brightness moves the whole system; this moves the game.
+   Both sit at 100 by default and at 100 NOTHING IS APPLIED — the html.disp
+   class is only set when a value is off its default, so a player who never
+   touches these pays nothing for them. A full-screen filter pass on every
+   frame is not a tax to levy on everybody for a control most people leave
+   alone.
+   ============================================================ */
+function applyDisplay(){
+  var b = store.bright === undefined ? 100 : store.bright;
+  var c = store.contrast === undefined ? 100 : store.contrast;
+  var de = document.documentElement;
+  de.style.setProperty('--disp-b', b/100);
+  de.style.setProperty('--disp-c', c/100);
+  de.classList.toggle('disp', b !== 100 || c !== 100);
+  $('brightVal').textContent = b + '%';
+  $('contrastVal').textContent = c + '%';
+}
+/* the row is a big tap target, and a slider living inside one must keep its
+   drag to itself or the row's own handler fires on release */
+function bindSlider(id, key, def, after){
+  var r = $(id);
+  function paint(){
+    r.style.setProperty('--fill', ((r.value - r.min) / (r.max - r.min) * 100) + '%');
+    store[key] = +r.value; save();
+    if(after) after();
+  }
+  r.value = store[key] === undefined ? def : store[key];
+  paint();
+  r.oninput = paint; r.onchange = paint;
+  r.onpointerdown = function(e){ e.stopPropagation(); };
+  r.onclick = function(e){ e.stopPropagation(); };
+}
+bindSlider('brightRange', 'bright', 100, applyDisplay);
+bindSlider('contrastRange', 'contrast', 100, applyDisplay);
+applyDisplay();
+
+/* ============================================================
+   BOARDS — the half of Play Games that was missing.
+
+   The bridge could always POST a score and there was nowhere to go and look
+   at one: GPG.show existed with no call site. This is that call site.
+
+   EVERY ROW SAYS SOMETHING WITHOUT A HOST. The ranking needs Play Games;
+   the number does not, and this device already knows its own. So the screen
+   is worth opening on a plane, and when there is no host it says so plainly
+   instead of presenting six buttons that quietly do nothing.
+   ============================================================ */
+var boardsFrom = 'scPause';
+function msLabel(ms){
+  if(ms === undefined || ms < 0) return '—';
+  var t = Math.round(ms/1000), m = Math.floor(t/60);
+  return m + ':' + ('0' + (t % 60)).slice(-2);
+}
+function periodLabel(kind){
+  var today = dayIndex(), k, i, n = 0, span;
+  for(i = 0; i < DAILY_PERIODS.length; i++) if(DAILY_PERIODS[i][0] === kind) k = DAILY_PERIODS[i];
+  span = k[3](k[2](today));
+  for(i = span[0]; i <= span[1]; i++) if(store.dhist[i] !== undefined) n++;
+  return n + ' / ' + (span[1] - span[0] + 1) + ' DAYS';
+}
+function boardRows(){
+  var rows = [
+    ['daily', 'TODAY', 'FEWEST FOLDS ON TODAY’S CUBE',
+     (store.daily && store.daily.day === dayIndex() && store.daily.solved) ? store.daily.best + ' FOLDS' : '—'],
+    ['daily_week',   'THIS WEEK',  'SEVEN DAYS, TOTALLED',            periodLabel('w')],
+    ['daily_month',  'THIS MONTH', 'A CALENDAR MONTH, TOTALLED',      periodLabel('m')],
+    ['daily_season', 'SEASON',     SEASON_DAYS + ' DAYS, TOTALLED',   periodLabel('s')],
+    ['daily_streak', 'STREAK',     'CONSECUTIVE DAYS SOLVED',
+     (store.dstreak.best || 0) + ' DAY' + (store.dstreak.best === 1 ? '' : 'S')]
+  ];
+  var band = vaultOf(levelNo);
+  if(band < RANKED_VAULTS){
+    var t = store.vbest[band] !== undefined ? store.vbest[band] : vaultTime(band);
+    rows.push([vaultBoard(band), 'VAULT ' + roman(band), vaultName(band) + ' — TIME TO CLEAR',
+               t < 0 ? 'UNFINISHED' : msLabel(t)]);
+  }
+  return rows;
+}
+function buildBoards(){
+  var list = $('boardList'), on = GPG.available();
+  list.innerHTML = '';
+  $('boardHead').textContent = on ? 'BOARDS' : 'BOARDS — LOCAL ONLY';
+  $('boardRail').style.background =
+    'linear-gradient(90deg,' + (on ? 'var(--arc)' : 'var(--dim-2)') + ' 0 100%,transparent 0)';
+  boardRows().forEach(function(r){
+    var row = document.createElement('div');
+    row.className = 'row' + (on ? '' : ' off');
+    var l = document.createElement('div'); l.className = 'rowL';
+    var box = document.createElement('div');
+    var lbl = document.createElement('div'); lbl.className = 'lbl'; lbl.textContent = r[1];
+    var hint = document.createElement('div'); hint.className = 'hint'; hint.textContent = r[2];
+    box.appendChild(lbl); box.appendChild(hint); l.appendChild(box);
+    var v = document.createElement('div'); v.className = 'bVal'; v.textContent = r[3];
+    row.appendChild(l); row.appendChild(v);
+    row.onclick = function(){
+      if(!on){ $('boardMsg').textContent = 'RANKINGS NEED THE PLAY GAMES BUILD. YOUR OWN RECORDS ARE ABOVE.'; return; }
+      GPG.show(r[0]);
+    };
+    list.appendChild(row);
+  });
+  $('boardMsg').textContent = on ? '' : 'NO HOST ATTACHED — THESE ARE THIS DEVICE’S OWN RECORDS.';
+}
+function openBoards(from){ boardsFrom = from || 'scPause'; buildBoards(); show('scBoards'); }
+
 /* ---------- the forge ---------- */
 function openMade(){ buildMadeGrid(); madeStatus(''); show('scMade'); }
 $('btnForge').onclick    = openMade;
@@ -8097,6 +8345,9 @@ $('edCheck').onclick = function(){ edVerify(); };
 $('edSave').onclick  = edSaveCube;
 $('edPlay').onclick  = edPlay;
 $('edBack').onclick  = openMade;
+$('edTeach').onclick = coachStart;
+$('btnBoards').onclick     = function(){ openBoards('scPause'); };
+$('btnBoardsBack').onclick = function(){ show(boardsFrom); };
 function bindSwitch(id, key){
   var el = $(id);
   el.classList.toggle('on', !!store[key]);
@@ -8163,6 +8414,7 @@ window.TURNKEY = {
     if(!$('scManual').classList.contains('hide')){ show(lv ? 'scPause' : 'scTitle'); return true; }
     if(!$('scPause').classList.contains('hide')){ show(null); return true; }
     if(!$('scPlate').classList.contains('hide')){ show(null); return true; }
+    if(!$('scBoards').classList.contains('hide')){ show(boardsFrom); return true; }
     if(!$('scEdit').classList.contains('hide')){ openMade(); return true; }
     if(!$('scMade').classList.contains('hide')){ buildCubeGrid(); show('scCubes'); return true; }
     if(!$('scCubes').classList.contains('hide')){
