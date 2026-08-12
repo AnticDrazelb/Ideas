@@ -305,7 +305,45 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 #scTitle::before,#scTitle::after{display:none;}
 .titleTop,.titleBottom{width:100%;display:flex;flex-direction:column;align-items:center;flex:0 0 auto;}
 /* clamped at the bottom so a 568pt phone still fits its own menu */
-.heroSlot{flex:0 0 auto;width:100%;height:clamp(132px, min(70vw,36vh), 320px);}
+/* THE HERO BAND IS WHAT IS LEFT OVER, NOT A NUMBER.
+
+   This was a fixed height — clamp(132px, min(70vw,36vh), 320px) — which is a
+   guess at how much room the chrome would leave, made in CSS, where it cannot
+   see the chrome. Two things then disagreed about the size of the screen: the
+   canvas sizes itself from visualViewport (the honest number on a phone,
+   which shrinks when Safari's bars are showing) while a vh unit resolves
+   against the LARGE viewport, which does not. On a desktop viewport the two
+   agree and every test passed; on a real phone with browser chrome the band
+   the cube was fitted into was taller than the space that actually existed,
+   and the bottom of the cube went under the buttons.
+
+   flex:1 makes it the remainder instead. The two chrome blocks take exactly
+   what they need, the band is whatever is left between them, and it is
+   correct by construction on any viewport including one that is changing
+   size mid-gesture. min-height keeps it sane if the chrome ever grows past
+   the screen, at which point the layer scrolls, which is the right failure. */
+.heroSlot{flex:1 1 auto;width:100%;min-height:104px;}
+
+/* ---- ON A SHORT SCREEN THE CUBE IS THE PITCH ---------------------------
+   A phone with browser chrome showing has about five hundred points of
+   height, and four lines of prose explaining the game costs a fifth of it.
+   The hero band is the leftover, so every line of copy comes directly out of
+   the object the screen exists to show — and a small tumbling engine
+   explains this game faster than a paragraph about it does.
+
+   So the prose goes below 640, and the subtitle tightens. Nothing is
+   truncated and nothing overlaps: the copy is simply not the best use of the
+   last hundred points, and the hero re-fits itself the moment it leaves
+   because the band is measured rather than assumed. */
+@media (max-height:640px){
+  .layer#scTitle .sub{display:none;}
+  .heroSlot{min-height:132px;}
+  #scTitle .mastRule{margin-bottom:2px;}
+}
+@media (max-height:520px){
+  #wordmark{font-size:var(--t-2xl);}
+  .layer#scTitle{padding-top:calc(var(--sa-top) + 10px);}
+}
 /* the spacers are what pushed the bands apart; the column centres itself */
 #scTitle::before,#scTitle::after{flex:0 1 auto;}
 .titleTop{padding-top:2px;}
@@ -2824,13 +2862,26 @@ function layout(){
      They are measured against the chrome that is actually there. */
   var topBar = ins.t + 62, botBar = ins.b + 84;
   if(demo){
-    var slot = document.getElementById('heroSlot');
+    /* MEASURE THE CHROME ITSELF, not the gap it was expected to leave.
+
+       Asking the slot was asking a proxy. The two blocks that can actually
+       collide with the hero are the title text above it and the button stack
+       below it, so those are the two things measured — and the answer is
+       clamped into the viewport the CANVAS is using, so a rect that came back
+       in a different viewport's coordinates can never push the cube out of
+       the picture. If the measurement is nonsense, the old fractional split
+       is still here to fall back on. */
     var sc = document.getElementById('scTitle');
-    if(slot && sc && !sc.classList.contains('hide')){
-      var rS = slot.getBoundingClientRect();
-      topBar = Math.max(ins.t + 4, rS.top);
-      botBar = Math.max(ins.b + 4, H - rS.bottom);
-    } else {
+    var tTop = document.querySelector('.titleTop');
+    var tBot = document.querySelector('.titleBottom');
+    var ok = false;
+    if(sc && tTop && tBot && !sc.classList.contains('hide')){
+      var rT = tTop.getBoundingClientRect(), rB = tBot.getBoundingClientRect();
+      var t2 = Math.min(H, Math.max(ins.t + 4, rT.bottom + 6));
+      var b2 = Math.min(H, Math.max(ins.b + 4, H - rB.top + 6));
+      if(H - t2 - b2 >= 90){ topBar = t2; botBar = b2; ok = true; }
+    }
+    if(!ok){
       topBar = ins.t + Math.round(H*0.26);
       botBar = ins.b + Math.round(H*0.34);
     }
@@ -7020,6 +7071,31 @@ document.addEventListener('visibilitychange', function(){
 });
 window.addEventListener('resize', fit);
 window.addEventListener('orientationchange', function(){ setTimeout(fit, 120); });
+
+/* ---------- AND RE-FIT WHEN THE CHROME ITSELF MOVES ----------------------
+   The hero is sized against two measured DOM blocks, so anything that
+   changes their height has to re-run the fit — and almost none of it fires a
+   resize event. The button label going from INITIALISE to CONTINUE, a longer
+   cube name wrapping the subtitle onto a second line, the vault line changing
+   as you progress, a web font arriving late, the boot animation settling:
+   every one of those reflows the chrome under a cube that has already been
+   sized, and the only symptom is the cube quietly ending up somewhere it
+   should not be.
+
+   A ResizeObserver on the two blocks catches all of them, including the ones
+   nobody has thought of yet, which is the point of observing the thing itself
+   rather than enumerating its causes. It is debounced to a frame because a
+   reflow can touch both blocks and there is no sense fitting twice.        */
+if(window.ResizeObserver){
+  var reFitQ = 0;
+  var reFit = new ResizeObserver(function(){
+    if(reFitQ) return;
+    reFitQ = requestAnimationFrame(function(){ reFitQ = 0; if(demo) layout(); });
+  });
+  var tT = document.querySelector('.titleTop'), tB = document.querySelector('.titleBottom');
+  if(tT) reFit.observe(tT);
+  if(tB) reFit.observe(tB);
+}
 if(window.visualViewport){
   /* Safari collapses and expands its bars as you play; without this the board
      is laid out against a height that stopped being true two seconds ago. */

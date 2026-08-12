@@ -9,3 +9,6 @@ turnkey/tools/package-lock.json
 singularity/shot-*.png
 turnkey/tools/sgshot.js
 turnkey/tools/sgbar.js
+turnkey/tools/sgfit.js
+turnkey/tools/sgreflow.js
+turnkey/tools/sgvis.js
