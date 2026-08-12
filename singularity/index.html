@@ -2428,9 +2428,33 @@ var VAULT_B = ['REACH','WELL','SPINE','GATE','HOLLOW','WORKS','MARCH','VAULT','T
 var NAME_A  = ['THE','LOW','HIGH','OLD','DEEP','LONG','BLIND','CLOSE','FAR','LOST'];
 var NAME_B  = ['CANT','HINGE','LATCH','WARD','DROP','SPINE','SEAM','FOLD','TURN','GATE','WELL','STEP','CROSS','MOUTH','KEEP'];
 
-/* Cumulative starts, computed once. Past the authored six every vault is
-   ten long again — there is nothing left to teach, only more of it. */
-var VAULT_TAIL = 10;
+/* Cumulative starts, computed once. PAST THE AUTHORED SIX A VAULT GROWS.
+
+   The tail used to be flat ten, on the grounds that there was nothing left
+   to teach. That was true while a vault was only a shelf to browse. A vault
+   is now also the unit a LEADERBOARD ranks — one board per vault, scored on
+   the time to clear every cube in it — and that job pulls the tail two ways
+   at once. Short vaults rank sooner and rank more people, so the early ones
+   have to stay small. But a board costs one of seventy slots for the life of
+   the game, and a flat ten would spend every slot by cube seven hundred and
+   leave none for the daily.
+
+   Growing by five splits it, and does something better than the arithmetic
+   looks: the ABSOLUTE step is constant while the RELATIVE one collapses on
+   its own. Vault VIII asks 1.2x vault VII; vault XXV asks 1.04x vault XXIV.
+   It reads as widening scope early, where that is motivating, and as a
+   steady cadence later — without a plateau rule anyone has to tune.
+
+   THE AUTHORED SIX KEEP THEIR OWN LENGTHS. Those are a curriculum and their
+   shape is deliberate, down-curve and all: EMBERFALL is fifteen and the
+   postgame is ten because that is how long those lessons run, not because a
+   sequence said so. Growth starts where the taught game stops.
+
+   Thirty vaults is 2070 cubes over thirty boards, the longest of them 140.
+   Past thirty the generator keeps cutting cubes and vaults keep growing;
+   they are simply no longer ranked, because a board nobody finishes is a
+   board that is not there.                                                 */
+var VAULT_TAIL0 = 25, VAULT_GROW = 5, RANKED_VAULTS = 30;
 var VAULT_AT = (function(){
   var a = [0], i;
   for(i = 0; i < VAULTS.length; i++) a.push(a[i] + VAULTS[i].n);
@@ -2438,18 +2462,31 @@ var VAULT_AT = (function(){
 })();
 var VAULT_END = VAULT_AT[VAULT_AT.length - 1];        /* 90 */
 
-function vaultSize(band){ return band < VAULTS.length ? VAULTS[band].n : VAULT_TAIL; }
+function vaultSize(band){
+  return band < VAULTS.length ? VAULTS[band].n
+                              : VAULT_TAIL0 + (band - VAULTS.length)*VAULT_GROW;
+}
 /* first level number (1-based) of a vault */
 function vaultStart(band){
-  return band < VAULTS.length ? VAULT_AT[band] + 1
-                              : VAULT_END + (band - VAULTS.length)*VAULT_TAIL + 1;
+  if(band < VAULTS.length) return VAULT_AT[band] + 1;
+  /* the first b tail vaults hold 25b + 5*(b(b-1)/2) cubes between them, and
+     b(b-1) is even at every b, so this is exact integer arithmetic */
+  var b = band - VAULTS.length;
+  return VAULT_END + VAULT_TAIL0*b + VAULT_GROW*(b*(b-1)/2) + 1;
 }
+/* NO CLOSED FORM ON THE WAY BACK, ON PURPOSE. Inverting that sum wants a
+   square root, and a float landing a hair either side of a boundary would
+   put the same cube in different vaults on different devices — a different
+   palette, a different board, and past this a different cube. That is the
+   `sort()` bug again wearing a hat. This walks in integers and gives one
+   answer everywhere. The walk terminates because the vaults grow. */
 function vaultOf(level){
   var i = level - 1;
   if(i < VAULT_END){
     for(var b = 0; b < VAULTS.length; b++) if(i < VAULT_AT[b+1]) return b;
   }
-  return VAULTS.length + Math.floor((i - VAULT_END) / VAULT_TAIL);
+  var band = VAULTS.length, end = VAULT_END;
+  while(true){ end += vaultSize(band); if(i < end) return band; band++; }
 }
 function vaultName(band){
   if(band < VAULTS.length) return VAULTS[band].name;
@@ -2575,7 +2612,12 @@ function dailyData(){
    all there at 40% — and the switch is in the pause menu either way. */
 var reduceMotion = false;
 try{ reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){}
-var store = {best:{}, reached:1, sound:1, haptic:1, depth:0, taught:0, sawPlate:0,
+/* `best` is fewest folds per cube, `tbest` is fastest clear in milliseconds
+   per cube, `vbest` is the posted total for a whole vault keyed by band.
+   Missing keys are the honest record of a cube nobody has cleared, which is
+   what makes "is this vault finished" a lookup rather than a guess. */
+var store = {best:{}, tbest:{}, vbest:{}, reached:1, sound:1, haptic:1, depth:0,
+             taught:0, sawPlate:0,
              sawPeek:0, peekHinted:0, togo:1, fx: reduceMotion ? 0 : 1,
              buzz:100, daily:{day:-1, best:0, solved:0}};
 try{ var raw = localStorage.getItem('turnkey-v2'); if(raw) store = Object.assign(store, JSON.parse(raw)); }catch(e){}
@@ -2585,6 +2627,69 @@ function save(){
   saveT = setTimeout(function(){
     try{ localStorage.setItem('turnkey-v2', JSON.stringify(store)); }catch(e){}
   }, 220);
+}
+
+/* ============================================================
+   THE CLOCK — deciding what "time taken" is allowed to mean.
+
+   IT RUNS FROM THE CUBE APPEARING, NOT FROM THE FIRST TOUCH. Starting on
+   first input would be the easy read and the wrong one: this is a thinking
+   puzzle, so a player who studies a cube for two minutes and then executes
+   six perfect folds would post a better time than one who solved it in
+   forty seconds. Thinking IS the solve. The clock counts it.
+
+   IT IS MONOTONIC. `performance.now()` cannot be moved by an NTP
+   correction, a timezone change, or a player setting the system clock back,
+   all of which `Date.now()` will happily believe.
+
+   BACKGROUNDING STOPS IT; A MENU DOES NOT. A phone call in the middle of a
+   cube is not part of the solve and the visibility handler already knows
+   about it. A pause screen is a judgement call and the safe one is to keep
+   counting — a clock you can stop by opening a menu is a clock you can
+   plan against.
+
+   RETRIES KEEP THE BEST, not the last and not the total: a vault total is
+   the sum of each cube's fastest clear, so a bad first run at cube nine can
+   always be improved without wiping the save.                              */
+var solveAcc = 0, solveMark = 0, solveOn = false, solveLive = false;
+function monoNow(){
+  return (window.performance && performance.now) ? performance.now() : Date.now();
+}
+function clockReset(){ solveAcc = 0; solveMark = monoNow(); solveOn = true; solveLive = true; }
+function clockHold(){ if(solveOn){ solveAcc += monoNow() - solveMark; solveOn = false; } }
+function clockGo(){ if(solveLive && !solveOn){ solveMark = monoNow(); solveOn = true; } }
+function clockStop(){ clockHold(); solveLive = false; }
+function clockMs(){ return Math.round(solveAcc + (solveOn ? monoNow() - solveMark : 0)); }
+
+/* A VAULT'S TIME IS THE SUM OF ITS CUBES' BEST TIMES, or nothing at all.
+   One uncleared cube means there is no total to post — not a partial one,
+   which would rank a player who has done three cubes above one who has done
+   all twenty-five. */
+function vaultTime(band){
+  var v0 = vaultStart(band), n = vaultSize(band), t = 0, ms;
+  for(var i = 0; i < n; i++){
+    ms = store.tbest[v0 + i];
+    if(ms === undefined) return -1;
+    t += ms;
+  }
+  return t;
+}
+function vaultBoard(band){                 /* logical name; the host maps it */
+  var n = band + 1;
+  return 'vault_' + (n < 10 ? '0' : '') + n;
+}
+/* Called after every clear, because improving cube nine improves the vault
+   total that cube nine is part of. Posts only when the number actually got
+   better — the host will happily accept a worse score and drop it, but the
+   round trip is not free and neither is the player's data. */
+function postVault(band){
+  if(band < 0 || band >= RANKED_VAULTS) return;
+  var t = vaultTime(band);
+  if(t < 0) return;
+  var was = store.vbest[band];
+  if(was !== undefined && was <= t) return;
+  store.vbest[band] = t; save();
+  GPG.submit(vaultBoard(band), t);
 }
 
 /* ============================================================
@@ -3232,6 +3337,9 @@ function loadLevel(level){
   startWave('in', sv[0], sv[1], 380);
   revealT = -120;
   ambience(band);
+  /* the cube is up and the clock starts with it — including the 380ms of
+     intro wave, which every player and every device pays identically */
+  clockReset();
   if(!daily && levelNo > store.reached){ store.reached = levelNo; save(); }
   /* THE ONE NUDGE. A gesture nobody can see is a gesture nobody has, and the
      peek is the answer to the exact frustration that starts around here — so
@@ -6700,6 +6808,8 @@ function finish(){
   clearTimeout(remainT); paintGo();          /* the count is over; the card takes it from here */
   /* the daily keeps its own score and never touches the progression: it is
      not the forty-eighth vault, it just borrows its difficulty */
+  clockStop();
+  var solved = clockMs();
   if(daily){
     var d0 = store.daily, today = dayIndex();
     if(d0.day !== today){ d0.day = today; d0.best = turns; }
@@ -6709,7 +6819,14 @@ function finish(){
   } else {
     var best = store.best[levelNo];
     if(best === undefined || turns < best){ store.best[levelNo] = turns; save(); }
+    /* folds and time are kept apart on purpose. They are improved by
+       different play — one by a better route, one by a faster hand — and a
+       single "best run" column would make beating one of them cost you the
+       other. */
+    var tb = store.tbest[levelNo];
+    if(tb === undefined || solved < tb){ store.tbest[levelNo] = solved; save(); }
     if(levelNo + 1 > store.reached){ store.reached = levelNo + 1; save(); }
+    postVault(vaultOf(levelNo));
     prebuild(levelNo + 1);
   }
   /* THE EXIT. The player is pulled into the door, a ring goes out across the
@@ -7199,6 +7316,42 @@ bindSwitch('swToGo', 'togo');
    insets. All three are published on one object rather than scattered
    across globals the host has to guess at.
    ============================================================ */
+/* ============================================================
+   LEADERBOARDS — a host that is usually not there.
+
+   Play Games is Android-native, and this file is one offline page that has
+   to keep opening in a browser, in a test harness, and in a WebView that
+   may have no host object at all. So every call goes through here and every
+   one of them is a no-op when nothing is listening. Nothing above this line
+   knows whether leaderboards exist.
+
+   THE HTML NEVER LEARNS A GOOGLE BOARD ID. Real ones are opaque assigned
+   strings; what goes across the bridge is a logical name — `vault_07` — and
+   the Android side owns the mapping. Board ids can be reissued, the game
+   does not have to be rebuilt, and the page stays honest offline.
+
+   Scores cross as strings. A vault total in milliseconds is small enough
+   for a double today, but it lands in a Java long, and a string is the one
+   representation that cannot lose a digit on the way.                      */
+var GPG = (function(){
+  /* THE HOST IS RESOLVED PER CALL, NOT CAPTURED ONCE. A WebView can install
+     its bridge object after the document has run, and an adapter that made
+     up its mind at load time would decide nothing was listening and stay
+     wrong for the rest of the session. */
+  function host(){ try{ return window.AndroidGPG || null; }catch(e){ return null; } }
+  return {
+    available: function(){ return !!host(); },
+    submit: function(board, score){
+      var h = host();
+      try{ if(h && h.submit) h.submit(String(board), String(score)); }catch(e){}
+    },
+    show: function(board){
+      var h = host();
+      try{ if(h && h.show) h.show(String(board)); }catch(e){}
+    }
+  };
+})();
+
 window.TURNKEY = {
   /* true = handled, keep the Activity alive. false = let Android finish it. */
   onBack: function(){
@@ -7213,8 +7366,10 @@ window.TURNKEY = {
     if($('hud').classList.contains('on')){ show('scPause'); return true; }
     return false;
   },
-  pause: function(){ running = false; },
-  resume: function(){ if(!running){ running = true; last = 0; requestAnimationFrame(loop); } },
+  /* the solve clock stops with the frame loop: a cube left running while the
+     Activity is backgrounded would otherwise bank the whole phone call */
+  pause: function(){ running = false; clockHold(); },
+  resume: function(){ clockGo(); if(!running){ running = true; last = 0; requestAnimationFrame(loop); } },
   /* the host measures the real display cutout and hands it over */
   setInsets: function(t, r, b, l){
     var s = document.documentElement.style;
