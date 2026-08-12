@@ -600,34 +600,38 @@ h2+.manual{margin-top:14px;}
    state changes. */
 .chips{display:flex;align-items:center;gap:0;width:100%;min-width:0;}
 .chip{
-  display:inline-flex;align-items:center;gap:clamp(5px,1.9vw,9px);flex:0 0 auto;
-  padding:clamp(7px,2.4vw,12px) clamp(9px,3.3vw,16px);border-radius:var(--r-chip);
+  display:inline-flex;align-items:center;gap:calc(clamp(5px,1.9vw,9px) * var(--hud-k,1));flex:0 0 auto;
+  padding:calc(clamp(7px,2.4vw,12px) * var(--hud-k,1)) calc(clamp(9px,3.3vw,16px) * var(--hud-k,1));border-radius:var(--r-chip);
   box-shadow:inset 0 0 0 var(--rule) currentColor;
   font-size:var(--t-sm);letter-spacing:.10em;color:var(--dim);
   white-space:nowrap;
 }
-.chip .ic{width:clamp(15px,4.6vw,21px);height:clamp(15px,4.6vw,21px);flex:0 0 auto;
+.chip .ic{width:calc(clamp(15px,4.6vw,21px) * var(--hud-k,1));height:calc(clamp(15px,4.6vw,21px) * var(--hud-k,1));flex:0 0 auto;
           fill:none;stroke:currentColor;
           stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round;}
-.chip .n{font-size:clamp(17px,5.6vw,26px);letter-spacing:0;color:var(--ink);
+.chip .n{font-size:calc(clamp(17px,5.6vw,26px) * var(--hud-k,1));letter-spacing:0;color:var(--ink);
          font-variant-numeric:tabular-nums;line-height:1;}
 /* THE DENOMINATOR HAD A NEGATIVE MARGIN. -3px pulled "/5" hard against the
    value it belongs to, so 11/5 read as one mangled token rather than as a
    count out of a total — and at any size above tiny the two actually
    collided. It is a related number, not a suffix: it sits a little apart,
    dim, a rung down. */
-.chip .sub2{font-size:clamp(12px,3.6vw,17px);color:var(--dim);letter-spacing:0;
+.chip .sub2{font-size:calc(clamp(12px,3.6vw,17px) * var(--hud-k,1));color:var(--dim);letter-spacing:0;
             margin-left:3px;line-height:1;}
-.chip .lbl2{font-size:clamp(10px,3.0vw,14px);letter-spacing:.12em;}
+.chip .lbl2{font-size:calc(clamp(10px,3.0vw,14px) * var(--hud-k,1));letter-spacing:.12em;}
 /* the dividers are the instrument's own ruling, not part of any chip — and
    they are the first thing to give when the readouts need the room */
 .csep{flex:1 1 auto;height:1px;background:var(--edge-2);min-width:0;
       margin:0 clamp(3px,1.6vw,9px);}
-/* ON A NARROW SCREEN THE WORD GOES AND THE NUMBER STAYS. Four readouts on a
-   320pt phone leaves each of them eighty points, and "TO GO" spends a third
-   of one on a label whose icon already says it. The value is the thing that
-   has to be legible; the word is the thing that can be inferred. */
-@media (max-width:379px){ .chip .lbl2{display:none;} }
+/* THE WORD GOES BEFORE THE NUMBER DOES, and the fitter decides when — not a
+   breakpoint. "TO GO" spends a third of a readout on a label whose own icon
+   already says it, so it is the cheapest thing on the bar to lose. It used to
+   go at a hard max-width:379px, which had it PRESENT at 390 and ABSENT at
+   375: the wider screen was the tighter one, and the worst-case content
+   overflowed at 390 while fitting at 375. Tying it to the measurement instead
+   removes the discontinuity and keeps the word wherever there is room for
+   it. */
+html.hudTight .chip .lbl2{display:none;}
 
 /* ---------- THE READOUT HAS TO BE READ -----------------------------------
    IT WAS NINE PIXELS TALL WITH A TENTH OF AN EM OF TRACKING.
@@ -807,7 +811,15 @@ h2+.manual{margin-top:14px;}
 /* These two were pinned to one width so the pair matched as plaques. They
    are labelled values in a line of text now — a fixed width just clips the
    label and lets it run under the next readout. They size to their content. */
-#keyPill,#goPill{min-width:0;flex:0 0 auto;padding:0;}
+/* THIS USED TO SAY padding:0, AND IT IS WHY TWO CHIPS HAD NO INSIDE.
+
+   It is a leftover from a version where these two were bare icon buttons
+   sized by a fixed width. The width went; the padding override did not, so
+   NODES and TO GO were the only readouts on the bar whose contents were not
+   inset from their own border — the icon sat on the left edge and the value
+   ran over the right one. Every other chip looked correct, which is exactly
+   why it survived this long. */
+#keyPill,#goPill{min-width:0;flex:0 0 auto;}
 /* AND THE FADE ONLY EXISTS WHEN THERE IS SOMETHING TO HIDE. A mask applied
    unconditionally dissolves the last few characters of every name, fitting or
    not — so a cube called LOW CROSS came out with a ghosted S for no reason.
@@ -2825,7 +2837,7 @@ function fit(){
      a texture drawn at block resolution must never be. Rotate the phone and
      it would silently come back on. */
   ctx.imageSmoothingEnabled = false;
-  layout(); buildSky(); buildGlow(); buildSmear(); shS = -1;
+  fitHud(); layout(); buildSky(); buildGlow(); buildSmear(); shS = -1;
 }
 var S = 40, CX = 0, CY = 0;
 /* LAYOUT — MOBILE FIRST, AND THE BOARD ALWAYS FITS.
@@ -7140,6 +7152,58 @@ document.addEventListener('visibilitychange', function(){
 window.addEventListener('resize', fit);
 window.addEventListener('orientationchange', function(){ setTimeout(fit, 120); });
 
+/* ---------- THE BAR IS MADE TO FIT, NOT ASSUMED TO ----------------------
+   Sizing the readouts by clamp() against the viewport gets them close, and
+   close is not a guarantee. The content is not fixed: a fold count reaches
+   three digits, TO GO can read 40+, a node total can be two digits, and the
+   vault names are generated. Any of those can push the row past the width it
+   has, and a chip that does not fit does not wrap or scroll — it just runs
+   over its own border, which is what this bar was already doing.
+
+   So the row is measured and one number is turned down until it fits. Every
+   metric in a chip — padding, gap, icon, value, denominator, label — is that
+   number times a clamp, so the whole bar shrinks as one object and never
+   stops looking like itself. The floor is 0.72: below that the values would
+   be back under a legible size, and the honest answer would be to drop a
+   readout rather than keep shrinking one.
+
+   It runs after layout and on every reflow the observer catches, which is
+   the same trigger the board and the hero use. Three passes maximum, on
+   four elements, only when the bar actually overflows.                    */
+function fitHud(){
+  var row = document.getElementById('hudVals');
+  if(!row || !row.clientWidth) return;
+  var de = document.documentElement;
+  /* NO TOLERANCE. An earlier version allowed one pixel on the grounds that
+     nobody can see a sub-pixel row, and that pixel is exactly what a chip
+     needs to put its border outside the bar. The step is 0.05, so being
+     strict costs at most one extra step. */
+  function over(){ return row.scrollWidth > row.clientWidth; }
+  function shrinkTo(floor){
+    var k = 1;
+    de.style.setProperty('--hud-k', '1');
+    while(over() && k > floor + 0.001){
+      k = Math.max(floor, k - 0.05);
+      de.style.setProperty('--hud-k', k);
+    }
+    return !over();
+  }
+  /* IN THIS ORDER, and the order is the whole design: give up size first,
+     because a slightly smaller readout is still the same readout; give up the
+     WORD next, because its icon already carries it; and only then keep
+     shrinking. Losing a number is never on the list.
+
+     The first floor is deliberately generous. At 0.86 a 390pt phone missed by
+     one percent in ordinary play and threw the word away for it, which is a
+     bad trade — a fifth off the type is far cheaper than a label vanishing
+     and reappearing as the fold count ticks over. */
+  de.classList.remove('hudTight');
+  if(shrinkTo(0.78)) return;
+  de.classList.add('hudTight');
+  if(shrinkTo(0.86)) return;
+  shrinkTo(0.72);
+}
+
 /* ---------- AND RE-FIT WHEN THE CHROME ITSELF MOVES ----------------------
    The hero is sized against two measured DOM blocks, so anything that
    changes their height has to re-run the fit — and almost none of it fires a
@@ -7158,7 +7222,7 @@ if(window.ResizeObserver){
   var reFitQ = 0;
   var reFit = new ResizeObserver(function(){
     if(reFitQ) return;
-    reFitQ = requestAnimationFrame(function(){ reFitQ = 0; layout(); });
+    reFitQ = requestAnimationFrame(function(){ reFitQ = 0; fitHud(); layout(); });
   });
   var tT = document.querySelector('.titleTop'), tB = document.querySelector('.titleBottom');
   if(tT) reFit.observe(tT);
