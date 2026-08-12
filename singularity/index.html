@@ -2573,18 +2573,40 @@ function prebuild(level){
    score would mean nothing; one that scaled with the date would be
    unplayable by March. Fixed spec, fixed shape, one seed a day.
 
-   Local dates, not UTC. The day should turn over at the player's midnight —
-   somebody in Auckland getting Tuesday's cube on Monday evening is the kind
-   of correctness nobody thanks you for.                                    */
+   THE DAY TURNS AT MIDNIGHT UTC-7, AND IT USED TO TURN LOCALLY.
+
+   Local dates were the nicer answer while nobody was counting: the day
+   should turn over at the player's own midnight, and somebody in Auckland
+   getting Tuesday's cube on Monday evening is the kind of correctness
+   nobody thanks you for.
+
+   A RANKED DAILY CANNOT HAVE IT. Play Games buckets a daily leaderboard by
+   when the score arrived, at midnight UTC-7, the same instant all year. With
+   a local rollover, an Auckland player solving Tuesday's cube posts into the
+   Pacific-Monday bucket beside Californians solving Monday's cube — one
+   ranking over two different puzzles, which is not a hard leaderboard to
+   read so much as a meaningless one. This is arithmetic, not a Google
+   limitation: a shared ranking of "today's cube" needs everyone to agree on
+   which day it is, so the boundary has to be global.
+
+   UTC-7 rather than UTC, because matching the bucket exactly is the whole
+   point — the cube's lifetime and the board's window become the same window.
+   The cost is a rollover at 08:00 in London instead of midnight, and that is
+   the price of the board. Put `d.getFullYear(), d.getMonth(), d.getDate()`
+   back here and the daily is local again and unrankable again.             */
 var DAILY_SPEC_LEVEL = 48;                 /* vault V demand, forever */
+var DAY_ANCHOR = 7*3600000;                /* midnight UTC-7, no DST shift */
 var daily = false;
 function dayIndex(){
-  var d = new Date();
-  return Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+  return Math.floor((Date.now() - DAY_ANCHOR) / 86400000);
 }
+/* the calendar date that day belongs to, read on the same clock the index
+   was cut on — a label from `new Date()` would disagree with it for seven
+   hours out of every twenty-four */
+function dayDate(day){ return new Date(day*86400000 + DAY_ANCHOR); }
 function dayLabel(){
-  var d = new Date(), p = function(n){ return (n < 10 ? '0' : '') + n; };
-  return d.getFullYear() + '.' + p(d.getMonth()+1) + '.' + p(d.getDate());
+  var d = dayDate(dayIndex()), p = function(n){ return (n < 10 ? '0' : '') + n; };
+  return d.getUTCFullYear() + '.' + p(d.getUTCMonth()+1) + '.' + p(d.getUTCDate());
 }
 function dailySeed(){
   var h = (dayIndex() * 2654435761) ^ 0x5eed1e;
@@ -2616,10 +2638,16 @@ try{ reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-
    per cube, `vbest` is the posted total for a whole vault keyed by band.
    Missing keys are the honest record of a cube nobody has cleared, which is
    what makes "is this vault finished" a lookup rather than a guess. */
+/* `dhist` is one fold count per day index, pruned to the longest window that
+   reads it. `dstreak` is kept incrementally so the streak never needs the
+   history it would otherwise have to keep forever. `dpost` remembers the
+   last period of each kind already sent, so a finished week is posted once
+   and not on every clear for the rest of the month. */
 var store = {best:{}, tbest:{}, vbest:{}, reached:1, sound:1, haptic:1, depth:0,
              taught:0, sawPlate:0,
              sawPeek:0, peekHinted:0, togo:1, fx: reduceMotion ? 0 : 1,
-             buzz:100, daily:{day:-1, best:0, solved:0}};
+             buzz:100, daily:{day:-1, best:0, solved:0},
+             dhist:{}, dstreak:{cur:0, best:0, last:-1}, dpost:{w:-1, m:-1, s:-1}};
 try{ var raw = localStorage.getItem('turnkey-v2'); if(raw) store = Object.assign(store, JSON.parse(raw)); }catch(e){}
 var saveT = 0;
 function save(){
@@ -2690,6 +2718,114 @@ function postVault(band){
   if(was !== undefined && was <= t) return;
   store.vbest[band] = t; save();
   GPG.submit(vaultBoard(band), t);
+}
+
+/* ============================================================
+   THE DAILY BOARDS — five slots, and they have to last forever.
+
+   Play Games gives every board a daily, a weekly and an all-time version
+   for nothing, so today's cube costs ONE slot, not one per day. Everything
+   below is built on that and on two limits that shape the rest:
+
+   A PUBLISHED BOARD CAN NEVER BE CLEARED. `scores.reset` is authenticated-
+   player-only, tester-whitelisted, and draft-leaderboards-only. So nothing
+   here may depend on wiping anything, ever.
+
+   AND THE WEEKLY SPAN IS NOT A WEEKLY TOTAL. It is the best single score a
+   player sent that week, which answers "what was your best Tuesday", not
+   "how did your week go". A real total has to be summed on the device and
+   posted as its own score.
+
+   Which leaves the aggregates needing a board that shows the CURRENT period
+   and cannot be reset. They carry the period index in the score instead —
+   see packed() — and the problem dissolves.
+
+   A SKIPPED DAY COSTS MORE THAN ANY SOLVE. Folds are lower-is-better, so a
+   plain sum over a week would reward not playing: miss six days and post a
+   beautiful total. Every missing day is charged DAY_MISS, and a real solve
+   is clamped just below it, so playing badly is always at least as good as
+   not playing — which is the ordering a habit board has to have.          */
+var DAY_MISS = 120, SEASON_DAYS = 91;
+
+/* dayIndex 0 is 1 January 1970, a Thursday; Play Games turns its week
+   between Saturday and Sunday, so a week opens on day 3 */
+function weekOf(day){ return Math.floor((day - 3) / 7); }
+function weekSpan(w){ var a = 3 + 7*w; return [a, a + 6]; }
+function monthOf(day){ var d = dayDate(day); return d.getUTCFullYear()*12 + d.getUTCMonth(); }
+function monthSpan(m){
+  var y = Math.floor(m/12), mo = m - y*12;
+  return [Date.UTC(y, mo, 1)/86400000, Date.UTC(y, mo+1, 1)/86400000 - 1];
+}
+function seasonOf(day){ return Math.floor(day / SEASON_DAYS); }
+function seasonSpan(s){ return [s*SEASON_DAYS, s*SEASON_DAYS + SEASON_DAYS - 1]; }
+
+/* -1 when the player has nothing at all in the window: a fresh install must
+   not open by posting a perfect wall of penalties for a month it was not
+   installed for. */
+function spanTotal(span){
+  var t = 0, any = false, i, v;
+  for(i = span[0]; i <= span[1]; i++){
+    v = store.dhist[i];
+    if(v === undefined) t += DAY_MISS;
+    else { t += v; any = true; }
+  }
+  return any ? t : -1;
+}
+
+/* THE PERIOD RIDES ABOVE THE SCORE. The newest completed period outranks
+   every older one by construction, and because the service keeps only a
+   player's best entry, each player's row is replaced by their latest period
+   the moment they post it. The board becomes current-period standings on its
+   own — no reset, no server, one slot, and it never stops working.
+
+   Higher is better on these, so the total is inverted inside its field. The
+   field is 1e7 wide against a worst case of 91 days at 120 apiece — 10,920,
+   three orders of magnitude of headroom — and the whole score stays under
+   2^53, past which a JavaScript number is no longer an exact integer and the
+   digits it would drop are the ones deciding the ranking. */
+var PACK = 1e7;
+function packed(period, total){ return period*PACK + (PACK - 1 - total); }
+
+/* Posted for the period that has FINISHED, never the one in progress: a
+   running total is all penalty for the days that have not happened yet. */
+var DAILY_PERIODS = [
+  ['w', 'daily_week',   weekOf,   weekSpan],
+  ['m', 'daily_month',  monthOf,  monthSpan],
+  ['s', 'daily_season', seasonOf, seasonSpan]
+];
+function postPeriods(today){
+  for(var i = 0; i < DAILY_PERIODS.length; i++){
+    var k = DAILY_PERIODS[i], key = k[0], done = k[2](today) - 1;
+    if(store.dpost[key] === done) continue;
+    var total = spanTotal(k[3](done));
+    /* marked even when there is nothing to send, so an empty period is not
+       recomputed on every clear for the rest of the next one */
+    store.dpost[key] = done;
+    if(total >= 0) GPG.submit(k[1], packed(done, total));
+  }
+}
+/* the history only has to reach back as far as the longest window that
+   reads it; the streak is carried forward instead of derived, so nothing
+   here needs to remember a year */
+function pruneDaily(today){
+  var keep = today - (SEASON_DAYS + 31);
+  for(var k in store.dhist) if((k|0) < keep) delete store.dhist[k];
+}
+function recordDaily(folds){
+  var today = dayIndex(), f = Math.min(folds, DAY_MISS - 1), had = store.dhist[today];
+  if(had === undefined || f < had){
+    store.dhist[today] = f;
+    GPG.submit('daily', f);            /* the service buckets this by arrival */
+  }
+  var st = store.dstreak;
+  if(st.last !== today){
+    st.cur = (st.last === today - 1) ? st.cur + 1 : 1;
+    st.last = today;
+    if(st.cur > st.best){ st.best = st.cur; GPG.submit('daily_streak', st.best); }
+  }
+  postPeriods(today);
+  pruneDaily(today);
+  save();
 }
 
 /* ============================================================
@@ -6815,7 +6951,7 @@ function finish(){
     if(d0.day !== today){ d0.day = today; d0.best = turns; }
     else d0.best = Math.min(d0.best || 999, turns);
     d0.solved = 1;
-    save();
+    recordDaily(turns);                /* saves; also posts the boards */
   } else {
     var best = store.best[levelNo];
     if(best === undefined || turns < best){ store.best[levelNo] = turns; save(); }
