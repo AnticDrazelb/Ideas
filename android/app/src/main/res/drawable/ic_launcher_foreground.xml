@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The page's own favicon, redrawn to the adaptive-icon grid: a rust frame
+     with an arc-light ring inside it. 108dp viewport, and every mark stays
+     inside the 66dp centre circle that launchers are allowed to mask to, so
+     nothing is clipped on a round, squircle or teardrop mask. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- the engine housing -->
+    <path
+        android:pathData="M32,32 h44 v44 h-44 z"
+        android:strokeColor="#EA580C"
+        android:strokeWidth="3.5"
+        android:fillColor="#00000000" />
+
+    <!-- the hole -->
+    <path
+        android:pathData="M54,54 m-13,0 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0"
+        android:fillColor="#000000"
+        android:strokeColor="#22D3EE"
+        android:strokeWidth="4" />
+</vector>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- API 30 adds `always`, which extends into the cutout on EVERY edge rather
+         than only the short ones. That matters in landscape, where a punch-hole
+         sits on a long edge and shortEdges would letterbox the board away from
+         it. The page is told about all four insets, so using the whole panel
+         costs nothing and gains the full screen. -->
+    <style name="Theme.Singularity" parent="Base.Singularity">
+        <item name="android:windowLayoutInDisplayCutoutMode">always</item>
+    </style>
+
+    <style name="Theme.Singularity.Splash" parent="Base.SingularitySplash">
+        <item name="android:windowLayoutInDisplayCutoutMode">always</item>
+    </style>
+</resources>

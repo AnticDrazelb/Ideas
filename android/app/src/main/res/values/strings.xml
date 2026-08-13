@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Singularity</string>
+
+    <!-- Shown only when a cube report finds no mail app at all. The page has
+         already put the whole report on the clipboard by this point, which is
+         what this message is really telling the player. -->
+    <string name="no_mail_app">No mail app found. The report has been copied to your clipboard.</string>
+
+    <!-- ============================================================
+         PLAY GAMES — OFF UNTIL YOU TURN IT ON.
+
+         Leave this exactly as it is and the app is complete and shippable:
+         PlayGamesSdk is never initialised, window.AndroidGPG is never
+         installed, and the page's BOARDS screen reads "BOARDS — LOCAL ONLY"
+         and shows your own bests. That is a designed state in the page, not
+         a degraded one.
+
+         To turn it on, replace this with the numeric project id from the Play
+         Console (Play Games Services > Configuration). The moment it stops
+         being the placeholder the bridge initialises, signs in, and — only if
+         sign-in actually succeeds — installs the bridge object.
+         ============================================================ -->
+    <string name="play_games_app_id" translatable="false">0000000000</string>
+</resources>

@@ -1,0 +1,35 @@
+[versions]
+agp = "8.9.2"
+kotlin = "2.1.20"
+
+# The shell is deliberately thin. Every dependency below earns its place by
+# doing something the platform will not do correctly on its own:
+#
+#   core-ktx        insets, window controller, back-compat across five releases
+#   activity        OnBackPressedDispatcher, which is how a WebView game gets
+#                   to answer the back gesture at all
+#   webkit          WebViewAssetLoader (a real https origin for a local file)
+#                   and the algorithmic-darkening switch
+#   splashscreen    the only supported way to hold the first frame until the
+#                   page has actually painted
+#
+# There is no AppCompat and no Material. This app has exactly one View.
+core-ktx = "1.15.0"
+activity = "1.9.3"
+webkit = "1.12.1"
+splashscreen = "1.0.1"
+
+# Optional, and inert until a real Play Games project is configured.
+# See res/values/play_games.xml.
+play-games = "20.1.2"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
+androidx-activity = { group = "androidx.activity", name = "activity-ktx", version.ref = "activity" }
+androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
+androidx-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
+play-services-games = { group = "com.google.android.gms", name = "play-services-games-v2", version.ref = "play-games" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

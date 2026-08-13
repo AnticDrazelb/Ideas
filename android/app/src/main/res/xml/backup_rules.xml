@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ============================================================
+     THE SAVE IS IN THE WEBVIEW, AND NOBODY BACKS THAT UP BY DEFAULT.
+
+     Everything the player owns — every vault best, the daily streak, every
+     cube they built in FORGE — lives in one localStorage key called
+     'turnkey-v2'. Auto Backup with no rules file backs up shared prefs and
+     files/, and localStorage is in neither: it sits in app_webview/ off the
+     data-dir root. Left alone, a new phone is a wiped save.
+
+     `root` is the app's data directory, which is where app_webview lives.
+     Backing up the whole directory would also drag the HTTP cache and the
+     code cache along, so this names the one subtree that holds the save.
+
+     API 23-30 read this file; 31+ read data_extraction_rules.xml.
+     ============================================================ -->
+<full-backup-content>
+    <include domain="root" path="app_webview/Default/Local Storage/" />
+</full-backup-content>

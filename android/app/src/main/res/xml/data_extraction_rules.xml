@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- API 31+. Same subtree as backup_rules.xml, declared for both transports.
+
+     cloud-backup  — restoring onto a fresh install of the same app.
+     device-transfer — the direct phone-to-phone copy during setup.
+
+     Both are wanted: the save is small, it is the player's, and it should
+     follow them the way a native game's save does. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="root" path="app_webview/Default/Local Storage/" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="root" path="app_webview/Default/Local Storage/" />
+    </device-transfer>
+</data-extraction-rules>

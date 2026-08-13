@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ============================================================
+         THE APP THEME — mostly a list of things NOT to draw.
+
+         A WebView app gives itself away in the first 200ms, before any of the
+         game has run. The window is created with the platform's background,
+         the WebView is created white, and the page paints black a beat later:
+         two flashes on every cold start, and no native game has ever done
+         that. So every surface in the stack is set to the same black up front
+         and nothing is left to a default.
+
+         WHY THE Base.* SPLIT: the only thing that changes between API levels
+         here is the display-cutout mode, which arrives at 27 and gains its
+         useful value at 30. Redefining the whole theme in each qualifier to
+         add one line is how theme files drift out of sync — a colour gets
+         fixed in values/ and stays wrong on every phone with a notch. The
+         qualifier files below inherit these bases and add exactly the one
+         attribute that differs.
+         ============================================================ -->
+    <style name="Base.Singularity" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/void_black</item>
+        <item name="android:colorBackground">@color/void_black</item>
+
+        <!-- Edge to edge. The Activity reads the real insets and hands them to
+             the page's safe-area custom properties, so nothing needs the system
+             to reserve space and everything can draw behind the bars. -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <!-- The bars are hidden anyway, but a transient reveal over a black
+             game should not come back with a scrim on it. -->
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+
+        <!-- No activity transition. The splash hands over to the game, and a
+             slide or fade on top of that reads as a second app starting. -->
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
+    <!-- ============================================================
+         THE SPLASH — held until the page has actually painted.
+
+         installSplashScreen plus a keep-on-screen condition is the only
+         supported way to say "not yet". The condition is released by the
+         WebView's own VisualStateCallback, so the splash lifts on the frame the
+         game becomes visible rather than on a guessed delay.
+
+         This theme carries the same cutout mode as the app theme (see the
+         qualifier files). If it did not, the splash window would stop at the
+         notch and the game window would extend past it, and the handover would
+         visibly jump.
+         ============================================================ -->
+    <style name="Base.SingularitySplash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/void_black</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.Singularity</item>
+        <item name="android:windowBackground">@color/void_black</item>
+    </style>
+
+    <style name="Theme.Singularity" parent="Base.Singularity" />
+
+    <style name="Theme.Singularity.Splash" parent="Base.SingularitySplash" />
+
+</resources>

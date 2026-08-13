@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- The page calls navigator.vibrate for every tick and fold. Without this
+         permission that call succeeds, returns true, and does nothing, which is
+         the failure mode where the feature looks implemented and is not. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- No INTERNET permission. The game is one offline file and asks the
+         network for nothing; the https origin it runs on is served from
+         inside the APK by WebViewAssetLoader and never leaves the process.
+         An app that cannot reach the network cannot leak anything, and the
+         Play listing gets to say so. -->
+
+    <!-- Android 11+ hides other packages unless you declare what you look for.
+         Without this block, resolving a mail app for a cube report returns
+         null on every modern phone and the report silently goes nowhere. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="false"
+        android:usesCleartextTraffic="false"
+        android:theme="@style/Theme.Singularity">
+
+        <!-- android:configChanges — EVERY ONE OF THOSE IS A RELOAD PREVENTED.
+             The default Android behaviour on a rotation, a font-scale change, a
+             theme switch or an unfold is to destroy the Activity and build a new
+             one. For a WebView game that means tearing down the page and
+             starting the level over — the single most un-native thing a wrapper
+             can do. The Activity handles all of it in onConfigurationChanged
+             instead, and the run survives.
+
+             android:screenOrientation="fullUser" — the page lays itself out for
+             both orientations (it has a whole landscape chrome), so the phone
+             and the user's rotation lock decide, not the app.
+
+             android:windowSoftInputMode="adjustResize" — the editor has a text
+             field for share codes. adjustResize is what produces an ime() inset,
+             which the Activity folds into the page's own safe-area variables so
+             the keyboard never covers the field it was opened for.
+
+             android:enableOnBackInvokedCallback — predictive back. The Activity
+             keeps an enabled OnBackPressedCallback for as long as the page has
+             menus of its own to close, so the system animates a back that stays
+             in the app instead of previewing the home screen. -->
+        <activity
+            android:name=".GameActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.Singularity.Splash"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|navigation|uiMode|density|fontScale|layoutDirection|locale|touchscreen"
+            android:screenOrientation="fullUser"
+            android:resizeableActivity="true"
+            android:windowSoftInputMode="adjustResize"
+            android:enableOnBackInvokedCallback="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Play Games reads this at initialisation. The placeholder is inert
+             because PlayGamesSdk.initialize is never called until the id is
+             real — see PlayGamesBridge. -->
+        <meta-data
+            android:name="com.google.android.gms.games.APP_ID"
+            android:value="@string/play_games_app_id" />
+
+        <!-- Safe Browsing checks URLs against a Google service. This app has no
+             INTERNET permission and loads one file out of its own APK, so the
+             only thing the check can do is add work to WebView startup. -->
+        <meta-data
+            android:name="android.webkit.WebView.EnableSafeBrowsing"
+            android:value="false" />
+
+    </application>
+</manifest>

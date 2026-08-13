@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ============================================================
+         THE BOARD MAP — the page's half of a deliberate split.
+
+         The HTML never learns a Google leaderboard id. It submits to logical
+         names it makes up itself (`vault_07`, `daily_streak`) and this file
+         owns the mapping to the opaque strings the Play Console assigns. Board
+         ids can be reissued and re-pointed here without touching the game.
+
+         FORMAT: logical=CgkI...  — one per entry, no spaces around the '='.
+         An entry whose right-hand side is still a placeholder is skipped at
+         runtime, so a half-configured map submits the boards you have set up
+         and silently drops the rest rather than throwing.
+
+         The logical names are fixed by the page:
+           daily, daily_week, daily_month, daily_season, daily_streak
+           vault_01 .. vault_30   (RANKED_VAULTS = 30 in the page)
+         ============================================================ -->
+    <string-array name="leaderboard_map" translatable="false">
+        <item>daily=CHANGE_ME</item>
+        <item>daily_week=CHANGE_ME</item>
+        <item>daily_month=CHANGE_ME</item>
+        <item>daily_season=CHANGE_ME</item>
+        <item>daily_streak=CHANGE_ME</item>
+
+        <item>vault_01=CHANGE_ME</item>
+        <item>vault_02=CHANGE_ME</item>
+        <item>vault_03=CHANGE_ME</item>
+        <item>vault_04=CHANGE_ME</item>
+        <item>vault_05=CHANGE_ME</item>
+        <item>vault_06=CHANGE_ME</item>
+        <item>vault_07=CHANGE_ME</item>
+        <item>vault_08=CHANGE_ME</item>
+        <item>vault_09=CHANGE_ME</item>
+        <item>vault_10=CHANGE_ME</item>
+        <item>vault_11=CHANGE_ME</item>
+        <item>vault_12=CHANGE_ME</item>
+        <item>vault_13=CHANGE_ME</item>
+        <item>vault_14=CHANGE_ME</item>
+        <item>vault_15=CHANGE_ME</item>
+        <item>vault_16=CHANGE_ME</item>
+        <item>vault_17=CHANGE_ME</item>
+        <item>vault_18=CHANGE_ME</item>
+        <item>vault_19=CHANGE_ME</item>
+        <item>vault_20=CHANGE_ME</item>
+        <item>vault_21=CHANGE_ME</item>
+        <item>vault_22=CHANGE_ME</item>
+        <item>vault_23=CHANGE_ME</item>
+        <item>vault_24=CHANGE_ME</item>
+        <item>vault_25=CHANGE_ME</item>
+        <item>vault_26=CHANGE_ME</item>
+        <item>vault_27=CHANGE_ME</item>
+        <item>vault_28=CHANGE_ME</item>
+        <item>vault_29=CHANGE_ME</item>
+        <item>vault_30=CHANGE_ME</item>
+    </string-array>
+</resources>

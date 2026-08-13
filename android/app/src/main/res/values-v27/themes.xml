@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- API 27 is where windowLayoutInDisplayCutoutMode arrives. shortEdges lets
+         the game draw under a notch on the short edges; the Activity measures
+         the cutout and tells the page where it is, so nothing lands under it.
+
+         Both windows get it, so the splash and the game occupy the same
+         rectangle and the handover between them does not move. -->
+    <style name="Theme.Singularity" parent="Base.Singularity">
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+
+    <style name="Theme.Singularity.Splash" parent="Base.SingularitySplash">
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>

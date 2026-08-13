@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Taken from the page's own :root block, not eyeballed. The window
+         background, the splash background and the WebView background are all
+         the same black the page paints, which is what makes the launch look
+         like one continuous surface instead of three handoffs. -->
+    <color name="void_black">#FF000000</color>
+    <color name="rust">#FFEA580C</color>
+    <color name="arc">#FF22D3EE</color>
+</resources>
