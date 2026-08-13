@@ -36,24 +36,45 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
     mine.par = validateLevel(mine).par;
     const id = canonId(mine);
     store.made[id] = edRecord(mine, 'import');
-    const hid = () => document.getElementById('btnReport').classList.contains('hide');
+    /* ASK THE BROWSER, NOT THE CLASS LIST. This used to read
+       classList.contains('hide') and passed for months while the button was
+       on screen on every ranked cube in the game: the class was going on and
+       off exactly as intended and no rule in the stylesheet answered it.
+       A control is hidden when it is not drawn, and that is a different
+       question. checkVisibility walks the ancestors, so it also covers the
+       panel fade that hides the whole card during play. */
+    const drawn = () => {
+      const el = document.getElementById('btnReport');
+      document.querySelectorAll('.layer').forEach(l =>
+        l.getAnimations({subtree:true}).forEach(a => a.finish()));
+      return el.checkVisibility({opacityProperty:true, visibilityProperty:true}) &&
+             el.getBoundingClientRect().height > 0;
+    };
 
     loadLevel(12); show('scPause');
-    const onNormal = hid();
+    const onNormal = drawn();
     loadLevel(DAILY); show('scPause');
-    const onDaily = hid();
+    const onDaily = drawn();
     madeKey = id; loadLevel(MADE);
     await new Promise(r => setTimeout(r, 300));
     show('scPause');
-    const onMade = hid();
+    const onMade = drawn();
     show(null);
-    const whenPlaying = hid();
-    return {id, onNormal, onDaily, onMade, whenPlaying};
+    const whenPlaying = drawn();
+    /* the mechanism itself: .hide on a plain element has to mean something */
+    const probe = (() => {
+      const d = document.createElement('button');
+      d.className = 'btn ghost hide'; document.body.appendChild(d);
+      const v = getComputedStyle(d).display; d.remove(); return v;
+    })();
+    return {id, onNormal, onDaily, onMade, whenPlaying, probe};
   });
-  ok('no report button on a cube the game shipped', vis.onNormal === true);
-  ok('...nor on the daily', vis.onDaily === true);
-  ok('...but there is one on a cube somebody built', vis.onMade === false);
-  ok('...and it is not on screen while playing', vis.whenPlaying === true);
+  ok('the hide class actually hides a control, not just labels it',
+     vis.probe === 'none', `.btn.ghost.hide computes display:${vis.probe}`);
+  ok('no report button on a cube the game shipped', vis.onNormal === false);
+  ok('...nor on the daily', vis.onDaily === false);
+  ok('...but there is one on a cube somebody built', vis.onMade === true);
+  ok('...and it is not on screen while playing', vis.whenPlaying === false);
 
   /* ---- it takes two taps, and says what it is going to do --------------- */
   const flow = await p.evaluate(async () => {

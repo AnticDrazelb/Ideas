@@ -247,6 +247,22 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
    bounce — the panel itself is either displayed or it is not, because that
    is what a display does. */
 .layer.hide{opacity:0;pointer-events:none;}
+/* AND ON ANYTHING THAT IS NOT A PANEL, .hide MEANS GONE.
+   This rule did not exist. A panel fades, so .layer.hide is opacity — but
+   three controls inside panels are shown and hidden by toggling the same
+   class on a plain element, and NOTHING IN THE STYLESHEET ANSWERED IT: the
+   class went on and off correctly and the browser drew the button anyway.
+   REPORT THIS CUBE sat on the pause card of every ranked vault, which is an
+   invitation to report the game to its own author; DELETE sat on a cube that
+   had never been saved; and the share-code row sat there empty on a cube
+   that had no code yet.
+
+   All three were covered by tests, and all three passed, because the tests
+   asked whether the class was present rather than whether the browser drew
+   the thing. They ask the second question now.
+
+   Scoped off .layer so the panel fade above still owns its own hiding. */
+.hide:not(.layer){display:none;}
 
 /* ---------- BUT ITS CONTENTS BOOT ---------------------------------------
    A SCREEN THAT IS SIMPLY THERE IS A SCREENSHOT.
@@ -1180,13 +1196,19 @@ html.disp #stage, html.disp .layer, html.disp #hud{
 .rowSlide{align-items:flex-start;}
 .slide{display:flex;align-items:center;gap:10px;margin-top:9px;}
 .sLbl{font-size:var(--t-micro);letter-spacing:.16em;color:var(--dim-2);flex:0 0 auto;}
-/* the one range input in the file, built out of the same two colours */
-#buzzRange{-webkit-appearance:none;appearance:none;flex:1;height:3px;border-radius:2px;
+/* EVERY range input, built out of the same two colours. This said "the one
+   range input in the file" and was keyed to #buzzRange, which was true when
+   haptic strength was the only slider — brightness and contrast arrived
+   later and inherited none of it, so two of the three sliders on CALIBRATE
+   rendered as the platform's default blue on a screen with no blue in it.
+   bindSlider already sets --fill on all three; only the selector was
+   private to one of them. */
+.settings input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:3px;border-radius:2px;
            background:linear-gradient(90deg,var(--rust) 0 var(--fill,66%),var(--dim-2) var(--fill,66%) 100%);
            outline:none;}
-#buzzRange::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;
+.settings input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;
            background:var(--ink);box-shadow:0 0 0 1px rgba(0,0,0,.6);cursor:pointer;}
-#buzzRange::-moz-range-thumb{width:17px;height:17px;border:0;border-radius:50%;background:var(--ink);}
+.settings input[type=range]::-moz-range-thumb{width:17px;height:17px;border:0;border-radius:50%;background:var(--ink);}
 /* the hints are three to six words now, so they can afford to be a legible
    size instead of a legal-notice one */
 .row .hint{font-size:var(--t-micro);color:var(--dim-2);letter-spacing:.10em;margin-top:3px;line-height:1.4;}
@@ -1224,6 +1246,12 @@ html.disp #stage, html.disp .layer, html.disp #hud{
    a phone menu you have to scroll to find the switches. */
 .btn2{display:flex;gap:10px;width:100%;max-width:340px;margin:0 auto 11px;}
 .btn2 .btn{margin:0;flex:1;max-width:none;padding:0 8px;font-size:var(--t-sm);letter-spacing:.12em;}
+/* THREE IN A ROW IS A THIRD OF THE WIDTH, and a two-up label does not fit
+   in it: MANUAL / BACK / MENU on a 320px phone put the closing bracket of
+   [ MANUAL ] on a second line. Narrower type, tighter tracking, less padding
+   — and nowrap, so if a longer word is ever put here it overflows visibly
+   and the fit test catches it, instead of quietly folding in half. */
+.btn2.three .btn{font-size:var(--t-fine);letter-spacing:.08em;padding:0 4px;white-space:nowrap;}
 .sub.tight{margin-bottom:16px;}
 
 /* ---------- THE MANUAL ----------------------------------------------
@@ -1479,9 +1507,13 @@ html.disp #stage, html.disp .layer, html.disp #hud{
     <button class="btn" id="edCheck">[ VERIFY ]</button>
     <button class="btn primary" id="edSave">[ SAVE ]</button>
   </div>
-  <div class="btn2">
+  <!-- BACK goes up one, to the shelf; MENU goes home. Both are safe here
+       because the draft is written on every edit, so leaving the editor by
+       either door loses nothing. -->
+  <div class="btn2 three">
     <button class="btn" id="edPlay">[ PLAY ]</button>
     <button class="btn ghost" id="edBack">[ BACK ]</button>
+    <button class="btn ghost" id="edMenu">[ MENU ]</button>
   </div>
   <!-- Only on a cube that has actually been saved: a new one has nothing to
        delete, and a button that does nothing is worse than no button. -->
@@ -1607,7 +1639,7 @@ html.disp #stage, html.disp .layer, html.disp #hud{
   <h2 id="pauseName">PAUSED</h2>
   <p class="sub tight" id="pauseSub">—</p>
   <button class="btn primary" id="btnResume">[ RESUME ]</button>
-  <div class="btn2">
+  <div class="btn2 three">
     <button class="btn" id="btnRestart">[ RESET ]</button>
     <button class="btn" id="btnToCubes">[ VAULTS ]</button>
     <button class="btn" id="btnToMenu">[ MENU ]</button>
@@ -1677,9 +1709,10 @@ html.disp #stage, html.disp .layer, html.disp #hud{
           <input type="range" id="contrastRange" min="70" max="150" step="5" value="100"></div>
       </div></div></div>
   </div>
-  <div class="btn2">
+  <div class="btn2 three">
     <button class="btn ghost" id="btnManual2">[ MANUAL ]</button>
     <button class="btn ghost" id="btnSetBack">[ BACK ]</button>
+    <button class="btn ghost" id="btnSetMenu">[ MENU ]</button>
   </div>
 </div>
 
@@ -1694,7 +1727,10 @@ html.disp #stage, html.disp .layer, html.disp #hud{
   </div>
   <div class="settings" id="boardList"></div>
   <div class="edMsg" id="boardMsg"></div>
-  <button class="btn ghost" id="btnBoardsBack">[ BACK ]</button>
+  <div class="btn2">
+    <button class="btn ghost" id="btnBoardsBack">[ BACK ]</button>
+    <button class="btn ghost" id="btnBoardsMenu">[ MENU ]</button>
+  </div>
 </div>
 
 <!-- ============ CLEARED ============ -->
@@ -8599,10 +8635,21 @@ $('btnWinCubes').onclick = function(){
    had a route to the title: from a finished cube the only ways on were the
    next level, a retry, or the shelf, and getting to the main screen meant
    going to the shelf and pressing BACK. Not a dead end, and one hop longer
-   than it should be from the two screens a player sees most. */
+   than it should be from the two screens a player sees most.
+
+   NOT ONE SCREEN MORE THAN A TAP FROM HOME. The pause and win cards got this
+   first; CALIBRATE, BOARDS and the editor still made you walk back out the
+   way you came in — two taps from settings, two from the boards, two from
+   the editor, and BACK on those three is bound to wherever you opened them
+   from, so the second tap was not even the same button twice. */
 function toMenu(){ refreshDaily(); show('scTitle'); }
-$('btnWinMenu').onclick = toMenu;
-$('btnToMenu').onclick  = toMenu;
+$('btnWinMenu').onclick    = toMenu;
+$('btnToMenu').onclick     = toMenu;
+$('btnSetMenu').onclick    = toMenu;
+$('btnBoardsMenu').onclick = toMenu;
+/* the editor writes its draft on every edit, so this loses nothing BACK
+   would not have lost either */
+$('edMenu').onclick        = toMenu;
 
 /* ============================================================
    DISPLAY TRIM — brightness and contrast, and the cost of having them.

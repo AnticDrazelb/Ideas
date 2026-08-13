@@ -28,6 +28,24 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
   await p.goto('file:///home/user/Ideas/singularity/index.html');
   await p.waitForTimeout(500);
 
+  /* IS IT DRAWN — not is it classed. Several of these checks used to read
+     classList.contains('hide'), which is a question about the test's own
+     expectations rather than about the screen: the class was going on and
+     off exactly as intended while the stylesheet had no rule for it, so
+     DELETE and an empty share-code row sat on cubes that should not have
+     had either, through a green suite. Panels also boot their contents with
+     an animation that starts at opacity 0, and a measurement taken before
+     it runs is a measurement of nothing, so finish them first. */
+  await p.evaluate(() => {
+    window.drawn = function(id){
+      document.querySelectorAll('.layer').forEach(l =>
+        l.getAnimations({subtree:true}).forEach(a => a.finish()));
+      const el = document.getElementById(id);
+      return !!el && el.checkVisibility({opacityProperty:true, visibilityProperty:true})
+             && el.getBoundingClientRect().height > 0;
+    };
+  });
+
   /* ---- identity --------------------------------------------------------- */
   const ident = await p.evaluate(() => {
     const base = BAKED[4];                       /* has a key and a door */
@@ -279,7 +297,10 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
      on screen and there was no way to obtain it. */
   const copy = await p.evaluate(async () => {
     store.made = {}; store.draft = null; ed = null;
-    const row = () => !document.getElementById('edCodeRow').classList.contains('hide');
+    /* DRAWN, NOT CLASSED — see the note on edDelete below. The share-code
+       row is a .edRow, which is display:flex and had no .hide answer to it,
+       so this read the class and passed while the empty row sat on screen. */
+    const row = () => drawn('edCodeRow');
     edNew(5); openEditor(null);
     const atStart = row();
 
@@ -386,13 +407,17 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
     store.draft = {n:b.n, vox:b.vox, start:b.start, goal:b.goal, keys:[], doors:[],
                    name:'DOOMED', layer:0, from:idb};
 
+    /* DRAWN, NOT CLASSED. The stylesheet had no rule for .hide on anything
+       that is not a panel, so the class went on faithfully and DELETE was
+       drawn anyway — on a cube that had never been saved. Reading the class
+       could never have caught that; reading the box does. */
     /* a NEW cube has nothing to delete and must not offer to */
     edNew(5); openEditor(null);
-    const onNew = document.getElementById('edDelete').classList.contains('hide');
+    const onNew = !drawn('edDelete');
 
     /* a saved one does */
     ed = null; openEditor(store.made[idb], idb);
-    const onSaved = !document.getElementById('edDelete').classList.contains('hide');
+    const onSaved = drawn('edDelete');
 
     const btn = document.getElementById('edDelete');
     btn.click();                              /* arms */

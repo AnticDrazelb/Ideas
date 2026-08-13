@@ -280,6 +280,122 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
   ok('...and does not call a cube somebody built a vault',
      menu.madeHead === 'CUBE SOLVED', menu.madeHead);
 
+  /* ---- ONE TAP HOME, FROM EVERYWHERE ------------------------------------
+     "At least one control leaves this screen" was the bar above, and every
+     screen cleared it while CALIBRATE, BOARDS and the editor still took two
+     taps to reach the title — and the first of those two was a BACK bound
+     to whichever door you came in through, so it was not even the same
+     journey twice. This asks the stronger question: from each screen, is
+     there ONE visible button that lands on the title.
+
+     Two screens are deliberately exempt, and both are modals whose whole
+     contract is RETURN TO THE DOOR YOU CAME IN BY — a contract asserted
+     directly above this, and one a MENU would weaken rather than help.
+
+     scPlate introduces plates while you are standing on a cube mid-level;
+     its one button puts you back on that cube, and a second exit there is
+     an invitation to lose the level you are in the middle of.
+
+     scManual is opened from the title, from CALIBRATE, or as the first-run
+     gate, and GOT IT goes back to whichever of those it was. Every one of
+     those doors is itself one tap from the title now, so the manual is one
+     tap from a screen that is one tap from home — and the alternative, a
+     second exit on the first-run gate, is the exact shape of the bug that
+     used to throw a new player into a level instead of the menu. */
+  const HOME_EXEMPT = ['scTitle', 'scPlate', 'scManual'];
+  const home = await p.evaluate(async ([screens, exempt]) => {
+    store.reached = 60; store.taught = 1; store.made = {};
+    const src = BAKED[0];
+    const mine = {n:src.n, vox:src.vox.replace('#','+'), start:src.start, goal:src.goal,
+                  keys:[], doors:[], par:0, name:'MINE'};
+    mine.par = validateLevel(mine).par;
+    const id = canonId(mine); store.made[id] = edRecord(mine, 'built'); madeKey = id;
+    loadLevel(12);
+    await new Promise(r => setTimeout(r, 300));
+    const settle = () => document.querySelectorAll('.layer').forEach(l =>
+      l.getAnimations({subtree:true}).forEach(a => a.finish()));
+    const which = () => screens.find(s => !document.getElementById(s).classList.contains('hide')) || 'GAME';
+    const vis = el => { if(el.disabled) return false;
+      const r = el.getBoundingClientRect(), st = getComputedStyle(el);
+      return r.width >= 8 && r.height >= 8 && st.display !== 'none'
+             && st.visibility !== 'hidden' && +st.opacity > 0.05; };
+    const setup = sc => { if(sc === 'scEdit') edFrom(store.made[id], id);
+      if(sc === 'scMade') buildMadeGrid(); if(sc === 'scBoards') buildBoards();
+      if(sc === 'scWin'){ made = false; daily = false; } show(sc); };
+
+    const out = [];
+    for(const sc of screens){
+      if(exempt.indexOf(sc) >= 0) continue;
+      setup(sc); await new Promise(r => setTimeout(r, 60)); settle();
+      const ids = [...document.getElementById(sc).querySelectorAll('button')]
+                  .filter(vis).map(x => x.id);
+      let hit = '';
+      for(const bid of ids){
+        setup(sc); await new Promise(r => setTimeout(r, 50)); settle();
+        const e = document.getElementById(bid);
+        if(!e || !vis(e)) continue;
+        try{ e.click(); }catch(err){}
+        await new Promise(r => setTimeout(r, 80));
+        if(which() === 'scTitle'){ hit = (e.textContent || bid).trim(); break; }
+      }
+      out.push({sc, hit});
+    }
+    return out;
+  }, [screens, HOME_EXEMPT]);
+  const stranded = home.filter(h => !h.hit);
+  ok('every screen is one tap from the title',
+     stranded.length === 0,
+     stranded.length ? 'TWO TAPS OR MORE: ' + stranded.map(h => h.sc).join(', ')
+                     : home.map(h => h.sc + ':' + h.hit).join('  '));
+
+  /* ---- AND THE LABELS FIT THE BUTTONS THEY ARE IN ----------------------
+     Adding a third button to a two-up row makes every label a third of the
+     width, and [ MANUAL ] promptly put its closing bracket on a second
+     line at 320px. A wrapped label does not overflow its box, so nothing
+     that measures scrollWidth can see it — count the line boxes instead. */
+  const wraps = [];
+  for(const [w, h] of [[320,568],[360,640],[390,844]]){
+    const q = await b.newPage({viewport:{width:w, height:h}, deviceScaleFactor:2, isMobile:true, hasTouch:true});
+    await q.goto('file:///home/user/Ideas/singularity/index.html');
+    await q.waitForTimeout(500);
+    const bad3 = await q.evaluate(async () => {
+      store.reached = 60; store.taught = 1; store.made = {};
+      const src = BAKED[0];
+      const mine = {n:src.n, vox:src.vox.replace('#','+'), start:src.start, goal:src.goal,
+                    keys:[], doors:[], par:0, name:'MINE'};
+      mine.par = validateLevel(mine).par;
+      const id = canonId(mine); store.made[id] = edRecord(mine, 'built'); madeKey = id;
+      loadLevel(12);
+      await new Promise(r => setTimeout(r, 250));
+      const lines = el => { const rg = document.createRange(); rg.selectNodeContents(el);
+        return [...rg.getClientRects()].filter(r => r.height > 1).length; };
+      const out = [];
+      for(const sc of ['scPause','scSet','scEdit','scBoards','scWin','scTitle','scMade','scCubes']){
+        if(sc === 'scEdit') edFrom(store.made[id], id);
+        if(sc === 'scMade') buildMadeGrid();
+        if(sc === 'scBoards') buildBoards();
+        if(sc === 'scCubes') buildCubeGrid();
+        show(sc);
+        document.querySelectorAll('.layer').forEach(l =>
+          l.getAnimations({subtree:true}).forEach(a => a.finish()));
+        for(const el of document.getElementById(sc).querySelectorAll('.btn2 .btn')){
+          const r = el.getBoundingClientRect();
+          if(r.height < 8) continue;
+          if(lines(el) > 1 || el.scrollWidth > el.clientWidth + 1)
+            out.push(sc + '/' + (el.textContent || el.id).trim());
+        }
+      }
+      return out;
+    });
+    wraps.push({size: `${w}x${h}`, bad: bad3});
+    await q.close();
+  }
+  const broke = wraps.filter(x => x.bad.length);
+  ok('no button label wraps or overflows its own box, at any phone width',
+     broke.length === 0,
+     broke.length ? broke.map(x => x.size + ': ' + x.bad.join(', ')).join(' | ')
+                  : wraps.map(x => x.size).join(' '));
+
   ok('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
 
   await b.close();
