@@ -20,3 +20,7 @@ turnkey/tools/sgland.js
 turnkey/tools/sglandvis.js
 turnkey/tools/sgprobe.js
 singularity/shot-*.png
+
+# sgbake keeps its resume cache next to the game; it is scratch, and it must
+# never outlive the generator that filled it
+singularity/.bake-cache.json
