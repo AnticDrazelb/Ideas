@@ -481,8 +481,16 @@ h2+.manual{margin-top:14px;}
    on anything wide enough to be a television the whole scale is rebuilt in
    vh and the controls grow with it. Handheld at 1280x720 lands in between,
    which is exactly where it should be. */
-@media (min-aspect-ratio: 13/10) and (min-width: 900px){
-  :root{
+/* A TELEVISION HAS NO TOUCHSCREEN, AND A TABLET IS NOT A TELEVISION.
+
+   This was a media query on width alone, and a ten-inch tablet in landscape
+   is about 1280 CSS pixels wide — over the 900 threshold. So a tablet held
+   at arm's length was being given sofa-distance type and television
+   overscan, which is the whole of why the interface read as a mess on one.
+   Width cannot tell a tablet from a television; the absence of a
+   touchscreen can, so the decision moved to script and this keys off the
+   class it sets. A real console still gets everything it got before. */
+html.tv{
     --t-micro:clamp(9px,1.15vh,14px);
     --t-tiny:clamp(10px,1.3vh,16px);
     --t-fine:clamp(11px,1.5vh,18px);
@@ -496,9 +504,8 @@ h2+.manual{margin-top:14px;}
     --h-ctl:clamp(48px,6.4vh,76px);
     --h-btn:clamp(54px,7.6vh,88px);
     --h-row:clamp(56px,7.4vh,86px);
-  }
-  .tick{width:clamp(26px,2.6vh,44px);height:clamp(5px,0.7vh,9px);}
 }
+html.tv .tick{width:clamp(26px,2.6vh,44px);height:clamp(5px,0.7vh,9px);}
 
 /* ---------- BUTTONS ---------- */
 /* every menu column is already capped, which is what makes the landscape
@@ -3827,8 +3834,73 @@ function vpSize(){
   if(vv && vv.width > 0) return {w:Math.round(vv.width), h:Math.round(vv.height)};
   return {w:window.innerWidth, h:window.innerHeight};
 }
+/* ============================================================
+   ADAPTIVE RESOLUTION — MEASURED, BECAUSE IT CANNOT BE GUESSED.
+
+   The canvas is allocated at the panel's native resolution, capped only at
+   DPR 2.5. That cap is about sharpness and it never engages on the devices
+   that need help.
+
+   THE OBVIOUS FIX IS A PIXEL BUDGET AND IT DOES NOT WORK. A modern phone is
+   390x844 CSS at DPR 3 — nearly THREE MILLION device pixels — and holds
+   sixty frames without complaint. A 2016 tablet is 1280x800 at DPR 1.5,
+   which is 2.3 million: FEWER pixels, on a GPU that cannot fill them. The
+   slow device is asking for less work than the fast one, so no fixed budget
+   can separate them, and any constant picked here would either cripple good
+   phones or do nothing for weak tablets.
+
+   The one number that does separate them is the frame time the device
+   actually achieves. So it is measured, and the resolution comes down until
+   the frames land.
+
+   IT ONLY EVER STEPS DOWN. A controller that can also step back up sits on
+   the threshold and oscillates for the whole session, and a resolution that
+   changes every few seconds is a worse artefact than the one it is trying
+   to recover.
+
+   THE MEDIAN, NOT THE MEAN. One 200ms hitch while a cube is minted is not
+   evidence that the device is slow, and a mean would let that single frame
+   drag the whole window over the line.
+
+   IT IS NOT PERSISTED. A single unlucky sample — a GC pause, a notification
+   arriving mid-window — would otherwise pin the resolution low for good on
+   a device that was never slow. Re-measuring costs a second and a half. */
+var perfScale = 1, PERF_FLOOR = 0.62, perfWin = [], perfHold = 90;
+function perfWatch(raw){
+  if(perfScale <= PERF_FLOOR) return;
+  if(perfHold > 0){ perfHold--; return; }  /* skip startup, and settle after a re-fit */
+  perfWin.push(raw);
+  if(perfWin.length < 45) return;
+  perfWin.sort(function(a, b){ return a - b; });
+  var med = perfWin[perfWin.length >> 1];
+  perfWin.length = 0;
+  if(med <= 21) return;                    /* holding about 48fps or better */
+  /* THE STEP IS COMPUTED, NOT GROPED TOWARD.
+
+     A fixed step has to be small enough not to overshoot a mildly slow
+     device, which means a badly slow one takes four or five re-fits and
+     twenty seconds to settle — with the picture visibly changing under the
+     player the whole way. Fill cost goes with AREA, so the scale needed to
+     hit the frame target is the square root of the ratio of the times, and
+     that lands in one step instead of five.
+
+     Damped at 0.75 because the frame is not purely fill: there is a fixed
+     CPU cost in there that no resolution change will touch, and taking the
+     square root at face value would chase it straight to the floor. */
+  var want = Math.sqrt(16.7 / med);
+  perfScale = Math.max(PERF_FLOOR, perfScale * Math.min(0.97, Math.max(0.75, want)));
+  perfHold = 30;
+  fit();
+}
+/* The other half of the television question — see the note on html.tv in the
+   stylesheet. A console has no touchscreen; everything this game is actually
+   played on does. */
+var TOUCH = false;
+try{ TOUCH = (navigator.maxTouchPoints || 0) > 0 || ('ontouchstart' in window); }catch(e){}
+function docked(){ return !TOUCH && landscape() && W >= 900; }
+
 function fit(){
-  DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5) * perfScale;
   var vp = vpSize(); W = vp.w; H = vp.h;
   cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
@@ -3839,6 +3911,7 @@ function fit(){
   de.classList.toggle('vpShort', H < 640);
   de.classList.toggle('vpTiny',  H < 520);
   de.classList.toggle('vpLand',  landscape());
+  de.classList.toggle('tv',      docked());
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   /* SETTING THE CANVAS SIZE RESETS EVERY BIT OF CONTEXT STATE, so this lives
      here and nowhere else: without it a 16px block scaled up to a 40px tile
@@ -3895,7 +3968,7 @@ function landscape(){ return W > H * 1.18; }
 function layout(){
   if(!N) return;
   var ins = insets();
-  if(landscape() && W >= 900){
+  if(docked()){
     /* docked: assume a television is eating the edges until told otherwise */
     var ov = Math.round(Math.min(W, H) * 0.035);
     ins = {t:ins.t + ov, r:ins.r + ov, b:ins.b + ov, l:ins.l + ov};
@@ -9364,6 +9437,7 @@ function loop(ts){
     if(exitFlash > 0) exitFlash = Math.max(0, exitFlash - dt/620);
     if(exitPull >= 0){ exitPull += dt/260; if(exitPull > 1) exitPull = 1; }
     draw();
+    perfWatch(raw);   /* raw, not dt: the wall clock is what the GPU is losing */
   } catch(err){
     console.error('frame error', err);
     walking = null; anim = null; drag = null;
