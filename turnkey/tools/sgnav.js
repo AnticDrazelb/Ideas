@@ -164,6 +164,77 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
   ok('...and the hardware back key agrees with the button',
      doors.hardware === 'scTitle', String(doors.hardware));
 
+  /* ---- calibrate calibrates, and the manual is a manual ----------------- */
+  /* These were the wrong way round: the button labelled CALIBRATE opened the
+     how-to, while the settings sat unlabelled inside the pause card. Somebody
+     looking for brightness pressed CALIBRATE and got a rulebook. */
+  const names = await p.evaluate(async () => {
+    const which = () => ['scTitle','scSet','scManual','scPause']
+      .find(s => !document.getElementById(s).classList.contains('hide')) || null;
+    const settle = () => { try{ document.querySelectorAll('.layer').forEach(
+      l => l.getAnimations({subtree:true}).forEach(a => a.finish())); }catch(e){} };
+
+    show('scTitle'); settle();
+    document.getElementById('btnSet').click();
+    await new Promise(r => setTimeout(r, 60));
+    const fromTitle = which();
+    const hasSliders = !!document.getElementById('scSet').querySelector('#brightRange');
+    const head = document.getElementById('setName').textContent;
+    document.getElementById('btnSetBack').click();
+    await new Promise(r => setTimeout(r, 60));
+    const backToTitle = which();
+
+    /* and from the pause card it comes back to the pause card */
+    show('scPause'); settle();
+    document.getElementById('btnSet2').click();
+    await new Promise(r => setTimeout(r, 60));
+    const fromPause = which();
+    document.getElementById('btnSetBack').click();
+    await new Promise(r => setTimeout(r, 60));
+    const backToPause = which();
+
+    /* the manual lives under calibrate, and GOT IT returns there */
+    document.getElementById('btnSet2').click();
+    await new Promise(r => setTimeout(r, 60));
+    document.getElementById('btnManual2').click();
+    await new Promise(r => setTimeout(r, 60));
+    const onManual = which();
+    document.getElementById('btnManualBack').click();
+    await new Promise(r => setTimeout(r, 60));
+    const afterGotIt = which();
+
+    return {fromTitle, hasSliders, head, backToTitle, fromPause, backToPause,
+            onManual, afterGotIt, stillPause: setFrom};
+  });
+  ok('CALIBRATE opens the settings, not the rulebook',
+     names.fromTitle === 'scSet' && names.hasSliders, `${names.fromTitle}, sliders ${names.hasSliders}`);
+  ok('...and the screen is called CALIBRATE', names.head === 'CALIBRATE', names.head);
+  ok('...opened from the title, BACK returns to the title', names.backToTitle === 'scTitle', names.backToTitle);
+  ok('...opened from the pause card, BACK returns to the pause card',
+     names.fromPause === 'scSet' && names.backToPause === 'scPause', names.backToPause);
+  ok('the manual is reachable from calibrate and GOT IT returns there',
+     names.onManual === 'scManual' && names.afterGotIt === 'scSet',
+     `${names.onManual} -> ${names.afterGotIt}`);
+
+  /* THE BUG THIS WAS REPORTED FOR. GOT IT launched a level from wherever the
+     manual was opened, because that behaviour was written when the manual was
+     ONLY reachable as first-run onboarding. It still has to do that there. */
+  const firstRun = await p.evaluate(async () => {
+    const which = () => ['scTitle','scSet','scManual','scPause']
+      .find(s => !document.getElementById(s).classList.contains('hide')) || null;
+    store.taught = 0; store.reached = 1;
+    show('scTitle');
+    document.getElementById('btnPlay').click();
+    await new Promise(r => setTimeout(r, 80));
+    const shownManual = which();
+    document.getElementById('btnManualBack').click();
+    await new Promise(r => setTimeout(r, 900));
+    return {shownManual, into: which(), playing: !!lv && !document.getElementById('hud').classList.contains('on') === false};
+  });
+  ok('on a first run PLAY still shows the manual first', firstRun.shownManual === 'scManual');
+  ok('...and GOT IT there does start the game', firstRun.into === null && firstRun.playing,
+     `landed on ${firstRun.into}`);
+
   ok('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
 
   await b.close();

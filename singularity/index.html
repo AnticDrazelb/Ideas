@@ -1385,7 +1385,7 @@ html.disp #stage, html.disp .layer, html.disp #hud{
          screen is built around — does not move a pixel. -->
     <div class="btn2 slim">
       <button class="btn" id="btnForge">[ FORGE ]</button>
-      <button class="btn ghost" id="btnManual">[ CALIBRATE ]</button>
+      <button class="btn ghost" id="btnSet">[ CALIBRATE ]</button>
     </div>
     <div class="foot">DIAGNOSTIC BUILD · NO DEAD PIXELS</div>
   </div>
@@ -1596,8 +1596,25 @@ html.disp #stage, html.disp .layer, html.disp #hud{
        A report is about content this device did not author. -->
   <button class="btn ghost hide" id="btnReport">[ REPORT THIS CUBE ]</button>
   <div class="edMsg" id="reportMsg"></div>
+  <div class="btn2">
+    <button class="btn ghost" id="btnBoards">[ BOARDS ]</button>
+    <button class="btn ghost" id="btnSet2">[ CALIBRATE ]</button>
+  </div>
+</div>
+
+<!-- ============ CALIBRATE ============
+     YOU CALIBRATE AN INSTRUMENT; YOU READ A MANUAL. These were the wrong way
+     round: the settings lived unlabelled inside the pause card under the word
+     SETTINGS, while the button called CALIBRATE opened the how-to. A player
+     looking for brightness pressed CALIBRATE and got a rulebook.
+
+     They are also a screen of their own now rather than a block inside the
+     pause card, because settings that can only be reached by starting a level
+     are settings you cannot find before you need them. -->
+<div class="layer hide" id="scSet">
+  <h2 id="setName">CALIBRATE</h2>
+  <p class="sub tight">TUNE THE INSTRUMENT</p>
   <div class="settings">
-    <div class="setHead">SETTINGS</div>
     <div class="row" id="rowSound"><div class="rowL">
       <svg viewBox="0 0 16 16" class="rIc"><path d="M2.5 6.2h2.4L8.4 3v10L4.9 9.8H2.5Z"/><path d="M11 5.6a3.4 3.4 0 0 1 0 4.8"/><path d="M12.9 3.6a6 6 0 0 1 0 8.8"/></svg>
       <div><div class="lbl">SOUND</div></div></div><div class="sw on" id="swSound"></div></div>
@@ -1641,8 +1658,8 @@ html.disp #stage, html.disp .layer, html.disp #hud{
       </div></div></div>
   </div>
   <div class="btn2">
-    <button class="btn ghost" id="btnBoards">[ BOARDS ]</button>
-    <button class="btn ghost" id="btnManual2">[ CALIBRATE ]</button>
+    <button class="btn ghost" id="btnManual2">[ MANUAL ]</button>
+    <button class="btn ghost" id="btnSetBack">[ BACK ]</button>
   </div>
 </div>
 
@@ -7819,7 +7836,7 @@ function show(id){
      behind a card, and a thumb still down when a menu appears is no longer
      holding anything */
   dropHold(); peekOff(); drag = null;
-  ['scTitle','scCubes','scManual','scPause','scWin','scPlate','scMade','scEdit','scBoards'].forEach(function(s){
+  ['scTitle','scCubes','scManual','scPause','scWin','scPlate','scMade','scEdit','scBoards','scSet'].forEach(function(s){
     $(s).classList.toggle('hide', s !== id);
   });
   $('hud').classList.toggle('on', !id);
@@ -7829,7 +7846,12 @@ function show(id){
   var wasDemo = demo;
   /* the manual opened mid-level is NOT an attract screen — the board behind
      it is a puzzle somebody is in the middle of */
-  demo = (id === 'scTitle') || (id === 'scManual' && manualFrom === 'scTitle');
+  /* THE ATTRACT CUBE TUMBLES BEHIND THE TITLE AND NOWHERE ELSE. It used to
+     tumble behind the manual too, from when that screen was glass; the manual
+     has been opaque since it became a specification sheet, and every .layer
+     paints var(--void), so every other screen was starting and stopping an
+     animation nobody could see — and paying a layout pass each way for it. */
+  demo = (id === 'scTitle');
   /* thin glass over the attract cube, a solid plate over a live puzzle */
   $('scManual').classList.toggle('solid', !demo);
   if(demo && !lv){ loadLevel(1); wave = null; }
@@ -8406,7 +8428,7 @@ function edImport(){
 /* ---------- bindings, each exactly once ---------- */
 $('btnPlay').onclick = function(){
   audio();
-  if(!store.taught){ store.taught = 1; save(); show('scManual'); return; }
+  if(!store.taught){ store.taught = 1; save(); manualFrom = 'firstRun'; show('scManual'); return; }
   goLevel(firstUncleared());
 };
 function firstUncleared(){
@@ -8431,14 +8453,23 @@ $('btnCubesBack').onclick = function(){ refreshDaily(); show('scTitle'); };
 $('vaultPrev').onclick = function(){ if(viewBand > 0){ viewBand--; buildCubeGrid(); } };
 $('vaultNext').onclick = function(){ if(vaultStart(viewBand+1) <= store.reached){ viewBand++; buildCubeGrid(); } };
 var manualFrom = 'scTitle';
-$('btnManual').onclick = function(){ manualFrom = 'scTitle'; show('scManual'); };
-$('btnManual2').onclick = function(){ manualFrom = 'scPause'; show('scManual'); };
+$('btnManual2').onclick = function(){ manualFrom = 'scSet'; show('scManual'); };
+function openSet(from){ setFrom = from || 'scTitle'; show('scSet'); }
+$('btnSet').onclick     = function(){ openSet('scTitle'); };
+$('btnSet2').onclick    = function(){ openSet('scPause'); };
+$('btnSetBack').onclick = function(){ show(setFrom); };
 $('btnManualBack').onclick = function(){
-  /* Opened from the pause menu this is just a reference card — go back to the
-     level. Opened from the title it is the way IN, and it must load a level
-     rather than reveal whatever the attract cube left lying around. */
+  /* IT ONLY STARTS A LEVEL WHEN IT WAS THE WAY IN.
+     On the very first PLAY the manual is the onboarding, and GOT IT there has
+     to load a cube rather than reveal whatever the attract screen left lying
+     around. That was written when the manual was ONLY reachable that way —
+     so once it became a button somebody could press to go and read it,
+     pressing GOT IT threw them into a level they had not asked for. The
+     first-run path is now its own value rather than being inferred from
+     'came from the title'. */
+  if(manualFrom === 'firstRun'){ goLevel(firstUncleared()); return; }
   if(manualFrom === 'scPause'){ show(null); return; }
-  goLevel(firstUncleared());
+  show(manualFrom || 'scTitle');
 };
 $('btnMenu').onclick = function(){
   $('pauseName').textContent = lv ? lv.name : 'PAUSED';
@@ -8540,7 +8571,7 @@ applyDisplay();
    boards from the pause screen, so a hardwired destination sends somebody
    somewhere they have never been — which is not a dead end but reads like
    one. Each of these remembers the door it came through. */
-var boardsFrom = 'scPause', madeFrom = 'scTitle';
+var boardsFrom = 'scPause', madeFrom = 'scTitle', setFrom = 'scTitle';
 function msLabel(ms){
   if(ms === undefined || ms < 0) return '—';
   var t = Math.round(ms/1000), m = Math.floor(t/60);
@@ -8878,6 +8909,7 @@ window.TURNKEY = {
     if(!$('scManual').classList.contains('hide')){ show(lv ? 'scPause' : 'scTitle'); return true; }
     if(!$('scPause').classList.contains('hide')){ show(null); return true; }
     if(!$('scPlate').classList.contains('hide')){ show(null); return true; }
+    if(!$('scSet').classList.contains('hide')){ show(setFrom); return true; }
     if(!$('scBoards').classList.contains('hide')){ show(boardsFrom); return true; }
     if(!$('scEdit').classList.contains('hide')){ openMade(); return true; }
     if(!$('scMade').classList.contains('hide')){ leaveMade(); return true; }
