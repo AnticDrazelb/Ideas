@@ -145,10 +145,54 @@ namespace Singularity.UI
             RectTransform next = UiKit.Rect(L, "next", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-140, -140), new Vector2(-40, -80));
             UiKit.Bracketed(next, "next", ">", () => { _viewBand++; PaintVaults(); }, 26);
 
-            _grid = UiKit.Rect(L, "grid", new Vector2(0, 0), new Vector2(1, 1), new Vector2(40, 200), new Vector2(-40, -170));
+            _grid = UiKit.Rect(L, "grid", new Vector2(0, 0), new Vector2(1, 1), new Vector2(40, 300), new Vector2(-40, -170));
+
+            // THE SEED BOX. Every generated cube in this game is a pure function of
+            // its number, so the NUMBER IS THE SEED — a few characters that cut the
+            // same puzzle on every device, forever. There has to be a way to type one.
+            //
+            // And typing one is a seed viewer, not a shortcut: a jump past `reached`
+            // records nothing, unlocks nothing and posts nothing, or the whole
+            // progression would be one text field wide.
+            RectTransform jumpRow = UiKit.Rect(L, "jumpRow", new Vector2(0, 0), new Vector2(1, 0),
+                                               new Vector2(40, 220), new Vector2(-40, 286));
+            _jumpField = UiKit.Field(jumpRow, "jump", "CUBE NUMBER",
+                                     new Vector2(0, 0), new Vector2(0.72f, 1), Vector2.zero, new Vector2(-8, 0));
+            _jumpField.contentType = InputField.ContentType.IntegerNumber;
+            RectTransform goSlot = UiKit.Rect(jumpRow, "goSlot", new Vector2(0.72f, 0), Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Bracketed(goSlot, "go", "GO", Jump, 24);
+
+            _jumpMsg = UiKit.Label(L, "jumpMsg", "", 18, Palette.Dim, TextAnchor.UpperCenter,
+                                   new Vector2(0, 0), new Vector2(1, 0), new Vector2(40, 182), new Vector2(-40, 216));
 
             RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
             UiKit.Bracketed(back, "back", "BACK", Back, 28);
+        }
+
+        static InputField _jumpField;
+        static Text _jumpMsg;
+
+        static void Jump()
+        {
+            if (!int.TryParse(_jumpField.text, out int level) || level < 1)
+            {
+                _jumpMsg.text = "TYPE A CUBE NUMBER";
+                _jumpMsg.color = Palette.Fault;
+                return;
+            }
+            // The generator has no last cube, but a text field needs a ceiling: a
+            // fat-fingered 99999999 is otherwise a minute of minting nobody asked for.
+            if (level > Vaults.MaxCube)
+            {
+                _jumpMsg.text = "THE CATALOGUE STOPS AT " + Vaults.MaxCube;
+                _jumpMsg.color = Palette.Fault;
+                return;
+            }
+
+            bool earned = level <= Store.Data.reached;
+            _jumpMsg.text = "";
+            Show(null);
+            _dir.Play(level, earned ? LoadKind.Vault : LoadKind.Practice);
         }
 
         static void OpenVaults()
@@ -317,12 +361,16 @@ namespace Singularity.UI
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -176), new Vector2(0, -146));
 
             RectTransform col = Column(L, 220, 200);
-            Switch(col, 0, 6, "SOUND", "", () => Store.Data.sound, v => { Store.Data.sound = v; if (v == 0) Sfx.I.StopAmbience(); else Sfx.I.Ambience(Vaults.VaultOf(_dir.S.levelNo)); });
-            Switch(col, 1, 6, "HAPTICS", "", () => Store.Data.haptic, v => Store.Data.haptic = v);
-            Switch(col, 2, 6, "EFFECTS", "SHAKE · SPARKS · BLOOM", () => Store.Data.fx, v => Store.Data.fx = v);
-            Switch(col, 3, 6, "FOLDS TO GO", "ARC: PERFECT LINE · GOLD: YOU SLIPPED", () => Store.Data.togo, v => Store.Data.togo = v);
-            Switch(col, 4, 6, "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL", () => Store.Data.depth, v => Store.Data.depth = v);
-            Stepper(col, 5, 6, "HAPTIC INTENSITY", () => Store.Data.buzz, v => Store.Data.buzz = v, 0, 150, 10);
+            Switch(col, 0, 8, "SOUND", "", () => Store.Data.sound, v => { Store.Data.sound = v; if (v == 0) Sfx.I.StopAmbience(); else Sfx.I.Ambience(Vaults.VaultOf(_dir.S.levelNo)); });
+            Switch(col, 1, 8, "HAPTICS", "", () => Store.Data.haptic, v => Store.Data.haptic = v);
+            Switch(col, 2, 8, "EFFECTS", "SHAKE · SPARKS · TIME", () => Store.Data.fx, v => Store.Data.fx = v);
+            Switch(col, 3, 8, "FOLDS TO GO", "ARC: PERFECT LINE · GOLD: YOU SLIPPED", () => Store.Data.togo, v => Store.Data.togo = v);
+            Switch(col, 4, 8, "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL", () => Store.Data.depth, v => Store.Data.depth = v);
+            Stepper(col, 5, 8, "HAPTIC INTENSITY", () => Store.Data.buzz, v => Store.Data.buzz = v, 0, 150, 10);
+            // Both default to 100, and at 100 no filter is applied at all — the
+            // cost of these two is zero for anyone who leaves them alone.
+            Stepper(col, 6, 8, "BRIGHTNESS", () => Store.Data.bright, v => Store.Data.bright = v, 60, 160, 5);
+            Stepper(col, 7, 8, "CONTRAST", () => Store.Data.contrast, v => Store.Data.contrast = v, 70, 150, 5);
 
             RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
             UiKit.Bracketed(back, "back", "BACK", Back, 28);

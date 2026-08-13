@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using Singularity.Core;
@@ -25,6 +26,9 @@ namespace Singularity.UI
         Image _keyChip, _goChip, _flash, _vignette, _plateBar;
         Image[] _ticks = new Image[4];
         RectTransform _root;
+
+        readonly List<Text> _depthPool = new List<Text>();
+        RectTransform _depthRoot;
 
         float _toastT, _flashT, _flashDur, _vig;
         Color _flashCol;
@@ -112,6 +116,12 @@ namespace Singularity.UI
             Third(bot, 0, "MENU", () => Screens.ShowPause(_dir));
             Third(bot, 1, "UNDO", () => { if (_dir.S.Undo()) Sfx.I.Undo(); else Toast("NOTHING TO UNDO"); });
             Third(bot, 2, "HINT", DoHint);
+
+            // DEPTH, PRINTED ON EVERY CELL. Off by default, because brightness IS
+            // distance and a number on top of that is a second answer to a question
+            // already answered. On, it is the fastest way to learn the ramp — and
+            // for anyone who cannot read the ramp at all, it is the only way.
+            _depthRoot = UiKit.Rect(_root, "depth", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             _toast = UiKit.Label(_root, "toast", "", 26, Palette.Ink, TextAnchor.LowerCenter,
                                  new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 140), new Vector2(0, 220));
@@ -251,6 +261,47 @@ namespace Singularity.UI
             else _plateClock.text = "";
 
             Refresh(s);
+        }
+
+        /// <summary>
+        /// One number per surface cell, placed where the cell actually is on
+        /// screen. The labels are pooled and only ever repositioned, because this
+        /// runs every frame while it is on.
+        /// </summary>
+        public void TickDepth(Session s, Camera cam, CubeView view)
+        {
+            bool on = Store.Data.depth != 0 && s?.lv != null && !s.won;
+            if (!on)
+            {
+                if (_depthRoot.gameObject.activeSelf) _depthRoot.gameObject.SetActive(false);
+                return;
+            }
+            if (!_depthRoot.gameObject.activeSelf) _depthRoot.gameObject.SetActive(true);
+
+            int n = s.N, want = n * n, used = 0;
+            while (_depthPool.Count < want)
+                _depthPool.Add(UiKit.Label(_depthRoot, "d" + _depthPool.Count, "", 16, Palette.Ink,
+                                           TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero,
+                                           new Vector2(-24, -12), new Vector2(24, 12)));
+
+            for (int u = 0; u < n; u++)
+                for (int v = 0; v < n; v++)
+                {
+                    Surf sc = s.surf[u * n + v];
+                    if (!sc.has) continue;
+                    Text t = _depthPool[used++];
+                    t.text = sc.d.ToString();
+                    // the number takes the cell's own colour, so it never claims to
+                    // be a different material from the block it is sitting on
+                    Color c = Palette.Tile(sc.t, sc.d, n);
+                    t.color = new Color(c.r + 0.35f, c.g + 0.35f, c.b + 0.35f, 0.85f);
+                    Vector3 world = view.cube.TransformPoint(CubeMesh.CellToObject(n, sc.w));
+                    t.rectTransform.position = cam.WorldToScreenPoint(world);
+                    if (!t.gameObject.activeSelf) t.gameObject.SetActive(true);
+                }
+
+            for (int i = used; i < _depthPool.Count; i++)
+                if (_depthPool[i].gameObject.activeSelf) _depthPool[i].gameObject.SetActive(false);
         }
     }
 }

@@ -25,6 +25,9 @@ Shader "Singularity/Cell"
         _EdgeLift ("Edge brightness", Range(0,2)) = 0.55
         _Dim      ("Dim", Range(0,2)) = 1
         _Reveal   ("Reveal front", Float) = 99
+        _Wave     ("Transition front", Float) = 99
+        _WaveDir  ("Transition direction", Float) = 1
+        _WaveSoft ("Transition softness", Float) = 1.6
         _Unlit    ("Unreachable dimming", Range(0,1)) = 0.46
 
         // Plates set this to Always. A plate is cut clean through the lattice and
@@ -58,7 +61,7 @@ Shader "Singularity/Cell"
                 float3 normal : NORMAL;
                 float2 uv     : TEXCOORD0;   // face-local 0..1, for the inset hairline
                 float3 centre : TEXCOORD1;   // the CELL's centre in object space
-                fixed4 color  : COLOR;       // r: reachable from here.  g: BFS distance.
+                fixed4 color  : COLOR;       // r: reachable.  g: BFS distance.  b: distance from the transition's focus.
             };
 
             struct v2f
@@ -72,11 +75,28 @@ Shader "Singularity/Cell"
 
             fixed4 _ColFar, _ColNear;
             float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim, _Reveal, _Unlit;
+            float _Wave, _WaveDir, _WaveSoft;
 
             v2f vert(appdata v)
             {
                 v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
+
+                // THE CUBE ARRIVES AND LEAVES ONE CELL AT A TIME.
+                //
+                // A board that appears all at once is a slide; a board that builds
+                // outward from where the player will be standing is the machine
+                // assembling itself, and it costs one lerp. Each cell shrinks to its
+                // own centre until the front reaches it, which is why the vertex is
+                // interpolated toward v.centre rather than scaled about the origin —
+                // scaling about the origin would slide every cell across the board
+                // instead of letting each one grow where it belongs.
+                float waveD = v.color.b * 255.0;
+                float w = _WaveDir > 0.0
+                    ? saturate((_Wave - waveD) / _WaveSoft)
+                    : saturate((waveD - _Wave) / _WaveSoft);
+                float3 local = lerp(v.centre, v.vertex.xyz, w * w * (3.0 - 2.0 * w));
+
+                o.pos = UnityObjectToClipPos(float4(local, 1));
 
                 // Depth is measured from the CELL CENTRE, not the vertex, so that
                 // at rest a front face reads exactly d/(N-1) — the same number the

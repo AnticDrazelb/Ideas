@@ -47,6 +47,8 @@ namespace UnityEngine
         public static Vector3 right => new Vector3(1, 0, 0);
         public static Vector3 forward => new Vector3(0, 0, 1);
         public Vector3 normalized => this;
+        public float sqrMagnitude => x * x + y * y + z * z;
+        public float magnitude => 0;
         public static Vector3 Cross(Vector3 a, Vector3 b) => default;
         public static float Dot(Vector3 a, Vector3 b) => 0;
         public static Vector3 operator +(Vector3 a, Vector3 b) => default;
@@ -86,6 +88,12 @@ namespace UnityEngine
     public struct Rect
     {
         public Rect(float x, float y, float w, float h) { }
+        public float xMin => 0; public float xMax => 0;
+        public float yMin => 0; public float yMax => 0;
+        public static bool operator ==(Rect a, Rect b) => true;
+        public static bool operator !=(Rect a, Rect b) => false;
+        public override bool Equals(object o) => true;
+        public override int GetHashCode() => 0;
     }
 
     /// Mathf is implemented for real rather than stubbed. Everywhere else a stub
@@ -126,6 +134,7 @@ namespace UnityEngine
     public class Object
     {
         public string name;
+        public HideFlags hideFlags { get; set; }
         public static void Destroy(Object o) { }
         public static void DontDestroyOnLoad(Object o) { }
         public static implicit operator bool(Object o) => true;
@@ -163,6 +172,8 @@ namespace UnityEngine
         public Quaternion rotation { get; set; }
         public Quaternion localRotation { get; set; }
         public Vector3 forward => default;
+        public Vector3 up => default;
+        public Vector3 right => default;
         public int childCount => 0;
         public Transform GetChild(int i) => null;
         public Transform Find(string n) => null;
@@ -238,12 +249,14 @@ namespace UnityEngine
         public void SetColor(string n, Color c) { }
         public void SetFloat(string n, float f) { }
         public void SetInt(string n, int i) { }
+        public void SetVector(string n, Vector3 v) { }
     }
 
     public class Shader : Object { public static Shader Find(string n) => null; }
 
     public class Renderer : Component
     {
+        public bool enabled { get; set; }
         public Material sharedMaterial { get; set; }
         public Rendering.ShadowCastingMode shadowCastingMode { get; set; }
         public bool receiveShadows { get; set; }
@@ -266,6 +279,19 @@ namespace UnityEngine
     {
         public static Sprite Create(Texture2D t, Rect r, Vector2 pivot, float ppu) => null;
     }
+
+    public class RenderTexture : Texture { }
+
+    public static class Graphics
+    {
+        public static void Blit(RenderTexture s, RenderTexture d) { }
+        public static void Blit(RenderTexture s, RenderTexture d, Material m) { }
+    }
+
+    [AttributeUsage(AttributeTargets.Class)]
+    public class RequireComponent : Attribute { public RequireComponent(Type t) { } }
+
+    [Flags] public enum HideFlags { None = 0, HideAndDontSave = 61 }
 
     public class Texture : Object { public FilterMode filterMode { get; set; } public TextureWrapMode wrapMode { get; set; } }
 
@@ -339,6 +365,7 @@ namespace UnityEngine
         public static int width => 0;
         public static int height => 0;
         public static SleepTimeout sleepTimeout { get; set; }
+        public static Rect safeArea => default;
     }
 
     public struct SleepTimeout { public static SleepTimeout SystemSetting => default; }
@@ -479,6 +506,8 @@ namespace UnityEngine
             public Text textComponent { get; set; }
             public Graphic placeholder { get; set; }
             public LineType lineType { get; set; }
+            public ContentType contentType { get; set; }
+            public enum ContentType { Standard, IntegerNumber, Alphanumeric }
             public enum LineType { SingleLine, MultiLineSubmit, MultiLineNewline }
         }
 

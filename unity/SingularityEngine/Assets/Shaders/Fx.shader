@@ -13,6 +13,7 @@ Shader "Singularity/Fx"
     Properties
     {
         _Softness ("Edge softness", Range(0.001, 0.5)) = 0.18
+        _Tint     ("Tint", Color) = (1,1,1,1)
     }
 
     SubShader
@@ -51,6 +52,7 @@ Shader "Singularity/Fx"
             };
 
             float _Softness;
+            fixed4 _Tint;
 
             v2f vert(appdata v)
             {
@@ -58,7 +60,7 @@ Shader "Singularity/Fx"
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.uv = v.uv;
                 o.kind = v.kind;
-                o.color = v.color;
+                o.color = v.color * _Tint;
                 return o;
             }
 

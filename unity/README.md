@@ -141,6 +141,53 @@ dependency to marshal:
 
 ---
 
+## The character
+
+You are a black hole with a face, and the face is not decoration — it is the
+only thing in the game that reacts to the *player* rather than to the rules,
+and it does three jobs at once.
+
+**It looks where you are going.** Ahead while walking, down while folding, back
+to centre otherwise: a free readout of what you just asked for, delivered by
+something you are already watching.
+
+**It blinks** — ninety milliseconds closed, then a fresh irregular wait, so it
+never falls into a rhythm you can hear ticking.
+
+**And it gets bored.** Every five and a half seconds of a player thinking, it
+bounces once on the spot. No sound, no particles, nothing that could be mistaken
+for the game asking for something — just a small sign of life in the corner of
+the eye of somebody staring at a puzzle. That is the whole of "surprise and
+delight" in about eight lines: a character that does something when you do
+nothing.
+
+The debris around it falls **inward**. Motes are spawned out on a ring and
+thrown at the centre with a sideways kick, so what you see is light being pulled
+in and going out at the horizon. Same particle system, same cost — the velocity
+is simply aimed the other way. A lamp sheds; this is the opposite of a lamp.
+
+---
+
+## The clock bends
+
+A hit that only shakes the camera reads as a camera effect. A hit that stops
+time for fifty milliseconds *first* reads as something arriving, because the
+frame you were looking at is held long enough for you to notice it did not
+continue.
+
+| | |
+|---|---|
+| a landed fold | 52ms of stop. Enough to feel, too short to see. |
+| a refusal | 78ms — longer, and none of the reward. A wall is the one thing that should take a frame away from you. |
+| a plate firing | 120ms, then a third of speed easing back over most of a second. The world turning inside out is worth a held breath. |
+| the collapse | 150ms and 900, so the board comes apart at the pace of something *ending* rather than something being dismissed. |
+
+Everything that **moves** runs on the bent clock; everything that **measures**
+runs on the real one. The solve clock is monotonic and untouched, so a player
+cannot buy thinking time by triggering impacts.
+
+---
+
 ## The reveal
 
 Worth calling out because it is the one effect that is also a teaching tool.
@@ -157,19 +204,34 @@ runs out in real time. No re-triangulation, no per-cell draw calls.
 
 ---
 
+## Two reads that change nothing
+
+Both are in, and both are worth having precisely because they cost nothing.
+
+**The antipode.** The cell diametrically opposite the one you are standing in —
+*through* the centre, not around the outside. If something is sitting there you
+can see it faintly through the horizon, and that is all it does: no reach, no
+route, no bearing on any fold. A player who never notices has lost nothing; a
+player who does has found out what the thing they are moving actually is.
+
+**Near specials.** The four cells one step away, checked for whether one of them
+is the core, an uncollected node, or a lock. It tells the eye where the next
+useful step is before the hand has to work it out.
+
+---
+
 ## What is not here yet
 
-Honest list, and it is short now:
+One thing, and it needs a server.
 
 - **Ranked boards.** The BOARDS screen reads every local record and is worth
   opening on a plane, which is most of what it was for — but the daily's
   week/month/season rollups compute a ranking that has nowhere to go without a
-  host. The arithmetic is ported in `Daily`.
-- **Brightness and contrast.** Two of the calibrate sliders in the original
-  apply a filter over the whole frame. The settings persist; nothing reads them
-  yet. In Unity they want a full-screen blit rather than a CSS filter.
+  host. The arithmetic is ported in `Daily`; posting it is a backend, not a port.
 
 Everything else is here: the rules, the three verbs, the vault ladder, the daily
-and its streak, the Forge with its verify pass and share codes, the manual, the
-plate lesson, calibrate, the win card, the reveal sweep, the particle work,
-audio, haptics and persistence.
+and its streak, the Forge with its verify pass and share codes, the seed box,
+the manual, the plate lesson, calibrate (including the brightness and contrast
+filters), the win card, the attract cube, the arrive/leave transitions, the
+reveal sweep, the cage, the depth readout, the character, time bending, the
+particle work, audio, haptics, safe areas and persistence.

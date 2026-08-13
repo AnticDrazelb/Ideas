@@ -23,10 +23,12 @@ namespace Singularity.Game
         public CubeView View { get; private set; }
         public CameraRig Rig { get; private set; }
         public Hud Hud { get; private set; }
+        public ScreenFilter Filter { get; private set; }
 
         InputRouter _input;
         Sfx _sfx;
         Fx _fx;
+        PlayerOrb _orb;
         bool _screenUp = true;      // a menu is over the board
 
         void Awake()
@@ -43,13 +45,17 @@ namespace Singularity.Game
 
             _sfx = Sfx.Build(transform);
             _fx = Fx.Build(transform);
+            _orb = PlayerOrb.Build(transform, S, View, Rig.cam, _fx);
             _input = new InputRouter(S, View, Rig.cam) { Sfx = _sfx };
 
             Hud = Hud.Build(this);
 
+            Filter = ScreenFilter.Attach(Rig.cam);
+
             Wire();
             Screens.Build(this);
             Screens.ShowTitle();
+            StartCoroutine(Attract());
         }
 
         /// <summary>
@@ -91,6 +97,8 @@ namespace Singularity.Game
                 Rig.Kick(3, 0, 1); Rig.Shake(0.10f);
                 _sfx.Land();
                 _fx.Land(At(cell), Palette.GridHi);
+                _orb.Hop();
+                _orb.SetMood("land", 260f);
             };
 
             S.On.DoorOpened = (cell, i) =>
@@ -99,6 +107,8 @@ namespace Singularity.Game
                 Hud.Flash(Palette.Node, 0.30f);
                 _sfx.Lock();
                 _fx.LockOpen(At(cell));
+                _orb.SetMood("happy", 800f);
+                TimeBend.Hitstop(46f);
             };
 
             S.On.KeyTaken = (cell, i) =>
@@ -107,6 +117,8 @@ namespace Singularity.Game
                 Hud.Flash(Palette.Node, 0.26f);
                 _sfx.Node();
                 _fx.NodeTaken(At(cell));
+                _orb.SetMood("happy", 900f);
+                TimeBend.Hitstop(30f);
             };
 
             S.On.FoldLanded = t =>
@@ -123,6 +135,7 @@ namespace Singularity.Game
                 Hud.Flash(Palette.TraceNear, 0.20f);
                 _sfx.Fold();
                 _fx.FoldLanded(S.N, AtPlayer());
+                TimeBend.Hitstop(52f);
                 View.Rebuild();
                 View.RestartReveal();
             };
@@ -140,6 +153,11 @@ namespace Singularity.Game
                 Hud.Vignette(1f);
                 _sfx.Deny();
                 _fx.FoldRefused(S.N, t);
+                _orb.SetMood("wide", 620f);
+                // a refusal gets a LONGER stop than a landing and none of the
+                // reward: the cube hit a wall, and a wall is the one thing in this
+                // game that should take a frame away from you
+                TimeBend.Hitstop(78f);
             };
 
             S.On.Denied = (u, v, col) =>
@@ -159,6 +177,11 @@ namespace Singularity.Game
                 Hud.Flash(Palette.Rust, 0.24f);
                 _sfx.Plate(bit);
                 _fx.PlateFired(S.N, At(cell));
+                _orb.SetMood("wide", 700f);
+                // the world turning inside out is worth a held breath: a long stop,
+                // then a third of speed easing back over most of a second
+                TimeBend.Hitstop(120f);
+                TimeBend.Slowmo(0.34f, 620f);
                 // the reachable sweep follows the front out from the plate rather
                 // than racing it, so the two read as one event
                 View.RestartReveal(0.26f * 26f);
@@ -170,14 +193,35 @@ namespace Singularity.Game
             {
                 Rig.Shake(0.42f); Rig.Kick(9, 0, 1); _sfx.Deny();
                 _fx.Deny(At(cell), Palette.Fault);
+                _orb.Hop();
+                _orb.SetMood("wide", 620f);
             };
-            S.On.StuckChanged = () => { Hud.Vignette(1f); _sfx.Stuck(); };
+            S.On.StuckChanged = () => { Hud.Vignette(1f); _sfx.Stuck(); _orb.SetMood("wide", 1400f); };
 
             // one tick a second over the last three, so the plate clock can be
             // HEARD while the eyes are on the board — where they have to be, and
             // where the number is not
             S.On.PlateTick = seconds => _sfx.Tick(seconds);
             S.On.Won = OnWin;
+        }
+
+        /// <summary>
+        /// Put a cube behind the title screen. It records nothing, unlocks nothing
+        /// and posts nothing — the clock is stopped the instant it is loaded — and
+        /// it is deliberately the cube the player is up to, so the front of the
+        /// game is about where they are rather than about where the game starts.
+        /// </summary>
+        IEnumerator Attract()
+        {
+            yield return null;
+            int level = Mathf.Clamp(Store.Data.reached, 1, Baked.Levels.Length);
+            S.Load(LevelSupply.Get(level), level, LoadKind.Practice);
+            SolveClock.Stop();
+            View.attract = true;
+            View.Rebuild(true);
+            View.SkipWave();
+            Rig.Fit(S.N, 1.62f);
+            _fx.SetBoard(S.N);
         }
 
         // ---- loading --------------------------------------------------------
@@ -222,12 +266,18 @@ namespace Singularity.Game
                                          ? level : Daily.SpecLevel));
 
             S.Load(src, level, how, madeKey);
+            View.attract = false;
             View.Rebuild(true);
+            // the board arrives one cell at a time, outward from where the player
+            // is about to be standing
+            View.StartWave(S.lv.start, true);
             View.RestartReveal(0.12f * 26f);
             _fx.SetBoard(S.N);
-            // a new cube starts on a clean stage: debris, rings and a half-decayed
-            // shake belong to the cube that is over
+            // a new cube starts on a clean stage: debris, rings, a half-decayed
+            // shake and a bent clock all belong to the cube that is over
             _fx.Clear();
+            _orb.Reset();
+            TimeBend.Reset();
             Rig.Fit(S.N);
             Hud.Refresh(S);
             SetScreenUp(false);
@@ -329,6 +379,17 @@ namespace Singularity.Game
             Hud.Flash(Palette.Core, 0.22f);
             Haptics.Buzz(Haptics.Collapse);
             _fx.Collapse(S.N, AtPlayer());
+            _orb.SetMood("win", 1200f);
+            // THE ONE PLACE THE CLOCK REALLY BENDS. A long stop, then a third of
+            // speed for most of a second, so the board comes apart at the pace of
+            // something ending rather than something being dismissed.
+            TimeBend.Hitstop(150f);
+            TimeBend.Slowmo(0.30f, 900f);
+
+            // THE CARD DOES NOT APPEAR OVER A STILL IMAGE OF A SOLVED PUZZLE. The
+            // board comes apart outward from the core first, and the card arrives
+            // after the puzzle has left.
+            StartCoroutine(ExitWave());
 
             // A PERFECT LINE IS A DIFFERENT EVENT. Clearing at par with the same
             // exit as clearing four over says the game does not care, and the card
@@ -348,6 +409,12 @@ namespace Singularity.Game
                             && Vaults.VaultOf(S.levelNo + 1) != Vaults.VaultOf(S.levelNo);
             if (crossing) _sfx.Vault();
             StartCoroutine(WinCard());
+        }
+
+        IEnumerator ExitWave()
+        {
+            yield return new WaitForSecondsRealtime(0.19f);
+            View.StartWave(S.lv.goal, false);
         }
 
         IEnumerator PerfectLine()
@@ -386,7 +453,12 @@ namespace Singularity.Game
         void Update()
         {
             float dt = Time.unscaledDeltaTime;
-            float ms = dt * 1000f;
+
+            // Everything that MOVES runs on the bent clock; everything that
+            // MEASURES runs on the real one. The solve clock is monotonic and
+            // untouched by any of this, so a player cannot buy thinking time by
+            // triggering impacts.
+            float ms = TimeBend.Step(dt);
 
             Store.Tick();
             LevelSupply.Tick();
@@ -403,10 +475,14 @@ namespace Singularity.Game
                 S.Remain.Tick(S);
                 View.Apply(Rig.cam);
                 Hud.Tick(dt, S);
-                _fx.Tick(dt);
+                Hud.TickDepth(S, Rig.cam, View);
+                _orb.Tick(ms, !_screenUp);
+                _orb.EmitTrail();
+                _fx.Tick(ms / 1000f);
             }
 
             Rig.Tick(dt, View.cube);
+            Filter.Refresh();
 
             if (Input.GetKeyDown(KeyCode.Escape) && !_screenUp && S.lv != null) Screens.ShowPause(this);
         }

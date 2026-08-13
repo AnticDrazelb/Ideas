@@ -46,6 +46,9 @@ namespace Singularity.Game
         readonly List<Particle> _parts = new List<Particle>();
         readonly List<Ring> _rings = new List<Ring>();
 
+        /// <summary>Quads drawn for exactly one frame — the orb's trail, and nothing else so far.</summary>
+        readonly List<(Vector3 at, float size, Color col)> _transient = new List<(Vector3, float, Color)>();
+
         Mesh _mesh;
         MeshFilter _filter;
         float _z;
@@ -94,7 +97,40 @@ namespace Singularity.Game
         /// <summary>The plane the debris lives in: just in front of the cube, whatever size it is.</summary>
         public void SetBoard(int n) => _z = -(n * 0.87f + 1f);
 
-        public void Clear() { _parts.Clear(); _rings.Clear(); }
+        public void Clear() { _parts.Clear(); _rings.Clear(); _transient.Clear(); }
+
+        /// <summary>
+        /// A soft round mark for this frame only. The orb's trail is POSITIONS
+        /// rather than a stretched sprite, because the board is a grid and the path
+        /// it took should read as the path it took.
+        /// </summary>
+        public void Blob(Vector3 at, float size, Color col) => _transient.Add((at, size, col));
+
+        /// <summary>
+        /// INFALL. One mote spawned out on a ring and thrown INWARD, so what you
+        /// see around the character is light being pulled in and going out at the
+        /// horizon. The sideways kick makes it arrive on a spiral rather than
+        /// falling straight down a drain.
+        /// </summary>
+        public void Infall(Vector3 from, Vector2 to, float angle, Color col)
+        {
+            if (_parts.Count >= Cap) return;
+            var at = new Vector2(from.x, from.y);
+            Vector2 inward = (to - at) * 2.1f;
+            var kick = new Vector2(Mathf.Cos(angle + 1.57f), Mathf.Sin(angle + 1.57f)) * 0.7f;
+
+            _parts.Add(new Particle
+            {
+                pos = at,
+                vel = inward + kick,
+                life = 0f, maxLife = 0.52f,
+                size = 0.09f,
+                gravity = 0f,
+                drag = 0.97f,
+                col = col,
+                kind = Kind.Ember
+            });
+        }
 
         // ---- spawning --------------------------------------------------------
 
@@ -211,6 +247,9 @@ namespace Singularity.Game
                     }
                 }
             }
+
+            foreach (var t in _transient) Quad(new Vector2(t.at.x, t.at.y), t.size, t.size, t.col, 0f);
+            _transient.Clear();
 
             _mesh.Clear();
             if (_v.Count == 0) return;

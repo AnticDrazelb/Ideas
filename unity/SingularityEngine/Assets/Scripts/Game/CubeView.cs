@@ -35,10 +35,22 @@ namespace Singularity.Game
         float _reveal = 99f;
         const float RevealPerSecond = 26f;
 
+        // The transition front, in cells, and which way it runs.
+        float _wave = 99f, _waveDir = 1f;
+        Int3 _waveFocus;
+        const float WavePerSecond = 22f;
+
+        // the cage, and the two reads that change nothing
+        Transform _cage;
+        MeshRenderer _cageR;
+        readonly List<Transform> _nearPips = new List<Transform>();
+        Transform _through;
+        SpriteRenderer _throughSr;
+        readonly List<(int u, int v, Session.Special what)> _near = new List<(int, int, Session.Special)>();
+
         // markers
         Transform _markerRoot;
         readonly List<Marker> _markers = new List<Marker>();
-        Marker _player;
 
         class Marker
         {
@@ -51,6 +63,16 @@ namespace Singularity.Game
 
         // ---- live view state (driven by the session and the input router) ----
         public float peekYaw, peekPitch, peekAmt;
+
+        /// <summary>
+        /// THE ATTRACT CUBE. The title screen is a composition with a cube in the
+        /// middle of it, and a still one reads as a screenshot. It turns slowly on
+        /// two axes at rates that do not divide into each other, so it never
+        /// repeats a pose while anybody is looking at it — and it is the same
+        /// renderer and the same rules, just with nobody playing.
+        /// </summary>
+        public bool attract;
+        float _attractT;
 
         public const float PeekYaw = 0.62f, PeekPitch = 0.42f, PeekMaxPitch = 1.15f;
 
@@ -98,7 +120,165 @@ namespace Singularity.Game
 
             _markerRoot = new GameObject("Markers").transform;
             _markerRoot.SetParent(transform, false);
+
+            BuildCage();
+            BuildReads();
         }
+
+        // ---- the cage -------------------------------------------------------
+        //
+        // Under a held MATRIX the lattice goes to glass, and glass with no edges is
+        // just a dimmer board. The cage is the twelve edges of the solid you are
+        // holding — the one piece of the picture that says the thing has a SHAPE
+        // rather than being a grid that happens to be lit from behind. It rotates
+        // with the cube because it belongs to the cube, and it fades out entirely
+        // at rest because at rest the cube is square to the camera and its own
+        // silhouette says the same thing for free.
+
+        void BuildCage()
+        {
+            var go = new GameObject("Cage");
+            _cage = go.transform;
+            _cage.SetParent(cube, false);
+
+            var mf = go.AddComponent<MeshFilter>();
+            _cageR = go.AddComponent<MeshRenderer>();
+            _cageR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _cageR.receiveShadows = false;
+            _cageR.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+
+            Shader sh = Shader.Find("Singularity/Fx");
+            _cageR.sharedMaterial = new Material(sh) { name = "cage" };
+            mf.sharedMesh = new Mesh { name = "cage" };
+            _cageR.enabled = false;
+        }
+
+        static readonly int[,] CageEdge =
+        {
+            {0,1},{1,3},{3,2},{2,0}, {4,5},{5,7},{7,6},{6,4}, {0,4},{1,5},{2,6},{3,7}
+        };
+
+        void RebuildCage(float half)
+        {
+            var corner = new Vector3[8];
+            for (int i = 0; i < 8; i++)
+                corner[i] = new Vector3((i & 1) == 0 ? -half : half,
+                                        (i & 2) == 0 ? -half : half,
+                                        (i & 4) == 0 ? -half : half);
+
+            var v = new List<Vector3>();
+            var uv = new List<Vector2>();
+            var kind = new List<Vector2>();
+            var col = new List<Color>();
+            var tri = new List<int>();
+            const float w = 0.035f;
+
+            for (int e = 0; e < 12; e++)
+            {
+                Vector3 a = corner[CageEdge[e, 0]], b = corner[CageEdge[e, 1]];
+                Vector3 dir = (b - a).normalized;
+                // two crossed slabs per edge, so it never vanishes edge-on
+                Vector3 p1 = Vector3.Cross(dir, Vector3.up);
+                if (p1.sqrMagnitude < 0.01f) p1 = Vector3.Cross(dir, Vector3.right);
+                p1 = p1.normalized;
+                Vector3 p2 = Vector3.Cross(dir, p1).normalized;
+                Slab(v, uv, kind, col, tri, a, b, p1 * w);
+                Slab(v, uv, kind, col, tri, a, b, p2 * w);
+            }
+
+            Mesh m = _cage.GetComponent<MeshFilter>().sharedMesh;
+            m.Clear();
+            m.SetVertices(v);
+            m.SetUVs(0, uv);
+            m.SetUVs(1, kind);
+            m.SetColors(col);
+            m.SetTriangles(tri, 0, false);
+            m.RecalculateBounds();
+        }
+
+        static void Slab(List<Vector3> v, List<Vector2> uv, List<Vector2> kind, List<Color> col, List<int> tri,
+                         Vector3 a, Vector3 b, Vector3 across)
+        {
+            int i = v.Count;
+            v.Add(a - across); v.Add(b - across); v.Add(b + across); v.Add(a + across);
+            uv.Add(new Vector2(0, 0)); uv.Add(new Vector2(1, 0));
+            uv.Add(new Vector2(1, 1)); uv.Add(new Vector2(0, 1));
+            var k = new Vector2(1, 0);
+            for (int j = 0; j < 4; j++) { kind.Add(k); col.Add(Color.white); }
+            tri.Add(i); tri.Add(i + 1); tri.Add(i + 2);
+            tri.Add(i); tri.Add(i + 2); tri.Add(i + 3);
+        }
+
+        // ---- the two reads that change nothing ------------------------------
+
+        void BuildReads()
+        {
+            // Four pips, one per neighbour, telling the eye where the next useful
+            // step is before the hand has to work it out.
+            for (int i = 0; i < 4; i++)
+            {
+                var go = new GameObject("pip" + i);
+                go.transform.SetParent(_markerRoot, false);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = Glyphs.For("player");
+                sr.sharedMaterial = Glyphs.Material;
+                sr.sortingOrder = 96;
+                go.transform.localScale = Vector3.one * 0.22f;
+                go.SetActive(false);
+                _nearPips.Add(go.transform);
+            }
+
+            // And the antipode, drawn faintly THROUGH the player: a look at the far
+            // side of the world down the column you are standing in.
+            var t = new GameObject("through");
+            t.transform.SetParent(_markerRoot, false);
+            _throughSr = t.AddComponent<SpriteRenderer>();
+            _throughSr.sharedMaterial = Glyphs.Material;
+            _throughSr.sortingOrder = 94;
+            t.transform.localScale = Vector3.one * 0.34f;
+            _through = t.transform;
+            t.SetActive(false);
+        }
+
+        void PlaceReads(Camera cam)
+        {
+            Quaternion face = cam.transform.rotation;
+            float c = (_s.N - 1) * 0.5f;
+            bool quiet = _s.walking == null && _s.anim == null && !_s.won;
+
+            _s.NearSpecials(_near);
+            for (int i = 0; i < _nearPips.Count; i++)
+            {
+                bool on = quiet && i < _near.Count;
+                if (_nearPips[i].gameObject.activeSelf != on) _nearPips[i].gameObject.SetActive(on);
+                if (!on) continue;
+                var (u, v, what) = _near[i];
+                _nearPips[i].position = new Vector3(u - c, v - c, -(_s.N * 0.5f + 0.4f));
+                _nearPips[i].rotation = face;
+                var sr = _nearPips[i].GetComponent<SpriteRenderer>();
+                sr.color = Colour(what) * 0.75f;
+            }
+
+            Session.Special through = quiet ? _s.ThroughLook() : Session.Special.None;
+            bool showThrough = through != Session.Special.None;
+            if (_through.gameObject.activeSelf != showThrough) _through.gameObject.SetActive(showThrough);
+            if (showThrough)
+            {
+                _throughSr.sprite = Glyphs.For(through == Session.Special.Core ? "core"
+                                             : through == Session.Special.Node ? "node" : "lock");
+                // faint, and deliberately so: it is a look through a hole, and the
+                // only reward is noticing
+                _throughSr.color = new Color(Colour(through).r, Colour(through).g, Colour(through).b, 0.30f);
+                _through.position = cube.TransformPoint(CubeMesh.CellToObject(_s.N, _s.pos))
+                                  - cam.transform.forward * 0.40f;
+                _through.rotation = face;
+            }
+        }
+
+        static Color Colour(Session.Special s)
+            => s == Session.Special.Core ? Palette.Core
+             : s == Session.Special.Node ? Palette.Node
+             : Palette.Lock;
 
         public void Rebuild(bool force = false)
         {
@@ -110,6 +290,8 @@ namespace Singularity.Game
             CubeMesh.Build(_mesh, _s.lv, _s.world);
             _cellOfVertex = CubeMesh.LastCellOfVertex;
             _vertexCols = new Color32[_cellOfVertex.Length];
+
+            RebuildCage(_s.N * 0.5f);
 
             float halfSpan = (_s.N - 1) * 0.5f;
             _matTrace.SetFloat("_HalfSpan", halfSpan);
@@ -136,6 +318,19 @@ namespace Singularity.Game
             int n = _s.N;
             var lit = new byte[n * n * n];
             var dist = new byte[n * n * n];
+            var wave = new byte[n * n * n];
+
+            // The transition front is measured in VIEW cells from its focus, not in
+            // world cells: the wave is something the screen does, and two cells that
+            // land on the same square have to arrive together or the front tears.
+            Int3 focus = Projection.ViewOf(n, _s.M, _waveFocus);
+            for (int i = 0; i < n * n * n; i++)
+            {
+                int y = i / (n * n), rr = i - y * n * n, z = rr / n, x = rr - z * n;
+                Int3 v3 = Projection.ViewOf(n, _s.M, new Int3(x, y, z));
+                float d = Mathf.Sqrt((v3.x - focus.x) * (v3.x - focus.x) + (v3.y - focus.y) * (v3.y - focus.y));
+                wave[i] = (byte)Mathf.Min(255, Mathf.RoundToInt(d));
+            }
 
             for (int u = 0; u < n; u++)
                 for (int v = 0; v < n; v++)
@@ -152,7 +347,7 @@ namespace Singularity.Game
             for (int i = 0; i < _cellOfVertex.Length; i++)
             {
                 int cell = _cellOfVertex[i];
-                _vertexCols[i] = new Color32(lit[cell], dist[cell], 0, 255);
+                _vertexCols[i] = new Color32(lit[cell], dist[cell], wave[cell], 255);
             }
 
             _mesh.SetColors(_vertexCols);
@@ -160,6 +355,21 @@ namespace Singularity.Game
 
         /// <summary>Send the front back to the player and let it run out again.</summary>
         public void RestartReveal(float headStart = 0f) => _reveal = -headStart;
+
+        /// <summary>
+        /// Run the board in from a cell, or out of it. In on a cube arriving, out
+        /// of the core on a cube ending — the win card does not appear over a still
+        /// image of a solved puzzle, it appears after the puzzle has left.
+        /// </summary>
+        public void StartWave(Int3 focus, bool inward)
+        {
+            _waveFocus = focus;
+            _waveDir = inward ? 1f : -1f;
+            _wave = inward ? -2f : 0f;
+            UpdateReach();
+        }
+
+        public void SkipWave() { _wave = 999f; _waveDir = 1f; }
 
         // ---- markers --------------------------------------------------------
         //
@@ -180,12 +390,6 @@ namespace Singularity.Game
             for (int i = 0; i < _s.lv.keys.Count; i++) Add(_s.lv.keys[i], "node", i, Palette.Node, 0.62f);
             for (int i = 0; i < _s.lv.doors.Count; i++) Add(_s.lv.doors[i], "lock", i, Palette.Lock, 0.74f);
 
-            if (_player == null)
-            {
-                _player = Make("player", Palette.Arc, 0.68f);
-                _player.role = "player";
-            }
-            _player.t.SetAsLastSibling();
         }
 
         Marker Add(Int3 cell, string role, int index, Color col, float size)
@@ -243,18 +447,40 @@ namespace Singularity.Game
                      * live;
             }
 
+            if (attract)
+            {
+                _attractT += Time.unscaledDeltaTime;
+                live = Quaternion.AngleAxis(_attractT * 17f, Vector3.up)
+                     * Quaternion.AngleAxis(Mathf.Sin(_attractT * 0.41f) * 22f, Vector3.right)
+                     * live;
+            }
+
             cube.rotation = live * baseRot;
 
             float dim = Mathf.Lerp(1f, 0.55f, e);
             _matLattice.SetFloat("_Dim", dim);
             _matTrace.SetFloat("_Dim", Mathf.Lerp(1f, 0.85f, e));
 
+            _wave += Time.unscaledDeltaTime * WavePerSecond;
+            foreach (Material m in new[] { _matTrace, _matLattice, _matPlate })
+            {
+                m.SetFloat("_Wave", _wave);
+                m.SetFloat("_WaveDir", _waveDir);
+            }
+
             _reveal += Time.unscaledDeltaTime * RevealPerSecond;
             _matTrace.SetFloat("_Reveal", _reveal);
             _matLattice.SetFloat("_Reveal", _reveal);
             _matPlate.SetFloat("_Reveal", _reveal);
 
+            // the cage only earns its place while the solid is being looked at
+            bool cageOn = e > 0.01f;
+            if (_cageR.enabled != cageOn) _cageR.enabled = cageOn;
+            if (cageOn)
+                _cageR.sharedMaterial.SetColor("_Tint", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, e * 0.55f));
+
             PlaceMarkers(cam);
+            PlaceReads(cam);
         }
 
         void PlaceMarkers(Camera cam)
@@ -271,16 +497,6 @@ namespace Singularity.Game
                 m.t.rotation = face;
             }
 
-            if (_player != null)
-            {
-                bool ok = _s.lv != null;
-                if (_player.t.gameObject.activeSelf != ok) _player.t.gameObject.SetActive(ok);
-                if (ok)
-                {
-                    _player.t.position = cube.TransformPoint(CubeMesh.CellToObject(_s.N, _s.pos)) + toward * 1.15f;
-                    _player.t.rotation = face;
-                }
-            }
         }
 
         bool Shown(Marker m)

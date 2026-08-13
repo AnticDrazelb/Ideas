@@ -122,6 +122,14 @@ namespace Singularity.Game
                     float slash = Bar(u, v, 0f, 0.075f) * (r < 0.84f ? 1f : 0f);
                     return Mathf.Max(ring, slash);
                 }
+                case "eye":
+                {
+                    // a rounded slab, so squashing it for a blink or a smile still
+                    // reads as an eye rather than as a line
+                    float d = Mathf.Max(Mathf.Abs(u) - 0.45f, 0f);
+                    float r = Mathf.Sqrt(d * d + v * v);
+                    return r < 0.82f ? 1f : Mathf.Clamp01(1f - (r - 0.82f) / 0.12f);
+                }
                 default: // "player" — the singularity itself
                 {
                     float r = Mathf.Sqrt(u * u + v * v);

@@ -593,6 +593,77 @@ namespace Singularity.Game
             return true;
         }
 
+        // ---- two reads that change nothing ----------------------------------
+
+        /// <summary>
+        /// THE ANTIPODE: the cell diametrically opposite the one you are standing
+        /// in — through the centre, not around the outside.
+        ///
+        /// STRAIGHT THROUGH, NOT ACROSS. Only the DEPTH of the view coordinates is
+        /// flipped: same column, opposite end. The world-space diagonal opposite
+        /// reads wrong — a hole you are looking INTO shows you what is directly
+        /// behind it, not something off to one side. This one is behind you by
+        /// definition from wherever you are reading, and it re-aims itself every
+        /// time the engine folds.
+        /// </summary>
+        public Int3 Antipode()
+        {
+            Int3 v = Projection.ViewOf(N, M, pos);
+            return Projection.WorldOf(N, M, new Int3(v.x, v.y, N - 1 - v.z));
+        }
+
+        public enum Special { None, Node, Lock, Core }
+
+        /// <summary>
+        /// What can be seen through the horizon at the far side of the world, and
+        /// that is ALL it does: no reach, no route, no bearing on any fold. It is a
+        /// look through a hole, and the only reward is noticing.
+        ///
+        /// Which is worth having precisely because it costs nothing. A player who
+        /// never sees it has lost nothing; a player who does has found out what the
+        /// thing they are moving actually is.
+        /// </summary>
+        public Special ThroughLook()
+        {
+            if (lv == null) return Special.None;
+            Int3 a = Antipode();
+            // a thing that is rock in this world is not in this world, and the far
+            // side of a hole is no exception — the same rule the board draws by
+            if (!Level.IsWalkType(Level.EffType(lv.vox[lv.Vidx(a)], world))) return Special.None;
+            if (a == lv.goal) return Special.Core;
+            for (int i = 0; i < lv.keys.Count; i++)
+                if ((kmask & (1 << i)) == 0 && lv.keys[i] == a) return Special.Node;
+            for (int i = 0; i < lv.doors.Count; i++)
+                if (lv.doors[i] == a) return Special.Lock;
+            return Special.None;
+        }
+
+        /// <summary>
+        /// ONE STEP AWAY, NOT THROUGH THE CENTRE.
+        ///
+        /// The opposite of the antipode: real, walkable neighbours — the four cells
+        /// a single step from where you stand — checked for whether one of them is
+        /// the core, an uncollected node, or a lock. Nothing here changes what you
+        /// may do; it only tells the eye where the next useful step is before the
+        /// hand has to work it out.
+        /// </summary>
+        public void NearSpecials(List<(int u, int v, Special what)> into)
+        {
+            into.Clear();
+            if (lv == null || surf == null) return;
+            Int3 p = Projection.ViewOf(N, M, pos);
+            for (int t = 0; t < 4; t++)
+            {
+                int u2 = p.x + Turns.All[t].dx, v2 = p.y + Turns.All[t].dy;
+                if (!Projection.Walkable(lv, surf, u2, v2, doors, out Surf cell)) continue;
+                if (cell.w == lv.goal) { into.Add((u2, v2, Special.Core)); continue; }
+                int ki = lv.KeyIndexAt(cell.w);
+                if (ki >= 0 && (kmask & (1 << ki)) == 0) { into.Add((u2, v2, Special.Node)); continue; }
+                int di = lv.DoorIndexAt(cell.w);
+                if (di >= 0) { into.Add((u2, v2, Special.Lock)); }
+            }
+        }
+
         // ---- the hint -------------------------------------------------------
 
         /// <summary>The first move of an optimal line from here, and nothing more.</summary>

@@ -37,7 +37,51 @@ namespace Singularity.UI
             s.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             s.matchWidthOrHeight = 0.5f;
             Object.DontDestroyOnLoad(go);
+            go.AddComponent<SafeArea>();
             return c;
+        }
+
+        /// <summary>
+        /// A NOTCH IS NOT A SUGGESTION.
+        ///
+        /// The web original has a long note about this: env(safe-area-inset-*) reads
+        /// zero inside an Android WebView however correctly the host sets
+        /// viewport-fit, because a WebView is a View inside somebody else's
+        /// Activity. Unity does not have that problem — Screen.safeArea is the real
+        /// measurement — but it does have the same requirement, and a HUD band
+        /// under a camera cutout is just as unreadable either way.
+        ///
+        /// Applied to the canvas root rather than to each control, so every screen
+        /// inherits it and no layout has to think about it.
+        /// </summary>
+        class SafeArea : MonoBehaviour
+        {
+            RectTransform _rt;
+            Rect _last;
+
+            void Awake()
+            {
+                // the canvas's own rect is the whole screen; everything else is
+                // parented under a child that is inset to the safe area
+                _rt = (RectTransform)transform;
+            }
+
+            void Update()
+            {
+                Rect safe = Screen.safeArea;
+                if (safe == _last || Screen.width == 0 || Screen.height == 0) return;
+                _last = safe;
+
+                for (int i = 0; i < _rt.childCount; i++)
+                {
+                    var child = _rt.GetChild(i) as RectTransform;
+                    if (child == null) continue;
+                    child.anchorMin = new Vector2(safe.xMin / Screen.width, safe.yMin / Screen.height);
+                    child.anchorMax = new Vector2(safe.xMax / Screen.width, safe.yMax / Screen.height);
+                    child.offsetMin = Vector2.zero;
+                    child.offsetMax = Vector2.zero;
+                }
+            }
         }
 
         public static RectTransform Rect(Transform parent, string name,
