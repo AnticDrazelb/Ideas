@@ -573,8 +573,18 @@ h2+.manual{margin-top:14px;}
 .btn2.slim{margin-bottom:0;}
 .btn2.slim .btn{min-height:var(--h-ctl);font-size:var(--t-fine);letter-spacing:.16em;}
 /* the daily says whether today's is done, in the row itself, because a
-   second screen to find that out is a second screen */
-.dailyMark{font-size:var(--t-tiny);letter-spacing:.16em;color:var(--arc);margin-left:12px;}
+   second screen to find that out is a second screen.
+
+   IT IS TAKEN OUT OF FLOW TO SAY IT. As an inline child it was a second flex
+   item in a centring flex row, so the button's own gap:10px applied to it
+   plus its own margin — twenty-two pixels of nothing — and "[ DAILY ]" sat
+   eleven pixels left of where "[ VAULTS ]" and "[ FORGE ]" sat, EMPTY OR NOT.
+   Four buttons in a column with one label off its own centre reads as a
+   broken screen. Absolute means the label is centred on the button and the
+   badge cannot move it, today or on the day it says 4 FOLDS. */
+.dailyMark{position:absolute;left:0;right:0;bottom:4px;text-align:center;
+  font-size:var(--t-tiny);letter-spacing:.16em;color:var(--arc);
+  pointer-events:none;line-height:1;}
 
 /* ---------- THE HUD ----------------------------------------------
    Two bars and nothing between them, so the middle of the screen — the
@@ -1383,9 +1393,15 @@ html.disp #stage, html.disp .layer, html.disp #hud{
          CALIBRATE turns one full-width row into one two-up row, so the
          column is exactly as tall as it was and the hero cube — which this
          screen is built around — does not move a pixel. -->
+    <!-- CALIBRATE IS A BUTTON, SO IT LOOKS LIKE ONE. It kept the .ghost it
+         wore as a full-width line, which is no box, no ground and dim ink —
+         fine for a rule under a column, but sat beside FORGE in a two-up row
+         it read as a label somebody forgot to finish rather than the fourth
+         control. The row keeps its slim metrics, so the hero cube is still
+         the size it was. -->
     <div class="btn2 slim">
       <button class="btn" id="btnForge">[ FORGE ]</button>
-      <button class="btn ghost" id="btnSet">[ CALIBRATE ]</button>
+      <button class="btn" id="btnSet">[ CALIBRATE ]</button>
     </div>
     <div class="foot">DIAGNOSTIC BUILD · NO DEAD PIXELS</div>
   </div>
