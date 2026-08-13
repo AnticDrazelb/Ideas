@@ -240,24 +240,23 @@ Replace `app/src/main/assets/game/index.html`. Two rules:
 
 ## What was and wasn't verified
 
-Built in an environment where `dl.google.com` and Google's Maven are blocked by
-egress policy, so the Android SDK and AGP could not be downloaded.
+**It builds.** `.github/workflows/android-debug-apk.yml` compiles the project on
+a GitHub runner and attaches an installable debug APK (~3.4 MB) to the run. That
+covers dependency resolution, Kotlin compilation, resource and manifest
+processing, and R8 on the release build — the last of which matters more than it
+looks, because the `@JavascriptInterface` keep rule is the difference between a
+working bridge and one that silently disappears in release.
 
-**Verified here:**
+**Also verified:** the game asset is byte-identical to the source (`md5` match).
 
-- Every XML file parses (`AndroidManifest.xml`, all resources).
-- Every Kotlin source parses with no syntax or structural errors, checked with
-  the Kotlin 2.0.21 compiler. Every unresolved symbol is an Android/AndroidX/
-  Play-Services API or the generated `R` — no cross-file symbol in this project
-  is unresolved.
-- The game asset is byte-identical to the source file (`md5` match).
-- The Gradle wrapper is real and self-consistent.
+**Not verified — and this is the part that matters for a project about feel:**
 
-**Not verified:**
-
-- **No compile, no APK, no device run.** The project has never been through AGP.
-- Dependency versions (AGP 8.9.2, Kotlin 2.1.20, androidx.webkit 1.12.1,
-  play-services-games-v2 20.1.2) were chosen for known-good compatibility with
-  Gradle 8.14.3 but could not be resolved against a repository. Android Studio
-  will offer upgrades; they are safe to take.
-- The `INTERNET`-permission reasoning at the top of this file.
+- **Nothing has run on a phone.** Every claim in this file about how the app
+  behaves — insets under a real notch, the splash handover, immersive mode,
+  gesture exclusion during a drag, back routing through the page's screen stack,
+  haptics — is reasoned from the APIs, not observed. A clean compile proves none
+  of it.
+- **The `INTERNET`-permission reasoning** at the top of this file. This is the
+  one thing worth checking on the very first launch.
+- The Play Games path, which needs a real Play Console project to exercise at
+  all.

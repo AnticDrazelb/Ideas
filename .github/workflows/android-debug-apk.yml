@@ -46,6 +46,16 @@ jobs:
         working-directory: android
         run: ./gradlew --no-daemon --stacktrace assembleDebug
 
+      # R8 is the one part of this project that can break the app while the
+      # build stays green. The page reaches the host through
+      # @JavascriptInterface methods that no Kotlin code ever calls, so without
+      # the keep rule in proguard-rules.pro R8 strips them and the clipboard and
+      # leaderboards silently stop working — in release builds only. Running the
+      # minified build here is what proves that rule is doing its job.
+      - name: Build release APK (exercises R8 and the JS-bridge keep rule)
+        working-directory: android
+        run: ./gradlew --no-daemon --stacktrace assembleRelease
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
