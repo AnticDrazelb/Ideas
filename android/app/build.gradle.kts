@@ -9,7 +9,24 @@ android {
 
     defaultConfig {
         applicationId = "com.anticdrazelb.singularity"
-        minSdk = 26
+
+        // THE FLOOR IS A HARDWARE DECISION, NOT AN API ONE.
+        //
+        // This is a canvas game that fills the screen every frame, and the
+        // devices it runs badly on are old ones — a 2016 tablet renders FEWER
+        // pixels than a current phone and still cannot keep up, because the GPU
+        // is the wall. There is no API here that needs Android 10; the version
+        // is being used as the only proxy the platform offers for "not a decade
+        // old".
+        //
+        // 29 specifically: the last generation of genuinely weak hardware tops
+        // out at Android 8.1, so 28 would already clear it — and 29 is where
+        // systemGestureExclusionRects lands, which makes it the floor that also
+        // removes the last runtime version check in this project.
+        //
+        // Raise it to 30 or 31 by editing this one line; nothing else in the
+        // project depends on the value.
+        minSdk = 29
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"

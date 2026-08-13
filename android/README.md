@@ -27,8 +27,32 @@ Android Studio → Open → the `android/` directory
 ```
 
 Gradle 8.14.3 (wrapper included), AGP 8.9.2, Kotlin 2.1.20, JDK 17.
-`minSdk 26`, `compile/targetSdk 36`. No `local.properties` is committed —
+`minSdk 29`, `compile/targetSdk 36`. No `local.properties` is committed —
 Android Studio writes it on first open.
+
+### Which devices this targets
+
+**Android 10 (API 29) and up, phones.** Deliberately not the widest possible
+net.
+
+This is a canvas game that repaints the whole screen every frame, and the
+devices it runs badly on are simply old. A 2016 tablet renders *fewer* pixels
+than a current phone and still cannot keep up, because the GPU is the wall —
+so chasing that hardware means degrading the game for everyone else. The
+version floor is not there because some API needs it; it is the only proxy the
+platform offers for "not a decade old".
+
+Phone filtering is `<uses-feature android:name="android.hardware.telephony"
+android:required="true" />`. Two honest limits: a tablet with a cellular modem
+still passes, and this filters the **Play listing only** — `adb install` and
+sideloading still work, so a tablet remains available to test on. The
+definitive control is the Play Console device catalogue, where devices can be
+excluded by form factor, RAM and screen size.
+
+To move the floor, edit `minSdk` in `app/build.gradle.kts`. Nothing else in the
+project depends on the value — 29 was chosen partly because it is where
+`systemGestureExclusionRects` lands, so it is the floor at which the last
+runtime version check disappears.
 
 From the command line:
 

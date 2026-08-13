@@ -5,7 +5,6 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -295,7 +294,8 @@ class GameActivity : ComponentActivity() {
      * back-by-swipe is still there for anyone who reaches for it.
      */
     private fun claimEdgesFromTheBackGesture(view: View) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        // No version guard: systemGestureExclusionRects arrived in API 29, which
+        // is this app's floor.
         if (view.width == 0 || view.height == 0) return
 
         val density = resources.displayMetrics.density

@@ -6,6 +6,26 @@
          the failure mode where the feature looks implemented and is not. -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- PHONES ONLY, ON PLAY.
+
+         Requiring telephony is the manifest-level way to keep a listing off
+         Wi-Fi-only tablets. Two honest limits on it: a tablet with a cellular
+         modem HAS telephony and still passes, and this filters the Play listing
+         only — adb install and sideloading are unaffected, so a tablet is still
+         available to test on.
+
+         The definitive control is the Play Console device catalogue, where
+         devices can be excluded by form factor, RAM and screen size. This
+         declaration is the part that belongs in the repository. -->
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="true" />
+
+    <!-- A touchscreen is not optional for a game played by dragging a board. -->
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="true" />
+
     <!-- No INTERNET permission. The game is one offline file and asks the
          network for nothing; the https origin it runs on is served from
          inside the APK by WebViewAssetLoader and never leaves the process.

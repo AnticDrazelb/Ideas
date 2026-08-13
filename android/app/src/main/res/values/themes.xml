@@ -12,16 +12,20 @@
          and nothing is left to a default.
 
          WHY THE Base.* SPLIT: the only thing that changes between API levels
-         here is the display-cutout mode, which arrives at 27 and gains its
-         useful value at 30. Redefining the whole theme in each qualifier to
-         add one line is how theme files drift out of sync — a colour gets
-         fixed in values/ and stays wrong on every phone with a notch. The
-         qualifier files below inherit these bases and add exactly the one
-         attribute that differs.
+         here is the display-cutout mode, which gains its useful value at 30.
+         Redefining the whole theme in a qualifier to add one line is how theme
+         files drift out of sync — a colour gets fixed in values/ and stays
+         wrong on every phone with a notch. values-v30 inherits these bases and
+         adds exactly the one attribute that differs.
+
+         shortEdges lives here rather than in a values-v27 folder because
+         minSdk is 29: every device this app installs on has the attribute, so
+         the qualifier was a copy of this file that existed to say nothing.
          ============================================================ -->
     <style name="Base.Singularity" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/void_black</item>
         <item name="android:colorBackground">@color/void_black</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
 
         <!-- Edge to edge. The Activity reads the real insets and hands them to
              the page's safe-area custom properties, so nothing needs the system
@@ -59,6 +63,7 @@
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
         <item name="postSplashScreenTheme">@style/Theme.Singularity</item>
         <item name="android:windowBackground">@color/void_black</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
     </style>
 
     <style name="Theme.Singularity" parent="Base.Singularity" />
