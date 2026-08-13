@@ -105,11 +105,15 @@ Assets/Scripts/Game/     everything that draws, listens or remembers
                          events; never touches a mesh.
   GameDirector           turns those events into light and noise
   CubeView, CubeMesh     the solid, and the handedness conversion
+  Fx                     the debris and the fronts — one mesh, rebuilt a frame
+  Synth, Sfx             every sound in the game, made from two primitives
+  Forge                  the editor's model, with no UnityEngine in it
   CameraRig, InputRouter, RemainSolver, LevelSupply, Store, ...
   UI/                    built in code; no prefabs anywhere
 
 Assets/Tests/EditMode/   the port's contract with the original
-Assets/Shaders/          Cell (the solid), Glyph (the four objects)
+Assets/Shaders/          Cell (the solid + the reveal), Glyph (the four
+                         objects), Fx (sparks, chips, fronts)
 tools/                   type-check and parity harnesses — see tools/README.md
 ```
 
@@ -137,23 +141,35 @@ dependency to marshal:
 
 ---
 
+## The reveal
+
+Worth calling out because it is the one effect that is also a teaching tool.
+
+After every settled change the lit reachable set **sweeps outward from the
+player in BFS order** rather than snapping on. The sweep *is* the connectivity
+graph being traced, so the player watches the answer to "what did that fold buy
+me" get drawn one cell at a time. Juice and teaching, the same effect.
+
+It costs nothing per frame. The geometry only changes when the *world* does, so
+a settle rewrites only the vertex colour stream — reachability in red, BFS
+distance in green — and the shader compares the distance against a front that
+runs out in real time. No re-triangulation, no per-cell draw calls.
+
+---
+
 ## What is not here yet
 
-Honest list, in the order it matters:
+Honest list, and it is short now:
 
-- **The particle work.** Screen shake, kick, punch, squash, the vignette, the
-  flash and the whole audio layer are in; the sparks, chips, rings and the
-  plate's spreading front are not. This is the biggest remaining gap in *feel*
-  and none of it is in the rules.
 - **Ranked boards.** The BOARDS screen reads every local record and is worth
-  opening offline, which is most of what it was for — but the daily's
+  opening on a plane, which is most of what it was for — but the daily's
   week/month/season rollups compute a ranking that has nowhere to go without a
   host. The arithmetic is ported in `Daily`.
 - **Brightness and contrast.** Two of the calibrate sliders in the original
   apply a filter over the whole frame. The settings persist; nothing reads them
   yet. In Unity they want a full-screen blit rather than a CSS filter.
 
-Everything else is here: the rules, the three verbs, the vault ladder, the
-daily and its streak, the Forge with its verify pass and share codes, the
-manual, the plate lesson, calibrate, the win card, audio, haptics and
-persistence.
+Everything else is here: the rules, the three verbs, the vault ladder, the daily
+and its streak, the Forge with its verify pass and share codes, the manual, the
+plate lesson, calibrate, the win card, the reveal sweep, the particle work,
+audio, haptics and persistence.

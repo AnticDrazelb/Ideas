@@ -24,6 +24,8 @@ Shader "Singularity/Cell"
         _Edge     ("Edge inset", Range(0,0.5)) = 0.06
         _EdgeLift ("Edge brightness", Range(0,2)) = 0.55
         _Dim      ("Dim", Range(0,2)) = 1
+        _Reveal   ("Reveal front", Float) = 99
+        _Unlit    ("Unreachable dimming", Range(0,1)) = 0.46
 
         // Plates set this to Always. A plate is cut clean through the lattice and
         // is legible from every face in every world — that is the rule the whole
@@ -56,6 +58,7 @@ Shader "Singularity/Cell"
                 float3 normal : NORMAL;
                 float2 uv     : TEXCOORD0;   // face-local 0..1, for the inset hairline
                 float3 centre : TEXCOORD1;   // the CELL's centre in object space
+                fixed4 color  : COLOR;       // r: reachable from here.  g: BFS distance.
             };
 
             struct v2f
@@ -64,10 +67,11 @@ Shader "Singularity/Cell"
                 float2 uv      : TEXCOORD0;
                 float  depth01 : TEXCOORD1;
                 float3 vnrm    : TEXCOORD2;
+                fixed4 reach   : COLOR;
             };
 
             fixed4 _ColFar, _ColNear;
-            float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim;
+            float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim, _Reveal, _Unlit;
 
             v2f vert(appdata v)
             {
@@ -86,6 +90,7 @@ Shader "Singularity/Cell"
 
                 o.vnrm = normalize(mul((float3x3)UNITY_MATRIX_IT_MV, v.normal));
                 o.uv = v.uv;
+                o.reach = v.color;
                 return o;
             }
 
@@ -107,6 +112,17 @@ Shader "Singularity/Cell"
                 float2 d = min(i.uv, 1.0 - i.uv);
                 float edge = 1.0 - smoothstep(0.0, _Edge, min(d.x, d.y));
                 c *= 1.0 + edge * _EdgeLift * facing;
+
+                // THE REVEAL. After every fold the lit reachable set sweeps outward
+                // from the player in BFS order rather than snapping on. It is the
+                // prettiest thing on screen and it is also the most useful: the
+                // sweep IS the connectivity graph being traced, so the player
+                // watches the answer to "what did that fold buy me" get drawn one
+                // cell at a time. Juice and teaching, the same effect.
+                float dist = i.reach.g * 255.0;
+                float arrived = step(dist, _Reveal);
+                float lit = i.reach.r * arrived;
+                c *= lerp(_Unlit, 1.0, lit);
 
                 return fixed4(c * _Dim, 1);
             }

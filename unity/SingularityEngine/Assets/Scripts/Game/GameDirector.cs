@@ -26,6 +26,7 @@ namespace Singularity.Game
 
         InputRouter _input;
         Sfx _sfx;
+        Fx _fx;
         bool _screenUp = true;      // a menu is over the board
 
         void Awake()
@@ -41,6 +42,7 @@ namespace Singularity.Game
             View.Init(S);
 
             _sfx = Sfx.Build(transform);
+            _fx = Fx.Build(transform);
             _input = new InputRouter(S, View, Rig.cam) { Sfx = _sfx };
 
             Hud = Hud.Build(this);
@@ -50,6 +52,20 @@ namespace Singularity.Game
             Screens.ShowTitle();
         }
 
+        /// <summary>
+        /// Where a cell is, for the debris. The effects live in a screen-aligned
+        /// plane and do not rotate with the cube — they belong to the event, not to
+        /// the geometry — so only the projected position matters.
+        /// </summary>
+        Vector3 At(Int3 cell)
+        {
+            Int3 v = Projection.ViewOf(S.N, S.M, cell);
+            float c = (S.N - 1) * 0.5f;
+            return new Vector3(v.x - c, v.y - c, 0f);
+        }
+
+        Vector3 AtPlayer() => At(S.pos);
+
         void Wire()
         {
             S.On.Toast = msg => Hud.Toast(msg);
@@ -57,7 +73,9 @@ namespace Singularity.Game
             S.On.Settled = () =>
             {
                 View.Rebuild();
+                View.UpdateReach();
                 Rig.Fit(S.N);
+                _fx.SetBoard(S.N);
                 Hud.Refresh(S);
             };
 
@@ -65,15 +83,22 @@ namespace Singularity.Game
             {
                 Rig.Shake(0.045f);
                 _sfx.Step();
+                _fx.Footfall(At(cell), Palette.Tile(surf.t, surf.d, S.N));
             };
 
-            S.On.Landed = cell => { Rig.Kick(3, 0, 1); Rig.Shake(0.10f); _sfx.Land(); };
+            S.On.Landed = cell =>
+            {
+                Rig.Kick(3, 0, 1); Rig.Shake(0.10f);
+                _sfx.Land();
+                _fx.Land(At(cell), Palette.GridHi);
+            };
 
             S.On.DoorOpened = (cell, i) =>
             {
                 Rig.Kick(5, 0, 1); Rig.Shake(0.34f); Rig.Punch(0.030f);
                 Hud.Flash(Palette.Node, 0.30f);
                 _sfx.Lock();
+                _fx.LockOpen(At(cell));
             };
 
             S.On.KeyTaken = (cell, i) =>
@@ -81,6 +106,7 @@ namespace Singularity.Game
                 Rig.Shake(0.20f); Rig.Punch(0.022f);
                 Hud.Flash(Palette.Node, 0.26f);
                 _sfx.Node();
+                _fx.NodeTaken(At(cell));
             };
 
             S.On.FoldLanded = t =>
@@ -96,7 +122,9 @@ namespace Singularity.Game
                 Rig.Shake(0.62f); Rig.Punch(0.055f); Rig.Squash(axisX, 0.075f);
                 Hud.Flash(Palette.TraceNear, 0.20f);
                 _sfx.Fold();
+                _fx.FoldLanded(S.N, AtPlayer());
                 View.Rebuild();
+                View.RestartReveal();
             };
 
             S.On.FoldRefused = t =>
@@ -111,9 +139,15 @@ namespace Singularity.Game
                 Rig.Shake(0.5f); Rig.Punch(-0.012f); Rig.Squash(axisX, 0.045f);
                 Hud.Vignette(1f);
                 _sfx.Deny();
+                _fx.FoldRefused(S.N, t);
             };
 
-            S.On.Denied = (u, v, col) => { Hud.Vignette(0.55f); Rig.Shake(0.10f); _sfx.Deny(); };
+            S.On.Denied = (u, v, col) =>
+            {
+                Hud.Vignette(0.55f); Rig.Shake(0.10f); _sfx.Deny();
+                float c = (S.N - 1) * 0.5f;
+                _fx.Deny(new Vector3(u - c, v - c, 0f), col);
+            };
 
             S.On.PlateFired = (cell, bit) =>
             {
@@ -124,11 +158,19 @@ namespace Singularity.Game
                 Rig.Shake(0.95f); Rig.Punch(0.075f); Rig.Squash(true, 0.09f);
                 Hud.Flash(Palette.Rust, 0.24f);
                 _sfx.Plate(bit);
+                _fx.PlateFired(S.N, At(cell));
+                // the reachable sweep follows the front out from the plate rather
+                // than racing it, so the two read as one event
+                View.RestartReveal(0.26f * 26f);
                 Hud.Toast(S.world != 0 ? "INVERT — FIVE SECONDS" : "RESTORED");
             };
 
             S.On.Reverted = () => { View.Rebuild(true); Rig.Shake(0.42f); Hud.Flash(Palette.Rust, 0.18f); _sfx.Plate(0); };
-            S.On.ThrownToPlate = cell => { Rig.Shake(0.42f); Rig.Kick(9, 0, 1); _sfx.Deny(); };
+            S.On.ThrownToPlate = cell =>
+            {
+                Rig.Shake(0.42f); Rig.Kick(9, 0, 1); _sfx.Deny();
+                _fx.Deny(At(cell), Palette.Fault);
+            };
             S.On.StuckChanged = () => { Hud.Vignette(1f); _sfx.Stuck(); };
 
             // one tick a second over the last three, so the plate clock can be
@@ -181,6 +223,11 @@ namespace Singularity.Game
 
             S.Load(src, level, how, madeKey);
             View.Rebuild(true);
+            View.RestartReveal(0.12f * 26f);
+            _fx.SetBoard(S.N);
+            // a new cube starts on a clean stage: debris, rings and a half-decayed
+            // shake belong to the cube that is over
+            _fx.Clear();
             Rig.Fit(S.N);
             Hud.Refresh(S);
             SetScreenUp(false);
@@ -281,6 +328,14 @@ namespace Singularity.Game
             Rig.Kick(11, 0, 1); Rig.Shake(1f); Rig.Punch(0.09f);
             Hud.Flash(Palette.Core, 0.22f);
             Haptics.Buzz(Haptics.Collapse);
+            _fx.Collapse(S.N, AtPlayer());
+
+            // A PERFECT LINE IS A DIFFERENT EVENT. Clearing at par with the same
+            // exit as clearing four over says the game does not care, and the card
+            // saying PERFECT COLLAPSE forty frames later is a receipt, not a
+            // celebration. It goes arc, which is the one step past gold that
+            // anybody reads without being told.
+            if (folds <= S.lv.par) StartCoroutine(PerfectLine());
 
             // TWO HUNDRED MILLISECONDS OF NOTHING, AND THEN ONE TONE. The bed is
             // ducked the instant the core takes you, the room goes quiet under a
@@ -293,6 +348,15 @@ namespace Singularity.Game
                             && Vaults.VaultOf(S.levelNo + 1) != Vaults.VaultOf(S.levelNo);
             if (crossing) _sfx.Vault();
             StartCoroutine(WinCard());
+        }
+
+        IEnumerator PerfectLine()
+        {
+            yield return new WaitForSecondsRealtime(0.21f);
+            _fx.PerfectLine(S.N, AtPlayer());
+            Hud.Flash(Palette.Arc, 0.30f, 0.9f);
+            Rig.Shake(0.7f); Rig.Punch(0.05f);
+            _sfx.Vault();
         }
 
         IEnumerator WinTone()
@@ -339,6 +403,7 @@ namespace Singularity.Game
                 S.Remain.Tick(S);
                 View.Apply(Rig.cam);
                 Hud.Tick(dt, S);
+                _fx.Tick(dt);
             }
 
             Rig.Tick(dt, View.cube);

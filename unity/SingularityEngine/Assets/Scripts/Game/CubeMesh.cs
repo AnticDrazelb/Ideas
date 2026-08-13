@@ -64,6 +64,15 @@ namespace Singularity.Game
         static readonly Vector2[] QuadUv = { new Vector2(1, 1), new Vector2(0, 1), new Vector2(0, 0), new Vector2(1, 0) };
 
         /// <summary>
+        /// Which cell each vertex belongs to, in the order Build emitted them.
+        ///
+        /// Kept so the reveal sweep can rewrite the colour stream on every settle
+        /// without re-triangulating: the geometry only changes when the WORLD
+        /// changes, but what is reachable changes on every step and every fold.
+        /// </summary>
+        public static int[] LastCellOfVertex { get; private set; } = System.Array.Empty<int>();
+
+        /// <summary>
         /// Build the visible surface of <paramref name="lv"/> as seen in
         /// <paramref name="world"/>. Coordinates are centred on the cube's middle
         /// and scaled so one cell is one unit, so the object's transform is pure
@@ -78,6 +87,8 @@ namespace Singularity.Game
             var norms = new List<Vector3>(4096);
             var uv0 = new List<Vector2>(4096);
             var uv1 = new List<Vector3>(4096);
+            var cellOf = new List<int>(4096);
+            var cols = new List<Color32>(4096);
             var tri = new List<int>[3] { new List<int>(), new List<int>(), new List<int>() };
 
             float c = (n - 1) * 0.5f;
@@ -111,6 +122,8 @@ namespace Singularity.Game
                                 norms.Add(nrm);
                                 uv0.Add(QuadUv[i]);
                                 uv1.Add(centre);
+                                cellOf.Add(Level.Vidx(n, x, y, z));
+                                cols.Add(new Color32(0, 0, 0, 255));
                             }
                             tri[sub].Add(b); tri[sub].Add(b + 1); tri[sub].Add(b + 2);
                             tri[sub].Add(b); tri[sub].Add(b + 2); tri[sub].Add(b + 3);
@@ -125,6 +138,8 @@ namespace Singularity.Game
             mesh.SetNormals(norms);
             mesh.SetUVs(0, uv0);
             mesh.SetUVs(1, uv1);
+            mesh.SetColors(cols);
+            LastCellOfVertex = cellOf.ToArray();
             mesh.subMeshCount = 3;
             for (int s = 0; s < 3; s++) mesh.SetTriangles(tri[s], s, false);
             mesh.RecalculateBounds();

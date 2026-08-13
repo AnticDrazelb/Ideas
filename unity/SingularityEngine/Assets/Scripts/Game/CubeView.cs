@@ -26,6 +26,15 @@ namespace Singularity.Game
         int _builtWorld = -1;
         int _builtCells = -1;
 
+        int[] _cellOfVertex = System.Array.Empty<int>();
+        Color32[] _vertexCols = System.Array.Empty<Color32>();
+
+        // THE REVEAL FRONT, in BFS steps. It runs out from the player after every
+        // settled change, so the lit reachable set is DRAWN rather than switched on
+        // — and the sweep is the connectivity graph being traced one cell at a time.
+        float _reveal = 99f;
+        const float RevealPerSecond = 26f;
+
         // markers
         Transform _markerRoot;
         readonly List<Marker> _markers = new List<Marker>();
@@ -99,6 +108,8 @@ namespace Singularity.Game
             _builtCells = _s.lv.vox.Length;
 
             CubeMesh.Build(_mesh, _s.lv, _s.world);
+            _cellOfVertex = CubeMesh.LastCellOfVertex;
+            _vertexCols = new Color32[_cellOfVertex.Length];
 
             float halfSpan = (_s.N - 1) * 0.5f;
             _matTrace.SetFloat("_HalfSpan", halfSpan);
@@ -106,7 +117,49 @@ namespace Singularity.Game
             _matPlate.SetFloat("_HalfSpan", halfSpan);
 
             BuildMarkers();
+            UpdateReach();
         }
+
+        /// <summary>
+        /// Rewrite the colour stream with what is reachable from where the player
+        /// stands. No re-triangulation: the geometry only changes when the WORLD
+        /// does, and this changes on every step.
+        ///
+        /// Reachability is a property of a view SQUARE, not of a cell — so a cell
+        /// is lit when it is the surface of a reachable column, which is exactly
+        /// the set the player may walk to.
+        /// </summary>
+        public void UpdateReach()
+        {
+            if (_s?.lv == null || _cellOfVertex.Length == 0 || _s.reach == null) return;
+
+            int n = _s.N;
+            var lit = new byte[n * n * n];
+            var dist = new byte[n * n * n];
+
+            for (int u = 0; u < n; u++)
+                for (int v = 0; v < n; v++)
+                {
+                    int k = u * n + v;
+                    if (!_s.reach[k]) continue;
+                    Surf sc = _s.surf[k];
+                    if (!sc.has) continue;
+                    int idx = Level.Vidx(n, sc.w);
+                    lit[idx] = 255;
+                    dist[idx] = _s.reachDist[k];
+                }
+
+            for (int i = 0; i < _cellOfVertex.Length; i++)
+            {
+                int cell = _cellOfVertex[i];
+                _vertexCols[i] = new Color32(lit[cell], dist[cell], 0, 255);
+            }
+
+            _mesh.SetColors(_vertexCols);
+        }
+
+        /// <summary>Send the front back to the player and let it run out again.</summary>
+        public void RestartReveal(float headStart = 0f) => _reveal = -headStart;
 
         // ---- markers --------------------------------------------------------
         //
@@ -195,6 +248,11 @@ namespace Singularity.Game
             float dim = Mathf.Lerp(1f, 0.55f, e);
             _matLattice.SetFloat("_Dim", dim);
             _matTrace.SetFloat("_Dim", Mathf.Lerp(1f, 0.85f, e));
+
+            _reveal += Time.unscaledDeltaTime * RevealPerSecond;
+            _matTrace.SetFloat("_Reveal", _reveal);
+            _matLattice.SetFloat("_Reveal", _reveal);
+            _matPlate.SetFloat("_Reveal", _reveal);
 
             PlaceMarkers(cam);
         }

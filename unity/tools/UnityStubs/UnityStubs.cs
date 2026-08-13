@@ -141,6 +141,8 @@ namespace UnityEngine
 
     public class Behaviour : Component { public bool enabled; }
 
+    public static class Random { public static float value => 0.5f; }
+
     public class GameObject : Object
     {
         public GameObject() { }
@@ -221,8 +223,12 @@ namespace UnityEngine
         public void SetNormals(List<Vector3> v) { }
         public void SetUVs(int ch, List<Vector2> v) { }
         public void SetUVs(int ch, List<Vector3> v) { }
+        public void SetColors(List<Color32> c) { }
+        public void SetColors(Color32[] c) { }
         public void SetTriangles(List<int> t, int sub, bool calc) { }
         public void RecalculateBounds() { }
+        public void MarkDynamic() { }
+        public void SetColors(List<Color> c) { }
     }
 
     public class Material : Object
@@ -238,6 +244,7 @@ namespace UnityEngine
 
     public class Renderer : Component
     {
+        public Material sharedMaterial { get; set; }
         public Rendering.ShadowCastingMode shadowCastingMode { get; set; }
         public bool receiveShadows { get; set; }
         public Rendering.LightProbeUsage lightProbeUsage { get; set; }
