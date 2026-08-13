@@ -111,6 +111,32 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
      sealed.why === 'EXIT IS SEALED INSIDE THE SOLID' && sealed.shows === false, String(sealed.why));
   ok('...and an exit on a face is not accused of it', sealed.freed === true);
 
+  /* A CUBE YOU CAN WALK ACROSS IS NOT A PUZZLE. This is the actual share code
+     from the report: a forge cube saved with PAR 0, so the win card read
+     "1 OVER PAR" against a par of zero and every possible clear was worse than
+     perfect. It is a single column of solid three deep — start on top of it,
+     exit two cells along, no fold anywhere in the solution. The generator can
+     never do this (parLo is one at the smallest size) but the forge had no
+     floor at all. Kept as the reported code rather than rebuilt by hand, so
+     the test still covers the decoder that has to accept it. */
+  const flat = await p.evaluate(() => {
+    const walk = shareDecode('AQUAAAAMPgAAAAAAAAI-MgAAAAAAAD48AAAAAAAAAAAAAAAAAAAAAAAAAAAADAA-ABA');
+    if(!walk) return {decoded:false};
+    const before = solve(walk, 60);
+    /* and a cube that genuinely needs a fold must still pass */
+    const real = BAKED[0];
+    return {decoded:true, n: walk.n, start: walk.start, goal: walk.goal,
+            turns: before.turns, steps: before.steps,
+            why: validateLevel(walk).why, good: validateLevel(real).ok};
+  });
+  ok('the reported par-zero share code still decodes', flat.decoded === true,
+     flat.decoded ? `n=${flat.n} start=${flat.start} exit=${flat.goal}` : 'decode failed');
+  ok('...and it really is walkable without a single fold',
+     flat.turns === 0, `${flat.turns} turns over ${flat.steps} steps`);
+  ok('...so the forge refuses it rather than saving a par of zero',
+     /NO FOLD NEEDED/.test(flat.why || ''), String(flat.why));
+  ok('...while a cube that needs a fold still passes', flat.good === true);
+
   /* the two marks that matter most to tell apart were two oranges nobody
      can tell apart, so they carry a letter and a shape as well now */
   const marks = await p.evaluate(() => {

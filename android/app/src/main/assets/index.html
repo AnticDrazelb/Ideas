@@ -1594,6 +1594,7 @@ html.disp #stage, html.disp .layer, html.disp #hud{
   <div class="btn2">
     <button class="btn" id="btnRestart">[ RESET ]</button>
     <button class="btn" id="btnToCubes">[ VAULTS ]</button>
+    <button class="btn" id="btnToMenu">[ MENU ]</button>
   </div>
   <!-- Only ever visible while a cube somebody else built is on screen.
        A report is about content this device did not author. -->
@@ -1682,7 +1683,7 @@ html.disp #stage, html.disp .layer, html.disp #hud{
 
 <!-- ============ CLEARED ============ -->
 <div class="layer hide" id="scWin">
-  <div class="eyebrow" style="text-align:center">VAULT SOLVED</div>
+  <div class="eyebrow" id="winWhat" style="text-align:center">VAULT SOLVED</div>
   <div class="eyebrow" id="winVault" style="text-align:center;color:var(--arc);margin-top:6px"></div>
   <div class="verdict" id="winVerdict">AT PAR</div>
   <div class="card" style="margin-top:16px">
@@ -1692,7 +1693,13 @@ html.disp #stage, html.disp .layer, html.disp #hud{
   </div>
   <button class="btn primary" id="btnNext" style="margin-top:20px">[ NEXT ]</button>
   <button class="btn ghost" id="btnRetry">[ RETRY FOR PAR ]</button>
-  <button class="btn ghost" id="btnWinCubes">[ VAULTS ]</button>
+  <!-- The shelf button says where it actually goes — it led to the FORGE on a
+       built cube while still reading VAULTS — and there is a way to the front
+       from here, which there was not. -->
+  <div class="btn2 slim">
+    <button class="btn ghost" id="btnWinCubes">[ VAULTS ]</button>
+    <button class="btn ghost" id="btnWinMenu">[ MENU ]</button>
+  </div>
 </div>
 
 <script>
@@ -3454,6 +3461,13 @@ function validateLevel(lv){
     return {ok:false, why:'A LOCK SITS ON THE START OR THE EXIT'};
   var r = solve(lv, 60);
   if(!r.ok) return {ok:false, why:'NO SOLUTION EXISTS'};
+  /* A CUBE YOU CAN FINISH WITHOUT FOLDING IS A CORRIDOR.
+     The generator can never produce one — parLo is one at the smallest size
+     and two above it — but the forge had no floor at all, so a start and an
+     exit joined by a walk saved happily and then scored as "1 OVER PAR"
+     against a par of zero. Par is the whole scoring system; a par of zero
+     makes every clear worse than perfect and the card reads as nonsense. */
+  if(r.turns < 1) return {ok:false, why:'NO FOLD NEEDED — THAT IS A CORRIDOR, NOT A CUBE'};
   return {ok:true, par:r.turns, steps:r.steps};
 }
 
@@ -7698,6 +7712,11 @@ function finish(){
     $('winVault').style.display = (daily || crossing) ? '' : 'none';
     /* there is no next cube after the daily — there is tomorrow */
     $('btnNext').style.display = (daily || made) ? 'none' : '';
+    /* THE CARD SAID VAULT SOLVED OVER A CUBE SOMEBODY BUILT, and offered
+       VAULTS on a button that went to the forge. Both now say what they are. */
+    $('winWhat').textContent = made ? 'CUBE SOLVED' : daily ? 'DAILY SOLVED' : 'VAULT SOLVED';
+    $('btnWinCubes').textContent = made ? '[ FORGE ]' : '[ VAULTS ]';
+    $('btnWinCubes').style.display = daily ? 'none' : '';
     $('btnRetry').style.display = turns <= lv.par ? 'none' : '';
     if(crossing) sfx.vault();
     show('scWin');
@@ -8560,6 +8579,14 @@ $('btnRetry').onclick = function(){ loadLevel(made ? MADE : daily ? DAILY : leve
 $('btnWinCubes').onclick = function(){
   if(made) openMade(); else if(daily) show('scTitle'); else openCubes();
 };
+/* THE FRONT DOOR, FROM BOTH CARDS. Neither the win card nor the pause card
+   had a route to the title: from a finished cube the only ways on were the
+   next level, a retry, or the shelf, and getting to the main screen meant
+   going to the shelf and pressing BACK. Not a dead end, and one hop longer
+   than it should be from the two screens a player sees most. */
+function toMenu(){ refreshDaily(); show('scTitle'); }
+$('btnWinMenu').onclick = toMenu;
+$('btnToMenu').onclick  = toMenu;
 
 /* ============================================================
    DISPLAY TRIM — brightness and contrast, and the cost of having them.

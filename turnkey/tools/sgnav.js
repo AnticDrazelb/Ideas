@@ -235,6 +235,51 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
   ok('...and GOT IT there does start the game', firstRun.into === null && firstRun.playing,
      `landed on ${firstRun.into}`);
 
+  /* ---- a way to the front from the two screens seen most ---------------- */
+  /* Neither card had one: from a finished cube the only ways on were the next
+     level, a retry, or the shelf, and reaching the main screen meant going to
+     the shelf and pressing BACK. */
+  const menu = await p.evaluate(async () => {
+    const which = () => ['scTitle','scCubes','scMade','scPause','scWin']
+      .find(s => !document.getElementById(s).classList.contains('hide')) || null;
+    store.reached = 60; store.taught = 1;
+    loadLevel(12);
+    await new Promise(r => setTimeout(r, 200));
+
+    show('scPause');
+    const pauseHas = !document.getElementById('btnToMenu').classList.contains('hide');
+    document.getElementById('btnToMenu').click();
+    await new Promise(r => setTimeout(r, 80));
+    const fromPause = which();
+
+    /* the win card, on an ordinary cube and on one somebody built */
+    show('scWin');
+    await new Promise(r => setTimeout(r, 60));
+    document.getElementById('btnWinMenu').click();
+    await new Promise(r => setTimeout(r, 80));
+    const fromWin = which();
+
+    /* and the shelf button has to say where it actually goes */
+    made = false; daily = false;
+    $('btnWinCubes').textContent = made ? '[ FORGE ]' : '[ VAULTS ]';
+    const normalLabel = document.getElementById('btnWinCubes').textContent;
+    made = true;
+    $('btnWinCubes').textContent = made ? '[ FORGE ]' : '[ VAULTS ]';
+    $('winWhat').textContent = made ? 'CUBE SOLVED' : 'VAULT SOLVED';
+    const madeLabel = document.getElementById('btnWinCubes').textContent;
+    const madeHead = document.getElementById('winWhat').textContent;
+    made = false;
+    return {pauseHas, fromPause, fromWin, normalLabel, madeLabel, madeHead};
+  });
+  ok('the pause card has a way to the front, and it goes there',
+     menu.pauseHas && menu.fromPause === 'scTitle', String(menu.fromPause));
+  ok('...and so does the win card', menu.fromWin === 'scTitle', String(menu.fromWin));
+  ok('the win card names the shelf it actually opens',
+     menu.normalLabel === '[ VAULTS ]' && menu.madeLabel === '[ FORGE ]',
+     `${menu.normalLabel} / ${menu.madeLabel}`);
+  ok('...and does not call a cube somebody built a vault',
+     menu.madeHead === 'CUBE SOLVED', menu.madeHead);
+
   ok('no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
 
   await b.close();
