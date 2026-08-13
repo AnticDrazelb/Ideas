@@ -117,6 +117,36 @@ namespace Singularity.UI
             if (t != null) t.text = "[ " + text + " ]";
         }
 
+        /// <summary>
+        /// The only free text in the game: a cube's name, and a pasted share code.
+        /// Both are folded to the character set the interface already speaks before
+        /// they go anywhere, which is a house-style decision that also means no
+        /// authored string can ever be markup.
+        /// </summary>
+        public static InputField Field(Transform parent, string name, string placeholder,
+                                       Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
+        {
+            RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
+            var bg = rt.gameObject.AddComponent<Image>();
+            bg.color = Palette.Panel;
+
+            Text text = Label(rt, "text", "", 22, Palette.Ink, TextAnchor.MiddleLeft,
+                              Vector2.zero, Vector2.one, new Vector2(14, 0), new Vector2(-14, 0));
+            text.raycastTarget = false;
+            text.supportRichText = false;
+
+            Text hint = Label(rt, "placeholder", placeholder, 20, Palette.Dim2, TextAnchor.MiddleLeft,
+                              Vector2.zero, Vector2.one, new Vector2(14, 0), new Vector2(-14, 0));
+            hint.raycastTarget = false;
+
+            var field = rt.gameObject.AddComponent<InputField>();
+            field.targetGraphic = bg;
+            field.textComponent = text;
+            field.placeholder = hint;
+            field.lineType = InputField.LineType.SingleLine;
+            return field;
+        }
+
         /// <summary>A hairline. One pixel of rust at low alpha, the only border in the game.</summary>
         public static Image Rule(Transform parent, float y, float alpha = 0.34f)
             => Panel(parent, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, alpha),

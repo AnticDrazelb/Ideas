@@ -25,6 +25,7 @@ namespace Singularity.Game
         public Hud Hud { get; private set; }
 
         InputRouter _input;
+        Sfx _sfx;
         bool _screenUp = true;      // a menu is over the board
 
         void Awake()
@@ -39,7 +40,8 @@ namespace Singularity.Game
             View = gameObject.AddComponent<CubeView>();
             View.Init(S);
 
-            _input = new InputRouter(S, View, Rig.cam);
+            _sfx = Sfx.Build(transform);
+            _input = new InputRouter(S, View, Rig.cam) { Sfx = _sfx };
 
             Hud = Hud.Build(this);
 
@@ -59,18 +61,26 @@ namespace Singularity.Game
                 Hud.Refresh(S);
             };
 
-            S.On.Stepped = (cell, surf) => Rig.Shake(0.045f);
+            S.On.Stepped = (cell, surf) =>
+            {
+                Rig.Shake(0.045f);
+                _sfx.Step();
+            };
+
+            S.On.Landed = cell => { Rig.Kick(3, 0, 1); Rig.Shake(0.10f); _sfx.Land(); };
 
             S.On.DoorOpened = (cell, i) =>
             {
                 Rig.Kick(5, 0, 1); Rig.Shake(0.34f); Rig.Punch(0.030f);
                 Hud.Flash(Palette.Node, 0.30f);
+                _sfx.Lock();
             };
 
             S.On.KeyTaken = (cell, i) =>
             {
                 Rig.Shake(0.20f); Rig.Punch(0.022f);
                 Hud.Flash(Palette.Node, 0.26f);
+                _sfx.Node();
             };
 
             S.On.FoldLanded = t =>
@@ -85,6 +95,7 @@ namespace Singularity.Game
                 Rig.Kick(9, axisX ? -sgn : 0, axisX ? 0 : sgn);
                 Rig.Shake(0.62f); Rig.Punch(0.055f); Rig.Squash(axisX, 0.075f);
                 Hud.Flash(Palette.TraceNear, 0.20f);
+                _sfx.Fold();
                 View.Rebuild();
             };
 
@@ -99,9 +110,10 @@ namespace Singularity.Game
                 Rig.Kick(5, axisX ? -sgn : 0, axisX ? 0 : sgn);
                 Rig.Shake(0.5f); Rig.Punch(-0.012f); Rig.Squash(axisX, 0.045f);
                 Hud.Vignette(1f);
+                _sfx.Deny();
             };
 
-            S.On.Denied = (u, v, col) => { Hud.Vignette(0.55f); Rig.Shake(0.10f); };
+            S.On.Denied = (u, v, col) => { Hud.Vignette(0.55f); Rig.Shake(0.10f); _sfx.Deny(); };
 
             S.On.PlateFired = (cell, bit) =>
             {
@@ -111,12 +123,18 @@ namespace Singularity.Game
                 Rig.Kick(13, 0, 1);
                 Rig.Shake(0.95f); Rig.Punch(0.075f); Rig.Squash(true, 0.09f);
                 Hud.Flash(Palette.Rust, 0.24f);
+                _sfx.Plate(bit);
                 Hud.Toast(S.world != 0 ? "INVERT — FIVE SECONDS" : "RESTORED");
             };
 
-            S.On.Reverted = () => { View.Rebuild(true); Rig.Shake(0.42f); Hud.Flash(Palette.Rust, 0.18f); };
-            S.On.ThrownToPlate = cell => { Rig.Shake(0.42f); Rig.Kick(9, 0, 1); };
-            S.On.StuckChanged = () => Hud.Vignette(1f);
+            S.On.Reverted = () => { View.Rebuild(true); Rig.Shake(0.42f); Hud.Flash(Palette.Rust, 0.18f); _sfx.Plate(0); };
+            S.On.ThrownToPlate = cell => { Rig.Shake(0.42f); Rig.Kick(9, 0, 1); _sfx.Deny(); };
+            S.On.StuckChanged = () => { Hud.Vignette(1f); _sfx.Stuck(); };
+
+            // one tick a second over the last three, so the plate clock can be
+            // HEARD while the eyes are on the board — where they have to be, and
+            // where the number is not
+            S.On.PlateTick = seconds => _sfx.Tick(seconds);
             S.On.Won = OnWin;
         }
 
@@ -153,6 +171,14 @@ namespace Singularity.Game
 
             if (how != LoadKind.Made && how != LoadKind.Daily) src.name = Vaults.LevelName(level);
 
+            // The node chime climbs a stack of fifths across a cube, and the bed is
+            // pitched off the vault — so both are reset here, where a cube begins.
+            // The daily and a forged cube borrow vault V's difficulty, so they
+            // borrow its room as well.
+            _sfx.ResetNodes();
+            _sfx.Ambience(Vaults.VaultOf(how == LoadKind.Vault || how == LoadKind.Practice
+                                         ? level : Daily.SpecLevel));
+
             S.Load(src, level, how, madeKey);
             View.Rebuild(true);
             Rig.Fit(S.N);
@@ -161,6 +187,29 @@ namespace Singularity.Game
 
             // cut the next one while this one is played
             if (how == LoadKind.Vault) LevelSupply.Prebuild(level + 1);
+
+            // TEACH IT WHEN IT SHOWS UP, ONCE. Not in the manual four screens
+            // earlier, not as a toast that has gone before it is read — on the cube
+            // that has one, with the thing itself waiting behind the card.
+            if (Store.Data.sawPlate == 0 && new string(S.lv.vox).IndexOfAny(new[] { 'A', 'B' }) >= 0)
+            {
+                Store.Data.sawPlate = 1;
+                Store.Save();
+                yield return new WaitForSecondsRealtime(0.26f);
+                if (!S.won) Screens.ShowPlateTeach();
+                yield break;
+            }
+
+            // THE ONE NUDGE. A gesture nobody can see is a gesture nobody has, and
+            // the matrix is the answer to the exact frustration that starts around
+            // here — so it is offered once, on the third cube, and never again.
+            if (Store.Data.sawPeek == 0 && Store.Data.peekHinted == 0 && S.levelNo >= 3)
+            {
+                Store.Data.peekHinted = 1;
+                Store.Save();
+                yield return new WaitForSecondsRealtime(1.1f);
+                if (!S.won && S.walking == null && S.anim == null) Hud.Toast("HOLD ANYWHERE FOR MATRIX");
+            }
         }
 
         static Level DecodeMade(string key)
@@ -186,6 +235,20 @@ namespace Singularity.Game
                 else Store.Data.dailyBest = Mathf.Min(Store.Data.dailyBest == 0 ? 999 : Store.Data.dailyBest, folds);
                 Store.Data.dailySolved = 1;
                 Store.SetDaily(today, folds);
+
+                // The streak is kept incrementally so it never needs the history it
+                // would otherwise have to keep forever — and a gap of more than one
+                // day breaks it rather than quietly forgiving it.
+                var st = Store.Data;
+                if (st.streakLast == today - 1) st.streakCur++;
+                else if (st.streakLast != today) st.streakCur = 1;
+                st.streakLast = today;
+                if (st.streakCur > st.streakBest) st.streakBest = st.streakCur;
+
+                // the history only has to be as long as the longest window that
+                // reads it, which is a season
+                Store.PruneDaily(today, Daily.SeasonDays);
+                Store.Save();
             }
             else if (S.IsMade)
             {
@@ -218,7 +281,24 @@ namespace Singularity.Game
             Rig.Kick(11, 0, 1); Rig.Shake(1f); Rig.Punch(0.09f);
             Hud.Flash(Palette.Core, 0.22f);
             Haptics.Buzz(Haptics.Collapse);
+
+            // TWO HUNDRED MILLISECONDS OF NOTHING, AND THEN ONE TONE. The bed is
+            // ducked the instant the core takes you, the room goes quiet under a
+            // board that is visibly coming apart, and the tone arrives into that
+            // gap. It is the only silence in the game.
+            _sfx.Duck(0.20f);
+            StartCoroutine(WinTone());
+
+            bool crossing = !S.IsDaily && !S.IsMade
+                            && Vaults.VaultOf(S.levelNo + 1) != Vaults.VaultOf(S.levelNo);
+            if (crossing) _sfx.Vault();
             StartCoroutine(WinCard());
+        }
+
+        IEnumerator WinTone()
+        {
+            yield return new WaitForSecondsRealtime(0.20f);
+            _sfx.Win();
         }
 
         IEnumerator WinCard()

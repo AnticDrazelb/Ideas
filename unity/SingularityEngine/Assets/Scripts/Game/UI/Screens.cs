@@ -29,14 +29,18 @@ namespace Singularity.UI
             BuildTitle();
             BuildVaults();
             BuildManual();
+            BuildPlateTeach();
             BuildPause();
+            BuildCalibrate();
+            BuildBoards();
             BuildWin();
+            ForgeScreens.Build(dir);
             HideAll();
         }
 
         // ---- plumbing -------------------------------------------------------
 
-        static RectTransform Layer(string id)
+        internal static RectTransform Layer(string id)
         {
             RectTransform rt = UiKit.Rect(_canvas.transform, id, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var bg = rt.gameObject.AddComponent<Image>();
@@ -65,11 +69,11 @@ namespace Singularity.UI
             Show(Stack.Count > 0 ? Stack[Stack.Count - 1] : null);
         }
 
-        static RectTransform Column(RectTransform parent, float top, float bottom)
+        internal static RectTransform Column(RectTransform parent, float top, float bottom)
             => UiKit.Rect(parent, "col", new Vector2(0, 0), new Vector2(1, 1),
                           new Vector2(40, bottom), new Vector2(-40, -top));
 
-        static void Row(RectTransform col, int slot, int of, string label, System.Action act, bool primary = false)
+        internal static void Row(RectTransform col, int slot, int of, string label, System.Action act, bool primary = false)
         {
             float h = 1f / of;
             RectTransform r = UiKit.Rect(col, label, new Vector2(0, 1 - (slot + 1) * h), new Vector2(1, 1 - slot * h),
@@ -101,10 +105,11 @@ namespace Singularity.UI
 
             RectTransform col = UiKit.Rect(L, "buttons", new Vector2(0, 0), new Vector2(1, 0),
                                            new Vector2(60, 90), new Vector2(-60, 460));
-            Row(col, 0, 4, "CONTINUE", () => { Show(null); _dir.Play(Mathf.Max(1, Store.Data.reached)); }, true);
-            Row(col, 1, 4, "DAILY", () => { Show(null); _dir.Play(Daily.SpecLevel, LoadKind.Daily); });
-            Row(col, 2, 4, "VAULTS", OpenVaults);
-            Row(col, 3, 4, "CALIBRATION", () => Show("manual"));
+            Row(col, 0, 5, "CONTINUE", () => { Show(null); _dir.Play(Mathf.Max(1, Store.Data.reached)); }, true);
+            Row(col, 1, 5, "DAILY", () => { Show(null); _dir.Play(Daily.SpecLevel, LoadKind.Daily); });
+            Row(col, 2, 5, "VAULTS", OpenVaults);
+            Row(col, 3, 5, "FORGE", ForgeScreens.OpenShelf);
+            Row(col, 4, 5, "CALIBRATE", ShowCalibrate);
 
             _playLabel = col.Find("CONTINUE").GetComponentInChildren<Text>();
         }
@@ -243,14 +248,192 @@ namespace Singularity.UI
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -180), new Vector2(0, -120));
 
             RectTransform col = Column(L, 300, 200);
-            Row(col, 0, 5, "RESUME", () => Show(null), true);
-            Row(col, 1, 5, "RESET", () => { Show(null); _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey); });
-            Row(col, 2, 5, "VAULTS", OpenVaults);
-            Row(col, 3, 5, "CALIBRATION", () => Show("manual"));
-            Row(col, 4, 5, "MENU", ShowTitle);
+            Row(col, 0, 6, "RESUME", () => Show(null), true);
+            Row(col, 1, 6, "RESET", () => { Show(null); _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey); });
+            Row(col, 2, 6, "VAULTS", OpenVaults);
+            Row(col, 3, 6, "BOARDS", ShowBoards);
+            Row(col, 4, 6, "CALIBRATE", ShowCalibrate);
+            Row(col, 5, 6, "MENU", ShowTitle);
         }
 
         public static void ShowPause(GameDirector dir) => Show("pause");
+
+        // ---- the plate, taught once -----------------------------------------
+        //
+        // Shown the first time a cube carries one, and never again. A mechanic this
+        // large should not arrive as a toast, and it should not arrive as a manual
+        // page either — it arrives when the thing is on screen, with the thing
+        // itself waiting behind the card.
+
+        static void BuildPlateTeach()
+        {
+            RectTransform L = Layer("plate");
+            UiKit.Label(L, "eyebrow", "A NEW COMPONENT", 20, Palette.Dim, TextAnchor.UpperCenter,
+                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -130), new Vector2(0, -100));
+            UiKit.Label(L, "h", "PLATES", 44, Palette.Rust, TextAnchor.UpperCenter,
+                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -190), new Vector2(0, -140));
+            UiKit.Label(L, "sub", "Everything you know how to do is about to be worth less.",
+                        20, Palette.Dim, TextAnchor.UpperCenter,
+                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -230), new Vector2(0, -200));
+
+            string[] rows =
+            {
+                "THE LATTICE INVERTS|Every trace goes dead. Every dead cell lights up.\nNothing moves — only what carries current.",
+                "IT LASTS FIVE SECONDS|Then the lattice springs back and puts you on the nearest\nplate. Running out costs you the walk, never the vault.",
+                "TAP IT AGAIN TO PRESS IT AGAIN|A plate is a door between two versions of the same engine,\nand the core is usually only reachable in one of them.",
+                "IT ALWAYS GIVES FOOTING|Cut clean through the lattice, visible from every face.\nWhile you stand on a plate every fold is legal.",
+            };
+
+            float y = -290;
+            foreach (string r in rows)
+            {
+                string[] p = r.Split('|');
+                UiKit.Label(L, p[0], p[0], 23, Palette.Ink, TextAnchor.UpperLeft,
+                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 30), new Vector2(-48, y));
+                UiKit.Label(L, p[0] + "_d", p[1], 19, Palette.Dim, TextAnchor.UpperLeft,
+                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 92), new Vector2(-48, y - 32));
+                y -= 118;
+            }
+
+            RectTransform go = UiKit.Rect(L, "go", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
+            UiKit.Bracketed(go, "go", "STEP ON IT", () => Show(null), 28, true);
+        }
+
+        public static void ShowPlateTeach() => Show("plate");
+
+        // ---- calibrate -------------------------------------------------------
+        //
+        // YOU CALIBRATE AN INSTRUMENT; YOU READ A MANUAL. These were the wrong way
+        // round in an early build: the settings lived unlabelled inside the pause
+        // card while the button called CALIBRATE opened the how-to, so a player
+        // looking for brightness pressed CALIBRATE and got a rulebook.
+
+        static void BuildCalibrate()
+        {
+            RectTransform L = Layer("calibrate");
+            UiKit.Label(L, "h", "CALIBRATE", 40, Palette.Ink, TextAnchor.UpperCenter,
+                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -140), new Vector2(0, -90));
+            UiKit.Label(L, "sub", "TUNE THE INSTRUMENT", 20, Palette.Dim, TextAnchor.UpperCenter,
+                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -176), new Vector2(0, -146));
+
+            RectTransform col = Column(L, 220, 200);
+            Switch(col, 0, 6, "SOUND", "", () => Store.Data.sound, v => { Store.Data.sound = v; if (v == 0) Sfx.I.StopAmbience(); else Sfx.I.Ambience(Vaults.VaultOf(_dir.S.levelNo)); });
+            Switch(col, 1, 6, "HAPTICS", "", () => Store.Data.haptic, v => Store.Data.haptic = v);
+            Switch(col, 2, 6, "EFFECTS", "SHAKE · SPARKS · BLOOM", () => Store.Data.fx, v => Store.Data.fx = v);
+            Switch(col, 3, 6, "FOLDS TO GO", "ARC: PERFECT LINE · GOLD: YOU SLIPPED", () => Store.Data.togo, v => Store.Data.togo = v);
+            Switch(col, 4, 6, "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL", () => Store.Data.depth, v => Store.Data.depth = v);
+            Stepper(col, 5, 6, "HAPTIC INTENSITY", () => Store.Data.buzz, v => Store.Data.buzz = v, 0, 150, 10);
+
+            RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
+            UiKit.Bracketed(back, "back", "BACK", Back, 28);
+        }
+
+        static void Switch(RectTransform col, int slot, int of, string label, string hint,
+                           System.Func<int> get, System.Action<int> set)
+        {
+            float h = 1f / of;
+            RectTransform r = UiKit.Rect(col, label, new Vector2(0, 1 - (slot + 1) * h), new Vector2(1, 1 - slot * h),
+                                         new Vector2(0, 6), new Vector2(0, -6));
+            UiKit.Label(r, "l", label, 22, Palette.Ink, TextAnchor.MiddleLeft,
+                        new Vector2(0, string.IsNullOrEmpty(hint) ? 0 : 0.42f), new Vector2(0.7f, 1), new Vector2(8, 0), Vector2.zero);
+            if (!string.IsNullOrEmpty(hint))
+                UiKit.Label(r, "h", hint, 15, Palette.Dim2, TextAnchor.MiddleLeft,
+                            new Vector2(0, 0), new Vector2(0.9f, 0.42f), new Vector2(8, 0), Vector2.zero);
+
+            RectTransform slot2 = UiKit.Rect(r, "sw", new Vector2(0.72f, 0.14f), new Vector2(1, 0.86f), Vector2.zero, new Vector2(-8, 0));
+            Button b = null;
+            b = UiKit.Bracketed(slot2, "sw", get() != 0 ? "ON" : "OFF", () =>
+            {
+                int v = get() != 0 ? 0 : 1;
+                set(v);
+                Store.Save();
+                UiKit.SetLabel(b, v != 0 ? "ON" : "OFF");
+            }, 22);
+        }
+
+        static void Stepper(RectTransform col, int slot, int of, string label,
+                            System.Func<int> get, System.Action<int> set, int lo, int hi, int step)
+        {
+            float h = 1f / of;
+            RectTransform r = UiKit.Rect(col, label, new Vector2(0, 1 - (slot + 1) * h), new Vector2(1, 1 - slot * h),
+                                         new Vector2(0, 6), new Vector2(0, -6));
+            UiKit.Label(r, "l", label, 22, Palette.Ink, TextAnchor.MiddleLeft,
+                        new Vector2(0, 0), new Vector2(0.6f, 1), new Vector2(8, 0), Vector2.zero);
+
+            Text val = UiKit.Label(r, "v", get() + "%", 22, Palette.Rust, TextAnchor.MiddleCenter,
+                                   new Vector2(0.6f, 0), new Vector2(0.76f, 1), Vector2.zero, Vector2.zero);
+
+            RectTransform down = UiKit.Rect(r, "d", new Vector2(0.76f, 0.14f), new Vector2(0.88f, 0.86f), Vector2.zero, Vector2.zero);
+            UiKit.Bracketed(down, "d", "-", () => { set(Mathf.Max(lo, get() - step)); Store.Save(); val.text = get() + "%"; }, 22);
+            RectTransform up = UiKit.Rect(r, "u", new Vector2(0.88f, 0.14f), new Vector2(1, 0.86f), Vector2.zero, new Vector2(-8, 0));
+            UiKit.Bracketed(up, "u", "+", () => { set(Mathf.Min(hi, get() + step)); Store.Save(); val.text = get() + "%"; }, 22);
+        }
+
+        public static void ShowCalibrate() => Show("calibrate");
+
+        // ---- boards ----------------------------------------------------------
+        //
+        // Every row reads its own local record, so the screen is worth opening on
+        // a plane — the RANKING is the part that needs a host, not the number.
+
+        static RectTransform _boardList;
+
+        static void BuildBoards()
+        {
+            RectTransform L = Layer("boards");
+            UiKit.Label(L, "h", "BOARDS", 40, Palette.Ink, TextAnchor.UpperCenter,
+                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -140), new Vector2(0, -90));
+            _boardList = UiKit.Rect(L, "list", new Vector2(0, 0), new Vector2(1, 1), new Vector2(40, 200), new Vector2(-40, -180));
+
+            RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
+            UiKit.Bracketed(back, "back", "BACK", Back, 28);
+        }
+
+        public static void ShowBoards()
+        {
+            for (int i = _boardList.childCount - 1; i >= 0; i--) Object.Destroy(_boardList.GetChild(i).gameObject);
+
+            var rows = new List<(string k, string v)>();
+
+            // The daily first, because it is the one number shared with anybody else.
+            int today = Daily.DayIndex();
+            rows.Add(("DAILY " + Daily.DayLabel(),
+                      Store.Data.dailySolved != 0 && Store.Data.dailyDay == today
+                          ? Store.Data.dailyBest + " FOLDS" : "UNSOLVED"));
+            rows.Add(("STREAK", Store.Data.streakCur + " · BEST " + Store.Data.streakBest));
+
+            // Then one row per vault: a vault is the unit a board ranks, scored on
+            // the time to clear every cube in it, so a vault with a cube missing has
+            // no total at all rather than a flattering partial one.
+            for (int band = 0; band < Vaults.RankedVaults; band++)
+            {
+                int start = Vaults.VaultStart(band), size = Vaults.VaultSize(band);
+                if (start > Store.Data.reached) break;
+
+                long total = 0;
+                int have = 0;
+                for (int i = 0; i < size; i++)
+                    if (Store.TryTimeBest(start + i, out long ms)) { total += ms; have++; }
+
+                string v = have == size
+                    ? (total / 1000f).ToString("0.0") + "s"
+                    : have + "/" + size;
+                rows.Add(("VAULT " + Vaults.RomanOf(band) + " · " + Vaults.VaultName(band), v));
+            }
+
+            float h = 1f / Mathf.Max(9, rows.Count);
+            for (int i = 0; i < rows.Count; i++)
+            {
+                RectTransform r = UiKit.Rect(_boardList, "r" + i,
+                    new Vector2(0, 1 - (i + 1) * h), new Vector2(1, 1 - i * h), new Vector2(0, 3), new Vector2(0, -3));
+                UiKit.Label(r, "k", rows[i].k, 20, Palette.Dim, TextAnchor.MiddleLeft,
+                            Vector2.zero, new Vector2(0.72f, 1), new Vector2(8, 0), Vector2.zero);
+                UiKit.Label(r, "v", rows[i].v, 22, Palette.Ink, TextAnchor.MiddleRight,
+                            new Vector2(0.72f, 0), Vector2.one, Vector2.zero, new Vector2(-8, 0));
+            }
+
+            Show("boards");
+        }
 
         // ---- the win card ---------------------------------------------------
 

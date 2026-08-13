@@ -88,28 +88,39 @@ namespace UnityEngine
         public Rect(float x, float y, float w, float h) { }
     }
 
+    /// Mathf is implemented for real rather than stubbed. Everywhere else a stub
+    /// returning zero is harmless — the call is a no-op whose result nobody reads.
+    /// Here it would be a landmine: a Mathf that quietly answers 0 turns a
+    /// runnable check into one that passes for the wrong reason. Implementing it
+    /// is four lines a function and it is what lets the pure-logic half of the
+    /// game layer actually EXECUTE under this harness, not merely compile.
     public static class Mathf
     {
         public const float PI = 3.14159265f;
         public const float Rad2Deg = 57.29578f;
         public const float Deg2Rad = 0.0174532924f;
-        public static float Abs(float f) => 0;
-        public static int Abs(int f) => 0;
-        public static float Min(float a, float b) => 0;
-        public static int Min(int a, int b) => 0;
-        public static float Max(float a, float b) => 0;
-        public static int Max(int a, int b) => 0;
-        public static float Clamp(float v, float a, float b) => 0;
-        public static int Clamp(int v, int a, int b) => 0;
-        public static float Clamp01(float v) => 0;
-        public static float Lerp(float a, float b, float t) => 0;
-        public static float MoveTowards(float a, float b, float d) => 0;
-        public static float Pow(float a, float b) => 0;
-        public static float Sqrt(float a) => 0;
-        public static float PerlinNoise(float x, float y) => 0;
-        public static int RoundToInt(float f) => 0;
-        public static int CeilToInt(float f) => 0;
-        public static int FloorToInt(float f) => 0;
+        public static float Abs(float f) => Math.Abs(f);
+        public static int Abs(int f) => Math.Abs(f);
+        public static float Min(float a, float b) => Math.Min(a, b);
+        public static int Min(int a, int b) => Math.Min(a, b);
+        public static float Max(float a, float b) => Math.Max(a, b);
+        public static int Max(int a, int b) => Math.Max(a, b);
+        public static float Clamp(float v, float a, float b) => v < a ? a : v > b ? b : v;
+        public static int Clamp(int v, int a, int b) => v < a ? a : v > b ? b : v;
+        public static float Clamp01(float v) => v < 0 ? 0 : v > 1 ? 1 : v;
+        public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
+        public static float MoveTowards(float a, float b, float d)
+            => Math.Abs(b - a) <= d ? b : a + Math.Sign(b - a) * d;
+        public static float Pow(float a, float b) => (float)Math.Pow(a, b);
+        public static float Sqrt(float a) => (float)Math.Sqrt(a);
+        public static float PerlinNoise(float x, float y) => 0.5f;
+        public static int RoundToInt(float f) => (int)Math.Round(f, MidpointRounding.AwayFromZero);
+        public static int CeilToInt(float f) => (int)Math.Ceiling(f);
+        public static int FloorToInt(float f) => (int)Math.Floor(f);
+        public static float Round(float f) => (float)Math.Round(f, MidpointRounding.AwayFromZero);
+        public static float Sin(float f) => (float)Math.Sin(f);
+        public static float Cos(float f) => (float)Math.Cos(f);
+        public static float Exp(float f) => (float)Math.Exp(f);
     }
 
     public class Object
@@ -172,6 +183,7 @@ namespace UnityEngine
     public class MonoBehaviour : Behaviour
     {
         public Coroutine StartCoroutine(IEnumerator r) => null;
+        public void StopCoroutine(Coroutine c) { }
         public void StopAllCoroutines() { }
     }
 
@@ -260,6 +272,42 @@ namespace UnityEngine
     public enum TextureFormat { RGBA32 }
     public enum FilterMode { Bilinear }
     public enum TextureWrapMode { Clamp }
+
+    public class AudioClip : Object
+    {
+        public delegate void PCMReaderCallback(float[] data);
+        public delegate void PCMSetPositionCallback(int position);
+        public static AudioClip Create(string name, int lengthSamples, int channels, int frequency, bool stream) => null;
+        public static AudioClip Create(string name, int lengthSamples, int channels, int frequency, bool stream, PCMReaderCallback read) => null;
+        public bool SetData(float[] data, int offset) => true;
+    }
+
+    public class AudioSource : Behaviour
+    {
+        public AudioClip clip { get; set; }
+        public float volume { get; set; }
+        public bool loop { get; set; }
+        public bool playOnAwake { get; set; }
+        public bool isPlaying => false;
+        public float spatialBlend { get; set; }
+        public bool bypassReverbZones { get; set; }
+        public void Play() { }
+        public void Stop() { }
+        public void PlayScheduled(double time) { }
+        public void PlayOneShot(AudioClip c, float v) { }
+    }
+
+    public class AudioEchoFilter : Behaviour
+    {
+        public float delay { get; set; }
+        public float decayRatio { get; set; }
+        public float wetMix { get; set; }
+        public float dryMix { get; set; }
+    }
+
+    public class AudioLowPassFilter : Behaviour { public float cutoffFrequency { get; set; } }
+
+    public static class AudioSettings { public static double dspTime => 0; }
 
     public class Font : Object
     {
@@ -399,6 +447,7 @@ namespace UnityEngine
             public int fontSize { get; set; }
             public string text { get; set; }
             public TextAnchor alignment { get; set; }
+            public bool supportRichText { get; set; }
             public HorizontalWrapMode horizontalOverflow { get; set; }
             public VerticalWrapMode verticalOverflow { get; set; }
         }
@@ -413,6 +462,17 @@ namespace UnityEngine
         {
             public Color normalColor, highlightedColor, pressedColor, selectedColor, disabledColor;
             public float colorMultiplier, fadeDuration;
+        }
+
+        public class InputField : Selectable
+        {
+            public string text { get; set; }
+            public int characterLimit { get; set; }
+            public bool readOnly { get; set; }
+            public Text textComponent { get; set; }
+            public Graphic placeholder { get; set; }
+            public LineType lineType { get; set; }
+            public enum LineType { SingleLine, MultiLineSubmit, MultiLineNewline }
         }
 
         public class Button : Selectable { public ButtonClickedEvent onClick => null; }

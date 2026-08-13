@@ -31,6 +31,7 @@ namespace Singularity.Game
         bool _down, _peeking;
 
         public bool Enabled = true;
+        public Sfx Sfx;
 
         public InputRouter(Session s, CubeView view, Camera cam)
         {
@@ -119,7 +120,9 @@ namespace Singularity.Game
             float was = Mathf.Abs(_s.drag.ang);
             _s.drag.ang = qq * Mathf.PI / 2f;
 
-            // the detent is something you can feel coming
+            // the vault complains as it moves, and complains louder near the
+            // detent — so the commit threshold is something you can hear coming
+            if (Mathf.Abs(_s.drag.ang) - was > 0.12f) Sfx?.Creak(Mathf.Abs(qq));
             if (was < Mathf.PI / 4f && Mathf.Abs(_s.drag.ang) >= Mathf.PI / 4f) Haptics.Buzz(Haptics.Fold);
             _last = p;
         }
@@ -154,6 +157,7 @@ namespace Singularity.Game
         {
             if (_peeking) return;
             _peeking = true;
+            Sfx?.Peek();
             _view.peekYaw = CubeView.PeekYaw;
             _view.peekPitch = CubeView.PeekPitch;
             if (Store.Data.sawPeek == 0) { Store.Data.sawPeek = 1; Store.Save(); }
@@ -163,6 +167,7 @@ namespace Singularity.Game
         {
             if (!_peeking) return;
             _peeking = false;
+            Sfx?.PeekOff();
             _view.peekYaw = 0f;
             _view.peekPitch = 0f;
         }

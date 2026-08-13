@@ -141,17 +141,19 @@ dependency to marshal:
 
 Honest list, in the order it matters:
 
-- **The Forge** — the deck-at-a-time cube editor, its verify pass and its
-  save/import flow. All of the machinery it needs is ported and tested
-  (`Validation`, `ShareCode`, `Identity`, and the collision check against the
-  baked catalogue of 2,070 minted identities); only the editing UI is missing.
-- **Audio.** The original synthesises everything — no files, six sounds, a
-  per-vault ambience bed and a duck on the exit. Unity can do the same with
-  procedural `AudioClip`s.
-- **The particle and flash work.** Screen shake, kick, punch, squash, the
-  vignette and the flash are all in; the sparks, chips, rings and the plate's
-  spreading front are not.
-- **Boards, and the daily's week/month/season periods.** The arithmetic is
-  ported in `Daily`; there is no screen for it.
-- **Calibrate.** The settings exist in `Store` and are read everywhere they
-  should be; the screen that edits them is not built.
+- **The particle work.** Screen shake, kick, punch, squash, the vignette, the
+  flash and the whole audio layer are in; the sparks, chips, rings and the
+  plate's spreading front are not. This is the biggest remaining gap in *feel*
+  and none of it is in the rules.
+- **Ranked boards.** The BOARDS screen reads every local record and is worth
+  opening offline, which is most of what it was for — but the daily's
+  week/month/season rollups compute a ranking that has nowhere to go without a
+  host. The arithmetic is ported in `Daily`.
+- **Brightness and contrast.** Two of the calibrate sliders in the original
+  apply a filter over the whole frame. The settings persist; nothing reads them
+  yet. In Unity they want a full-screen blit rather than a CSS filter.
+
+Everything else is here: the rules, the three verbs, the vault ladder, the
+daily and its streak, the Forge with its verify pass and share codes, the
+manual, the plate lesson, calibrate, the win card, audio, haptics and
+persistence.

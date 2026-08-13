@@ -110,7 +110,7 @@ namespace Singularity.UI
             RectTransform bot = UiKit.Rect(_root, "barBot", new Vector2(0, 0), new Vector2(1, 0),
                                            new Vector2(0, 0), new Vector2(0, 128));
             Third(bot, 0, "MENU", () => Screens.ShowPause(_dir));
-            Third(bot, 1, "UNDO", () => { if (!_dir.S.Undo()) Toast("NOTHING TO UNDO"); });
+            Third(bot, 1, "UNDO", () => { if (_dir.S.Undo()) Sfx.I.Undo(); else Toast("NOTHING TO UNDO"); });
             Third(bot, 2, "HINT", DoHint);
 
             _toast = UiKit.Label(_root, "toast", "", 26, Palette.Ink, TextAnchor.LowerCenter,

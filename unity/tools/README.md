@@ -25,6 +25,30 @@ needs a declaration adding, that is the point: the list should stay short.
 It is deliberately **not** inside `Assets/`, so Unity never compiles it and
 there is no chance of it shadowing the real engine.
 
+### It also runs
+
+`Mathf` is implemented for real rather than stubbed. Everywhere else a stub
+returning zero is harmless — the call is a no-op whose result nobody reads.
+There it would be a landmine: a `Mathf` that quietly answers 0 turns a runnable
+check into one that passes for the wrong reason.
+
+With it real, the harness can **execute** the pure-logic half of the game layer,
+not merely compile it:
+
+```sh
+dotnet run --project unity/tools/UnityStubs
+```
+
+runs the Forge's model — name folding, resizing, mark lifetimes, node/lock
+pairing, the verify pass and import — against the real `Singularity.Core`. The
+stubbed `PlayerPrefs` returns nothing, so `Store` falls back to a fresh
+in-memory save, which is exactly the "device with storage disabled" path the
+original is written to survive. It is not a special case invented for the test.
+
+The same assertions exist in `Assets/Tests/EditMode/ForgeTests.cs`. They are
+duplicated rather than replaced: the harness proves the logic, and the Test
+Runner proves it still works with Unity's serialisation and lifecycle underneath.
+
 ## Parity against the original
 
 `Singularity.Core` has no engine references at all — that is what its

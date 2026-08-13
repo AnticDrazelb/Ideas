@@ -12,6 +12,7 @@ namespace Singularity.Game
     {
         public Action<string> Toast;
         public Action<Int3, Surf> Stepped;
+        public Action<Int3> Landed;          // the last step of a walk, which lands rather than steps
         public Action<Int3, int> DoorOpened;
         public Action<Int3, int> KeyTaken;
         public Action<Int3, int> PlateFired;      // cell, bit
@@ -360,6 +361,7 @@ namespace Singularity.Game
             if (walking.queue.Count == 0)
             {
                 walking = null;
+                On.Landed?.Invoke(pos);
                 Settle();
                 AfterAction();
             }
