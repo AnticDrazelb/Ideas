@@ -35,17 +35,13 @@ android {
 
     // THE GAME IS ONE FILE AND IT MUST STAY ONE FILE.
     //
-    // The page reads its own source at runtime — it pulls the level generator
-    // out of `document.querySelector('script').textContent` and hands it to a
-    // Worker. Anything that rewrites, minifies or splits the HTML breaks level
+    // There is deliberately no asset processing configured below. The page reads
+    // its own source at runtime — it pulls the level generator out of
+    // `document.querySelector('script').textContent` and hands it to a Worker —
+    // so anything that rewrites, minifies or splits the HTML breaks level
     // generation on the second cube and nowhere earlier, which is about the
-    // worst place for a build step to leave a bug. So the asset is shipped
-    // verbatim, and the only thing done to it is compression in the APK.
-    androidResources {
-        // (assets are deflated by default; listed here as the seam to reach for
-        // if a future asset ever needs storing uncompressed)
-        noCompress += listOf<String>()
-    }
+    // worst place for a build step to leave a bug. The asset ships verbatim and
+    // the APK just deflates it.
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
