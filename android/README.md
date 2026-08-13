@@ -260,3 +260,68 @@ working bridge and one that silently disappears in release.
   one thing worth checking on the very first launch.
 - The Play Games path, which needs a real Play Console project to exercise at
   all.
+
+---
+
+## Changes made to the packaged game asset
+
+`app/src/main/assets/game/index.html` is **not** a byte-identical copy of the
+uploaded game any more. Two fixes were made in it after testing on a Galaxy
+Tab A6 (2016). They belong in the generator sources under `turnkey/tools/`
+(`game.js` for the script, `shell-head.html` for the stylesheet) — **the next
+`build.sh` run will drop them otherwise.**
+
+### 1. Adaptive resolution (`perfWatch`, and one line in `fit`)
+
+`fit()` allocated the canvas at the panel's native resolution, capped only at
+DPR 2.5 — a cap about sharpness, which never engages on the devices that need
+help.
+
+A fixed pixel budget cannot fix this, and it is worth being precise about why.
+A modern phone is 390×844 CSS at DPR 3: **2.96M device pixels**, at sixty
+frames. The Tab A6 is 1280×800 at DPR 1.5: **2.3M** — *fewer* pixels, on a GPU
+that cannot fill them. The slow device is asking for less work than the fast
+one, so no constant can separate them.
+
+The frame time actually achieved can. The median of a 45-frame window drives a
+scale factor on DPR. Three properties are deliberate:
+
+- **Median, not mean** — one 200 ms hitch while a cube is minted is not
+  evidence that the device is slow.
+- **Down only** — a controller that can also step up sits on the threshold and
+  oscillates for the whole session, which is a worse artefact than the
+  resolution it was recovering.
+- **Computed step, not fixed** — fill cost goes with *area*, so the scale
+  needed is `sqrt(target/measured)`, damped at 0.75 for the fixed CPU cost no
+  resolution change will touch. A fixed step takes five re-fits and twenty
+  seconds, with the picture changing under the player the whole way.
+
+Not persisted: one unlucky sample would pin a fast device low permanently, and
+re-measuring costs about two seconds.
+
+### 2. A tablet is not a television (`docked()`, `html.tv`)
+
+The docked layout keyed off width alone:
+
+```js
+if(landscape() && W >= 900){   /* assume a television is eating the edges */
+```
+```css
+@media (min-aspect-ratio: 13/10) and (min-width: 900px){   /* type in vh, for viewing distance */
+```
+
+A ten-inch tablet in landscape is ~1280 CSS pixels wide. Both fired, so a
+tablet held at arm's length got television overscan and sofa-distance type —
+the whole of why the interface read as a mess on one.
+
+Width cannot tell a tablet from a television. The absence of a touchscreen
+can. The test moved into `docked()`, and the stylesheet now keys off the `tv`
+class `fit()` sets. A real console gets exactly what it got before.
+
+### What was checked
+
+The page is still a **single `<script>` block** and the worker core still
+extracts and parses out of it. That is not incidental: the level generator is
+built by slicing this file's own source between two markers, so an edit that
+split the script or landed inside the core would break cube generation on the
+second level and nowhere earlier.
