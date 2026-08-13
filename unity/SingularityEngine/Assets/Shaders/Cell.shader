@@ -24,6 +24,11 @@ Shader "Singularity/Cell"
         _Edge     ("Edge inset", Range(0,0.5)) = 0.06
         _EdgeLift ("Edge brightness", Range(0,2)) = 0.55
         _Dim      ("Dim", Range(0,2)) = 1
+
+        // Plates set this to Always. A plate is cut clean through the lattice and
+        // is legible from every face in every world — that is the rule the whole
+        // mechanic is built on, not a rendering convenience.
+        [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest ("Z test", Float) = 4
     }
 
     SubShader
@@ -36,6 +41,7 @@ Shader "Singularity/Cell"
         // nothing but a chance to get the winding wrong. Plates are cut through
         // the lattice and genuinely do want both of their faces.
         Cull Off
+        ZTest [_ZTest]
 
         Pass
         {
