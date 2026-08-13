@@ -1,0 +1,111 @@
+// THE BOARD, AS A SOLID.
+//
+// The web original draws two paths that agree exactly at rest: a flat grid of
+// rects when the cube is square to the camera, and an honest 3D solid while it
+// is folding. In Unity there is only ever the solid — because with an
+// orthographic camera looking straight down one axis, the depth buffer performs
+// the collapse for us. The nearest solid cell in a column is the one that gets
+// drawn, which is precisely the rule the solver plays by. The renderer and the
+// rules cannot drift apart, because they are the same statement.
+//
+// TWO RAMPS THAT MUST NEVER MEET. Depth is drawn as brightness, and material is
+// drawn as brightness too, so the two jobs are given non-overlapping ranges: a
+// near lump of lattice must never be brighter than a far trace, or "may I stand
+// there" stops being readable. The ranges live in Palette.cs and arrive here as
+// _ColFar / _ColNear.
+Shader "Singularity/Cell"
+{
+    Properties
+    {
+        _ColFar   ("Colour, far",  Color) = (0.04, 0.05, 0.07, 1)
+        _ColNear  ("Colour, near", Color) = (0.22, 0.28, 0.36, 1)
+        _HalfSpan ("Half span of cell centres", Float) = 1
+        _Facing   ("Side-face darkening", Range(0,1)) = 0.42
+        _Edge     ("Edge inset", Range(0,0.5)) = 0.06
+        _EdgeLift ("Edge brightness", Range(0,2)) = 0.55
+        _Dim      ("Dim", Range(0,2)) = 1
+    }
+
+    SubShader
+    {
+        Tags { "RenderType" = "Opaque" "Queue" = "Geometry" }
+        LOD 100
+
+        // Cull Off, deliberately. The cube is a closed opaque solid, so the depth
+        // buffer already picks the nearest face and backface culling would buy
+        // nothing but a chance to get the winding wrong. Plates are cut through
+        // the lattice and genuinely do want both of their faces.
+        Cull Off
+
+        Pass
+        {
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "UnityCG.cginc"
+
+            struct appdata
+            {
+                float4 vertex : POSITION;
+                float3 normal : NORMAL;
+                float2 uv     : TEXCOORD0;   // face-local 0..1, for the inset hairline
+                float3 centre : TEXCOORD1;   // the CELL's centre in object space
+            };
+
+            struct v2f
+            {
+                float4 pos     : SV_POSITION;
+                float2 uv      : TEXCOORD0;
+                float  depth01 : TEXCOORD1;
+                float3 vnrm    : TEXCOORD2;
+            };
+
+            fixed4 _ColFar, _ColNear;
+            float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim;
+
+            v2f vert(appdata v)
+            {
+                v2f o;
+                o.pos = UnityObjectToClipPos(v.vertex);
+
+                // Depth is measured from the CELL CENTRE, not the vertex, so that
+                // at rest a front face reads exactly d/(N-1) — the same number the
+                // flat 2D original prints — rather than half a step brighter.
+                // Measured against the cube's own centre so it is independent of
+                // how far away the camera happens to sit.
+                float centreZ = UnityObjectToViewPos(float4(v.centre, 1)).z;
+                float originZ = UnityObjectToViewPos(float4(0, 0, 0, 1)).z;
+                // Unity view space looks down -Z, so a LARGER z is nearer.
+                o.depth01 = saturate((centreZ - originZ) / (2.0 * _HalfSpan) + 0.5);
+
+                o.vnrm = normalize(mul((float3x3)UNITY_MATRIX_IT_MV, v.normal));
+                o.uv = v.uv;
+                return o;
+            }
+
+            fixed4 frag(v2f i) : SV_Target
+            {
+                fixed3 c = lerp(_ColFar.rgb, _ColNear.rgb, i.depth01);
+
+                // A face turned away from the camera is darker, so that mid-fold
+                // the thing reads as a solid being turned rather than as a set of
+                // squares sliding over each other. At rest every visible face is
+                // dead-on and this term is exactly 1, which is what keeps the
+                // settled board identical to the flat original.
+                float facing = saturate(dot(i.vnrm, float3(0, 0, 1)));
+                c *= lerp(1.0 - _Facing, 1.0, facing);
+
+                // The schematic hairline: every cell is drawn inset, so a run of
+                // adjacent traces still reads as separate cells you could stand on
+                // one at a time.
+                float2 d = min(i.uv, 1.0 - i.uv);
+                float edge = 1.0 - smoothstep(0.0, _Edge, min(d.x, d.y));
+                c *= 1.0 + edge * _EdgeLift * facing;
+
+                return fixed4(c * _Dim, 1);
+            }
+            ENDCG
+        }
+    }
+    Fallback Off
+}

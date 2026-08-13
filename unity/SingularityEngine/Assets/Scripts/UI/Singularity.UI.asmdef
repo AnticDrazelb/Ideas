@@ -1,0 +1,17 @@
+{
+    "name": "Singularity.UI",
+    "rootNamespace": "Singularity.UI",
+    "references": [
+        "Singularity.Core",
+        "Singularity.Game"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
