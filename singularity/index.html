@@ -563,6 +563,15 @@ h2+.manual{margin-top:14px;}
   letter-spacing:.22em;margin-bottom:0;
 }
 .btn.ghost:active{background:transparent;color:var(--rust);box-shadow:inset 0 1px 0 var(--rust);}
+/* A ROW THAT REPLACES A GHOST LINE MUST COST WHAT THE GHOST LINE COST.
+   FORGE was added to the title by pairing it with CALIBRATE, which turned one
+   full-width ghost into a two-up row — and a .btn2 carries full button
+   metrics, so the row came out 21px taller and the hero cube paid for every
+   one of them. This is the ghost's own height and its zero bottom margin,
+   applied to the pair, so the column is the height it was and the cube is the
+   size it was. */
+.btn2.slim{margin-bottom:0;}
+.btn2.slim .btn{min-height:var(--h-ctl);font-size:var(--t-fine);letter-spacing:.16em;}
 /* the daily says whether today's is done, in the row itself, because a
    second screen to find that out is a second screen */
 .dailyMark{font-size:var(--t-tiny);letter-spacing:.16em;color:var(--arc);margin-left:12px;}
@@ -1368,7 +1377,16 @@ html.disp #stage, html.disp .layer, html.disp #hud{
       <button class="btn" id="btnDaily">[ DAILY ]<span class="dailyMark" id="dailyMark"></span></button>
       <button class="btn" id="btnCubes">[ VAULTS ]</button>
     </div>
-    <button class="btn ghost" id="btnManual">[ CALIBRATE ]</button>
+    <!-- FORGE SITS ON THE TITLE AND COSTS NOTHING TO PUT THERE. It used to be
+         one level down behind VAULTS, which is a strange place to hide the
+         half of the game where a player makes something. Pairing it with
+         CALIBRATE turns one full-width row into one two-up row, so the
+         column is exactly as tall as it was and the hero cube — which this
+         screen is built around — does not move a pixel. -->
+    <div class="btn2 slim">
+      <button class="btn" id="btnForge">[ FORGE ]</button>
+      <button class="btn ghost" id="btnManual">[ CALIBRATE ]</button>
+    </div>
     <div class="foot">DIAGNOSTIC BUILD · NO DEAD PIXELS</div>
   </div>
 </div>
@@ -1389,10 +1407,7 @@ html.disp #stage, html.disp .layer, html.disp #hud{
     <button class="pill" id="btnJump">[ GO ]</button>
   </div>
   <div class="edMsg" id="jumpMsg"></div>
-  <div class="btn2">
-    <button class="btn" id="btnForge">[ FORGE ]</button>
-    <button class="btn ghost" id="btnCubesBack">[ BACK ]</button>
-  </div>
+  <button class="btn ghost" id="btnCubesBack">[ BACK ]</button>
 </div>
 
 <!-- ============ THE FORGE — cubes this player built ============
@@ -8467,7 +8482,7 @@ $('btnHint').onclick = hint;
 $('btnNext').onclick = function(){ goLevel(levelNo + 1); };
 $('btnRetry').onclick = function(){ loadLevel(made ? MADE : daily ? DAILY : levelNo, practice); show(null); };
 $('btnWinCubes').onclick = function(){
-  if(made){ buildMadeGrid(); show('scMade'); } else if(daily) show('scTitle'); else openCubes();
+  if(made) openMade(); else if(daily) show('scTitle'); else openCubes();
 };
 
 /* ============================================================
@@ -8520,7 +8535,12 @@ applyDisplay();
    is worth opening on a plane, and when there is no host it says so plainly
    instead of presenting six buttons that quietly do nothing.
    ============================================================ */
-var boardsFrom = 'scPause';
+/* WHERE BACK GOES IS NOT A PROPERTY OF THE SCREEN, IT IS A PROPERTY OF THE
+   TRIP. The forge is reachable from the title and the win card, and the
+   boards from the pause screen, so a hardwired destination sends somebody
+   somewhere they have never been — which is not a dead end but reads like
+   one. Each of these remembers the door it came through. */
+var boardsFrom = 'scPause', madeFrom = 'scTitle';
 function msLabel(ms){
   if(ms === undefined || ms < 0) return '—';
   var t = Math.round(ms/1000), m = Math.floor(t/60);
@@ -8722,7 +8742,14 @@ function reportCube(id){
 }
 
 /* ---------- the forge ---------- */
-function openMade(){ buildMadeGrid(); madeStatus(''); show('scMade'); }
+function openMade(from){
+  if(from) madeFrom = from;
+  buildMadeGrid(); madeStatus(''); show('scMade');
+}
+function leaveMade(){
+  if(madeFrom === 'scCubes'){ buildCubeGrid(); show('scCubes'); }
+  else { refreshDaily(); show('scTitle'); }
+}
 /* THE SEED BOX. `mint` is a pure function of the level number, so a number
    typed here cuts exactly the cube everybody else's phone cuts for it —
    which is what a Minecraft seed is, and it is the one part of that idea
@@ -8751,8 +8778,8 @@ function jumpSay(t, kind){
 }
 $('btnJump').onclick = jumpCube;
 $('jumpNo').onkeydown = function(e){ if(e.key === 'Enter') jumpCube(); };
-$('btnForge').onclick    = openMade;
-$('btnMadeBack').onclick = function(){ buildCubeGrid(); show('scCubes'); };
+$('btnForge').onclick    = function(){ openMade('scTitle'); };
+$('btnMadeBack').onclick = leaveMade;
 $('btnNewCube').onclick  = function(){ edNew(5); edSaveDraft(); openEditor(null); };
 $('btnImport').onclick   = edImport;
 $('edUp').onclick        = function(){ if(ed.layer < ed.n - 1){ ed.layer++; edDraw(); } };
@@ -8765,7 +8792,7 @@ $('edSize').onclick      = function(){
 $('edCheck').onclick = function(){ edVerify(); };
 $('edSave').onclick  = edSaveCube;
 $('edPlay').onclick  = edPlay;
-$('edBack').onclick  = openMade;
+$('edBack').onclick  = function(){ openMade(); };
 $('edTeach').onclick = coachStart;
 $('edCopy').onclick = function(){
   var f = $('edCode'), c = f.value;
@@ -8853,7 +8880,7 @@ window.TURNKEY = {
     if(!$('scPlate').classList.contains('hide')){ show(null); return true; }
     if(!$('scBoards').classList.contains('hide')){ show(boardsFrom); return true; }
     if(!$('scEdit').classList.contains('hide')){ openMade(); return true; }
-    if(!$('scMade').classList.contains('hide')){ buildCubeGrid(); show('scCubes'); return true; }
+    if(!$('scMade').classList.contains('hide')){ leaveMade(); return true; }
     if(!$('scCubes').classList.contains('hide')){
       if(viewBand > 0){ viewBand--; buildCubeGrid(); return true; }
       refreshDaily(); show('scTitle'); return true;

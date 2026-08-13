@@ -417,8 +417,8 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
     const b1 = window.TURNKEY.onBack();
     const onMade = !document.getElementById('scMade').classList.contains('hide');
     const b2 = window.TURNKEY.onBack();
-    const onCubes = !document.getElementById('scCubes').classList.contains('hide');
-    return {drafted: !!d && d.n === 6 && d.name === 'HALF DONE', got, b1, onMade, b2, onCubes};
+    const onTitle = !document.getElementById('scTitle').classList.contains('hide');
+    return {drafted: !!d && d.n === 6 && d.name === 'HALF DONE', got, b1, onMade, b2, onTitle};
   });
   ok('an in-progress cube is drafted as it is built', persist.drafted, JSON.stringify(persist.got));
   ok('...and comes back after the app is killed',
@@ -426,7 +426,11 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
      JSON.stringify(persist.got));
   ok('back leaves the editor for the shelf, not the app',
      persist.b1 === true && persist.onMade);
-  ok('...and back again returns to the vaults', persist.b2 === true && persist.onCubes);
+  /* The forge used to hang off the vault shelf, so back from it went there.
+     It is a title-level destination now — reached from the main screen — and
+     back returns to whichever door was used. This trip opened it directly
+     rather than through a door, so it lands on the title. */
+  ok('...and back again leaves the forge for the title', persist.b2 === true && persist.onTitle);
 
   /* ---- and it fits the narrowest phone ---------------------------------- */
   /* the deck grid was sized in vw, which is the VIEWPORT — but it sits inside
