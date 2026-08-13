@@ -1,0 +1,54 @@
+name: Android debug APK
+
+# Builds an installable debug APK and attaches it to the run as an artifact.
+#
+# This exists because the Android SDK and Google's Maven live on dl.google.com,
+# which is not reachable from every environment the project gets worked on in.
+# A GitHub runner has the SDK preinstalled and can reach Google Maven, so this is
+# both the build and the only full compile check the project gets.
+
+on:
+  push:
+    branches: ["main", "master", "claude/**"]
+    paths:
+      - "android/**"
+      - ".github/workflows/android-debug-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Report the toolchain
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "--- installed platforms ---"
+          ls "$ANDROID_HOME/platforms" 2>/dev/null || echo "(none preinstalled; AGP will fetch)"
+          echo "--- installed build-tools ---"
+          ls "$ANDROID_HOME/build-tools" 2>/dev/null || echo "(none preinstalled; AGP will fetch)"
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: singularity-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
