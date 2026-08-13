@@ -1467,6 +1467,9 @@ html.disp #stage, html.disp .layer, html.disp #hud{
     <button class="btn" id="edPlay">[ PLAY ]</button>
     <button class="btn ghost" id="edBack">[ BACK ]</button>
   </div>
+  <!-- Only on a cube that has actually been saved: a new one has nothing to
+       delete, and a button that does nothing is worse than no button. -->
+  <button class="btn ghost hide" id="edDelete">[ DELETE THIS CUBE ]</button>
 </div>
 
 <!-- ============ MANUAL ============
@@ -7864,6 +7867,11 @@ function show(id){
        waiting the next time somebody pauses */
     if(id !== 'scPause'){ reportArmed = ''; reportSay(''); }
   }
+  if(id !== 'scEdit'){
+    /* a half-tapped delete must not still be waiting the next time somebody
+       opens a cube — least of all a DIFFERENT cube */
+    edDelArmed = '';
+  }
 }
 var ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 function roman(b){ return b < ROMAN.length ? ROMAN[b] : String(b+1); }
@@ -8232,6 +8240,7 @@ function edSaveCube(){
   else { store.made[id].name = lv0.name; store.made[id].par = lv0.par; }
   ed.from = id;
   save();
+  edSyncDelete();
   edShowCode(shareEncode(lv0));
   edStatus('SAVED · ' + id + ' · THE CODE BELOW IS HOW SOMEBODY ELSE PLAYS IT', 2);
 }
@@ -8261,6 +8270,7 @@ function edDraw(){
   }
   squareRows(g);
   edCoachTick();
+  edSyncDelete();
   $('edLayerTxt').textContent = 'DECK ' + (ed.layer+1) + ' / ' + n;
   $('edSize').textContent = '[ ' + n + ' ]';
   var t = $('edTools');
@@ -8357,6 +8367,41 @@ function edCoachTick(){
   $('edCoachN').textContent = String(coach + 1);
   var st = FORGE_STEPS[coach];
   $('edCoachT').textContent = (coachMissed && st.alt) ? st.alt : st.t;
+}
+/* DELETING IS THE ONE THING IN THE FORGE THAT CANNOT BE UNDONE.
+   There is no bin and no undo: the cube is a few hundred bytes in one
+   localStorage key and once it is gone the only copy left is whatever share
+   code somebody happened to keep. So it takes two taps, it says what it is
+   about to destroy by name, and leaving the screen disarms it — the same
+   treatment reporting gets, and for the same reason: this is a button
+   somebody's thumb passes on the way to BACK. */
+var edDelArmed = '';
+function edSyncDelete(){
+  var live = !!(ed && ed.from && store.made[ed.from]);
+  $('edDelete').classList.toggle('hide', !live);
+  if(!live) edDelArmed = '';
+}
+function edDeleteCube(){
+  if(!ed || !ed.from || !store.made[ed.from]) return false;
+  var id = ed.from, rec = store.made[id];
+  if(edDelArmed !== id){
+    edDelArmed = id;
+    edStatus('TAP AGAIN TO DELETE ' + (rec.name || 'UNTITLED') + '. THIS CANNOT BE UNDONE.', 1);
+    return false;
+  }
+  edDelArmed = '';
+  delete store.made[id];
+  /* a reported cube is hidden rather than removed, so deleting one has to
+     take its hidden flag with it or the shelf counts a cube that is gone */
+  if(store.hidden[id]) delete store.hidden[id];
+  /* and the draft is the editor's memory of THIS cube; leaving it behind
+     would resurrect what was just deleted on the next visit */
+  if(store.draft && store.draft.from === id) store.draft = null;
+  ed = null; coach = -1;
+  save();
+  openMade();
+  madeStatus('DELETED ' + (rec.name || 'UNTITLED'), 0);
+  return true;
 }
 function edShowCode(code){
   $('edCode').value = code || '';
@@ -8825,6 +8870,7 @@ $('edSave').onclick  = edSaveCube;
 $('edPlay').onclick  = edPlay;
 $('edBack').onclick  = function(){ openMade(); };
 $('edTeach').onclick = coachStart;
+$('edDelete').onclick = edDeleteCube;
 $('edCopy').onclick = function(){
   var f = $('edCode'), c = f.value;
   if(!c) return;

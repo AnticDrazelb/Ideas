@@ -342,6 +342,72 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
      dashes.found ? `${dashes.hyphens} hyphen(s) · em ${dashes.em} en ${dashes.en} fig ${dashes.fig} minus ${dashes.minus}`
                   : 'could not find a code containing a hyphen');
 
+  /* ---- deleting, which is the one thing here with no undo ---------------- */
+  const del = await p.evaluate(async () => {
+    store.made = {}; store.hidden = {}; store.draft = null; ed = null;
+    const src = BAKED[0];
+    const mk = (swap, name) => {
+      const lv = {n:src.n, vox:src.vox.replace('#', swap), start:src.start, goal:src.goal,
+                  keys:[], doors:[], par:0, name};
+      lv.par = validateLevel(lv).par;
+      return lv;
+    };
+    const a = mk('+', 'KEEPER'), b = mk('.', 'DOOMED');
+    const ida = canonId(a), idb = canonId(b);
+    store.made[ida] = edRecord(a, 'built');
+    store.made[idb] = edRecord(b, 'import');
+    store.hidden[idb] = 1;                    /* also reported at some point */
+    store.draft = {n:b.n, vox:b.vox, start:b.start, goal:b.goal, keys:[], doors:[],
+                   name:'DOOMED', layer:0, from:idb};
+
+    /* a NEW cube has nothing to delete and must not offer to */
+    edNew(5); openEditor(null);
+    const onNew = document.getElementById('edDelete').classList.contains('hide');
+
+    /* a saved one does */
+    ed = null; openEditor(store.made[idb], idb);
+    const onSaved = !document.getElementById('edDelete').classList.contains('hide');
+
+    const btn = document.getElementById('edDelete');
+    btn.click();                              /* arms */
+    const armed = {msg: document.getElementById('edMsg').textContent,
+                   stillThere: !!store.made[idb]};
+
+    /* leaving the editor must disarm it, or the next cube opened is one tap
+       from being destroyed */
+    show('scMade'); openEditor(store.made[idb], idb);
+    const disarmed = edDelArmed;
+
+    btn.click(); btn.click();                 /* arm, then delete */
+    await new Promise(r => setTimeout(r, 80));
+    const after = {
+      gone: !store.made[idb], kept: !!store.made[ida],
+      hiddenCleared: !store.hidden[idb],
+      draftCleared: store.draft === null,
+      onShelf: !document.getElementById('scMade').classList.contains('hide'),
+      tiles: document.getElementById('madeGrid').children.length,
+      said: document.getElementById('madeMsg').textContent
+    };
+    /* and it must not come back on the next visit */
+    ed = null; openEditor(null);
+    const resurrected = !!(ed && ed.from === idb);
+    return {onNew, onSaved, armed, disarmed, after, resurrected};
+  });
+  ok('a new cube offers no delete, because there is nothing to delete', del.onNew === true);
+  ok('...but a saved one does', del.onSaved === true);
+  ok('one tap arms and names what it would destroy',
+     del.armed.stillThere && /TAP AGAIN TO DELETE DOOMED/.test(del.armed.msg), del.armed.msg);
+  ok('...and leaving the editor disarms it', del.disarmed === '', `armed "${del.disarmed}"`);
+  ok('the second tap deletes that cube and only that cube',
+     del.after.gone && del.after.kept && del.after.tiles === 1, JSON.stringify(del.after));
+  ok('...and takes its reported flag and its draft with it',
+     del.after.hiddenCleared && del.after.draftCleared,
+     `hidden cleared ${del.after.hiddenCleared}, draft cleared ${del.after.draftCleared}`);
+  ok('...landing on the shelf, which says what happened',
+     del.after.onShelf && /DELETED DOOMED/.test(del.after.said), del.after.said);
+  ok('...and the deleted cube does not come back with the draft',
+     del.resurrected === false);
+
   /* ---- importing -------------------------------------------------------- */
   const imp = await p.evaluate(() => {
     store.made = {}; buildMadeGrid();
