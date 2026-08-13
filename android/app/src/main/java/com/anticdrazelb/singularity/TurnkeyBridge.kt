@@ -1,5 +1,6 @@
 package com.anticdrazelb.singularity
 
+import android.os.Looper
 import android.webkit.WebView
 
 /**
@@ -91,10 +92,27 @@ class TurnkeyBridge(private val web: WebView) {
     /** Two decimals is finer than a physical pixel at any density that ships. */
     private fun fmt(v: Float): String = String.format(java.util.Locale.US, "%.2f", v)
 
+    /**
+     * DIRECT WHEN ALREADY ON THE MAIN THREAD, POSTED OTHERWISE — AND THE
+     * DIFFERENCE IS THE WHOLE POINT.
+     *
+     * evaluateJavascript has to run on the thread the WebView was made on, so
+     * the obvious implementation posts unconditionally. That quietly breaks
+     * pause. `onPause` calls pause() and then immediately `WebView.onPause()`
+     * and `pauseTimers()`; a posted call does not run until the current message
+     * finishes, which is *after* onPause() has returned and the page has already
+     * been suspended. The pause then lands late or not at all — and the failure
+     * mode is the exact one the page warns about, a solve clock that banks the
+     * whole phone call.
+     *
+     * Running inline when the caller is already on the main thread keeps the
+     * documented ordering real. The post remains for any other thread.
+     */
     private fun eval(js: String, then: ((String) -> Unit)? = null) {
-        // evaluateJavascript must be called on the thread the WebView was made
-        // on. Bridge callbacks arrive on a binder thread, so this is not
-        // theoretical.
-        web.post { web.evaluateJavascript(js) { value -> then?.invoke(value) } }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            web.evaluateJavascript(js) { value -> then?.invoke(value) }
+        } else {
+            web.post { web.evaluateJavascript(js) { value -> then?.invoke(value) } }
+        }
     }
 }
