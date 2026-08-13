@@ -20,6 +20,7 @@
      node sgbake.js --check    verify the index in the file is current      */
 const {chromium} = require('playwright');
 const fs = require('fs');
+const os = require('os');
 const PAGE = '/home/user/Ideas/singularity/index.html';
 const check = process.argv.includes('--check');
 
@@ -32,24 +33,60 @@ const check = process.argv.includes('--check');
   await p.waitForTimeout(400);
 
   const last = await p.evaluate(() => vaultStart(RANKED_VAULTS - 1) + vaultSize(RANKED_VAULTS - 1) - 1);
-  process.stderr.write(`minting ${last} cubes; this takes a while\n`);
 
-  /* in chunks, so a wedged page surfaces as a timeout on one chunk rather
-     than as a ten-minute silence */
-  const CH = 60;
-  let ids = '';
-  const t0 = Date.now();
-  for(let from = 1; from <= last; from += CH){
-    const to = Math.min(from + CH - 1, last);
-    ids += await p.evaluate(([a, z]) => {
-      let s = '';
-      for(let L = a; L <= z; L++) s += canonId(levelData(L));
-      return s;
-    }, [from, to]);
-    const done = to, rate = (Date.now() - t0) / done;
-    process.stderr.write(`\r  ${done}/${last}  eta ${Math.round(rate*(last-done)/1000)}s   `);
+  /* PARALLEL, AND RESUMABLE, BECAUSE THIS GOT EXPENSIVE.
+     Cutting a nine-cube costs about 1.4s, so the whole catalogue is roughly
+     three quarters of an hour on one page — long enough that a container
+     restart in the middle throws all of it away, which is exactly what
+     happened the first time. Several pages share the work and each finished
+     level is appended to a cache file as it lands, so a rerun resumes rather
+     than restarts. The pages are independent by construction: a cube is a
+     pure function of its level number, which is the whole determinism
+     guarantee, so who computes it cannot matter. */
+  const LANES = Math.max(1, Math.min(4, os.cpus().length));
+  const CACHE = PAGE.replace(/index\.html$/, '.bake-cache.json');
+  let done = {};
+  try{ done = JSON.parse(fs.readFileSync(CACHE, 'utf8')); }catch(e){}
+  const already = Object.keys(done).length;
+  process.stderr.write(`minting ${last} cubes on ${LANES} lanes` +
+                       (already ? ` (${already} already cached)` : '') + `\n`);
+
+  const pages = [p];
+  for(let i = 1; i < LANES; i++){
+    const q = await b.newPage();
+    await q.goto('file://' + PAGE);
+    pages.push(q);
   }
+  await new Promise(r => setTimeout(r, 400));
+
+  const todo = [];
+  for(let L = 1; L <= last; L++) if(done[L] === undefined) todo.push(L);
+  const t0 = Date.now();
+  let finished = 0;
+  let nextIdx = 0;
+  const flush = () => fs.writeFileSync(CACHE, JSON.stringify(done));
+
+  await Promise.all(pages.map(async (pg) => {
+    while(true){
+      const chunk = todo.slice(nextIdx, nextIdx + 12);
+      if(!chunk.length) break;
+      nextIdx += chunk.length;
+      const got = await pg.evaluate(ls => ls.map(L => canonId(levelData(L))), chunk);
+      chunk.forEach((L, i) => { done[L] = got[i]; });
+      finished += chunk.length;
+      flush();
+      const rate = (Date.now() - t0) / Math.max(1, finished);
+      process.stderr.write(`\r  ${already + finished}/${last}  eta ` +
+        `${Math.round(rate * (todo.length - finished) / 1000)}s   `);
+    }
+  }));
   process.stderr.write('\n');
+
+  let ids = '';
+  for(let L = 1; L <= last; L++){
+    if(done[L] === undefined){ console.error(`missing level ${L}`); process.exit(1); }
+    ids += done[L];
+  }
 
   if(errs.length){ console.error('page errors:', errs.slice(0,3)); process.exit(1); }
   if(ids.length !== last*8){ console.error(`bad length ${ids.length}, wanted ${last*8}`); process.exit(1); }
@@ -77,6 +114,9 @@ const check = process.argv.includes('--check');
   }
 
   fs.writeFileSync(PAGE, src.replace(re, line));
+  /* the cache is keyed by nothing but level number, so it MUST NOT outlive
+     the generator that filled it — a stale entry would be baked in silently */
+  try{ fs.unlinkSync(PAGE.replace(/index\.html$/, '.bake-cache.json')); }catch(e){}
   console.log(`wrote ${last} identities (${ids.length} chars, ${dup.length} internal repeats)`);
   await b.close();
   process.exit(0);

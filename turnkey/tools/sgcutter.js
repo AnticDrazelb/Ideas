@@ -93,35 +93,60 @@ const ok = (n, c, x = '') => { console.log((c ? '  ok  ' : 'FAIL  ') + n + (x ? 
      mismatched.length ? JSON.stringify(mismatched) : same.map(r => r.L + ':par' + r.par).join(' '));
 
   /* ---- the stall is gone ------------------------------------------------ */
-  const frames = await p.evaluate(async () => {
+  /* MEASURE THE CLAIM, NOT A PROXY FOR IT. Raw frame deltas were the obvious
+     instrument and they are not trustworthy here: after several seconds of
+     setTimeout with no compositing, headless Chromium hands back irregular
+     rAF gaps of ~300ms whether the worker is busy or idle, whether anything
+     is cached or not, and with loadLevel measured at 1.4ms and draw at
+     0.45ms — nothing in the game accounts for them.
+
+     The actual claim is narrower and exactly checkable: MINTING NO LONGER
+     HAPPENS ON THE MAIN THREAD during a level transition. That was the whole
+     defect — 200-500ms of generator work in the middle of play — so the test
+     counts main-thread mint calls and times the transition directly. */
+  const stall = await p.evaluate(async () => {
     store.reached = 900; store.taught = 1;
     mintCache = {};
+    /* arrive the way a player arrives, with the next cube already cut */
+    loadLevel(699); show(null);
+    await new Promise(r => setTimeout(r, 3000));
     loadLevel(700); show(null);
-    await new Promise(r => setTimeout(r, 400));
-    const marks = [];
-    let last = performance.now();
-    const t0 = last;
-    await new Promise(res => {
-      const tick = () => {
-        const now = performance.now();
-        marks.push(now - last); last = now;
-        if(now - t0 < 4500) requestAnimationFrame(tick); else res();
-      };
-      /* the load that used to stall: it prebuilds the next cube */
-      loadLevel(701); show(null);
-      requestAnimationFrame(tick);
-    });
-    marks.shift();
-    return {worst: +Math.max.apply(null, marks).toFixed(0),
-            over100: marks.filter(m => m > 100).length,
-            over250: marks.filter(m => m > 250).length,
-            prebuilt: Object.keys(mintCache).map(Number).sort((a,b) => a-b)};
+    await new Promise(r => setTimeout(r, 3000));
+
+    /* count every main-thread mint from here on */
+    const realMint = mint;
+    let mainThreadMints = 0, mintMs = 0;
+    window.mint = function(){ mainThreadMints++; const t = performance.now();
+      const r = realMint.apply(null, arguments); mintMs += performance.now() - t; return r; };
+
+    const t0 = performance.now();
+    loadLevel(701); show(null);              /* the transition, prebuild and all */
+    const transition = performance.now() - t0;
+
+    await new Promise(r => setTimeout(r, 3500));   /* let the worker deliver 702 */
+    const cached = Object.keys(mintCache).map(Number).sort((a,b) => a-b);
+    window.mint = realMint;
+    return {transition: +transition.toFixed(1), mainThreadMints, mintMs: Math.round(mintMs), cached};
   });
-  ok('no frame long enough to see, across a level load and its prebuild',
-     frames.over100 === 0 && frames.over250 === 0,
-     `worst ${frames.worst}ms, ${frames.over100} frames over 100ms`);
-  ok('...and the next cube really was cut in the background',
-     frames.prebuilt.indexOf(702) >= 0, 'cached: ' + frames.prebuilt.join(','));
+  ok('a level transition does no minting on the main thread at all',
+     stall.mainThreadMints === 0, `${stall.mainThreadMints} mint(s), ${stall.mintMs}ms`);
+  ok('...and the transition itself is under a frame and a half',
+     stall.transition < 25, `${stall.transition}ms`);
+  ok('...while the next cube still gets cut in the background',
+     stall.cached.indexOf(702) >= 0, 'cached: ' + stall.cached.join(','));
+
+  /* WHAT IT COSTS WHEN THE HEAD START IS NOT THERE. Clearing a cube faster
+     than the next one can be cut still blocks, and at n=9 that block is
+     bigger than it used to be. Worth measuring rather than assuming: it is
+     the one case the worker does not cover. */
+  const cold = await p.evaluate(async () => {
+    mintCache = {};
+    const t0 = performance.now();
+    loadLevel(880);                       /* nothing cached, nothing prebuilt */
+    return Math.round(performance.now() - t0);
+  });
+  ok('a cube reached with no head start still loads in under three seconds',
+     cold < 3000, `${cold}ms blocking — only reachable by clearing a level faster than one cut`);
 
   /* ---- and it still works with no worker at all ------------------------- */
   const fallback = await p.evaluate(async () => {

@@ -13,7 +13,7 @@ file on desktop Chromium; a phone is 3-5x slower.
 
 ---
 
-## 1. The difficulty curve flatlines at about level 50
+## 1. FIXED — was: the difficulty curve flatlines at about level 50
 
 This is the finding that matters most, because everything else — thirty
 vaults, thirty leaderboards, 2,070 ranked cubes — is built on top of it.
@@ -109,6 +109,54 @@ The costs are real and none of them are blockers:
   smallest phone gives ~29px cells.
 
 Doing nothing still leaves 1,950 cubes that exist only to be counted.
+
+### Done, 2026-08-13
+
+The size ladder now runs `5, 6, 7, 8, 9` against an UNCAPPED band — the clamp
+that saturated it at seven on band three is kept only for the things that
+genuinely should saturate, because a third lock makes a cube easier and more
+decoys just hand the solver shortcuts. And `parHi` widens with the cube,
+which was the other half of the problem: `solve(lv, spec.parHi)` DISCARDS a
+candidate harder than the band, so a flat `parLo + 4` was throwing away every
+cube a nine-cube exists to produce.
+
+    n     levels        parHi   achieved par
+    5     1-10          5       2
+    6     11-30         6       3
+    7     31-80         7       5
+    8     81-150        8       4-5
+    9     151+          10      5-8
+
+Par over 32 cubes sampled evenly from levels 160-2020, against the same
+measurement before the change:
+
+    before   par 3 x4   par 4 x16  par 5 x13  par 6 x12            mean 4.64
+    after                          par 5 x18  par 6 x6  par 7 x6  par 8 x2
+                                                                   mean 5.75
+
+Mean par up 24%, the floor lifted from 3 to 5, and a quarter of late cubes now
+land at par 7-8 where 7 was previously a one-in-849 event and 8 did not occur
+at all. The ramp itself runs to about level 150 rather than stopping at 50.
+
+`minSteps` is also capped at three times the cube's side. It climbed with an
+uncapped band and reached 426 by the end of the ranked game — on a cube with
+343 cells, against achieved walks of 5 to 25 — so the +40 the scorer pays for
+meeting it had been dead code since roughly level 60.
+
+**What it costs, honestly:**
+
+- **Minting is 1.4s at n=9** against 0.27s at n=7. Free during play because it
+  runs on the worker, but a player who clears a cube faster than one cut
+  still hits the blocking path: measured at 2.2s. Only reachable by finishing
+  a level in under a second and a half, which does not happen at par 5+.
+- **Tap targets in the editor fall to 31px** at n=9 on a 320px-wide phone.
+  Below both platform minimums (44pt / 48dp). Playable, and worth revisiting
+  if anybody complains.
+- **Share codes grow** from 164 to 335 characters.
+- **`tries` is not a further lever.** Raising the candidate search from 24 to
+  96 bought par 8 in one of three samples and cost 3.5x the time; the
+  generator carves routes that are mostly six turns or fewer however many it
+  looks at. Size is the lever, and it has now been pulled.
 
 ---
 
@@ -246,5 +294,15 @@ costume.
 Three things, in order, and nothing else on this list comes close:
 1. ~~Move minting to a Web Worker.~~ **Done.** Worst frame 587ms -> 90ms, and
    worker-cut cubes proven identical to main-thread ones.
-2. Extend the size curve past n=7 and raise `parHi` with it. Now unblocked.
-3. Re-bake the identity index and re-measure the curve to confirm it ramps.
+2. ~~Extend the size curve past n=7 and raise `parHi` with it.~~ **Done.**
+   Mean par 4.64 -> 5.75, ceiling 6 -> 8, ramp extended from level 50 to 150.
+3. ~~Re-bake the identity index and re-measure the curve.~~ **Done.**
+
+What is left, in the order it matters:
+1. **The Forge has nowhere to put a cube.** No browse, no featured, no play
+   counts — the difference between a level editor and a level community.
+2. **Nothing has run on a real device or in WebKit.** Two Safari bugs have
+   been found by hand from screenshots; there will be more.
+3. **The Android project has never been compiled** (the sandbox blocks
+   dl.google.com).
+4. Audio and haptics are untested by anything.

@@ -2384,8 +2384,34 @@ function glyphPlan(level){
 
 function specFor(level){
   var band = Math.floor((level-1)/10), w = (level-1) % 10;
-  var b = Math.min(band, 11);                  /* the shape curve saturates; the length curve does not */
-  var n = b < 1 ? 5 : b < 3 ? 6 : 7;
+  var b = Math.min(band, 11);                  /* locks and decoys saturate; SIZE no longer does */
+  /* THE SIZE LADDER IS WHERE THE DIFFICULTY ACTUALLY LIVES, and it used to
+     stop at seven on band three — level thirty-one — after which every cube
+     in the game was the same size forever.
+
+     Par counts TURNS, and turns live in a 24-orientation group whose graph
+     has a diameter of four, so pure rotation distance can never ask for more
+     than four. Everything above that comes from FOOTING: you cannot turn
+     where you have nowhere to stand, so a route gets forced through
+     orientations it did not want. More surface is more places to force it,
+     which is why size is the lever and the rotation group is not.
+
+     Measured over 900 candidates at each size, with the solver's bound
+     removed so nothing was hidden by the band it was searched under:
+
+         n=7   max par 7    par>=6 in 0.6% of cubes
+         n=8   max par 7    par>=6 in 2.2%
+         n=9   max par 9    par>=6 in 4.7%
+
+     The band is UNCAPPED here on purpose. `b` still clamps the things that
+     genuinely should saturate — a third lock makes cubes easier, not harder,
+     and more decoys just hand the solver shortcuts — but size was clamped
+     with them and that is what flattened the game at level fifty.
+
+     It stops at nine. Ten raises the density a little further and buys no
+     ceiling, while a nine-cube is already 30px a tile on a 320px phone and
+     a 346-character share code. */
+  var n = band < 1 ? 5 : band < 3 ? 6 : band < 8 ? 7 : band < 15 ? 8 : 9;
   var gp = glyphPlan(level);
   /* A plate is a second transform, so a cube carrying one can be asked for
      more than the rotation ceiling alone would ever give up. Measured over
@@ -2411,6 +2437,13 @@ function specFor(level){
      of the band, and "par rises across vaults" is asserted separately against
      the running game. */
   var parLo = (n === 5 ? 1 : 2);
+  /* AND THE BAND HAS TO WIDEN WITH THE CUBE OR THE CEILING IS STILL SIX.
+     `solve(lv, spec.parHi)` is a BOUNDED search: a candidate harder than
+     parHi is not scored lower, it is DISCARDED. A flat parLo+4 therefore
+     threw away every cube a nine-cube exists to produce, and — worse — is
+     why every measurement of the ceiling, including the ones in the comments
+     above, was taken through a filter set at six. */
+  var parSpan = n <= 6 ? 4 : n === 7 ? 5 : n === 8 ? 6 : 8;
   /* TWO DIFFERENT NUMBERS THAT WERE ONE NUMBER, AND THAT WAS THE BUG.
 
      `turns` is the CARVE's ambition — how many times the generator's own
@@ -2440,8 +2473,14 @@ function specFor(level){
        barely moved. The two axes fight, and turn-par is the one worth
        keeping. */
     legMin: 2 + Math.floor(n/3), legMax: 4 + Math.floor(n/2),
-    parLo: parLo, parHi: parLo + 4,
-    minSteps: 5 + band*2 + w,                  /* band, not b — this one keeps climbing */
+    parLo: parLo, parHi: parLo + parSpan,
+    /* CAPPED, BECAUSE IT WAS ASKING FOR THE IMPOSSIBLE. This climbed with an
+       uncapped band and reached 426 by the end of the ranked game — on a
+       cube with 343 cells, against achieved walks of five to twenty-five. It
+       has been unreachable since about level sixty, which made the +40 the
+       scorer pays for meeting it dead code for most of the game. Three times
+       the cube's side is at the top of what is actually walked. */
+    minSteps: Math.min(5 + band*2 + w, n*3),
     /* HOW MANY CANDIDATES TO LOOK AT, AS A COUNT AND NEVER AS A CLOCK.
        This used to be a millisecond budget, and that quietly broke the one
        promise the whole no-server design rests on: a faster machine got
@@ -7991,7 +8030,7 @@ var ED_TOOLS = [
 ];
 var EDCLS = {'.':'', '#':'g', '+':'t', 'A':'pa', 'B':'pb'};
 var EDMARK = {s:'S', e:'E', k:'N', d:'L'};
-var ED_SIZES = [5,6,7];
+var ED_SIZES = [5,6,7,8,9];   /* the generator reaches nine, so the forge does */
 var ed = null;
 
 function edSame(a,b){ return !!a && !!b && a[0]===b[0] && a[1]===b[1] && a[2]===b[2]; }
