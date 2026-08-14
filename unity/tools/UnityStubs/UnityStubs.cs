@@ -203,7 +203,15 @@ namespace UnityEngine
         public Vector2 offsetMax { get; set; }
         public Vector2 anchoredPosition { get; set; }
         public Vector2 sizeDelta { get; set; }
+        public Vector2 pivot { get; set; }
         public Rect rect => default;
+    }
+
+    public class CanvasGroup : Component
+    {
+        public float alpha { get; set; }
+        public bool interactable { get; set; }
+        public bool blocksRaycasts { get; set; }
     }
 
     public class MonoBehaviour : Behaviour
@@ -538,6 +546,24 @@ namespace UnityEngine
             public RectTransform handleRect { get; set; }
             public SliderEvent onValueChanged { get; } = new SliderEvent();
             public class SliderEvent { public void AddListener(Action<float> a) { } }
+        }
+
+        public class RectMask2D : Component { }
+
+        public class ScrollRect : Component
+        {
+            public enum MovementType { Unrestricted, Elastic, Clamped }
+            public RectTransform content { get; set; }
+            public RectTransform viewport { get; set; }
+            public bool horizontal { get; set; }
+            public bool vertical { get; set; }
+            public MovementType movementType { get; set; }
+            public float elasticity { get; set; }
+            public bool inertia { get; set; }
+            public float decelerationRate { get; set; }
+            public float scrollSensitivity { get; set; }
+            public Vector2 normalizedPosition { get; set; }
+            public float verticalNormalizedPosition { get; set; }
         }
 
         public class Image : Graphic

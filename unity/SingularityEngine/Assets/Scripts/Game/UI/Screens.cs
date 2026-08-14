@@ -70,11 +70,45 @@ namespace Singularity.UI
             HideAll();
             if (id != null)
             {
-                Layers[id].SetActive(true);
+                GameObject go = Layers[id];
+                go.SetActive(true);
                 if (Stack.Count == 0 || Stack[Stack.Count - 1] != id) Stack.Add(id);
+                _dir.StartCoroutine(Arrive(go));
             }
             else Stack.Clear();
             _dir.SetScreenUp(id != null);
+        }
+
+        /// <summary>
+        /// A SCREEN THAT SNAPS IN HAS NO WEIGHT.
+        ///
+        /// A hundred and forty milliseconds of fade and a few pixels of rise, and
+        /// the difference is not that it looks nicer — it is that the eye is TOLD
+        /// something arrived, so it goes looking for what changed instead of
+        /// re-reading a screen it thinks it was already on. Short enough that
+        /// nobody waiting to press a button ever waits.
+        ///
+        /// On the UNSCALED clock, because menus are opened during hitstop and a
+        /// card that eases in at a third of speed reads as the game hanging.
+        /// </summary>
+        static System.Collections.IEnumerator Arrive(GameObject go)
+        {
+            var rt = (RectTransform)go.transform;
+            var cg = go.GetComponent<CanvasGroup>() ?? go.AddComponent<CanvasGroup>();
+
+            const float Dur = 0.14f, Rise = 18f;
+            float t = 0f;
+            while (t < Dur)
+            {
+                t += Time.unscaledDeltaTime;
+                float k = Mathf.Clamp01(t / Dur);
+                float e = 1f - (1f - k) * (1f - k);          // out-quad: fast, then settles
+                cg.alpha = e;
+                rt.anchoredPosition = new Vector2(0f, (1f - e) * -Rise);
+                yield return null;
+            }
+            cg.alpha = 1f;
+            rt.anchoredPosition = Vector2.zero;
         }
 
         public static void Back()
@@ -322,6 +356,11 @@ namespace Singularity.UI
             UiKit.Label(L, "h", "CALIBRATION", 40, Palette.Ink, TextAnchor.UpperCenter,
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -130), new Vector2(0, -80));
 
+            // The title stays put and the rules scroll under it, so the heading is
+            // always there to say what you are reading.
+            RectTransform M = UiKit.Scroll(L, "scroll", new Vector2(0, 0), new Vector2(1, 1),
+                                           new Vector2(0, 178), new Vector2(0, -150));
+
             // NINE LINES, NOT NINE PARAGRAPHS — AND A PICTURE FOR EACH.
             //
             // Nobody reads a manual in a puzzle game. They glance at it, twice, and
@@ -329,25 +368,25 @@ namespace Singularity.UI
             // saccade, a line under it, and a DIAGRAM beside it — because the four
             // things this page has to explain are all spatial, and a sentence about
             // a fold is a worse description of a fold than two squares and an arrow.
-            float y = 170f;
+            float y = 24f;
 
             void Kicker(string s)
             {
-                UiKit.Label(L, s, s, 16, Palette.Rust, TextAnchor.LowerLeft,
+                UiKit.Label(M, s, s, 16, Palette.Rust, TextAnchor.LowerLeft,
                             new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + 24)), new Vector2(-44, -y));
                 y += 28;
             }
 
             RectTransform Entry(string head, string body, float h = 88f)
             {
-                UiKit.Label(L, head, head, 23, Palette.Ink, TextAnchor.UpperLeft,
+                UiKit.Label(M, head, head, 23, Palette.Ink, TextAnchor.UpperLeft,
                             new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + 30)), new Vector2(-190, -y));
-                UiKit.Label(L, head + "_d", body, 17, Palette.Dim, TextAnchor.UpperLeft,
+                UiKit.Label(M, head + "_d", body, 17, Palette.Dim, TextAnchor.UpperLeft,
                             new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + h)), new Vector2(-190, -(y + 32)));
 
                 // the diagram lives in a fixed gutter on the right, so every picture
                 // on the page shares one optical column
-                RectTransform art = UiKit.Rect(L, head + "_art", new Vector2(1, 1), new Vector2(1, 1),
+                RectTransform art = UiKit.Rect(M, head + "_art", new Vector2(1, 1), new Vector2(1, 1),
                                                new Vector2(-176, -(y + 96)), new Vector2(-44, -(y + 4)));
                 y += h + 16f;
                 return art;
@@ -386,7 +425,7 @@ namespace Singularity.UI
             Mark(a4, "core", Palette.Core, 52, 0, 0);
 
             Kicker("THE OBJECTS");
-            RectTransform cards = UiKit.Rect(L, "cards", new Vector2(0, 1), new Vector2(1, 1),
+            RectTransform cards = UiKit.Rect(M, "cards", new Vector2(0, 1), new Vector2(1, 1),
                                              new Vector2(44, -(y + 92)), new Vector2(-44, -y));
             Card(cards, 0, "sqfill", Palette.Trace, "TRACE", "CIRCUIT");
             Card(cards, 1, "node", Palette.Node, "NODE", "COLLECT");
@@ -411,6 +450,8 @@ namespace Singularity.UI
 
             RectTransform a7 = Entry("TO GO", "The fewest folds still possible from where you stand.", 62f);
             Mark(a7, "i.togo", Palette.Arc, 44, 0, 0);
+
+            UiKit.EndScroll(M, y + 24f);
 
             RectTransform got = UiKit.Rect(L, "got", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
             UiKit.Bracketed(got, "got", "GOT IT", Back, 28, true);

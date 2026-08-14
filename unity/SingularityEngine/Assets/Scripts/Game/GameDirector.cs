@@ -238,7 +238,11 @@ namespace Singularity.Game
             View.attract = true;
             View.Rebuild(true);
             View.SkipWave();
-            Rig.Fit(S.N, 1.62f);
+            // A LOT MORE MARGIN THAN A PLAYED BOARD GETS. The attract cube is
+            // scenery on a screen whose job is words: at play margin it filled the
+            // frame and the pitch was printed over the top of it. Sized to sit in
+            // the band the title's gradient deliberately leaves clear.
+            Rig.Fit(S.N, 2.30f);
             _fx.SetBoard(S.N);
         }
 

@@ -206,20 +206,32 @@ namespace Singularity.UI
         // and a pill with the knob at the other end is a different SHAPE. Shape
         // reads across a room; a three-letter word does not.
 
-        static Sprite _pill, _disc;
+        static Sprite _pill, _bar, _disc;
 
-        public static Sprite PillFill => _pill ??= Round(64, 32, false);
+        // A NINE-SLICE BORDER HAS TO FIT INSIDE THE CONTROL IT IS STRETCHED OVER.
+        //
+        // These were one 64px stadium with a 30px border on every side. Sixty pixels
+        // of border in a forty-two pixel switch leaves nothing for the middle, so
+        // Unity scales the slices down to fit — by a different amount on each axis,
+        // and by a different amount again on a six-pixel slider track. That is the
+        // whole of "the pills are not uniform and the sliders look like squashed
+        // circles": one sprite asked to be three sizes it could not be.
+        //
+        // So there are two, each sized for what it is stretched over, and the thin
+        // one is used only on the track.
+        public static Sprite PillFill => _pill ??= Round(32, 16, 15);
+        public static Sprite BarFill => _bar ??= Round(16, 8, 7);
 
         /// <summary>The knob, and every other circle the interface needs.</summary>
-        public static Sprite Disc => _disc ??= Round(64, 32, true);
+        public static Sprite Disc => _disc ??= Round(64, 32, 0);
 
-        static Sprite Round(int size, int rad, bool tight)
+        static Sprite Round(int size, int rad, int border)
         {
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp,
-                name = tight ? "disc" : "pill"
+                name = border == 0 ? "disc" : "stadium" + size
             };
             var px = new Color32[size * size];
             float h = size * 0.5f;
@@ -234,9 +246,8 @@ namespace Singularity.UI
                 }
             tex.SetPixels32(px);
             tex.Apply(false, true);
-            int b = tight ? 0 : rad - 2;
             return Sprite.Create(tex, new UnityEngine.Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f,
-                                 0, SpriteMeshType.FullRect, new Vector4(b, b, b, b));
+                                 0, SpriteMeshType.FullRect, new Vector4(border, border, border, border));
         }
 
         /// <summary>
@@ -293,24 +304,34 @@ namespace Singularity.UI
         {
             RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
 
+            const float TrackH = 14f, Knob = 28f;
+
             RectTransform bg = Rect(rt, "track", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                    new Vector2(0, -3), new Vector2(0, 3));
+                                    new Vector2(Knob * 0.5f, -TrackH * 0.5f), new Vector2(-Knob * 0.5f, TrackH * 0.5f));
             var bgi = bg.gameObject.AddComponent<Image>();
-            bgi.sprite = PillFill;
+            bgi.sprite = BarFill;
             bgi.type = Image.Type.Sliced;
             bgi.color = Palette.Dim2;
 
             RectTransform fillArea = Rect(rt, "fillArea", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                          new Vector2(0, -3), new Vector2(0, 3));
+                                          new Vector2(Knob * 0.5f, -TrackH * 0.5f), new Vector2(-Knob * 0.5f, TrackH * 0.5f));
             RectTransform fill = Rect(fillArea, "fill", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var fi = fill.gameObject.AddComponent<Image>();
-            fi.sprite = PillFill;
+            fi.sprite = BarFill;
             fi.type = Image.Type.Sliced;
             fi.color = Palette.Rust;
 
-            RectTransform handleArea = Rect(rt, "handleArea", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            // THE HANDLE'S AREA IS A BAND, NOT THE WHOLE ROW.
+            //
+            // Slider drives handleRect's anchors to (v,0)-(v,1) of this rect and
+            // leaves sizeDelta alone, so a handle with sizeDelta 30 inside a
+            // hundred-pixel row comes out a hundred and thirty tall and thirty
+            // wide. That is the squashed circle. Give it a band its own height and
+            // ask for no extra, and it is the circle it was drawn as.
+            RectTransform handleArea = Rect(rt, "handleArea", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
+                                            new Vector2(Knob * 0.5f, -Knob * 0.5f), new Vector2(-Knob * 0.5f, Knob * 0.5f));
             RectTransform handle = Rect(handleArea, "handle", new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
-            handle.sizeDelta = new Vector2(30, 30);
+            handle.sizeDelta = new Vector2(Knob, 0f);
             var hi2 = handle.gameObject.AddComponent<Image>();
             hi2.sprite = Disc;
             hi2.color = Palette.Ink;
@@ -477,6 +498,52 @@ namespace Singularity.UI
             img.color = Color.white;
             return img;
         }
+
+        /// <summary>
+        /// A SCREEN THAT DOES NOT FIT IS NOT A LAYOUT PROBLEM, IT IS A SCROLL.
+        ///
+        /// The manual was tuned until it fitted a 1280-tall canvas, which is a
+        /// number, not a phone: a short device or a large system font puts the last
+        /// two entries under the button again, and the only honest answer to "how
+        /// much text is there" is "as much as there is". Everything below goes in a
+        /// clipped viewport with a content rect that is however tall it turns out
+        /// to be.
+        ///
+        /// Returns the CONTENT to fill; call <see cref="EndScroll"/> with its final
+        /// height when you have finished filling it.
+        /// </summary>
+        public static RectTransform Scroll(RectTransform parent, string name,
+                                           Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
+        {
+            RectTransform view = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
+
+            // the mask needs something to raycast against or the drag never starts,
+            // and it has to be invisible or it is a panel
+            var catcher = view.gameObject.AddComponent<Image>();
+            catcher.color = new Color(0, 0, 0, 0);
+            view.gameObject.AddComponent<RectMask2D>();
+
+            RectTransform content = Rect(view, "content", new Vector2(0, 1), new Vector2(1, 1), Vector2.zero, Vector2.zero);
+            content.pivot = new Vector2(0.5f, 1f);
+
+            var sr = view.gameObject.AddComponent<ScrollRect>();
+            sr.viewport = view;
+            sr.content = content;
+            sr.horizontal = false;
+            sr.vertical = true;
+            // Clamped rather than elastic: this is a document, and a document that
+            // bounces off its own end reads as a toy. Inertia stays, because a flick
+            // through a page of rules is the one gesture this screen exists for.
+            sr.movementType = ScrollRect.MovementType.Clamped;
+            sr.inertia = true;
+            sr.decelerationRate = 0.135f;
+            sr.scrollSensitivity = 28f;
+            return content;
+        }
+
+        /// <summary>Tell a scroll how tall its content turned out to be.</summary>
+        public static void EndScroll(RectTransform content, float height)
+            => content.sizeDelta = new Vector2(0f, height);
 
         /// <summary>One of the drawn marks from <see cref="Glyphs"/>, in the interface.</summary>
         public static Image Icon(Transform parent, string role, Color col, float size,
