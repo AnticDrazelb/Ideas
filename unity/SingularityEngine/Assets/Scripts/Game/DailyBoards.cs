@@ -48,15 +48,17 @@ namespace Singularity.Game
             public string key;          // which slot in the save remembers it
             public string board;        // the id a service would rank
             public string label;
+            /// <summary>What the window IS, in five words, so the number has a unit.</summary>
+            public string why;
             public Func<int, int> Of;
             public Func<int, (int a, int b)> Span;
         }
 
         public static readonly Period[] Periods =
         {
-            new Period { key = "w", board = "daily_week",   label = "THIS WEEK",   Of = Daily.WeekOf,   Span = Daily.WeekSpan },
-            new Period { key = "m", board = "daily_month",  label = "THIS MONTH",  Of = Daily.MonthOf,  Span = Daily.MonthSpan },
-            new Period { key = "s", board = "daily_season", label = "THIS SEASON", Of = Daily.SeasonOf, Span = Daily.SeasonSpan },
+            new Period { key = "w", board = "daily_week",   label = "THIS WEEK",  why = "SEVEN DAYS, TOTALLED",       Of = Daily.WeekOf,   Span = Daily.WeekSpan },
+            new Period { key = "m", board = "daily_month",  label = "THIS MONTH", why = "A CALENDAR MONTH, TOTALLED", Of = Daily.MonthOf,  Span = Daily.MonthSpan },
+            new Period { key = "s", board = "daily_season", label = "SEASON",     why = "NINETY-ONE DAYS, TOTALLED",  Of = Daily.SeasonOf, Span = Daily.SeasonSpan },
         };
 
         /// <summary>The total for a window, or -1 when the player has nothing at all in it.</summary>

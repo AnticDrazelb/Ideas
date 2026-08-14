@@ -751,26 +751,44 @@ namespace Singularity.UI
         {
             RectTransform L = Layer("boards");
             Solid(L);
-            UiKit.Label(L, "h", "BOARDS", 40, Palette.Ink, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -140), new Vector2(0, -90));
-            _boardList = UiKit.Rect(L, "list", new Vector2(0, 0), new Vector2(1, 1), new Vector2(40, 200), new Vector2(-40, -180));
+            // LOCAL ONLY, SAID OUT LOUD. Every row here is this device's own
+            // record, and a screen called BOARDS that does not say so is quietly
+            // implying a leaderboard it does not have.
+            UiKit.Label(L, "h", "BOARDS — LOCAL ONLY", 26, Palette.Ink, TextAnchor.LowerCenter,
+                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -158), new Vector2(-40, -118));
+            UiKit.Panel(L, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.5f),
+                        new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-70, -104), new Vector2(70, -102));
 
-            RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
-            UiKit.Bracketed(back, "back", "BACK", Back, 28);
+            // The rows go in a plate for the same reason the win card's do: a name
+            // on the left and a number six hundred pixels away on the right are not
+            // visibly about each other.
+            _boardList = UiKit.Rect(L, "list", new Vector2(0, 1), new Vector2(1, 1),
+                                    new Vector2(56, -770), new Vector2(-56, -186));
+            UiKit.Framed(_boardList, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.55f));
+
+            UiKit.Label(L, "foot", "NO HOST ATTACHED — THESE ARE THIS DEVICE'S OWN RECORDS.",
+                        13, Palette.Dim2, TextAnchor.UpperCenter,
+                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -812), new Vector2(-40, -786));
+
+            RectTransform outs = UiKit.Rect(L, "outs", new Vector2(0, 1), new Vector2(1, 1),
+                                            new Vector2(80, -892), new Vector2(-80, -844));
+            RectTransform bk = UiKit.Rect(outs, "b", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
+            UiKit.Link(bk, "back", "BACK", Back, 21, Palette.Ink);
+            RectTransform mn = UiKit.Rect(outs, "m", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Link(mn, "menu", "MENU", ShowTitle, 21);
         }
 
         public static void ShowBoards()
         {
             for (int i = _boardList.childCount - 1; i >= 0; i--) Object.Destroy(_boardList.GetChild(i).gameObject);
 
-            var rows = new List<(string k, string v)>();
+            var rows = new List<(string k, string why, string v)>();
 
             // The daily first, because it is the one number shared with anybody else.
             int today = Daily.DayIndex();
-            rows.Add(("DAILY " + Daily.DayLabel(),
+            rows.Add(("TODAY", "FEWEST FOLDS ON " + Daily.DayLabel(),
                       Store.Data.dailySolved != 0 && Store.Data.dailyDay == today
-                          ? Store.Data.dailyBest + " FOLDS" : "UNSOLVED"));
-            rows.Add(("STREAK", Store.Data.streakCur + " · BEST " + Store.Data.streakBest));
+                          ? Store.Data.dailyBest + " FOLDS" : "—"));
 
             // THE WINDOWS. A missed day is not a zero, it is a MISS, and it costs
             // more than the worst honest attempt — otherwise skipping a hard cube
@@ -782,7 +800,8 @@ namespace Singularity.UI
             foreach (DailyBoards.Period p in DailyBoards.Periods)
             {
                 var (total, played, of) = DailyBoards.Running(p, today);
-                rows.Add((p.label, played == 0 ? "—" : total + "  (" + played + "/" + of + " DAYS)"));
+                rows.Add((p.label, p.why, played == 0 ? "0 / " + of + " DAYS"
+                                                       : total + " · " + played + " / " + of + " DAYS"));
             }
 
             // Then one row per vault: a vault is the unit a board ranks, scored on
@@ -801,18 +820,28 @@ namespace Singularity.UI
                 string v = have == size
                     ? (total / 1000f).ToString("0.0") + "s"
                     : have + "/" + size;
-                rows.Add(("VAULT " + Vaults.RomanOf(band) + " · " + Vaults.VaultName(band), v));
+                rows.Add(("VAULT " + Vaults.RomanOf(band),
+                          Vaults.VaultName(band).ToUpperInvariant() + " — TIME TO CLEAR", v));
             }
 
-            float h = 1f / Mathf.Max(9, rows.Count);
+            rows.Add(("STREAK", "CONSECUTIVE DAYS SOLVED", Store.Data.streakCur + " DAYS"));
+
+            float h = 1f / Mathf.Max(1, rows.Count);
             for (int i = 0; i < rows.Count; i++)
             {
                 RectTransform r = UiKit.Rect(_boardList, "r" + i,
-                    new Vector2(0, 1 - (i + 1) * h), new Vector2(1, 1 - i * h), new Vector2(0, 3), new Vector2(0, -3));
-                UiKit.Label(r, "k", rows[i].k, 20, Palette.Dim, TextAnchor.MiddleLeft,
-                            Vector2.zero, new Vector2(0.72f, 1), new Vector2(8, 0), Vector2.zero);
-                UiKit.Label(r, "v", rows[i].v, 22, Palette.Ink, TextAnchor.MiddleRight,
-                            new Vector2(0.72f, 0), Vector2.one, Vector2.zero, new Vector2(-8, 0));
+                    new Vector2(0, 1 - (i + 1) * h), new Vector2(1, 1 - i * h), Vector2.zero, Vector2.zero);
+
+                UiKit.Label(r, "k", rows[i].k, 19, Palette.Ink, TextAnchor.LowerLeft,
+                            new Vector2(0, 0.44f), new Vector2(0.66f, 1), new Vector2(26, 0), new Vector2(0, -8));
+                UiKit.Label(r, "w", rows[i].why, 12, Palette.Dim, TextAnchor.UpperLeft,
+                            new Vector2(0, 0), new Vector2(0.72f, 0.46f), new Vector2(26, 6), Vector2.zero);
+                UiKit.Label(r, "v", rows[i].v, 17, Palette.Rust, TextAnchor.MiddleRight,
+                            new Vector2(0.66f, 0), Vector2.one, Vector2.zero, new Vector2(-26, 0));
+
+                if (i < rows.Count - 1)
+                    UiKit.Panel(r, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.22f),
+                                new Vector2(0, 0), new Vector2(1, 0), new Vector2(20, 0), new Vector2(-20, 1));
             }
 
             Show("boards");
