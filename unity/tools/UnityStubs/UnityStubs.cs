@@ -526,6 +526,20 @@ namespace UnityEngine
             public RectTransform rectTransform => null;
         }
 
+        public class Slider : Selectable
+        {
+            public enum Direction { LeftToRight, RightToLeft, BottomToTop, TopToBottom }
+            public Direction direction { get; set; }
+            public float minValue { get; set; }
+            public float maxValue { get; set; }
+            public bool wholeNumbers { get; set; }
+            public float value { get; set; }
+            public RectTransform fillRect { get; set; }
+            public RectTransform handleRect { get; set; }
+            public SliderEvent onValueChanged { get; } = new SliderEvent();
+            public class SliderEvent { public void AddListener(Action<float> a) { } }
+        }
+
         public class Image : Graphic
         {
             public enum Type { Simple, Sliced, Tiled, Filled }

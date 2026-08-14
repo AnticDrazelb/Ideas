@@ -197,6 +197,137 @@ namespace Singularity.UI
                                  new Vector4(FrameSlice, FrameSlice, FrameSlice, FrameSlice));
         }
 
+        // ---- the pill -------------------------------------------------------
+        //
+        // The same nine-slice trick with the radius run all the way to the half
+        // height, so the ends are semicircles at any width. A toggle wants to be a
+        // PILL rather than a small rectangle for one reason: a rectangle that says
+        // ON and a rectangle that says OFF are the same object with different text,
+        // and a pill with the knob at the other end is a different SHAPE. Shape
+        // reads across a room; a three-letter word does not.
+
+        static Sprite _pill, _disc;
+
+        public static Sprite PillFill => _pill ??= Round(64, 32, false);
+
+        /// <summary>The knob, and every other circle the interface needs.</summary>
+        public static Sprite Disc => _disc ??= Round(64, 32, true);
+
+        static Sprite Round(int size, int rad, bool tight)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                name = tight ? "disc" : "pill"
+            };
+            var px = new Color32[size * size];
+            float h = size * 0.5f;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = Mathf.Abs(x + 0.5f - h) - (h - rad);
+                    float dy = Mathf.Abs(y + 0.5f - h) - (h - rad);
+                    float o = Mathf.Sqrt(Mathf.Max(dx, 0f) * Mathf.Max(dx, 0f) + Mathf.Max(dy, 0f) * Mathf.Max(dy, 0f));
+                    float d = o + Mathf.Min(Mathf.Max(dx, dy), 0f) - rad;
+                    px[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(0.5f - d) * 255f));
+                }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            int b = tight ? 0 : rad - 2;
+            return Sprite.Create(tex, new UnityEngine.Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f,
+                                 0, SpriteMeshType.FullRect, new Vector4(b, b, b, b));
+        }
+
+        /// <summary>
+        /// A switch that is a shape rather than a word. Orange and knob-right is on;
+        /// slate and knob-left is off, and you can tell which from further away than
+        /// you can read the label.
+        /// </summary>
+        public static Button Switch(Transform parent, string name, bool on, System.Func<bool, bool> set,
+                                    Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
+        {
+            RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
+
+            var track = rt.gameObject.AddComponent<Image>();
+            track.sprite = PillFill;
+            track.type = Image.Type.Sliced;
+
+            RectTransform kr = Rect(rt, "knob", new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
+            kr.sizeDelta = new Vector2(34, 34);
+            var knob = kr.gameObject.AddComponent<Image>();
+            knob.sprite = Disc;
+            knob.color = Palette.Ink;
+            knob.raycastTarget = false;
+
+            Text lbl = Label(rt, "state", "", 15, Palette.Void, TextAnchor.MiddleCenter,
+                             Vector2.zero, Vector2.one, new Vector2(12, 0), new Vector2(-12, 0));
+
+            void Paint(bool v)
+            {
+                track.color = v ? Palette.Rust : Palette.Dim2;
+                kr.anchorMin = kr.anchorMax = new Vector2(v ? 1f : 0f, 0.5f);
+                kr.anchoredPosition = new Vector2(v ? -22f : 22f, 0f);
+                lbl.text = v ? "ON" : "OFF";
+                lbl.color = v ? Palette.Void : Palette.Ink;
+                lbl.alignment = v ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
+            }
+            Paint(on);
+
+            var btn = rt.gameObject.AddComponent<Button>();
+            btn.targetGraphic = track;
+            btn.onClick.AddListener(() => Paint(set(true)));
+            return btn;
+        }
+
+        /// <summary>
+        /// A continuous control for a continuous quantity. These were plus and minus
+        /// buttons, which is a fine way to change a number by one and a poor way to
+        /// answer "how bright, out of how bright it goes" — a stepper shows you a
+        /// reading, a slider shows you a POSITION IN A RANGE, and brightness is only
+        /// ever adjusted by comparison with the ends.
+        /// </summary>
+        public static Slider Bar(Transform parent, string name, int lo, int hi, int now,
+                                 System.Action<int> set,
+                                 Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
+        {
+            RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
+
+            RectTransform bg = Rect(rt, "track", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
+                                    new Vector2(0, -3), new Vector2(0, 3));
+            var bgi = bg.gameObject.AddComponent<Image>();
+            bgi.sprite = PillFill;
+            bgi.type = Image.Type.Sliced;
+            bgi.color = Palette.Dim2;
+
+            RectTransform fillArea = Rect(rt, "fillArea", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
+                                          new Vector2(0, -3), new Vector2(0, 3));
+            RectTransform fill = Rect(fillArea, "fill", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var fi = fill.gameObject.AddComponent<Image>();
+            fi.sprite = PillFill;
+            fi.type = Image.Type.Sliced;
+            fi.color = Palette.Rust;
+
+            RectTransform handleArea = Rect(rt, "handleArea", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            RectTransform handle = Rect(handleArea, "handle", new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
+            handle.sizeDelta = new Vector2(30, 30);
+            var hi2 = handle.gameObject.AddComponent<Image>();
+            hi2.sprite = Disc;
+            hi2.color = Palette.Ink;
+
+            var s = rt.gameObject.AddComponent<Slider>();
+            s.direction = Slider.Direction.LeftToRight;
+            s.minValue = lo;
+            s.maxValue = hi;
+            s.wholeNumbers = true;
+            s.fillRect = fill;
+            s.handleRect = handle;
+            s.targetGraphic = hi2;
+            s.value = now;
+            s.onValueChanged.AddListener(v => set(Mathf.RoundToInt(v)));
+            return s;
+        }
+
         /// <summary>A plate and its edge, stretched over the whole of <paramref name="rt"/>.</summary>
         public static Image Framed(RectTransform rt, Color fill, Color edge)
         {
@@ -339,6 +470,20 @@ namespace Singularity.UI
             img.sprite = Sprite.Create(tex, new UnityEngine.Rect(0, 0, 1, N), new Vector2(0.5f, 0.5f), 100f);
             img.type = Image.Type.Simple;
             img.color = Color.white;
+            return img;
+        }
+
+        /// <summary>One of the drawn marks from <see cref="Glyphs"/>, in the interface.</summary>
+        public static Image Icon(Transform parent, string role, Color col, float size,
+                                 Vector2 anchor, Vector2 offset)
+        {
+            RectTransform rt = Rect(parent, role, anchor, anchor, Vector2.zero, Vector2.zero);
+            rt.sizeDelta = new Vector2(size, size);
+            rt.anchoredPosition = offset;
+            var img = rt.gameObject.AddComponent<Image>();
+            img.sprite = Glyphs.For(role);
+            img.color = col;
+            img.raycastTarget = false;
             return img;
         }
 

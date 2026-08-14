@@ -141,6 +141,33 @@ public static class ForgeChecks
         Ok(DailyBoards.Packed(101, 9999) > DailyBoards.Packed(100, 0), "an old perfect period outranks a new one");
         // and within one period, lower total ranks higher
         Ok(DailyBoards.Packed(100, 5) > DailyBoards.Packed(100, 6), "a worse total outranked a better one");
+
+        // ---- the Forge coach ---------------------------------------------
+        //
+        // It has to name ONE next thing, and it has to be the RIGHT one at each
+        // stage — a coach that says "verify it" before there is a start is worse
+        // than silence, because it sends you to a button that cannot work.
+        var fg = Forge.New(5);
+        Ok(fg.Advice().step == 1, "an empty cube was not asked for trace");
+
+        // lay the eight it asks for
+        fg.tool = '+';
+        for (int i = 0; i < 8; i++) fg.Apply(i % 5, i / 5);
+        Ok(fg.Advice().step == 2, "eight traces did not advance to START, got " + fg.Advice().step);
+
+        fg.tool = 'S'; fg.Apply(0, 0);
+        Ok(fg.Advice().step == 3, "a placed start did not advance to EXIT");
+
+        fg.tool = 'G'; fg.Apply(1, 0);
+        Ok(fg.Advice().step == 4, "a placed exit did not advance to VERIFY");
+
+        // and a verified cube must not stay at VERIFY, nor keep saying so after
+        // the cube it was proved about has changed underneath it
+        fg.proven = true;
+        Ok(fg.Advice().step == 5, "a proven cube still asked to be verified");
+        fg.tool = '#'; fg.Apply(4, 4);
+        Ok(!fg.proven, "an edit left a stale VERIFIED behind it");
+        Ok(fg.Advice().step == 4, "an edited cube did not go back to VERIFY");
     }
 
     public static void Main() => Environment.ExitCode = Run();

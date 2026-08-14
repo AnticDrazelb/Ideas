@@ -148,6 +148,97 @@ namespace Singularity.Game
                     float r = Mathf.Sqrt(d * d + v * v);
                     return r < 0.82f ? 1f : Mathf.Clamp01(1f - (r - 0.82f) / 0.12f);
                 }
+                // ---- the manual's two building blocks -----------------------
+                //
+                // Every diagram in the manual is made of these. That is not
+                // laziness — the manual is explaining a board built out of square
+                // cells and a gesture made of directions, so a picture assembled
+                // from the same two marks is the subject rather than an
+                // illustration of it.
+                case "sq":
+                {
+                    float e = Mathf.Max(Mathf.Abs(u), Mathf.Abs(v));
+                    return Band(e, 0.82f, 0.11f);
+                }
+                case "sqfill":
+                {
+                    float e = Mathf.Max(Mathf.Abs(u), Mathf.Abs(v));
+                    return e < 0.80f ? 1f : Mathf.Clamp01(1f - (e - 0.80f) / 0.08f);
+                }
+                case "arrow":
+                {
+                    // a head and a shaft, pointing up
+                    float head = v > 0.06f && Mathf.Abs(u) < (0.92f - v) * 0.70f ? 1f : 0f;
+                    float shaft = v <= 0.10f && Mathf.Abs(u) < 0.15f ? 1f : 0f;
+                    return Mathf.Max(head, shaft);
+                }
+
+                // ---- the calibrate marks ------------------------------------
+                //
+                // Eight small icons, one per setting. They are not decoration: a
+                // list of eight rows that differ only in their wording is read by
+                // reading, and a list where each row carries a mark is read by
+                // recognition — which is what you want on a screen somebody opens to
+                // change one thing they already have in mind.
+                case "i.sound":
+                {
+                    // a cone, and two arcs coming off it
+                    float cone = (u < -0.1f && Mathf.Abs(v) < 0.34f) || (u < 0.34f && Mathf.Abs(v) < 0.34f + (0.34f - u) * 0.7f && u > -0.1f) ? 1f : 0f;
+                    float r = Mathf.Sqrt(u * u + v * v);
+                    float arc = (Band(r, 0.62f, 0.07f) + Band(r, 0.92f, 0.07f)) * (u > 0.35f ? 1f : 0f);
+                    return Mathf.Max(cone, arc);
+                }
+                case "i.haptic":
+                {
+                    // a handset, with a shiver either side
+                    float body = Mathf.Abs(u) < 0.30f && Mathf.Abs(v) < 0.78f ? 1f : 0f;
+                    float hole = Mathf.Abs(u) < 0.18f && Mathf.Abs(v) < 0.62f ? 1f : 0f;
+                    float buzz = (Mathf.Abs(u) > 0.52f && Mathf.Abs(u) < 0.66f && Mathf.Abs(v) < 0.34f) ? 1f : 0f;
+                    return Mathf.Max(body - hole, buzz);
+                }
+                case "i.fx":
+                {
+                    // a four-point sparkle: the star every interface uses for "extra"
+                    float au = Mathf.Abs(u), av = Mathf.Abs(v);
+                    float k = Mathf.Pow(au, 0.55f) + Mathf.Pow(av, 0.55f);
+                    return k < 1.0f ? 1f : Mathf.Clamp01(1f - (k - 1.0f) / 0.12f);
+                }
+                case "i.togo":
+                {
+                    float r = Mathf.Sqrt(u * u + v * v);
+                    return Mathf.Max(Band(r, 0.86f, 0.10f), Mathf.Max(Band(r, 0.50f, 0.10f), r < 0.18f ? 1f : 0f));
+                }
+                case "i.depth":
+                {
+                    // two plates, one behind the other — a distance, drawn
+                    float a = Mathf.Abs(u + 0.22f) < 0.44f && Mathf.Abs(v + 0.22f) < 0.44f ? 1f : 0f;
+                    float ai = Mathf.Abs(u + 0.22f) < 0.32f && Mathf.Abs(v + 0.22f) < 0.32f ? 1f : 0f;
+                    float b = Mathf.Abs(u - 0.26f) < 0.40f && Mathf.Abs(v - 0.26f) < 0.40f ? 1f : 0f;
+                    float bi = Mathf.Abs(u - 0.26f) < 0.28f && Mathf.Abs(v - 0.26f) < 0.28f ? 1f : 0f;
+                    return Mathf.Max(a - ai, b - bi);
+                }
+                case "i.buzz":
+                {
+                    // a waveform: amplitude, which is the thing the slider sets
+                    float wave = Mathf.Sin(u * 5.2f) * 0.52f;
+                    return Mathf.Abs(v - wave) < 0.13f && Mathf.Abs(u) < 0.92f ? 1f : 0f;
+                }
+                case "i.bright":
+                {
+                    float r = Mathf.Sqrt(u * u + v * v);
+                    float core = r < 0.42f ? 1f : 0f;
+                    float ang = Mathf.Atan2(v, u);
+                    float spoke = Mathf.Abs(Mathf.Sin(ang * 4f)) > 0.94f && r > 0.58f && r < 0.94f ? 1f : 0f;
+                    return Mathf.Max(core, spoke);
+                }
+                case "i.contrast":
+                {
+                    // a disc half filled — the only honest picture of contrast
+                    float r = Mathf.Sqrt(u * u + v * v);
+                    if (r > 0.88f) return 0f;
+                    return u > 0f ? 1f : Band(r, 0.82f, 0.09f);
+                }
+
                 case "ring":
                 {
                     // THE EDGE DOES THE FINDING. One thin, very bright circle right

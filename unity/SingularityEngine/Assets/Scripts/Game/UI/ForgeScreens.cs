@@ -27,8 +27,8 @@ namespace Singularity.UI
         static InputField _importField;
 
         // editor
-        static RectTransform _slice, _toolRow;
-        static Text _deckLabel, _edMsg, _codeText;
+        static RectTransform _slice, _toolRow, _coach;
+        static Text _deckLabel, _edMsg, _codeText, _coachN, _coachText;
         static InputField _nameField;
         static Button _sizeBtn, _deleteBtn;
 
@@ -161,6 +161,18 @@ namespace Singularity.UI
             RectTransform up = UiKit.Rect(bar, "up", new Vector2(0.78f, 0), Vector2.one, Vector2.zero, Vector2.zero);
             UiKit.Bracketed(up, "up", ">", () => { _ed.layer = Mathf.Min(_ed.n - 1, _ed.layer + 1); PaintSlice(); }, 24);
 
+            // THE COACH. An empty grid and ten unlabelled tools is not an editor, it
+            // is a puzzle about an editor — so the one next thing standing between
+            // this cube and a saveable cube is named, in a sentence, above the deck.
+            // Always one thing and never a checklist: a checklist is read once, and a
+            // next step is read every time it changes.
+            _coach = Band("coach", 54);
+            UiKit.Framed(_coach, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.6f));
+            _coachN = UiKit.Label(_coach, "n", "1", 17, Palette.Rust, TextAnchor.MiddleCenter,
+                                  new Vector2(0, 0), new Vector2(0, 1), new Vector2(8, 0), new Vector2(42, 0));
+            _coachText = UiKit.Label(_coach, "t", "", 15, Palette.Ink, TextAnchor.MiddleLeft,
+                                     new Vector2(0, 0), new Vector2(1, 1), new Vector2(46, 0), new Vector2(-12, 0));
+
             // The deck is the one band that should take what is spare, because it is
             // the thing being edited — so it is measured from what the fixed bands
             // below it need, rather than being given a number of its own.
@@ -240,6 +252,14 @@ namespace Singularity.UI
             PaintSlice();
         }
 
+        /// <summary>Re-read the cube and say the one next thing.</summary>
+        static void PaintCoach()
+        {
+            var (step, say) = _ed.Advice();
+            _coachN.text = step.ToString();
+            _coachText.text = say;
+        }
+
         static void PaintTools()
         {
             for (int i = _toolRow.childCount - 1; i >= 0; i--) Object.Destroy(_toolRow.GetChild(i).gameObject);
@@ -271,6 +291,7 @@ namespace Singularity.UI
 
         static void PaintSlice()
         {
+            PaintCoach();
             for (int i = _slice.childCount - 1; i >= 0; i--) Object.Destroy(_slice.GetChild(i).gameObject);
 
             _deckLabel.text = "DECK " + (_ed.layer + 1) + " / " + _ed.n;

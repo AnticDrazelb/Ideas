@@ -110,6 +110,7 @@ namespace Singularity.Game
             for (int i = 0; i < keys.Count && i < doors.Count; i++)
                 if (Fits(keys[i]) && Fits(doors[i])) { k2.Add(keys[i]); d2.Add(doors[i]); }
 
+            proven = false;
             n = to; vox = v; keys = k2; doors = d2;
             if (!Fits(start)) start = null;
             if (!Fits(goal)) goal = null;
@@ -143,6 +144,11 @@ namespace Singularity.Game
 
         public void Apply(int x, int z)
         {
+            // ANY EDIT UNPROVES IT. A par is the solver's answer about one exact
+            // cube, so the moment a cell changes the old answer is about a cube
+            // that no longer exists — and a stale VERIFIED is worse than none.
+            proven = false;
+
             var w = new Int3(x, layer, z);
             int i = Level.Vidx(n, x, layer, z);
 
@@ -181,6 +187,7 @@ namespace Singularity.Game
 
         public void ClearDeck()
         {
+            proven = false;
             for (int z = 0; z < n; z++)
                 for (int x = 0; x < n; x++)
                 {
@@ -243,6 +250,45 @@ namespace Singularity.Game
         }
 
         /// <summary>
+        /// WHAT TO DO NEXT, IN ONE SENTENCE.
+        ///
+        /// An empty grid and ten unlabelled tools is not an editor, it is a puzzle
+        /// about an editor. This reads the cube as it stands and names the single
+        /// next thing standing between it and a saveable cube — always one thing,
+        /// never a checklist, because a checklist is read once and a next step is
+        /// read every time it changes.
+        ///
+        /// It lives here rather than in the screen for the same reason the rest of
+        /// this class does: it is a statement about the cube, it needs no engine,
+        /// and a test can ask it what it would say.
+        /// </summary>
+        public (int step, string say) Advice()
+        {
+            int trace = 0;
+            foreach (char c in vox) if (c == '+' || c == 'A' || c == 'B') trace++;
+
+            // enough to be a route rather than a spot — the smallest cube the
+            // generator will cut has eight, so the editor asks for eight
+            const int Floor = 8;
+            if (trace < Floor)
+                return (1, "TRACE IS WHAT YOU STAND ON. TAP CELLS TO LAY "
+                         + (Floor - trace) + " MORE OF IT.");
+
+            if (!start.HasValue) return (2, "PLACE A START. IT IS WHERE YOU BEGIN.");
+            if (!goal.HasValue) return (3, "PLACE AN EXIT. IT IS THE CORE YOU COLLAPSE INTO.");
+
+            if (!proven)
+                return (4, "VERIFY IT. THE SOLVER PROVES A CUBE — AND ITS PAR — BEFORE YOU CAN SAVE IT.");
+
+            return (5, string.IsNullOrEmpty(name)
+                ? "PROVEN. GIVE IT A NAME AND SAVE IT."
+                : "PROVEN. SAVE IT.");
+        }
+
+        /// <summary>Set by a passing Verify and cleared by any edit — see Mark/Unmark.</summary>
+        public bool proven;
+
+        /// <summary>
         /// THE ONE ANSWER THE EDITOR OWES YOU: solvable, and new.
         ///
         /// Both are refusals rather than warnings. An unsolvable cube has no par
@@ -269,6 +315,7 @@ namespace Singularity.Game
             if (col.HasValue)
                 return new VerifyResult { ok = false, message = "THIS CUBE ALREADY EXISTS — " + Describe(col.Value) };
 
+            proven = true;
             return new VerifyResult
             {
                 ok = true,

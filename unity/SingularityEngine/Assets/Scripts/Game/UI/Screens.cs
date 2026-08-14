@@ -321,44 +321,114 @@ namespace Singularity.UI
             UiKit.Label(L, "h", "CALIBRATION", 40, Palette.Ink, TextAnchor.UpperCenter,
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -130), new Vector2(0, -80));
 
-            // NINE LINES, NOT NINE PARAGRAPHS. Nobody reads a manual in a puzzle
-            // game — they glance at it, twice, and go back to the cube. So every
-            // rule is a LABEL you can read in one saccade and one line under it.
-            string[] rows =
-            {
-                "THE RULE",
-                "ONE FACE AT A TIME|Two traces that line up when you fold are connected,\nhowever far apart they look.",
-                "THE VERBS",
-                "SWIPE TO FOLD|Past halfway it commits. The ticks say which folds have footing.",
-                "TAP TO MOVE|The singularity walks to any trace connected to the one under it.",
-                "HOLD FOR MATRIX|The lattice goes to glass. Keep holding and drag to turn it.",
-                "COLLAPSE INTO THE CORE|Reach it and the vault is solved.",
-                "WORTH KNOWING",
-                "PLATES INVERT|Every trace goes dead, every dead cell lights up, for five seconds.\nA plate always gives footing, so every fold is legal while you stand on one.",
-                "TO GO|The fewest folds still possible from where you stand.",
-            };
+            // NINE LINES, NOT NINE PARAGRAPHS — AND A PICTURE FOR EACH.
+            //
+            // Nobody reads a manual in a puzzle game. They glance at it, twice, and
+            // go back to the cube. So every rule is a label you can take in with one
+            // saccade, a line under it, and a DIAGRAM beside it — because the four
+            // things this page has to explain are all spatial, and a sentence about
+            // a fold is a worse description of a fold than two squares and an arrow.
+            float y = 190f;
 
-            float y = -190;
-            foreach (string r in rows)
+            void Kicker(string s)
             {
-                if (!r.Contains("|"))
-                {
-                    UiKit.Label(L, r, r, 18, Palette.Rust, TextAnchor.UpperLeft,
-                                new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 30), new Vector2(-48, y));
-                    y -= 46;
-                    continue;
-                }
-                string[] parts = r.Split('|');
-                UiKit.Label(L, parts[0], parts[0], 24, Palette.Ink, TextAnchor.UpperLeft,
-                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 30), new Vector2(-48, y));
-                UiKit.Label(L, parts[0] + "_d", parts[1], 19, Palette.Dim, TextAnchor.UpperLeft,
-                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 92), new Vector2(-48, y - 32));
-                y -= 106;
+                UiKit.Label(L, s, s, 17, Palette.Rust, TextAnchor.LowerLeft,
+                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + 26)), new Vector2(-44, -y));
+                y += 34;
             }
+
+            RectTransform Entry(string head, string body, float h = 104f)
+            {
+                UiKit.Label(L, head, head, 23, Palette.Ink, TextAnchor.UpperLeft,
+                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + 30)), new Vector2(-190, -y));
+                UiKit.Label(L, head + "_d", body, 17, Palette.Dim, TextAnchor.UpperLeft,
+                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + h)), new Vector2(-190, -(y + 32)));
+
+                // the diagram lives in a fixed gutter on the right, so every picture
+                // on the page shares one optical column
+                RectTransform art = UiKit.Rect(L, head + "_art", new Vector2(1, 1), new Vector2(1, 1),
+                                               new Vector2(-176, -(y + 96)), new Vector2(-44, -(y + 4)));
+                y += h + 24f;
+                return art;
+            }
+
+            Image Mark(RectTransform art, string role, Color c, float size, float x, float v)
+                => UiKit.Icon(art, role, c, size, new Vector2(0.5f, 0.5f), new Vector2(x, v));
+
+            Kicker("THE RULE");
+            RectTransform a1 = Entry("ONE FACE AT A TIME",
+                "Two traces that line up when you fold are connected,\nhowever far apart they look.");
+            // two decks, and the fold that brings them together
+            Mark(a1, "sq", Palette.Trace, 34, -22, 28);
+            Mark(a1, "sq", Palette.Trace, 34, -22, -28);
+            Mark(a1, "arrow", Palette.Rust, 26, 26, 0);
+
+            Kicker("THE VERBS");
+            RectTransform a2 = Entry("SWIPE TO FOLD",
+                "Past halfway it commits. The ticks say which folds have footing.");
+            Mark(a2, "sq", Palette.Trace, 30, 0, 0);
+            Mark(a2, "arrow", Palette.Rust, 20, 0, 34);
+            Mark(a2, "arrow", Palette.Rust, 20, 0, -34).rectTransform.localRotation = Quaternion.Euler(0, 0, 180);
+            Mark(a2, "arrow", Palette.Rust, 20, -34, 0).rectTransform.localRotation = Quaternion.Euler(0, 0, 90);
+            Mark(a2, "arrow", Palette.Rust, 20, 34, 0).rectTransform.localRotation = Quaternion.Euler(0, 0, -90);
+
+            RectTransform a3 = Entry("TAP TO MOVE",
+                "The singularity walks to any trace connected to the one under it.");
+            // a column of three, and you on the surface of it
+            Mark(a3, "sq", Palette.Trace, 30, 0, 32);
+            Mark(a3, "sq", Palette.Trace, 30, 0, 0);
+            Mark(a3, "sq", Palette.Trace, 30, 0, -32);
+            Mark(a3, "hole", Palette.Void, 15, 0, 32);
+            Mark(a3, "ring", Palette.Arc, 17, 0, 32);
+
+            RectTransform a4 = Entry("COLLAPSE INTO THE CORE", "Reach it and the vault is solved.", 72f);
+            Mark(a4, "core", Palette.Core, 52, 0, 0);
+
+            Kicker("THE OBJECTS");
+            RectTransform cards = UiKit.Rect(L, "cards", new Vector2(0, 1), new Vector2(1, 1),
+                                             new Vector2(44, -(y + 96)), new Vector2(-44, -y));
+            Card(cards, 0, "trace", Palette.Trace, "TRACE", "CIRCUIT");
+            Card(cards, 1, "node", Palette.Node, "NODE", "COLLECT");
+            Card(cards, 2, "lock", Palette.Lock, "LOCK", "BARRIER");
+            Card(cards, 3, "plate", Palette.Rust, "PLATE", "INVERTS");
+            y += 120f;
+
+            Kicker("WORTH KNOWING");
+            RectTransform a5 = Entry("HOLD FOR MATRIX",
+                "The lattice goes to glass. Keep holding and drag to turn it.");
+            // the solid, seen through — three faces of one box
+            Mark(a5, "sq", Palette.Arc, 44, -8, -6);
+            Mark(a5, "sq", new Color(Palette.Arc.r, Palette.Arc.g, Palette.Arc.b, 0.45f), 44, 12, 12);
+            Mark(a5, "sqfill", Palette.Trace, 14, -14, -12);
+
+            RectTransform a6 = Entry("PLATES INVERT",
+                "Every trace goes dead and every dead cell lights up, for five\nseconds. A plate is always footing, so every fold is legal on one.");
+            Mark(a6, "sqfill", Palette.Trace, 26, -16, 14);
+            Mark(a6, "sq", Palette.Dim2, 26, 14, 14);
+            Mark(a6, "sq", Palette.Dim2, 26, -16, -16);
+            Mark(a6, "sqfill", Palette.Trace, 26, 14, -16);
+
+            RectTransform a7 = Entry("TO GO", "The fewest folds still possible from where you stand.", 72f);
+            Mark(a7, "i.togo", Palette.Arc, 44, 0, 0);
 
             RectTransform got = UiKit.Rect(L, "got", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
             UiKit.Bracketed(got, "got", "GOT IT", Back, 28, true);
         }
+
+        /// <summary>One of the four object cards: the mark, its name, and its job.</summary>
+        static void Card(RectTransform row, int i, string glyph, Color col, string name, string job)
+        {
+            RectTransform c = UiKit.Rect(row, name, new Vector2(i / 4f, 0), new Vector2((i + 1) / 4f, 1),
+                                         new Vector2(5, 0), new Vector2(-5, 0));
+            UiKit.Framed(c, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.5f));
+            UiKit.Icon(c, glyph, col, 34, new Vector2(0.5f, 1f), new Vector2(0, -32));
+            UiKit.Label(c, "n", name, 16, Palette.Ink, TextAnchor.UpperCenter,
+                        new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 26), new Vector2(0, 48));
+            UiKit.Label(c, "j", job, 12, Palette.Dim, TextAnchor.UpperCenter,
+                        new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 8), new Vector2(0, 26));
+        }
+
+        public static void ShowManual() => Show("manual");
 
         // ---- pause ----------------------------------------------------------
 
@@ -439,61 +509,103 @@ namespace Singularity.UI
             UiKit.Label(L, "sub", "TUNE THE INSTRUMENT", 20, Palette.Dim, TextAnchor.UpperCenter,
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -176), new Vector2(0, -146));
 
-            RectTransform col = Column(L, 220, 200);
-            Switch(col, 0, 8, "SOUND", "", () => Store.Data.sound, v => { Store.Data.sound = v; if (v == 0) Sfx.I.StopAmbience(); else Sfx.I.Ambience(Vaults.VaultOf(_dir.S.levelNo)); });
-            Switch(col, 1, 8, "HAPTICS", "", () => Store.Data.haptic, v => Store.Data.haptic = v);
-            Switch(col, 2, 8, "EFFECTS", "SHAKE · SPARKS · TIME", () => Store.Data.fx, v => Store.Data.fx = v);
-            Switch(col, 3, 8, "FOLDS TO GO", "ARC: PERFECT LINE · GOLD: YOU SLIPPED", () => Store.Data.togo, v => Store.Data.togo = v);
-            Switch(col, 4, 8, "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL", () => Store.Data.depth, v => Store.Data.depth = v);
-            Stepper(col, 5, 8, "HAPTIC INTENSITY", () => Store.Data.buzz, v => Store.Data.buzz = v, 0, 150, 10);
+            // ONE PANEL, EIGHT ROWS, EACH WITH ITS OWN MARK.
+            //
+            // These were eight labels floating on black with [ON] buttons and plus
+            // and minus steppers beside them. Two things were wrong with that. A
+            // stepper is a fine way to change a number by one and a poor way to
+            // answer "how bright, out of how bright it goes" — brightness is only
+            // ever judged against the ends of its range, so it wants a POSITION,
+            // not a reading. And a row of eight items that differ only in their
+            // wording has to be read; a row where each carries a mark is
+            // recognised, which is what you want on the screen somebody opens to
+            // change one thing they already had in mind.
+            RectTransform panel = UiKit.Rect(L, "panel", new Vector2(0, 0), new Vector2(1, 1),
+                                             new Vector2(28, 190), new Vector2(-28, -200));
+            UiKit.Framed(panel, Palette.Panel, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.55f));
+
+            _calRow = 0;
+            Toggle(panel, "i.sound", "SOUND", "", () => Store.Data.sound,
+                   v => { Store.Data.sound = v; if (v == 0) Sfx.I.StopAmbience(); else Sfx.I.Ambience(Vaults.VaultOf(_dir.S.levelNo)); });
+            Toggle(panel, "i.haptic", "HAPTICS", "", () => Store.Data.haptic, v => Store.Data.haptic = v);
+            Toggle(panel, "i.fx", "EFFECTS", "SHAKE · SPARKS · BLOOM", () => Store.Data.fx,
+                   v => { Store.Data.fx = v; _dir.Glow.Refresh(); });
+            Toggle(panel, "i.togo", "FOLDS TO GO", "CYAN: PERFECT LINE · RUST: YOU SLIPPED",
+                   () => Store.Data.togo, v => Store.Data.togo = v);
+            Toggle(panel, "i.depth", "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL",
+                   () => Store.Data.depth, v => Store.Data.depth = v);
+            Bar(panel, "i.buzz", "HAPTIC FEEDBACK", "INTENSITY", 0, 150, () => Store.Data.buzz, v => Store.Data.buzz = v);
             // Both default to 100, and at 100 no filter is applied at all — the
             // cost of these two is zero for anyone who leaves them alone.
-            Stepper(col, 6, 8, "BRIGHTNESS", () => Store.Data.bright, v => Store.Data.bright = v, 60, 160, 5);
-            Stepper(col, 7, 8, "CONTRAST", () => Store.Data.contrast, v => Store.Data.contrast = v, 70, 150, 5);
+            Bar(panel, "i.bright", "BRIGHTNESS", "", 60, 160, () => Store.Data.bright, v => Store.Data.bright = v);
+            Bar(panel, "i.contrast", "CONTRAST", "", 70, 150, () => Store.Data.contrast, v => Store.Data.contrast = v);
 
-            RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
-            UiKit.Bracketed(back, "back", "BACK", Back, 28);
+            RectTransform feet = UiKit.Rect(L, "feet", new Vector2(0, 0), new Vector2(1, 0),
+                                            new Vector2(40, 90), new Vector2(-40, 152));
+            Third(feet, 0, "MANUAL", ShowManual);
+            Third(feet, 1, "BACK", Back);
+            Third(feet, 2, "MENU", ShowTitle);
         }
 
-        static void Switch(RectTransform col, int slot, int of, string label, string hint,
+        static int _calRow;
+        const int CalRows = 8;
+
+        static void Third(RectTransform parent, int i, string label, System.Action act)
+        {
+            RectTransform slot = UiKit.Rect(parent, label, new Vector2(i / 3f, 0), new Vector2((i + 1) / 3f, 1),
+                                            new Vector2(5, 0), new Vector2(-5, 0));
+            UiKit.Bracketed(slot, label, label, act, 22);
+        }
+
+        /// <summary>A row of the calibrate panel: mark, name, what it does, and the control.</summary>
+        static RectTransform CalRow(RectTransform panel, string icon, string label, string hint)
+        {
+            float h = 1f / CalRows;
+            int slot = _calRow++;
+            RectTransform r = UiKit.Rect(panel, label, new Vector2(0, 1 - (slot + 1) * h), new Vector2(1, 1 - slot * h),
+                                         new Vector2(0, 2), new Vector2(0, -2));
+
+            UiKit.Icon(r, icon, Palette.Rust, 26, new Vector2(0, 0.5f), new Vector2(34, 0));
+            UiKit.Label(r, "l", label, 21, Palette.Ink, TextAnchor.MiddleLeft,
+                        new Vector2(0, string.IsNullOrEmpty(hint) ? 0 : 0.40f), new Vector2(0.62f, 1),
+                        new Vector2(58, 0), Vector2.zero);
+            if (!string.IsNullOrEmpty(hint))
+                UiKit.Label(r, "h", hint, 14, Palette.Dim, TextAnchor.MiddleLeft,
+                            new Vector2(0, 0), new Vector2(0.72f, 0.40f), new Vector2(58, 0), Vector2.zero);
+
+            // a hairline under every row but the last, so eight rows read as one
+            // instrument rather than eight unrelated controls
+            if (slot < CalRows - 1)
+                UiKit.Panel(r, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.20f),
+                            new Vector2(0, 0), new Vector2(1, 0), new Vector2(20, 0), new Vector2(-20, 1));
+            return r;
+        }
+
+        static void Toggle(RectTransform panel, string icon, string label, string hint,
                            System.Func<int> get, System.Action<int> set)
         {
-            float h = 1f / of;
-            RectTransform r = UiKit.Rect(col, label, new Vector2(0, 1 - (slot + 1) * h), new Vector2(1, 1 - slot * h),
-                                         new Vector2(0, 6), new Vector2(0, -6));
-            UiKit.Label(r, "l", label, 22, Palette.Ink, TextAnchor.MiddleLeft,
-                        new Vector2(0, string.IsNullOrEmpty(hint) ? 0 : 0.42f), new Vector2(0.7f, 1), new Vector2(8, 0), Vector2.zero);
-            if (!string.IsNullOrEmpty(hint))
-                UiKit.Label(r, "h", hint, 15, Palette.Dim2, TextAnchor.MiddleLeft,
-                            new Vector2(0, 0), new Vector2(0.9f, 0.42f), new Vector2(8, 0), Vector2.zero);
-
-            RectTransform slot2 = UiKit.Rect(r, "sw", new Vector2(0.72f, 0.14f), new Vector2(1, 0.86f), Vector2.zero, new Vector2(-8, 0));
-            Button b = null;
-            b = UiKit.Bracketed(slot2, "sw", get() != 0 ? "ON" : "OFF", () =>
+            RectTransform r = CalRow(panel, icon, label, hint);
+            UiKit.Switch(r, "sw", get() != 0, _ =>
             {
                 int v = get() != 0 ? 0 : 1;
                 set(v);
                 Store.Save();
-                UiKit.SetLabel(b, v != 0 ? "ON" : "OFF");
-            }, 22);
+                return v != 0;
+            }, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-108, -21), new Vector2(-18, 21));
         }
 
-        static void Stepper(RectTransform col, int slot, int of, string label,
-                            System.Func<int> get, System.Action<int> set, int lo, int hi, int step)
+        static void Bar(RectTransform panel, string icon, string label, string hint,
+                        int lo, int hi, System.Func<int> get, System.Action<int> set)
         {
-            float h = 1f / of;
-            RectTransform r = UiKit.Rect(col, label, new Vector2(0, 1 - (slot + 1) * h), new Vector2(1, 1 - slot * h),
-                                         new Vector2(0, 6), new Vector2(0, -6));
-            UiKit.Label(r, "l", label, 22, Palette.Ink, TextAnchor.MiddleLeft,
-                        new Vector2(0, 0), new Vector2(0.6f, 1), new Vector2(8, 0), Vector2.zero);
-
-            Text val = UiKit.Label(r, "v", get() + "%", 22, Palette.Rust, TextAnchor.MiddleCenter,
-                                   new Vector2(0.6f, 0), new Vector2(0.76f, 1), Vector2.zero, Vector2.zero);
-
-            RectTransform down = UiKit.Rect(r, "d", new Vector2(0.76f, 0.14f), new Vector2(0.88f, 0.86f), Vector2.zero, Vector2.zero);
-            UiKit.Bracketed(down, "d", "-", () => { set(Mathf.Max(lo, get() - step)); Store.Save(); val.text = get() + "%"; }, 22);
-            RectTransform up = UiKit.Rect(r, "u", new Vector2(0.88f, 0.14f), new Vector2(1, 0.86f), Vector2.zero, new Vector2(-8, 0));
-            UiKit.Bracketed(up, "u", "+", () => { set(Mathf.Min(hi, get() + step)); Store.Save(); val.text = get() + "%"; }, 22);
+            RectTransform r = CalRow(panel, icon, label, hint);
+            Text val = UiKit.Label(r, "v", get() + "%", 16, Palette.Rust, TextAnchor.MiddleLeft,
+                                   new Vector2(0, 0), new Vector2(0.4f, 0.40f), new Vector2(58, 0), Vector2.zero);
+            UiKit.Bar(r, "bar", lo, hi, get(), v =>
+            {
+                set(v);
+                Store.Save();
+                val.text = v + "%";
+            }, new Vector2(0.52f, 0.5f), new Vector2(1, 0.5f), new Vector2(0, -18), new Vector2(-18, 18));
         }
 
         public static void ShowCalibrate() => Show("calibrate");
