@@ -133,6 +133,28 @@ namespace Singularity.Game
             return Cache[key] = clip;
         }
 
+        static AudioClip _silence;
+
+        /// <summary>
+        /// A few samples of nothing, handed to every voice the moment it is made.
+        ///
+        /// A pooled voice is empty between sounds, and an empty AudioSource that
+        /// is asked to play is what Unity means by "only custom filters can be
+        /// played" — it has nothing to render and no custom OnAudioFilterRead to
+        /// generate anything. <see cref="Sfx.Build"/> stops that happening at
+        /// birth; this makes it impossible for the rest of the object's life,
+        /// whatever else ever enables one of these sources.
+        ///
+        /// It costs sixty-four samples, once, for every voice in the game.
+        /// </summary>
+        public static AudioClip Silence()
+        {
+            if (_silence != null) return _silence;
+            _silence = AudioClip.Create("silence", 64, 1, Rate, false);
+            _silence.SetData(new float[64], 0);
+            return _silence;
+        }
+
         /// <summary>
         /// THE AMBIENT BED. Two detuned saws through a heavy lowpass, pitched off
         /// the vault number, at a level you notice only when it stops. It is the

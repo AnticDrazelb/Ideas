@@ -39,12 +39,29 @@ namespace Singularity.Game
         // hertz per footfall instead of repeating exactly
         int _stepN;
 
+        /// <summary>
+        /// BUILT INACTIVE, THEN SWITCHED ON. This matters more than it looks.
+        ///
+        /// A fresh AudioSource arrives with <c>playOnAwake</c> already TRUE, and
+        /// AddComponent on a live GameObject wakes the component then and there —
+        /// so a source is asked to play in the same statement that creates it,
+        /// before the next line can say otherwise, and with no clip yet. That is
+        /// precisely the state Unity reports as "only custom filters can be
+        /// played": a source told to play with nothing to play and no custom
+        /// OnAudioFilterRead to generate it. Forty-one of them, at startup.
+        ///
+        /// Nothing under an inactive parent wakes at all, so the whole bus —
+        /// voices, filters, bed — is assembled in the quiet and enabled once it
+        /// is a coherent object.
+        /// </summary>
         public static Sfx Build(Transform under)
         {
             var go = new GameObject("Audio");
+            go.SetActive(false);
             go.transform.SetParent(under, false);
             var s = go.AddComponent<Sfx>();
             s.Init();
+            go.SetActive(true);
             I = s;
             return s;
         }
@@ -84,6 +101,7 @@ namespace Singularity.Game
             _bed.playOnAwake = false;
             _bed.spatialBlend = 0f;
             _bed.volume = 0f;
+            _bed.clip = Synth.Silence();
         }
 
         static AudioSource Voice(Transform under)
@@ -94,6 +112,8 @@ namespace Singularity.Game
             a.playOnAwake = false;
             a.spatialBlend = 0f;      // the board has no location; it is the whole screen
             a.bypassReverbZones = true;
+            // never clipless — see Synth.Silence
+            a.clip = Synth.Silence();
             return a;
         }
 
