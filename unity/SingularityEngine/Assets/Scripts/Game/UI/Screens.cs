@@ -161,15 +161,23 @@ namespace Singularity.UI
             // The play button used to be a promise with no subject: it did not say
             // which cube, which vault, or what it would cost. Naming the thing a
             // button is about is the cheapest confidence a menu can buy.
-            _resumeVault = UiKit.Label(L, "resumeVault", "", 19, Palette.Dim, TextAnchor.UpperCenter,
+            _resumeVault = UiKit.Label(L, "resumeVault", "", 19, Palette.Rust, TextAnchor.UpperCenter,
                                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -290), new Vector2(0, -262));
             _resumeName = UiKit.Label(L, "resume", "", 24, Palette.Ink, TextAnchor.UpperCenter,
                                       new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -322), new Vector2(0, -292));
 
+            // .mastRule — one pixel of rust, min(88vw, 420px) wide, 11px above and
+            // 12px below. It is the only rule on the screen and it is doing real
+            // work: it closes the masthead, so the pitch underneath reads as a
+            // caption on the game rather than a fourth line of the title.
+            UiKit.Panel(L, "mastRule", Palette.Rust,
+                        new Vector2(0.5f, 1), new Vector2(0.5f, 1),
+                        new Vector2(-317, -346), new Vector2(317, -344));
+
             UiKit.Label(L, "sub",
                 "You are a black hole inside a broken machine.\nFold the engine until its circuits align,\nthen collapse into the core.",
-                22, Palette.Dim, TextAnchor.UpperCenter,
-                new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -420), new Vector2(0, -330));
+                17, Palette.Dim, TextAnchor.UpperCenter,
+                new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -460), new Vector2(0, -370));
 
             // ONE PRIMARY, THEN A GRID OF FOUR.
             //
