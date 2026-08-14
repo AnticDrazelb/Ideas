@@ -39,8 +39,46 @@ namespace Singularity.UI
             public float h;         // fixed height, or 0 when measured
             public float maxW;
             public float mb;        // margin-bottom
-            public Text measure;    // when the height is however tall the text is
-            public float lineH;     // line-height multiplier for a measured item
+            public string measure;  // when the height is however tall the text is
+            public float size, track, lineH;
+        }
+
+        /// <summary>
+        /// HOW TALL A PARAGRAPH IS, WORKED OUT RATHER THAN ASKED FOR.
+        ///
+        /// uGUI will answer this with `preferredHeight`, but only against the rect
+        /// width it last laid out at — and a column has to know the height BEFORE
+        /// it can place anything, so the answer would always be one frame stale and
+        /// the first frame of every screen would be wrong.
+        ///
+        /// This interface is set entirely in a fixed-pitch face, which makes the
+        /// question arithmetic instead: every glyph advances by the same amount, so
+        /// the wrap can simply be run. The advance is the character cell plus the
+        /// rule's tracking, and 0.6em is the cell of every monospace face this
+        /// stack can resolve to.
+        /// </summary>
+        public static float TextHeight(string s, float width, float size, float track, float lineH)
+        {
+            if (string.IsNullOrEmpty(s) || width <= 1f) return size * lineH;
+
+            float advance = size * (0.6f + track);
+            int perLine = Mathf.Max(1, Mathf.FloorToInt(width / advance));
+
+            int lines = 0;
+            foreach (string para in s.Split('\n'))
+            {
+                int used = 0;
+                lines++;
+                foreach (string word in para.Split(' '))
+                {
+                    int need = word.Length + (used > 0 ? 1 : 0);
+                    if (used > 0 && used + need > perLine) { lines++; used = word.Length; }
+                    else used += need;
+                    // a word longer than the line breaks inside itself
+                    while (used > perLine) { lines++; used -= perLine; }
+                }
+            }
+            return lines * size * lineH;
         }
 
         readonly List<Item> _items = new List<Item>();
@@ -77,11 +115,16 @@ namespace Singularity.UI
         /// paragraph, a manual line, a hint under a switch. Measured at the width
         /// it will actually be given, because that is what decides the wrap.
         /// </summary>
-        public RectTransform AddText(RectTransform rt, Text t, float maxW, float marginBottom, float lineH = 1f)
+        public RectTransform AddText(RectTransform rt, string text, float size, float track,
+                                     float maxW, float marginBottom, float lineH = 1f)
         {
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
             rt.pivot = new Vector2(0.5f, 1f);
-            _items.Add(new Item { rt = rt, maxW = maxW, mb = marginBottom, measure = t, lineH = lineH });
+            _items.Add(new Item
+            {
+                rt = rt, maxW = maxW, mb = marginBottom,
+                measure = text, size = size, track = track, lineH = lineH,
+            });
             _last = new Vector2(-1f, -1f);
             return rt;
         }
@@ -116,17 +159,9 @@ namespace Singularity.UI
             {
                 Item it = _items[i];
                 float w = it.maxW > 0f ? Mathf.Min(it.maxW, avail) : avail;
-                float h = it.h;
-
-                if (it.measure != null)
-                {
-                    // the generator needs the final width before it can say how many
-                    // lines there are
-                    var mr = it.measure.rectTransform;
-                    mr.sizeDelta = new Vector2(w, mr.sizeDelta.y);
-                    h = it.measure.preferredHeight * it.lineH;
-                }
-
+                float h = it.measure != null
+                    ? TextHeight(it.measure, w, it.size, it.track, it.lineH)
+                    : it.h;
                 total += h + it.mb;
             }
             // the last child's margin is inside the column in CSS too, so it stays
@@ -140,8 +175,9 @@ namespace Singularity.UI
             {
                 Item it = _items[i];
                 float w = it.maxW > 0f ? Mathf.Min(it.maxW, avail) : avail;
-                float h = it.h;
-                if (it.measure != null) h = it.measure.preferredHeight * it.lineH;
+                float h = it.measure != null
+                    ? TextHeight(it.measure, w, it.size, it.track, it.lineH)
+                    : it.h;
 
                 it.rt.sizeDelta = new Vector2(w, h);
                 it.rt.anchoredPosition = new Vector2(0f, -y);

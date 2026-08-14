@@ -55,12 +55,33 @@ namespace Singularity.Game
         // THE BANDS ARE MEASURED, NOT GUESSED. Reserving a FRACTION of the height
         // for chrome is right for the layout it was written against and wrong the
         // moment a button is added — the web build hit exactly that and the cube
-        // came out sitting under the primary action of the whole game. These are
-        // the heights the HUD actually occupies, in the same reference units the
-        // canvas scaler works in.
+        // came out sitting under the primary action of the whole game.
+        //
+        // They are also not constants, for the same reason nothing else in this
+        // interface is: the HUD is built out of `clamp()` values that move with the
+        // viewport, so a band written down as one number is that band's height on
+        // one device. These are computed from the same tokens the HUD is laid out
+        // with, in CSS pixels, and converted to real ones at the end.
 
-        public const float RefWidth = 720f, RefHeight = 1280f;
-        public const float TopBand = 162f, BottomBand = 128f;
+        /// <summary>
+        /// #barTop: 8 above it, the chip row, a 3 gap and the context line.
+        /// </summary>
+        public static float TopBandCss
+        {
+            get
+            {
+                float ic = Mathf.Clamp(UI.Css.Vw(4.6f), 15f, 21f);
+                float n = Mathf.Clamp(UI.Css.Vw(5.6f), 17f, 26f);
+                float pad = Mathf.Clamp(UI.Css.Vw(2.4f), 7f, 12f);
+                return 8f + (pad * 2f + Mathf.Max(ic, n)) + 3f + UI.Css.TFine * 1.6f;
+            }
+        }
+
+        /// <summary>
+        /// #barBot and the fold ticks above it: 12 off the floor, a control, 14,
+        /// and the ticks themselves.
+        /// </summary>
+        public static float BottomBandCss => 12f + UI.Css.HCtl + 14f + 5f + 8f;
 
         /// <summary>
         /// The rectangle left for the board, in pixels, after the safe area, the
@@ -71,13 +92,9 @@ namespace Singularity.Game
             Rect safe = Screen.safeArea;
             int ov = OverscanPixels;
 
-            // the bands are authored against the reference height and scale with
-            // whatever the canvas scaler is doing, which is the shorter axis
-            float scale = Mathf.Min(Screen.width / RefWidth, Screen.height / RefHeight);
-            if (scale <= 0f) scale = 1f;
-
-            float top = TopBand * scale + ov;
-            float bottom = BottomBand * scale + ov;
+            float d = UI.Css.Density;
+            float top = TopBandCss * d + ov;
+            float bottom = BottomBandCss * d + ov;
 
             return new Rect(
                 safe.xMin + ov,

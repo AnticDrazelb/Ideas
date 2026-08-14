@@ -312,9 +312,15 @@ namespace UnityEngine
 
     public class Sprite : Object
     {
-        public static Sprite Create(Texture2D t, Rect r, Vector2 pivot, float ppu) => null;
+        /// The texture the most recent Create was handed. The harness has no
+        /// renderer, so this is how a generated mark can be got back out and
+        /// looked at; the game never reads it.
+        public static Texture2D LastTexture;
+        public static Sprite Create(Texture2D t, Rect r, Vector2 pivot, float ppu)
+        { LastTexture = t; return null; }
         public static Sprite Create(Texture2D t, Rect r, Vector2 pivot, float ppu,
-                                    uint extrude, SpriteMeshType meshType, Vector4 border) => null;
+                                    uint extrude, SpriteMeshType meshType, Vector4 border)
+        { LastTexture = t; return null; }
     }
 
     public enum SpriteMeshType { FullRect, Tight }
@@ -351,10 +357,20 @@ namespace UnityEngine
 
     public class Texture : Object { public FilterMode filterMode { get; set; } public TextureWrapMode wrapMode { get; set; } }
 
+    /// Texture2D stores its pixels for the same reason Mathf is implemented for
+    /// real: the interface generates all of its own artwork — the frames, the
+    /// glow, the title gradient and every icon and diagram in the game — and a
+    /// SetPixels32 that discards them turns the one part of this port that cannot
+    /// be checked by reading it into a part that cannot be checked at all. With
+    /// the buffer kept, the harness can RUN the rasteriser and the result can be
+    /// looked at.
     public class Texture2D : Texture
     {
-        public Texture2D(int w, int h, TextureFormat f, bool mips) { }
-        public void SetPixels32(Color32[] px) { }
+        public readonly int width, height;
+        Color32[] _px;
+        public Texture2D(int w, int h, TextureFormat f, bool mips) { width = w; height = h; _px = new Color32[w * h]; }
+        public void SetPixels32(Color32[] px) { _px = px; }
+        public Color32[] GetPixels32() => _px;
         public void Apply(bool mips, bool noLongerReadable) { }
         public void Apply() { }
         public byte[] EncodeToPNG() => null;
@@ -420,6 +436,8 @@ namespace UnityEngine
         public static float realtimeSinceStartup => 0;
     }
 
+    public static class GUIUtility { public static string systemCopyBuffer { get; set; } }
+
     public static class Screen
     {
         public static int width => 0;
@@ -483,9 +501,36 @@ namespace UnityEngine
     public enum DeviceType { Unknown, Handheld, Console, Desktop }
     public static class Handheld { public static void Vibrate() { } }
 
+    /// Implemented for real, for the same reason Mathf is. Palette is nothing but
+    /// twenty-one calls to this, so a stub that answers transparent black makes
+    /// every colour in the game invisible under the harness — which does not fail,
+    /// it silently passes while drawing nothing. That is exactly the landmine the
+    /// note on Mathf is about.
     public static class ColorUtility
     {
-        public static bool TryParseHtmlString(string s, out Color c) { c = default; return true; }
+        public static bool TryParseHtmlString(string s, out Color c)
+        {
+            c = default;
+            if (string.IsNullOrEmpty(s)) return false;
+            string h = s[0] == '#' ? s.Substring(1) : s;
+            if (h.Length == 3 || h.Length == 4)
+            {
+                var e = "";
+                foreach (char ch in h) e += new string(ch, 2);
+                h = e;
+            }
+            if (h.Length != 6 && h.Length != 8) return false;
+            try
+            {
+                byte r = Convert.ToByte(h.Substring(0, 2), 16);
+                byte g = Convert.ToByte(h.Substring(2, 2), 16);
+                byte b = Convert.ToByte(h.Substring(4, 2), 16);
+                byte a = h.Length == 8 ? Convert.ToByte(h.Substring(6, 2), 16) : (byte)255;
+                c = new Color(r / 255f, g / 255f, b / 255f, a / 255f);
+                return true;
+            }
+            catch (Exception) { return false; }
+        }
     }
 
     public class AndroidJavaObject : IDisposable

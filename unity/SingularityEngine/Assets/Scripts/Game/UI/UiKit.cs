@@ -346,6 +346,21 @@ namespace Singularity.UI
         // ---- box-shadow -----------------------------------------------------
 
         /// <summary>
+        /// The control's ground. A child rather than the box's own graphic, so
+        /// that a shadow can be drawn behind it — see <see cref="Seat"/>.
+        /// </summary>
+        public static Image Plate(RectTransform box, Color col, float radius)
+        {
+            RectTransform pr = Fill(box, "plate");
+            var img = pr.gameObject.AddComponent<Image>();
+            img.sprite = Frame(radius, 0f);
+            img.type = Image.Type.Sliced;
+            img.color = col;
+            img.raycastTarget = false;
+            return img;
+        }
+
+        /// <summary>
         /// `box-shadow: inset 0 0 0 Npx COLOUR` — the edge every control wears.
         /// A sibling image rather than part of the plate, because a plate that is
         /// its own border cannot change one without the other.
@@ -366,20 +381,25 @@ namespace Singularity.UI
         /// every control in this interface its seat. It is drawn as a copy of the
         /// shape offset downward, behind the plate, which is exactly what the
         /// declaration means.
+        ///
+        /// A CHILD, NOT A SIBLING, AND THAT IS THE WHOLE OF WHY IT WORKS. A shadow
+        /// placed beside its control has to be positioned to match it, and the
+        /// column lays these out AFTER they are built — so a sibling shadow is
+        /// pinned to wherever the control was at construction and stays there when
+        /// the control moves. Parenting it means it can never be anywhere else.
+        /// UGUI draws a parent's own graphic before its children, so the control's
+        /// box carries no Image of its own and the plate is a child too; order
+        /// within the children is then the paint order.
         /// </summary>
-        public static Image Seat(RectTransform rt, Color col, float radius, float dy)
+        public static Image Seat(RectTransform box, Color col, float radius, float dy)
         {
-            RectTransform sr = Rect(rt.parent, rt.name + "_seat", rt.anchorMin, rt.anchorMax,
-                                    rt.offsetMin + new Vector2(0f, -dy), rt.offsetMax + new Vector2(0f, -dy));
-            sr.pivot = rt.pivot;
-            sr.sizeDelta = rt.sizeDelta;
-            sr.anchoredPosition = rt.anchoredPosition + new Vector2(0f, -dy);
+            RectTransform sr = Rect(box, "seat", Vector2.zero, Vector2.one,
+                                    new Vector2(0f, -dy), new Vector2(0f, -dy));
             var img = sr.gameObject.AddComponent<Image>();
             img.sprite = Frame(radius, 0f);
             img.type = Image.Type.Sliced;
             img.color = col;
             img.raycastTarget = false;
-            sr.SetSiblingIndex(rt.GetSiblingIndex());
             return img;
         }
 
@@ -394,20 +414,16 @@ namespace Singularity.UI
         /// was always going to have to be drawn. A soft-edged plate behind the
         /// button, one more quad, is the same picture.
         /// </summary>
-        public static Image Glow(RectTransform rt, Color col, float blur, float spread)
+        public static Image Glow(RectTransform box, Color col, float blur, float spread)
         {
             float reach = blur + spread;
-            RectTransform gr = Rect(rt.parent, rt.name + "_glow", rt.anchorMin, rt.anchorMax,
-                                    Vector2.zero, Vector2.zero);
-            gr.pivot = rt.pivot;
-            gr.sizeDelta = rt.sizeDelta + new Vector2(reach * 2f, reach * 2f);
-            gr.anchoredPosition = rt.anchoredPosition;
+            RectTransform gr = Rect(box, "glow", Vector2.zero, Vector2.one,
+                                    new Vector2(-reach, -reach), new Vector2(reach, reach));
             var g = gr.gameObject.AddComponent<Image>();
             g.sprite = GlowSprite(blur, spread);
             g.type = Image.Type.Sliced;
             g.color = col;
             g.raycastTarget = false;
-            gr.SetSiblingIndex(rt.GetSiblingIndex());
             return g;
         }
 
@@ -554,6 +570,14 @@ namespace Singularity.UI
             float size = sizeOverride ?? (primary ? Css.TMd : ghost ? Css.TFine : Css.TSm);
             float track = trackOverride ?? (primary ? 0.22f : ghost ? 0.22f : 0.20f);
 
+            // The control's own box carries only an invisible hit area, because a
+            // parent's graphic is drawn before its children and the shadow has to
+            // be behind the plate. A Text alone would give the raycaster the glyphs
+            // and not the gaps between them, so the hit area is not optional even
+            // on a ghost.
+            var hit = slot.gameObject.AddComponent<Image>();
+            hit.color = new Color(0f, 0f, 0f, 0f);
+
             Image plate = null, edge = null, seat = null;
 
             if (!ghost)
@@ -568,19 +592,8 @@ namespace Singularity.UI
                     seat = Seat(slot, Css.Seat, Css.RBtn, Css.Rule);
                 }
 
-                plate = slot.gameObject.AddComponent<Image>();
-                plate.sprite = Frame(Css.RBtn, 0f);
-                plate.type = Image.Type.Sliced;
-                plate.color = primary ? Palette.Rust : Palette.Panel;
-
+                plate = Plate(slot, primary ? Palette.Rust : Palette.Panel, Css.RBtn);
                 edge = Edge(slot, primary ? Css.PrimaryRim : Css.Edge, Css.RBtn, Css.Rule);
-            }
-            else
-            {
-                // a ghost still has to be hittable across its whole rect, and a
-                // Text alone gives the raycaster only the glyphs
-                plate = slot.gameObject.AddComponent<Image>();
-                plate.color = new Color(0f, 0f, 0f, 0f);
             }
 
             // THE PRIMARY'S END TICKS. Two pseudo-elements, seven CSS pixels wide,
@@ -595,7 +608,7 @@ namespace Singularity.UI
                           TextAnchor.MiddleCenter, track);
 
             var btn = slot.gameObject.AddComponent<Button>();
-            btn.targetGraphic = plate;
+            btn.targetGraphic = hit;
             // the colour transition is done by Press, which can move the control
             // and collapse its seat as well as tint it
             var colors = btn.colors;
@@ -611,12 +624,14 @@ namespace Singularity.UI
             press.seat = seat;
             press.label = t;
             press.travel = primary ? 3f : ghost ? 0f : Css.Rule;
-            press.plateUp = plate.color;
-            press.plateDown = ghost ? plate.color : primary ? Palette.RustHi : Palette.Rust;
+            press.plateUp = plate != null ? plate.color : Color.clear;
+            // .btn.ghost:active is transparent still — it answers with its ink and
+            // a hairline, not with a fill
+            press.plateDown = plate != null ? (primary ? Palette.RustHi : Palette.Rust) : Color.clear;
             press.edgeUp = edge != null ? edge.color : Color.clear;
             press.edgeDown = edge != null ? (primary ? Css.PrimaryRim : Palette.Rust) : Color.clear;
             press.inkUp = t.color;
-            press.inkDown = ghost ? Palette.Rust : primary ? Palette.Void : Palette.Void;
+            press.inkDown = ghost ? Palette.Rust : Palette.Void;
 
             if (onClick != null) btn.onClick.AddListener(() => onClick());
             return btn;
@@ -657,18 +672,17 @@ namespace Singularity.UI
         public static Button PillBtn(RectTransform slot, string label, System.Action onClick,
                                      Color? tint = null, float? size = null, float track = 0.19f)
         {
-            var plate = slot.gameObject.AddComponent<Image>();
-            plate.sprite = Frame(Css.RCtl, 0f);
-            plate.type = Image.Type.Sliced;
-            plate.color = Palette.Panel;
+            var hit = slot.gameObject.AddComponent<Image>();
+            hit.color = new Color(0f, 0f, 0f, 0f);
 
+            Image plate = Plate(slot, Palette.Panel, Css.RCtl);
             Image edge = Edge(slot, Css.Edge2, Css.RCtl, Css.Hair);
 
             Text t = Type(slot, "label", label, size ?? Css.TTiny, tint ?? Palette.Dim,
                           TextAnchor.MiddleCenter, track);
 
             var btn = slot.gameObject.AddComponent<Button>();
-            btn.targetGraphic = plate;
+            btn.targetGraphic = hit;
             var colors = btn.colors;
             colors.normalColor = colors.highlightedColor = colors.pressedColor = Color.white;
             colors.fadeDuration = 0f;

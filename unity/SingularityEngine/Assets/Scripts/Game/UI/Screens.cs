@@ -7,9 +7,16 @@ using Singularity.Game;
 namespace Singularity.UI
 {
     /// <summary>
-    /// Every screen that is not the board.
+    /// Every screen that is not the board, composed in the shipped build's own
+    /// order.
     ///
-    /// One canvas, one card at a time, and a stack so BACK always goes up one
+    /// Each of these is one `.layer` in index.html and each is built here as the
+    /// same column of the same children with the same margins between them, taken
+    /// from the markup rather than from a screenshot. Where a screen reads
+    /// differently from the original, the difference should be findable as a
+    /// different number in this file and nowhere else.
+    ///
+    /// One canvas, one layer at a time, and a stack so BACK always goes up one
     /// rather than home. The board keeps running underneath — the attract cube on
     /// the title screen is the same renderer and the same rules, just with nobody
     /// playing it.
@@ -40,31 +47,24 @@ namespace Singularity.UI
 
         // ---- plumbing -------------------------------------------------------
 
+        /// <summary>
+        /// `.layer` — fixed to the whole screen, black, and fading rather than
+        /// snapping. Every screen in the shipped build is opaque `var(--void)`:
+        /// there is no translucent card anywhere in it, including the pause screen,
+        /// because brickwork behind a paragraph is contrast the reader has to
+        /// fight. The one exception is the title, which is a stage.
+        /// </summary>
         internal static RectTransform Layer(string id)
         {
-            RectTransform rt = UiKit.Rect(_canvas.transform, id, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            RectTransform rt = UiKit.Fill(_canvas.transform, id);
             var bg = rt.gameObject.AddComponent<Image>();
-            bg.color = Palette.Scrim;
+            bg.color = Palette.Void;
             // Every layer fades in, so the group it fades with is part of what a
             // layer is rather than something the transition goes looking for.
             rt.gameObject.AddComponent<CanvasGroup>();
             Layers[id] = rt.gameObject;
             return rt;
         }
-
-        /// <summary>
-        /// A SCREEN MADE OF WORDS IS NOT A WINDOW.
-        ///
-        /// The pause card sits over a puzzle somebody is in the middle of and should
-        /// let it through. The manual, the plate lesson, calibrate, the vault list
-        /// and the Forge are text from top to bottom — and brickwork behind a
-        /// paragraph is just contrast the reader has to fight. Those get a solid
-        /// plate, which is also the difference between an interface and a stack of
-        /// labels floating over a rotating object.
-        /// </summary>
-        static void Solid(RectTransform L) => L.GetComponent<Image>().color = Palette.Void;
-
-        internal static void SolidLayer(RectTransform L) => Solid(L);
 
         static void HideAll() { foreach (var kv in Layers) kv.Value.SetActive(false); }
 
@@ -83,12 +83,9 @@ namespace Singularity.UI
         }
 
         /// <summary>
-        /// A SCREEN THAT SNAPS IN HAS NO WEIGHT.
-        ///
-        /// A hundred and forty milliseconds of fade and a few pixels of rise, and
-        /// the difference is not that it looks nicer — it is that the eye is TOLD
-        /// something arrived, so it goes looking for what changed instead of
-        /// re-reading a screen it thinks it was already on. Short enough that
+        /// `.layer{ transition:opacity .12s linear }`, and the boot animation the
+        /// children run under it: each child fades in on a four-step ease with a
+        /// stagger, so the screen assembles rather than appears. Short enough that
         /// nobody waiting to press a button ever waits.
         ///
         /// On the UNSCALED clock, because menus are opened during hitstop and a
@@ -96,22 +93,16 @@ namespace Singularity.UI
         /// </summary>
         static System.Collections.IEnumerator Arrive(GameObject go)
         {
-            var rt = (RectTransform)go.transform;
             CanvasGroup cg = UiKit.Ensure<CanvasGroup>(go);
-
-            const float Dur = 0.14f, Rise = 18f;
+            const float Dur = 0.12f;
             float t = 0f;
             while (t < Dur)
             {
                 t += Time.unscaledDeltaTime;
-                float k = Mathf.Clamp01(t / Dur);
-                float e = 1f - (1f - k) * (1f - k);          // out-quad: fast, then settles
-                cg.alpha = e;
-                rt.anchoredPosition = new Vector2(0f, (1f - e) * -Rise);
+                cg.alpha = Mathf.Clamp01(t / Dur);
                 yield return null;
             }
             cg.alpha = 1f;
-            rt.anchoredPosition = Vector2.zero;
         }
 
         public static void Back()
@@ -120,93 +111,177 @@ namespace Singularity.UI
             Show(Stack.Count > 0 ? Stack[Stack.Count - 1] : null);
         }
 
-        internal static RectTransform Column(RectTransform parent, float top, float bottom)
-            => UiKit.Rect(parent, "col", new Vector2(0, 0), new Vector2(1, 1),
-                          new Vector2(40, bottom), new Vector2(-40, -top));
+        // ---- the sheet's own type rules -------------------------------------
 
-        /// <summary>One of the four quiet destinations under the primary: 0,1 top row; 2,3 bottom.</summary>
-        static void Quad(RectTransform col, int i, string label, System.Action act)
+        /// <summary>h1 — t-3xl, .26em, margin 0 0 6.</summary>
+        static Text H1(Flow col, string name, string s, Color c)
         {
-            float x = i % 2, y = i / 2;
-            float top = -(UiKit.PrimaryH + 16f + y * (UiKit.BtnH + 12f));
-            RectTransform r = UiKit.Rect(col, label,
-                new Vector2(x * 0.5f, 1), new Vector2((x + 1) * 0.5f, 1),
-                new Vector2(x == 0 ? 0 : 6, top - UiKit.BtnH), new Vector2(x == 0 ? -6 : 0, top));
-            UiKit.Bracketed(r, label, label, act, 24);
+            RectTransform r = UiKit.Slot(col, name, Css.T3Xl * 1.15f, 0f, 6f);
+            return UiKit.Type(r, name, s, Css.T3Xl, c, TextAnchor.MiddleCenter, 0.26f);
         }
 
-        internal static void Row(RectTransform col, int slot, int of, string label, System.Action act, bool primary = false)
+        /// <summary>h2 — t-xl, .18em, margin 0 0 4.</summary>
+        static Text H2(Flow col, string name, string s)
         {
-            float h = 1f / of;
-            RectTransform r = UiKit.Rect(col, label, new Vector2(0, 1 - (slot + 1) * h), new Vector2(1, 1 - slot * h),
-                                         new Vector2(0, 8), new Vector2(0, -8));
-            UiKit.Bracketed(r, label, label, act, 28, primary);
+            RectTransform r = UiKit.Slot(col, name, Css.TXl * 1.4f, 0f, 4f);
+            return UiKit.Type(r, name, s, Css.TXl, Palette.Ink, TextAnchor.MiddleCenter, 0.18f);
+        }
+
+        /// <summary>
+        /// .sub — t-micro, dim, line-height 1.6, .10em, max-width 40ch, margin 0 0 12.
+        /// `ch` is the width of a zero, which in a fixed-pitch face is 0.6em and is
+        /// the same for every glyph — the one place a monospace interface makes a
+        /// CSS unit trivial to port.
+        /// </summary>
+        static Text Sub(Flow col, string name, string s, bool tight = false)
+        {
+            RectTransform r = UiKit.Rect(((MonoBehaviour)col).transform, name,
+                                         Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+            Text t = UiKit.Para(r, name, s, Css.TMicro, Palette.Dim, TextAnchor.UpperCenter, 0.10f);
+            col.AddText(r, t.text, Css.TMicro, 0.10f, Css.TMicro * 0.6f * 40f, tight ? 16f : 12f, 1.6f);
+            return t;
+        }
+
+        /// <summary>.eyebrow — t-tiny, .24em, rust.</summary>
+        static Text Eyebrow(Flow col, string name, string s, Color? c = null, float mb = 0f)
+        {
+            RectTransform r = UiKit.Slot(col, name, Css.TTiny * 1.5f, 0f, mb);
+            return UiKit.Type(r, name, s, Css.TTiny, c ?? Palette.Rust, TextAnchor.MiddleCenter, 0.24f);
+        }
+
+        /// <summary>.foot — t-micro, dim-2, .16em, margin-top 16.</summary>
+        static Text Foot(Flow col, string s)
+        {
+            RectTransform r = UiKit.Slot(col, "foot", Css.TMicro * 1.6f, 0f, 0f);
+            return UiKit.Type(r, "foot", s, Css.TMicro, Palette.Dim2, TextAnchor.MiddleCenter, 0.16f);
+        }
+
+        /// <summary>A full-width `.btn` on its own row.</summary>
+        static Button Row(Flow col, string label, System.Action act, UiKit.Kind kind = UiKit.Kind.Btn)
+        {
+            RectTransform r = UiKit.Slot(col, label, UiKit.BtnHeight(kind), Css.BtnMax, UiKit.BtnMargin(kind));
+            return UiKit.Btn(r, label, act, kind);
+        }
+
+        /// <summary>
+        /// `.btn2` — two or three buttons sharing a row, gap 10, margin-bottom 11.
+        /// The buttons inside lose their own margin and their max-width and take a
+        /// smaller step of type, which is the whole of the rule.
+        /// </summary>
+        static void Btn2(Flow col, string name, bool slim, bool three,
+                         (string label, System.Action act, UiKit.Kind kind)[] items)
+        {
+            float h = slim ? Css.HCtl : Css.HBtn + 6f;
+            float size = slim ? Css.TFine : three ? Css.TFine : Css.TSm;
+            float track = slim ? 0.16f : three ? 0.08f : 0.12f;
+
+            RectTransform row = UiKit.Slot(col, name, h, Css.BtnMax, slim ? 0f : 11f);
+
+            int n = items.Length;
+            const float Gap = 10f;
+            for (int i = 0; i < n; i++)
+            {
+                // flex:1 with a gap between, expressed as a share of the row less
+                // the gaps that come before and after this child
+                float x0 = i / (float)n, x1 = (i + 1) / (float)n;
+                RectTransform slot = UiKit.Rect(row, items[i].label,
+                    new Vector2(x0, 0f), new Vector2(x1, 1f),
+                    new Vector2(i == 0 ? 0f : Gap * i / n, 0f),
+                    new Vector2(i == n - 1 ? 0f : -Gap * (n - 1 - i) / n, 0f));
+                UiKit.Btn(slot, items[i].label, items[i].act, items[i].kind, size, track);
+            }
+        }
+
+        /// <summary>.edMsg — the line a screen answers on. t-micro, centred, 2.6em tall.</summary>
+        static Text EdMsg(Flow col, string name)
+        {
+            RectTransform r = UiKit.Slot(col, name, Css.TMicro * 2.6f, Css.ManualMax, 10f);
+            return UiKit.Type(r, name, "", Css.TMicro, Palette.Dim, TextAnchor.UpperCenter, 0.09f);
         }
 
         // ---- title ----------------------------------------------------------
 
-        static Text _playLabel, _resumeName, _resumeVault;
+        static Text _playLabel, _resumeName, _resumePar, _resumeVault;
 
         static void BuildTitle()
         {
             RectTransform L = Layer("title");
+            // #scTitle is the one layer that is not flat black: a gradient that
+            // darkens only where words have to sit on it, so the cube turning
+            // behind it is never tinted.
             UiKit.Stage(L);
 
-            UiKit.Label(L, "wordmark1", "SINGULARITY", 66, Palette.Ink, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -170), new Vector2(0, -90));
-            UiKit.Label(L, "wordmark2", "ENGINE", 66, Palette.Rust, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -252), new Vector2(0, -172));
+            Flow col = UiKit.Column(L);
+
+            // .titleTop -------------------------------------------------------
+            //
+            // #wordmark is one h1 of two lines, the second in rust. It is a column
+            // rather than two headings so the 1.1 line-height closes them up.
+            float wm = Css.VpTiny ? Css.T2Xl : Mathf.Clamp(Css.Vw(6.2f), 20f, 29f);
+            RectTransform mark = UiKit.Slot(col, "wordmark", wm * 1.1f * 2f, Mathf.Min(420f, Css.Vw(88f)), 6f);
+            UiKit.Label(mark, "w1", "SINGULARITY", wm, Palette.Ink, TextAnchor.UpperCenter, 0.26f,
+                        new Vector2(0f, 0.5f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+            UiKit.Label(mark, "w2", "ENGINE", wm, Palette.Rust, TextAnchor.UpperCenter, 0.26f,
+                        new Vector2(0f, 0f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
 
             // WHERE YOU LEFT OFF, ON THE SCREEN THAT OFFERS TO TAKE YOU BACK.
-            // The play button used to be a promise with no subject: it did not say
+            // [ CONTINUE ] used to be a promise with no subject: it did not say
             // which cube, which vault, or what it would cost. Naming the thing a
             // button is about is the cheapest confidence a menu can buy.
-            _resumeVault = UiKit.Label(L, "resumeVault", "", 19, Palette.Rust, TextAnchor.UpperCenter,
-                                       new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -290), new Vector2(0, -262));
-            _resumeName = UiKit.Label(L, "resume", "", 24, Palette.Ink, TextAnchor.UpperCenter,
-                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -322), new Vector2(0, -292));
+            RectTransform resume = UiKit.Slot(col, "resume", Css.TMicro * 1.4f + Css.TMd * 1.5f, 0f, 0f);
+            _resumeVault = UiKit.Label(resume, "resumeVault", "", Css.TMicro, Palette.Dim,
+                                       TextAnchor.UpperCenter, 0.24f,
+                                       new Vector2(0f, 1f), new Vector2(1f, 1f),
+                                       new Vector2(0f, -Css.TMicro * 1.4f), Vector2.zero);
+            RectTransform nameRow = UiKit.Rect(resume, "resumeName", new Vector2(0f, 0f), new Vector2(1f, 1f),
+                                               Vector2.zero, new Vector2(0f, -Css.TMicro * 1.4f - 2f));
+            _resumeName = UiKit.Type(nameRow, "n", "", Css.TMd, Palette.Ink, TextAnchor.MiddleCenter, 0.16f);
+            _resumePar = _resumeName;
 
-            // .mastRule — one pixel of rust, min(88vw, 420px) wide, 11px above and
-            // 12px below. It is the only rule on the screen and it is doing real
-            // work: it closes the masthead, so the pitch underneath reads as a
-            // caption on the game rather than a fourth line of the title.
-            UiKit.Panel(L, "mastRule", Palette.Rust,
-                        new Vector2(0.5f, 1), new Vector2(0.5f, 1),
-                        new Vector2(-317, -346), new Vector2(317, -344));
+            // .mastRule — one pixel of rust, min(88vw,420px) wide, 11 above and 12
+            // below. It is the only rule on the screen and it closes the masthead,
+            // so the pitch under it reads as a caption on the game rather than a
+            // fourth line of the title.
+            RectTransform rule = UiKit.Slot(col, "mastRule", 1f, Mathf.Min(420f, Css.Vw(88f)), 12f);
+            rule.anchoredPosition += new Vector2(0f, -11f);
+            UiKit.Panel(rule, "r", Palette.Rust, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-            UiKit.Label(L, "sub",
-                "You are a black hole inside a broken machine.\nFold the engine until its circuits align,\nthen collapse into the core.",
-                17, Palette.Dim, TextAnchor.UpperCenter,
-                new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -460), new Vector2(0, -370));
+            // html.vpShort drops the pitch entirely rather than shrinking it
+            if (!Css.VpShort)
+                Sub(col, "sub", "You are a black hole inside a broken machine. " +
+                                "Fold the engine until its circuits align, then collapse into the core.");
 
-            // ONE PRIMARY, THEN A GRID OF FOUR.
-            //
-            // Five equal rows is a list, and a list has no answer to "what do I
-            // press". The thing you came here to do is a full-width solid; the four
-            // places you might go instead are a quiet two-by-two under it. That
-            // shape also buys back most of the height five stacked rows were
-            // spending, which is what leaves room for the cube to be the biggest
-            // object on its own title screen.
-            // Heights are the shipped ones rather than fractions of a guessed
-            // column: 120 for the primary, 104 for a control, stacked from the
-            // floor so the block is exactly as tall as its contents.
-            RectTransform col = UiKit.Rect(L, "buttons", new Vector2(0, 0), new Vector2(1, 0),
-                                           new Vector2(48, 96), new Vector2(-48, 452));
+            // .heroSlot — a DECLARED height rather than whatever is left over. The
+            // cube used to be given the whole gap between the two bands, which on a
+            // tall phone is five hundred pixels for an object that can only be three
+            // hundred wide, so the screen read as three things that had drifted
+            // apart. It gets a slot, the column packs to the centre, and the
+            // composition closes up.
+            col.Space(Css.VpShort ? 132f : 104f);
 
-            RectTransform go = UiKit.Rect(col, "CONTINUE", new Vector2(0, 1), new Vector2(1, 1),
-                                          new Vector2(0, -UiKit.PrimaryH), new Vector2(0, 0));
-            UiKit.Bracketed(go, "CONTINUE", "CONTINUE",
-                            () => { Show(null); _dir.Play(Mathf.Max(1, Store.Data.reached)); }, 30, true);
+            // .titleBottom ----------------------------------------------------
+            RectTransform play = UiKit.Slot(col, "play", UiKit.BtnHeight(UiKit.Kind.Primary), Css.BtnMax, 16f);
+            Button playBtn = UiKit.Btn(play, "CONTINUE",
+                () => { Show(null); _dir.Play(Mathf.Max(1, Store.Data.reached)); }, UiKit.Kind.Primary);
+            _playLabel = playBtn.GetComponentInChildren<Text>();
 
-            Quad(col, 0, "DAILY", () => { Show(null); _dir.Play(Daily.SpecLevel, LoadKind.Daily); });
-            Quad(col, 1, "VAULTS", OpenVaults);
-            Quad(col, 2, "FORGE", ForgeScreens.OpenShelf);
-            Quad(col, 3, "CALIBRATE", ShowCalibrate);
+            Btn2(col, "row1", false, false, new[]
+            {
+                ("DAILY", (System.Action)(() => { Show(null); _dir.Play(Daily.SpecLevel, LoadKind.Daily); }), UiKit.Kind.Btn),
+                ("VAULTS", (System.Action)OpenVaults, UiKit.Kind.Btn),
+            });
 
-            _playLabel = go.GetComponentInChildren<Text>();
+            // FORGE SITS ON THE TITLE AND COSTS NOTHING TO PUT THERE. Pairing it
+            // with CALIBRATE turns one full-width row into one two-up row, so the
+            // column is exactly as tall as it was and the hero cube does not move.
+            Btn2(col, "row2", true, false, new[]
+            {
+                ("FORGE", (System.Action)ForgeScreens.OpenShelf, UiKit.Kind.Btn),
+                ("CALIBRATE", (System.Action)ShowCalibrate, UiKit.Kind.Btn),
+            });
 
-            UiKit.Label(L, "foot", "DIAGNOSTIC BUILD · NO DEAD PIXELS", 19, Palette.Dim2, TextAnchor.LowerCenter,
-                        new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 40), new Vector2(0, 76));
+            RectTransform footSlot = UiKit.Slot(col, "footpad", 16f, 0f, 0f);
+            Foot(col, "DIAGNOSTIC BUILD · NO DEAD PIXELS");
         }
 
         public static void ShowTitle()
@@ -217,70 +292,73 @@ namespace Singularity.UI
 
             int band = Vaults.VaultOf(r);
             if (_resumeVault != null)
-                _resumeVault.text = "VAULT " + Vaults.RomanOf(band) + ": " + Vaults.VaultName(band);
+                _resumeVault.text = ("VAULT " + Vaults.RomanOf(band) + ": " + Vaults.VaultName(band)).ToUpperInvariant();
             if (_resumeName != null)
             {
                 // the cube's own name and what it costs, so the button has a subject
                 int par = r <= Baked.Levels.Length ? Baked.Levels[r - 1].par : -1;
-                _resumeName.text = Vaults.LevelName(r) + (par >= 0 ? "  /  PAR " + par : "");
+                _resumeName.text = (Vaults.LevelName(r) + (par >= 0 ? "  /  PAR " + par : "")).ToUpperInvariant();
             }
             Stack.Clear();
             Show("title");
             _dir.ShowAttract();
         }
 
-        // ---- vault select ---------------------------------------------------
+        // ---- the vault shelf ------------------------------------------------
 
-        static Text _vaultName;
-        static RectTransform _grid;
+        static Text _vaultName, _jumpMsg;
+        static RectTransform _grid, _vaultSwatch;
+        static InputField _jumpField;
+        static Button _vaultPrev, _vaultNext;
 
         static void BuildVaults()
         {
             RectTransform L = Layer("vaults");
-            Solid(L);
+            Flow col = UiKit.Column(L);
 
-            _vaultName = UiKit.Label(L, "vaultName", "VAULT I", 32, Palette.Ink, TextAnchor.MiddleCenter,
-                                     new Vector2(0, 1), new Vector2(1, 1), new Vector2(120, -140), new Vector2(-120, -80));
+            // .vaultBar — a stepper either side of the vault's name and its
+            // progress rail. The swatch used to be a two-tone chip of the vault's
+            // palette; there is one palette now, so it says how far through the
+            // vault you are instead.
+            RectTransform bar = UiKit.Slot(col, "vaultBar", Css.HCtl, Css.GridMax, 16f);
+            RectTransform prev = UiKit.Rect(bar, "prev", new Vector2(0f, 0f), new Vector2(0f, 1f),
+                                            Vector2.zero, new Vector2(Css.HCtl, 0f));
+            _vaultPrev = UiKit.PillBtn(prev, "[ < ]", () => { _viewBand = Mathf.Max(0, _viewBand - 1); PaintVaults(); });
+            RectTransform next = UiKit.Rect(bar, "next", new Vector2(1f, 0f), new Vector2(1f, 1f),
+                                            new Vector2(-Css.HCtl, 0f), Vector2.zero);
+            _vaultNext = UiKit.PillBtn(next, "[ > ]", () => { _viewBand++; PaintVaults(); });
 
-            RectTransform prev = UiKit.Rect(L, "prev", new Vector2(0, 1), new Vector2(0, 1), new Vector2(40, -140), new Vector2(140, -80));
-            UiKit.Bracketed(prev, "prev", "<", () => { _viewBand = Mathf.Max(0, _viewBand - 1); PaintVaults(); }, 26);
-            RectTransform next = UiKit.Rect(L, "next", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-140, -140), new Vector2(-40, -80));
-            UiKit.Bracketed(next, "next", ">", () => { _viewBand++; PaintVaults(); }, 26);
+            RectTransform id = UiKit.Rect(bar, "vaultId", new Vector2(0f, 0f), new Vector2(1f, 1f),
+                                          new Vector2(Css.HCtl + 10f, 0f), new Vector2(-Css.HCtl - 10f, 0f));
+            _vaultSwatch = UiKit.Rect(id, "swatch", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                                      Vector2.zero, Vector2.zero);
+            _vaultSwatch.sizeDelta = new Vector2(Mathf.Min(180f, Css.Vw(52f)), 3f);
+            _vaultName = UiKit.Label(id, "vaultName", "VAULT I", Css.TTiny, Palette.Dim,
+                                     TextAnchor.UpperCenter, 0.18f,
+                                     new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero, new Vector2(0f, -8f));
 
-            _grid = UiKit.Rect(L, "grid", new Vector2(0, 0), new Vector2(1, 1), new Vector2(40, 300), new Vector2(-40, -170));
+            // .grid — repeat(auto-fill, minmax(96px,1fr)), gap 11, and the rows are
+            // made square by the script once it knows how wide a cell came out.
+            _grid = UiKit.Slot(col, "grid", 0f, Css.GridMax, 18f);
 
             // THE SEED BOX. Every generated cube in this game is a pure function of
             // its number, so the NUMBER IS THE SEED — a few characters that cut the
-            // same puzzle on every device, forever. There has to be a way to type one.
-            //
-            // And typing one is a seed viewer, not a shortcut: a jump past `reached`
-            // records nothing, unlocks nothing and posts nothing, or the whole
-            // progression would be one text field wide.
-            // THESE FOLLOW THE GRID RATHER THAN THE FLOOR.
-            //
-            // They were pinned to the bottom of the screen while the grid was pinned
-            // to the top, so a ten-cube vault left seven hundred pixels of nothing
-            // between the rack and the seed box — the two halves of one screen with
-            // a hole punched between them. PaintVaults now puts them directly under
-            // however many rows it actually drew.
-            _jumpRow = UiKit.Rect(L, "jumpRow", new Vector2(0, 1), new Vector2(1, 1),
-                                  new Vector2(40, -286), new Vector2(-40, -220));
-            _jumpField = UiKit.Field(_jumpRow, "jump", "CUBE NUMBER",
-                                     new Vector2(0, 0), new Vector2(0.72f, 1), Vector2.zero, new Vector2(-8, 0));
+            // same puzzle on every device, forever. There has to be a way to type
+            // one, and typing one is a seed viewer rather than a shortcut: a jump
+            // past `reached` records nothing, unlocks nothing and posts nothing.
+            RectTransform jump = UiKit.Slot(col, "edRow", Css.HCtl, Css.ManualMax, 10f);
+            RectTransform jf = UiKit.Rect(jump, "jumpField", Vector2.zero, new Vector2(1f, 1f),
+                                          Vector2.zero, new Vector2(-Css.HCtl * 1.6f - 8f, 0f));
+            _jumpField = UiKit.Field(jf, "CUBE NUMBER");
             _jumpField.contentType = InputField.ContentType.IntegerNumber;
-            RectTransform goSlot = UiKit.Rect(_jumpRow, "goSlot", new Vector2(0.72f, 0), Vector2.one, Vector2.zero, Vector2.zero);
-            UiKit.Bracketed(goSlot, "go", "GO", Jump, 24);
+            RectTransform goSlot = UiKit.Rect(jump, "go", new Vector2(1f, 0f), new Vector2(1f, 1f),
+                                              new Vector2(-Css.HCtl * 1.6f, 0f), Vector2.zero);
+            UiKit.PillBtn(goSlot, "[ GO ]", Jump);
 
-            _jumpMsg = UiKit.Label(L, "jumpMsg", "", 18, Palette.Dim, TextAnchor.UpperCenter,
-                                   new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -324), new Vector2(-40, -290));
+            _jumpMsg = EdMsg(col, "jumpMsg");
 
-            RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
-            UiKit.Bracketed(back, "back", "BACK", Back, 28);
+            Row(col, "BACK", Back, UiKit.Kind.Ghost);
         }
-
-        static InputField _jumpField;
-        static Text _jumpMsg;
-        static RectTransform _jumpRow;
 
         static void Jump()
         {
@@ -312,97 +390,149 @@ namespace Singularity.UI
             Show("vaults");
         }
 
+        /// <summary>
+        /// A CUBE IS A CARD, AND THE CARDS ARE SQUARE.
+        ///
+        /// `.grid` is `repeat(auto-fill, minmax(96px,1fr))` with an 11px gap, and
+        /// the script sets `gridAutoRows` to whatever width a cell came out so the
+        /// tiles are square. Three fixed columns is that layout at one width; on a
+        /// wide phone the shipped build fits four.
+        /// </summary>
         static void PaintVaults()
         {
             for (int i = _grid.childCount - 1; i >= 0; i--) Object.Destroy(_grid.GetChild(i).gameObject);
 
-            _vaultName.text = "VAULT " + Vaults.RomanOf(_viewBand) + " · " + Vaults.VaultName(_viewBand);
+            _vaultName.text = ("VAULT " + Vaults.RomanOf(_viewBand) + " / " + Vaults.VaultName(_viewBand))
+                              .ToUpperInvariant();
 
             int start = Vaults.VaultStart(_viewBand);
             int size = Vaults.VaultSize(_viewBand);
 
-            // THREE COLUMNS OF CARDS, NOT FIVE OF NUMBERS.
-            //
-            // A rack of bare numbers is unreadable twice over: the number printed on
-            // a cleared cube was its BEST SCORE while the number on an unplayed one
-            // was its LEVEL, so the same glyph meant two different things and
-            // neither was labelled. And a cube in this game has a NAME — the vault
-            // list is the only place a player ever sees it, and a name is what makes
-            // "the one with the plates" a thing you can go back to.
-            //
-            // So each cube gets a card: its number, its name, and how well it went,
-            // and the cell is sized off the WIDTH because that is the axis that is
-            // actually constrained.
-            const int cols = 3;
-            int rows = Mathf.CeilToInt(size / (float)cols);
-            float cellW = _grid.rect.width / cols;
-            float cellH = Mathf.Min(cellW * 0.86f, 132f);
+            int cleared = 0;
+            for (int q = 0; q < size; q++) if (Store.TryBest(start + q, out int _)) cleared++;
+            UiKit.Rail(_vaultSwatch, Palette.Arc, size > 0 ? cleared / (float)size : 0f);
 
-            // and the seed box follows the rack rather than the floor
-            float below = 170f + rows * cellH + 26f;
-            _jumpRow.offsetMax = new Vector2(-40, -below);
-            _jumpRow.offsetMin = new Vector2(40, -(below + 62f));
-            _jumpMsg.rectTransform.offsetMax = new Vector2(-40, -(below + 68f));
-            _jumpMsg.rectTransform.offsetMin = new Vector2(40, -(below + 102f));
+            UiKit.Disable(_vaultPrev, _viewBand == 0);
+            UiKit.Disable(_vaultNext, Vaults.VaultStart(_viewBand + 1) > Store.Data.reached);
+
+            const float Gap = 11f, Min = 96f;
+            float avail = Mathf.Min(Css.GridMax, Css.VpW - Css.PadX * 2f);
+            int cols = Mathf.Max(1, Mathf.FloorToInt((avail + Gap) / (Min + Gap)));
+            float cell = (avail - Gap * (cols - 1)) / cols;
+            int rows = Mathf.CeilToInt(size / (float)cols);
+
+            _grid.sizeDelta = new Vector2(_grid.sizeDelta.x, rows * cell + (rows - 1) * Gap);
 
             for (int i = 0; i < size; i++)
             {
                 int level = start + i;
                 int cx = i % cols, cy = i / cols;
                 RectTransform slot = UiKit.Rect(_grid, "c" + level,
-                    new Vector2(cx / (float)cols, 1f), new Vector2((cx + 1f) / cols, 1f),
-                    new Vector2(6, -(cy + 1) * cellH + 6), new Vector2(-6, -cy * cellH - 6));
+                    new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, Vector2.zero);
+                slot.pivot = new Vector2(0f, 1f);
+                slot.sizeDelta = new Vector2(cell, cell);
+                slot.anchoredPosition = new Vector2(cx * (cell + Gap), -cy * (cell + Gap));
 
-                bool reached = level <= Store.Data.reached;
-                bool cleared = Store.TryBest(level, out int best);
-                bool ranked = Store.TryPar(level, out int par) && cleared;
+                bool locked = level > Store.Data.reached;
+                bool done = Store.TryBest(level, out int best);
+                bool ranked = Store.TryPar(level, out int par) && done;
 
-                // THREE PIPS, AND THEY ARE THE ONLY SCORE THIS SCREEN SHOWS.
-                // A raw fold count means nothing without the par beside it; "how
-                // close to perfect" is the thing a player actually wants off a
-                // grid, and it survives being three pixels tall.
-                // A cube cleared before this build recorded pars has a best and no
-                // par to judge it by. It gets one pip — cleared — rather than a
-                // guess, because inventing a rating is worse than showing less.
-                int pips = !cleared ? 0
-                         : !ranked ? 1
-                         : best <= par ? 3
-                         : best <= par + 2 ? 2
-                         : 1;
+                // THREE MARKS, AND THEY ARE THE ONLY SCORE THIS SCREEN SHOWS. A raw
+                // fold count means nothing without the par beside it; "how close to
+                // perfect" is what a player wants off a grid, and it survives being
+                // six pixels tall. A cube cleared before this build recorded pars
+                // has a best and no par to judge it by — it gets one mark rather
+                // than a guess, because inventing a rating is worse than showing
+                // less.
+                int marks = !done ? 0 : !ranked ? 1 : best <= par ? 3 : best <= par + 2 ? 2 : 1;
 
-                Color edge = !reached ? Palette.Dim2
-                           : pips == 3 ? Palette.Arc
-                           : Palette.Trace;
+                Cube(slot, level, locked, done, marks);
+            }
+        }
 
-                int lv = level;
-                var btn = UiKit.Bracketed(slot, "b", "", () =>
+        /// <summary>
+        /// .cube — a card with its number, its name and its marks. `.done` lights
+        /// the edge and the number in arc; `.perfect` fills the card at ten percent
+        /// of it; `.locked` drops the whole thing to a third.
+        /// </summary>
+        static void Cube(RectTransform slot, int level, bool locked, bool done, int marks)
+        {
+            var plate = slot.gameObject.AddComponent<Image>();
+            plate.sprite = UiKit.Frame(Css.RCard, 0f);
+            plate.type = Image.Type.Sliced;
+            plate.color = marks == 3
+                ? new Color(Palette.Arc.r, Palette.Arc.g, Palette.Arc.b, 0.10f)
+                : Palette.Panel;
+
+            Image edge = UiKit.Edge(slot, done
+                ? new Color(Palette.Arc.r, Palette.Arc.g, Palette.Arc.b, 0.55f)
+                : Css.Edge2, Css.RCard, Css.Hair);
+
+            // .cube .idx — t-2xl, dim, and arc once it is done
+            UiKit.Label(slot, "idx", level.ToString(), Css.T2Xl, done ? Palette.Arc : Palette.Dim,
+                        TextAnchor.LowerCenter, 0f,
+                        new Vector2(0f, 0.45f), new Vector2(1f, 1f), Vector2.zero, new Vector2(0f, -10f));
+
+            // .cube .nm — t-micro, dim-2, and an em dash while it is locked
+            UiKit.Label(slot, "nm", locked ? "—" : Vaults.LevelName(level), Css.TMicro, Palette.Dim2,
+                        TextAnchor.UpperCenter, 0.13f,
+                        new Vector2(0f, 0.2f), new Vector2(1f, 0.45f), new Vector2(6f, 0f), new Vector2(-6f, 5f));
+
+            // .cube .marks i — six by six, square, hollow until it is earned
+            RectTransform row = UiKit.Rect(slot, "marks", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                                           Vector2.zero, Vector2.zero);
+            row.sizeDelta = new Vector2(6f * 3f + 3f * 2f, 6f);
+            row.anchoredPosition = new Vector2(0f, 14f);
+            for (int m = 0; m < 3; m++)
+            {
+                RectTransform pip = UiKit.Rect(row, "m" + m, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                                               Vector2.zero, Vector2.zero);
+                pip.sizeDelta = new Vector2(6f, 6f);
+                pip.anchoredPosition = new Vector2(m * 9f + 3f, 0f);
+                if (m < marks)
                 {
-                    Show(null);
-                    _dir.Play(lv, reached ? LoadKind.Vault : LoadKind.Practice);
-                }, 1);
+                    var on = pip.gameObject.AddComponent<Image>();
+                    on.color = Palette.Arc;
+                    on.raycastTarget = false;
+                }
+                else
+                {
+                    var off = pip.gameObject.AddComponent<Image>();
+                    off.sprite = UiKit.Frame(0.5f, Css.Hair);
+                    off.type = Image.Type.Sliced;
+                    off.color = Palette.Dim2;
+                    off.raycastTarget = false;
+                }
+            }
 
-                // Bracketed gives every control the same plate and edge; a card that
-                // is ABOUT its state overrides both, and drops the empty label.
-                Object.Destroy(btn.transform.Find("label").gameObject);
-                btn.GetComponent<Image>().color = pips == 3
-                    ? new Color(Palette.Arc.r, Palette.Arc.g, Palette.Arc.b, 0.16f)
-                    : Palette.Panel;
-                btn.transform.Find("edge").GetComponent<Image>().color = edge;
+            int lv = level;
+            bool lk = locked;
+            var btn = slot.gameObject.AddComponent<Button>();
+            btn.targetGraphic = plate;
+            var colors = btn.colors;
+            colors.normalColor = colors.highlightedColor = colors.pressedColor = Color.white;
+            colors.fadeDuration = 0f;
+            btn.colors = colors;
+            btn.onClick.AddListener(() =>
+            {
+                if (lk) { _dir.Hud.Toast("SOLVE THE VAULTS BEFORE IT"); return; }
+                Show(null);
+                _dir.Play(lv, LoadKind.Vault);
+            });
 
-                var card = (RectTransform)btn.transform;
-                UiKit.Label(card, "n", level.ToString(), 30,
-                            reached ? Palette.Ink : Palette.Dim2, TextAnchor.LowerCenter,
-                            new Vector2(0, 0.42f), new Vector2(1, 0.86f), Vector2.zero, Vector2.zero);
+            var press = slot.gameObject.AddComponent<UiKit.Press>();
+            press.plate = plate;
+            press.edge = edge;
+            press.plateUp = plate.color;
+            press.plateDown = Palette.Rust;
+            press.edgeUp = edge.color;
+            press.edgeDown = Palette.Rust;
 
-                if (reached)
-                    UiKit.Label(card, "name", Vaults.LevelName(level), 17, Palette.Dim,
-                                TextAnchor.UpperCenter,
-                                new Vector2(0, 0.24f), new Vector2(1, 0.44f), Vector2.zero, Vector2.zero);
-
-                for (int p = 0; p < 3; p++)
-                    UiKit.Icon(card, p < pips ? "sqfill" : "sq",
-                               p < pips ? Palette.Arc : Palette.Dim2, 9f,
-                               new Vector2(0.5f, 0.16f), new Vector2((p - 1) * 13f, 0f));
+            // .cube.locked{ opacity:.34 }
+            if (locked)
+            {
+                var cg = slot.gameObject.AddComponent<CanvasGroup>();
+                cg.alpha = 0.34f;
             }
         }
 
@@ -411,181 +541,155 @@ namespace Singularity.UI
         static void BuildManual()
         {
             RectTransform L = Layer("manual");
-            Solid(L);
-            UiKit.Label(L, "h", "CALIBRATION", 40, Palette.Ink, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -130), new Vector2(0, -80));
+            // A page that scrolls is pinned to the top rather than centred, and
+            // GOT IT is nailed to the bottom of the screen where a thumb already is
+            // instead of at the end of the scroll.
+            Flow col = UiKit.Column(L, false);
 
-            // The title stays put and the rules scroll under it, so the heading is
-            // always there to say what you are reading.
-            RectTransform M = UiKit.Scroll(L, "scroll", new Vector2(0, 0), new Vector2(1, 1),
-                                           new Vector2(0, 178), new Vector2(0, -150));
+            H2(col, "h", "CALIBRATION");
+            RectTransform pad = UiKit.Slot(col, "pad", 14f, 0f, 0f);
 
-            // NINE LINES, NOT NINE PARAGRAPHS — AND A PICTURE FOR EACH.
-            //
-            // Nobody reads a manual in a puzzle game. They glance at it, twice, and
-            // go back to the cube. So every rule is a label you can take in with one
-            // saccade, a line under it, and a DIAGRAM beside it — because the four
-            // things this page has to explain are all spatial, and a sentence about
-            // a fold is a worse description of a fold than two squares and an arrow.
-            float y = 24f;
+            Kicker(col, "THE RULE", true);
+            MRow(col, "ONE FACE AT A TIME",
+                 "Two traces that line up when you fold are connected, however far apart they look.",
+                 Art.Dia("fold", Art.DiaFold));
 
-            void Kicker(string s)
-            {
-                UiKit.Label(M, s, s, 19, Palette.Rust, TextAnchor.LowerLeft,
-                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + 24)), new Vector2(-44, -y));
-                y += 28;
-            }
+            Kicker(col, "THE VERBS");
+            MRow(col, "SWIPE TO FOLD",
+                 "Past halfway it commits. The ticks say which folds have footing.",
+                 Art.Dia("swipe", Art.DiaSwipe));
+            MRow(col, "TAP TO MOVE",
+                 "The singularity walks to any trace connected to the one under it.",
+                 Art.Dia("tap", Art.DiaTap));
+            MRow(col, "COLLAPSE INTO THE CORE", "Reach it and the vault is solved.",
+                 Art.Dia("core", Art.DiaCore));
 
-            RectTransform Entry(string head, string body, float h = 88f)
-            {
-                UiKit.Label(M, head, head, 23, Palette.Ink, TextAnchor.UpperLeft,
-                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + 30)), new Vector2(-190, -y));
-                UiKit.Label(M, head + "_d", body, 17, Palette.Dim, TextAnchor.UpperLeft,
-                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + h)), new Vector2(-190, -(y + 32)));
+            Kicker(col, "THE OBJECTS");
+            Objs(col);
 
-                // the diagram lives in a fixed gutter on the right, so every picture
-                // on the page shares one optical column
-                RectTransform art = UiKit.Rect(M, head + "_art", new Vector2(1, 1), new Vector2(1, 1),
-                                               new Vector2(-176, -(y + 96)), new Vector2(-44, -(y + 4)));
-                y += h + 16f;
-                return art;
-            }
+            Kicker(col, "WORTH KNOWING");
+            MRow(col, "HOLD FOR MATRIX",
+                 "The lattice goes to glass. Keep holding and drag to turn it.",
+                 Art.Dia("matrix", Art.DiaMatrix));
+            MRow(col, "TO GO", "The fewest folds still possible from where you stand.",
+                 Art.Dia("togo", Art.DiaToGo));
 
-            Image Mark(RectTransform art, string role, Color c, float size, float x, float v)
-                => UiKit.Icon(art, role, c, size, new Vector2(0.5f, 0.5f), new Vector2(x, v));
-
-            Kicker("THE RULE");
-            RectTransform a1 = Entry("ONE FACE AT A TIME",
-                "Two traces that line up when you fold are connected,\nhowever far apart they look.");
-            // two decks, and the fold that brings them together
-            Mark(a1, "sq", Palette.Trace, 34, -22, 28);
-            Mark(a1, "sq", Palette.Trace, 34, -22, -28);
-            Mark(a1, "arrow", Palette.Rust, 26, 26, 0);
-
-            Kicker("THE VERBS");
-            RectTransform a2 = Entry("SWIPE TO FOLD",
-                "Past halfway it commits. The ticks say which folds have footing.");
-            Mark(a2, "sq", Palette.Trace, 30, 0, 0);
-            Mark(a2, "arrow", Palette.Rust, 20, 0, 34);
-            Mark(a2, "arrow", Palette.Rust, 20, 0, -34).rectTransform.localRotation = Quaternion.Euler(0, 0, 180);
-            Mark(a2, "arrow", Palette.Rust, 20, -34, 0).rectTransform.localRotation = Quaternion.Euler(0, 0, 90);
-            Mark(a2, "arrow", Palette.Rust, 20, 34, 0).rectTransform.localRotation = Quaternion.Euler(0, 0, -90);
-
-            RectTransform a3 = Entry("TAP TO MOVE",
-                "The singularity walks to any trace connected to the one under it.");
-            // a column of three, and you on the surface of it
-            Mark(a3, "sq", Palette.Trace, 30, 0, 32);
-            Mark(a3, "sq", Palette.Trace, 30, 0, 0);
-            Mark(a3, "sq", Palette.Trace, 30, 0, -32);
-            Mark(a3, "hole", Palette.Void, 15, 0, 32);
-            Mark(a3, "ring", Palette.Arc, 17, 0, 32);
-
-            RectTransform a4 = Entry("COLLAPSE INTO THE CORE", "Reach it and the vault is solved.", 62f);
-            Mark(a4, "core", Palette.Core, 52, 0, 0);
-
-            Kicker("THE OBJECTS");
-            RectTransform cards = UiKit.Rect(M, "cards", new Vector2(0, 1), new Vector2(1, 1),
-                                             new Vector2(44, -(y + 92)), new Vector2(-44, -y));
-            Card(cards, 0, "sqfill", Palette.Trace, "TRACE", "CIRCUIT");
-            Card(cards, 1, "node", Palette.Node, "NODE", "COLLECT");
-            Card(cards, 2, "lock", Palette.Lock, "LOCK", "BARRIER");
-            Card(cards, 3, "plate", Palette.Rust, "PLATE", "INVERTS");
-            y += 106f;
-
-            Kicker("WORTH KNOWING");
-            RectTransform a5 = Entry("HOLD FOR MATRIX",
-                "The lattice goes to glass. Keep holding and drag to turn it.");
-            // the solid, seen through — three faces of one box
-            Mark(a5, "sq", Palette.Arc, 44, -8, -6);
-            Mark(a5, "sq", new Color(Palette.Arc.r, Palette.Arc.g, Palette.Arc.b, 0.45f), 44, 12, 12);
-            Mark(a5, "sqfill", Palette.Trace, 14, -14, -12);
-
-            RectTransform a6 = Entry("PLATES INVERT",
-                "Every trace goes dead and every dead cell lights up, for five\nseconds. A plate is always footing, so every fold is legal on one.");
-            Mark(a6, "sqfill", Palette.Trace, 26, -16, 14);
-            Mark(a6, "sq", Palette.Dim2, 26, 14, 14);
-            Mark(a6, "sq", Palette.Dim2, 26, -16, -16);
-            Mark(a6, "sqfill", Palette.Trace, 26, 14, -16);
-
-            RectTransform a7 = Entry("TO GO", "The fewest folds still possible from where you stand.", 62f);
-            Mark(a7, "i.togo", Palette.Arc, 44, 0, 0);
-
-            UiKit.EndScroll(M, y + 24f);
-
-            RectTransform got = UiKit.Rect(L, "got", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
-            UiKit.Bracketed(got, "got", "GOT IT", Back, 28, true);
+            Stick(L, "GOT IT", Back);
         }
 
-        /// <summary>One of the four object cards: the mark, its name, and its job.</summary>
-        static void Card(RectTransform row, int i, string glyph, Color col, string name, string job)
+        /// <summary>.meyebrow — t-tiny, .24em, rust, margin 14 above and 2 below.</summary>
+        static void Kicker(Flow col, string s, bool first = false)
         {
-            RectTransform c = UiKit.Rect(row, name, new Vector2(i / 4f, 0), new Vector2((i + 1) / 4f, 1),
-                                         new Vector2(5, 0), new Vector2(-5, 0));
-            UiKit.Framed(c, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.5f));
-            UiKit.Icon(c, glyph, col, 34, new Vector2(0.5f, 1f), new Vector2(0, -32));
-            UiKit.Label(c, "n", name, 19, Palette.Ink, TextAnchor.UpperCenter,
-                        new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 26), new Vector2(0, 48));
-            UiKit.Label(c, "j", job, 17, Palette.Dim, TextAnchor.UpperCenter,
-                        new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 8), new Vector2(0, 26));
+            if (!first) col.Space(14f);
+            RectTransform r = UiKit.Slot(col, s, Css.TTiny * 1.4f, Css.ManualMax, 2f);
+            UiKit.Label(r, s, s, Css.TTiny, Palette.Rust, TextAnchor.MiddleLeft, 0.24f,
+                        Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+        }
+
+        /// <summary>
+        /// .mrow — the text on the left and the drawing on the right, centred
+        /// against each other with a 14 gap, and a hairline between one row and the
+        /// next. The picture is 96 by 56 and does not shrink; the words take what
+        /// is left.
+        /// </summary>
+        static void MRow(Flow col, string head, string body, Sprite dia)
+        {
+            const float DiaW = 96f, DiaH = 56f, Gap = 14f;
+
+            RectTransform r = UiKit.Rect(((MonoBehaviour)col).transform, head,
+                                         Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+
+            RectTransform txt = UiKit.Rect(r, "mtxt", new Vector2(0f, 0f), new Vector2(1f, 1f),
+                                           new Vector2(0f, 9f), new Vector2(-(DiaW + Gap), -9f));
+
+            // .mtxt b — a block, ink, t-md, .07em, 3 under it
+            UiKit.Label(txt, "b", head, Css.TMd, Palette.Ink, TextAnchor.UpperLeft, 0.07f,
+                        new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -Css.TMd * 1.2f), Vector2.zero);
+            Text line = UiKit.Para(txt, "t", body, Css.TSm, Palette.Dim, TextAnchor.UpperLeft, 0.1f);
+            var lr = (RectTransform)line.transform;
+            lr.anchorMin = new Vector2(0f, 0f);
+            lr.anchorMax = new Vector2(1f, 1f);
+            lr.offsetMax = new Vector2(0f, -(Css.TMd * 1.2f + 3f));
+
+            UiKit.Mark(r, "dia", dia, Color.white, DiaW, DiaH, new Vector2(1f, 0.5f),
+                       new Vector2(-DiaW * 0.5f, 0f));
+
+            // the row is as tall as the picture or the words, whichever is more
+            float textW = Mathf.Min(Css.ManualMax, Css.VpW - Css.PadX * 2f) - DiaW - Gap;
+            float words = Css.TMd * 1.2f + 3f
+                        + Flow.TextHeight(body.ToUpperInvariant(), textW, Css.TSm, 0.1f, 1.4f) + 18f;
+            col.Add(r, Mathf.Max(DiaH + 18f, words), Css.ManualMax, 0f);
+            Hairline(r);
+        }
+
+        static void Hairline(RectTransform r)
+            => UiKit.Panel(r, "rule", Css.Edge2, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                           new Vector2(0f, -Css.Hair), Vector2.zero);
+
+        /// <summary>
+        /// .objs — four tiles, because these four are a SET and a list of four rows
+        /// does not say so.
+        /// </summary>
+        static void Objs(Flow col)
+        {
+            const float Gap = 8f, IcSize = 30f;
+            float h = 11f + IcSize + 5f + Css.TMicro * 1.3f + 5f + 8f * 1.3f + 9f;
+            RectTransform row = UiKit.Slot(col, "objs", h, Css.ManualMax, 2f);
+
+            (string key, string art, Color col, string name, string job)[] items =
+            {
+                ("trace", Art.ObjTrace, Palette.Trace, "TRACE", "CIRCUIT"),
+                ("node", Art.ObjNode, Palette.Node, "NODE", "COLLECT"),
+                ("lock", Art.ObjLock, Palette.Lock, "LOCK", "BARRIER"),
+                ("plate", Art.ObjPlate, Palette.Rust, "PLATE", "INVERTS"),
+            };
+
+            for (int i = 0; i < 4; i++)
+            {
+                RectTransform t = UiKit.Rect(row, items[i].name,
+                    new Vector2(i / 4f, 0f), new Vector2((i + 1) / 4f, 1f),
+                    new Vector2(i == 0 ? 0f : Gap * i / 4f, 0f),
+                    new Vector2(i == 3 ? 0f : -Gap * (3 - i) / 4f, 0f));
+
+                var plate = t.gameObject.AddComponent<Image>();
+                plate.sprite = UiKit.Frame(Css.RChip, 0f);
+                plate.type = Image.Type.Sliced;
+                plate.color = Palette.Panel;
+                plate.raycastTarget = false;
+                UiKit.Edge(t, Css.Edge2, Css.RChip, Css.Hair);
+
+                UiKit.Mark(t, "ic", Art.Obj(items[i].key, items[i].art, items[i].col), Color.white,
+                           IcSize, IcSize, new Vector2(0.5f, 1f), new Vector2(0f, -(11f + IcSize * 0.5f)));
+                UiKit.Label(t, "b", items[i].name, Css.TMicro, Palette.Ink, TextAnchor.UpperCenter, 0.1f,
+                            new Vector2(0f, 0f), new Vector2(1f, 0f),
+                            new Vector2(0f, 9f + 8f * 1.3f + 5f), new Vector2(0f, 9f + 8f * 1.3f + 5f + Css.TMicro * 1.3f));
+                UiKit.Label(t, "s", items[i].job, 8f, Palette.Dim2, TextAnchor.UpperCenter, 0.12f,
+                            new Vector2(0f, 0f), new Vector2(1f, 0f),
+                            new Vector2(0f, 9f), new Vector2(0f, 9f + 8f * 1.3f));
+            }
+        }
+
+        /// <summary>
+        /// .stick — the action nailed to the bottom of a page that scrolls, over a
+        /// gradient so the last line fades out under it rather than being cut off
+        /// by it.
+        /// </summary>
+        static void Stick(RectTransform L, string label, System.Action act)
+        {
+            float h = UiKit.BtnHeight(UiKit.Kind.Primary) + 44f;
+            RectTransform bar = UiKit.Rect(L, "stick", new Vector2(0f, 0f), new Vector2(1f, 0f),
+                                           Vector2.zero, new Vector2(0f, h));
+            UiKit.StickFade(bar);
+            RectTransform slot = UiKit.Rect(bar, "go", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                                            Vector2.zero, Vector2.zero);
+            slot.sizeDelta = new Vector2(Mathf.Min(Css.BtnMax, Css.VpW - Css.PadX * 2f),
+                                         UiKit.BtnHeight(UiKit.Kind.Primary));
+            slot.pivot = new Vector2(0.5f, 0f);
+            slot.anchoredPosition = new Vector2(0f, 22f);
+            UiKit.Btn(slot, label, act, UiKit.Kind.Primary);
         }
 
         public static void ShowManual() => Show("manual");
-
-        // ---- pause ----------------------------------------------------------
-
-        static Text _pauseName, _pauseWhere;
-
-        static void BuildPause()
-        {
-            RectTransform L = Layer("pause");
-            // Dark enough that the board is a memory rather than a distraction. The
-            // pause card is still the one screen that lets the puzzle through — you
-            // are in the middle of it — but at 0.72 the cube was legible straight
-            // through the words, which is not "letting it through", it is clutter.
-            L.GetComponent<Image>().color = new Color(0, 0, 0, 0.90f);
-
-            // THE CARD IS ABOUT THE CUBE YOU ARE IN, NOT ABOUT BEING PAUSED.
-            //
-            // "PAUSED" over six identical bars tells you one thing you already know
-            // and then asks you to read six labels to find the one that says go
-            // back. Naming the cube and its vault costs nothing and turns the card
-            // into a place; RESUME takes the only plate, the three ways to a
-            // different board share a row, and the two settings screens are text.
-            _pauseName = UiKit.Label(L, "h", "", 40, Palette.Ink, TextAnchor.LowerCenter,
-                                     new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(40, 150), new Vector2(-40, 206));
-            _pauseWhere = UiKit.Label(L, "where", "", 17, Palette.Rust, TextAnchor.UpperCenter,
-                                      new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(40, 112), new Vector2(-40, 142));
-
-            RectTransform go = UiKit.Rect(L, "resume", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                          new Vector2(72, -12), new Vector2(-72, 108));
-            UiKit.Bracketed(go, "resume", "RESUME", () => Show(null), 28, true);
-
-            RectTransform three = UiKit.Rect(L, "three", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                             new Vector2(72, -128), new Vector2(-72, -24));
-            Third(three, 0, "RESET", () => { Show(null); _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey); });
-            Third(three, 1, "VAULTS", OpenVaults);
-            Third(three, 2, "MENU", ShowTitle);
-
-            RectTransform links = UiKit.Rect(L, "links", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                             new Vector2(72, -196), new Vector2(-72, -146));
-            RectTransform bSlot = UiKit.Rect(links, "b", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
-            UiKit.Link(bSlot, "boards", "BOARDS", ShowBoards, 20);
-            RectTransform cSlot = UiKit.Rect(links, "c", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);
-            UiKit.Link(cSlot, "calibrate", "CALIBRATE", ShowCalibrate, 20);
-        }
-
-        public static void ShowPause(GameDirector dir)
-        {
-            Session sn = dir.S;
-            int band = Vaults.VaultOf(sn.levelNo);
-            _pauseName.text = sn.IsMade ? (sn.lv.name ?? "MADE CUBE")
-                            : sn.IsDaily ? "DAILY " + Daily.DayLabel()
-                            : Vaults.LevelName(sn.levelNo);
-            _pauseWhere.text = sn.IsDaily
-                ? "PAR " + sn.lv.par
-                : "VAULT " + Vaults.RomanOf(band) + " / " + Vaults.VaultName(band) + " / PAR " + sn.lv.par;
-            Show("pause");
-        }
 
         // ---- the plate, taught once -----------------------------------------
         //
@@ -597,39 +701,110 @@ namespace Singularity.UI
         static void BuildPlateTeach()
         {
             RectTransform L = Layer("plate");
-            Solid(L);
-            UiKit.Label(L, "eyebrow", "A NEW COMPONENT", 20, Palette.Dim, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -130), new Vector2(0, -100));
-            UiKit.Label(L, "h", "PLATES", 44, Palette.Rust, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -190), new Vector2(0, -140));
-            UiKit.Label(L, "sub", "Everything you know how to do is about to be worth less.",
-                        20, Palette.Dim, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -230), new Vector2(0, -200));
+            Flow col = UiKit.Column(L, false);
 
-            string[] rows =
+            Eyebrow(col, "eyebrow", "A NEW COMPONENT", Palette.Rust, 8f);
+            H2(col, "h", "PLATES");
+            Sub(col, "sub", "Everything you know how to do is about to be worth less.", true);
+
+            (string key, string head, string body)[] rows =
             {
-                "THE LATTICE INVERTS|Every trace goes dead. Every dead cell lights up.\nNothing moves — only what carries current.",
-                "IT LASTS FIVE SECONDS|Then the lattice springs back and puts you on the nearest\nplate. Running out costs you the walk, never the vault.",
-                "TAP IT AGAIN TO PRESS IT AGAIN|A plate is a door between two versions of the same engine,\nand the core is usually only reachable in one of them.",
-                "IT ALWAYS GIVES FOOTING|Cut clean through the lattice, visible from every face.\nWhile you stand on a plate every fold is legal.",
+                ("⊘", "THE LATTICE INVERTS",
+                 "Every trace goes dead. Every dead cell lights up. Nothing moves — only what carries current."),
+                ("⏱", "IT LASTS FIVE SECONDS",
+                 "Then the lattice springs back and puts you on the nearest plate. " +
+                 "Running out costs you the walk, never the vault. Plan the line before you press it."),
+                ("⟲", "TAP IT AGAIN TO PRESS IT AGAIN",
+                 "A plate is a door between two versions of the same engine, and the core is usually " +
+                 "only reachable in one of them. You can always go back through."),
+                ("◎", "IT ALWAYS GIVES FOOTING",
+                 "Cut clean through the lattice, visible from every face. While you stand on a plate " +
+                 "every fold is legal — and the clock cannot throw you off one."),
             };
 
-            float y = -290;
-            foreach (string r in rows)
-            {
-                string[] p = r.Split('|');
-                UiKit.Label(L, p[0], p[0], 23, Palette.Ink, TextAnchor.UpperLeft,
-                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 30), new Vector2(-48, y));
-                UiKit.Label(L, p[0] + "_d", p[1], 19, Palette.Dim, TextAnchor.UpperLeft,
-                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 92), new Vector2(-48, y - 32));
-                y -= 118;
-            }
+            foreach (var r in rows) MKeyRow(col, r.key, r.head, r.body);
 
-            RectTransform go = UiKit.Rect(L, "go", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
-            UiKit.Bracketed(go, "go", "STEP ON IT", () => Show(null), 28, true);
+            Stick(L, "STEP ON IT", () => Show(null));
+        }
+
+        /// <summary>
+        /// A .mrow whose left-hand mark is a glyph rather than a drawing — .mkey is
+        /// 26 wide, t-xl, and rust on this screen.
+        /// </summary>
+        static void MKeyRow(Flow col, string key, string head, string body)
+        {
+            const float KeyW = 26f, Gap = 14f;
+            RectTransform r = UiKit.Rect(((MonoBehaviour)col).transform, head,
+                                         Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+
+            UiKit.Label(r, "mkey", key, Css.TXl, Palette.Rust, TextAnchor.MiddleCenter, 0f,
+                        new Vector2(0f, 0f), new Vector2(0f, 1f), Vector2.zero, new Vector2(KeyW, 0f));
+
+            RectTransform txt = UiKit.Rect(r, "mtxt", new Vector2(0f, 0f), new Vector2(1f, 1f),
+                                           new Vector2(KeyW + Gap, 9f), new Vector2(0f, -9f));
+            UiKit.Label(txt, "b", head, Css.TMd, Palette.Ink, TextAnchor.UpperLeft, 0.07f,
+                        new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -Css.TMd * 1.2f), Vector2.zero);
+            Text line = UiKit.Para(txt, "t", body, Css.TSm, Palette.Dim, TextAnchor.UpperLeft, 0.1f);
+            var lr = (RectTransform)line.transform;
+            lr.anchorMin = new Vector2(0f, 0f);
+            lr.anchorMax = new Vector2(1f, 1f);
+            lr.offsetMax = new Vector2(0f, -(Css.TMd * 1.2f + 3f));
+
+            float textW = Mathf.Min(Css.ManualMax, Css.VpW - Css.PadX * 2f) - KeyW - Gap;
+            col.Add(r, Css.TMd * 1.2f + 3f
+                     + Flow.TextHeight(body.ToUpperInvariant(), textW, Css.TSm, 0.1f, 1.4f) + 18f,
+                    Css.ManualMax, 0f);
+            Hairline(r);
         }
 
         public static void ShowPlateTeach() => Show("plate");
+
+        // ---- pause ----------------------------------------------------------
+
+        static Text _pauseName, _pauseSub;
+
+        static void BuildPause()
+        {
+            RectTransform L = Layer("pause");
+            Flow col = UiKit.Column(L);
+
+            // THE CARD IS ABOUT THE CUBE YOU ARE IN, NOT ABOUT BEING PAUSED.
+            // "PAUSED" over six identical bars tells you one thing you already know
+            // and then asks you to read six labels to find the one that says go
+            // back. Naming the cube and its vault costs nothing and turns the card
+            // into a place.
+            _pauseName = H2(col, "pauseName", "PAUSED");
+            _pauseSub = Sub(col, "pauseSub", "—", true);
+
+            Row(col, "RESUME", () => Show(null), UiKit.Kind.Primary);
+
+            Btn2(col, "three", false, true, new[]
+            {
+                ("RESET", (System.Action)(() => { Show(null); _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey); }), UiKit.Kind.Btn),
+                ("VAULTS", (System.Action)OpenVaults, UiKit.Kind.Btn),
+                ("MENU", (System.Action)ShowTitle, UiKit.Kind.Btn),
+            });
+
+            Btn2(col, "outs", false, false, new[]
+            {
+                ("BOARDS", (System.Action)ShowBoards, UiKit.Kind.Ghost),
+                ("CALIBRATE", (System.Action)ShowCalibrate, UiKit.Kind.Ghost),
+            });
+        }
+
+        public static void ShowPause(GameDirector dir)
+        {
+            Session sn = dir.S;
+            int band = Vaults.VaultOf(sn.levelNo);
+            _pauseName.text = (sn.IsMade ? (sn.lv.name ?? "MADE CUBE")
+                            : sn.IsDaily ? "DAILY " + Daily.DayLabel()
+                            : Vaults.LevelName(sn.levelNo)).ToUpperInvariant();
+            _pauseSub.text = (sn.IsDaily
+                ? "PAR " + sn.lv.par
+                : "VAULT " + Vaults.RomanOf(band) + " / " + Vaults.VaultName(band) + " / PAR " + sn.lv.par)
+                .ToUpperInvariant();
+            Show("pause");
+        }
 
         // ---- calibrate -------------------------------------------------------
         //
@@ -641,158 +816,181 @@ namespace Singularity.UI
         static void BuildCalibrate()
         {
             RectTransform L = Layer("calibrate");
-            Solid(L);
-            UiKit.Label(L, "h", "CALIBRATE", 40, Palette.Ink, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -140), new Vector2(0, -90));
-            UiKit.Label(L, "sub", "TUNE THE INSTRUMENT", 20, Palette.Dim, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -176), new Vector2(0, -146));
+            Flow col = UiKit.Column(L, false);
 
-            // ONE PANEL, EIGHT ROWS, EACH WITH ITS OWN MARK.
-            //
-            // These were eight labels floating on black with [ON] buttons and plus
-            // and minus steppers beside them. Two things were wrong with that. A
-            // stepper is a fine way to change a number by one and a poor way to
-            // answer "how bright, out of how bright it goes" — brightness is only
-            // ever judged against the ends of its range, so it wants a POSITION,
-            // not a reading. And a row of eight items that differ only in their
-            // wording has to be read; a row where each carries a mark is
-            // recognised, which is what you want on the screen somebody opens to
-            // change one thing they already had in mind.
-            RectTransform panel = UiKit.Rect(L, "panel", new Vector2(0, 0), new Vector2(1, 1),
-                                             new Vector2(28, 190), new Vector2(-28, -200));
-            UiKit.Framed(panel, Palette.Panel, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.55f));
+            H2(col, "h", "CALIBRATE");
+            Sub(col, "sub", "TUNE THE INSTRUMENT", true);
 
-            _calRow = 0;
-            Toggle(panel, "i.sound", "SOUND", "", () => Store.Data.sound,
+            // .settings — one card with the rows inside it and a hairline between
+            // each. A row of eight items that differ only in their wording has to be
+            // read; a row where each carries a mark is RECOGNISED, which is what you
+            // want on the screen somebody opens to change one thing they already had
+            // in mind.
+            RectTransform panel = UiKit.Slot(col, "settings", 0f, Css.BtnMax, 12f);
+            var plate = panel.gameObject.AddComponent<Image>();
+            plate.sprite = UiKit.Frame(Css.RCard, 0f);
+            plate.type = Image.Type.Sliced;
+            plate.color = Palette.Card;
+            plate.raycastTarget = false;
+            UiKit.Edge(panel, Css.Edge2, Css.RCard, Css.Hair);
+
+            float y = 0f;
+            RectTransform SetRow(string icon, string label, string hint, bool slide)
+            {
+                // .settings .row{ min-height:50px; padding:9px 14px }
+                float h = slide ? 50f + 9f + 17f : string.IsNullOrEmpty(hint) ? 50f : 50f + Css.TMicro * 1.4f;
+                RectTransform r = UiKit.Rect(panel, label, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                                             Vector2.zero, Vector2.zero);
+                r.pivot = new Vector2(0.5f, 1f);
+                r.anchoredPosition = new Vector2(0f, -y);
+                r.sizeDelta = new Vector2(0f, h);
+
+                if (y > 0f) Hairline(r);
+
+                // .rIc — 19 by 19, and rust once the row is on
+                UiKit.Mark(r, "ic", Art.Row(label, icon), Palette.Dim, 19f, 19f,
+                           new Vector2(0f, 0.5f), new Vector2(14f + 9.5f, slide ? 8f : 0f));
+
+                float top = slide || !string.IsNullOrEmpty(hint) ? Css.TSm * 1.4f : 0f;
+                UiKit.Label(r, "lbl", label, Css.TSm, Palette.Ink, TextAnchor.MiddleLeft, 0.14f,
+                            new Vector2(0f, string.IsNullOrEmpty(hint) && !slide ? 0f : 0.5f),
+                            new Vector2(1f, 1f), new Vector2(45f, 0f), new Vector2(-14f, -9f));
+
+                if (!string.IsNullOrEmpty(hint) && !slide)
+                    UiKit.Label(r, "hint", hint, Css.TMicro, Palette.Dim2, TextAnchor.UpperLeft, 0.10f,
+                                new Vector2(0f, 0f), new Vector2(1f, 0.5f),
+                                new Vector2(45f, 9f), new Vector2(-14f, -3f));
+
+                y += h;
+                return r;
+            }
+
+            void Toggle(string icon, string label, string hint, System.Func<int> get, System.Action<int> set)
+            {
+                RectTransform r = SetRow(icon, label, hint, false);
+                RectTransform sw = UiKit.Rect(r, "sw", new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                                              Vector2.zero, Vector2.zero);
+                sw.anchoredPosition = new Vector2(-14f - UiKit.SwW * 0.5f, 0f);
+                UiKit.Switch(sw, get() != 0, _ =>
+                {
+                    int v = get() != 0 ? 0 : 1;
+                    set(v);
+                    Store.Save();
+                    return v != 0;
+                });
+            }
+
+            void Bar(string icon, string label, string readout, int lo, int hi,
+                     System.Func<int> get, System.Action<int> set, bool percent)
+            {
+                RectTransform r = SetRow(icon, label, "", true);
+                // .slide{ display:flex;gap:10px;margin-top:9px }
+                RectTransform slide = UiKit.Rect(r, "slide", new Vector2(0f, 0f), new Vector2(1f, 0f),
+                                                 new Vector2(45f, 9f), new Vector2(-14f, 26f));
+                Text val = UiKit.Label(slide, "sLbl", percent ? get() + "%" : readout, Css.TMicro,
+                                       Palette.Dim2, TextAnchor.MiddleLeft, 0.16f,
+                                       new Vector2(0f, 0f), new Vector2(0f, 1f),
+                                       Vector2.zero, new Vector2(Css.TMicro * 0.6f * 10f, 0f));
+                RectTransform track = UiKit.Rect(slide, "range", new Vector2(0f, 0f), new Vector2(1f, 1f),
+                                                 new Vector2(Css.TMicro * 0.6f * 10f + 10f, 0f), Vector2.zero);
+                UiKit.Range(track, lo, hi, get(), v =>
+                {
+                    set(v);
+                    Store.Save();
+                    if (percent) val.text = v + "%";
+                });
+            }
+
+            Toggle(Art.RicSound, "SOUND", "", () => Store.Data.sound,
                    v => { Store.Data.sound = v; if (v == 0) Sfx.I.StopAmbience(); else Sfx.I.Ambience(Vaults.VaultOf(_dir.S.levelNo)); });
-            Toggle(panel, "i.haptic", "HAPTICS", "", () => Store.Data.haptic, v => Store.Data.haptic = v);
-            Toggle(panel, "i.fx", "EFFECTS", "SHAKE · SPARKS · BLOOM", () => Store.Data.fx,
+            Toggle(Art.RicHaptic, "HAPTICS", "", () => Store.Data.haptic, v => Store.Data.haptic = v);
+            Toggle(Art.RicFx, "EFFECTS", "SHAKE · SPARKS · BLOOM", () => Store.Data.fx,
                    v => { Store.Data.fx = v; _dir.Glow.Refresh(); });
-            Toggle(panel, "i.togo", "FOLDS TO GO", "CYAN: PERFECT LINE · RUST: YOU SLIPPED",
+            Toggle(Art.RicToGo, "FOLDS TO GO", "CYAN: PERFECT LINE · RUST: YOU SLIPPED",
                    () => Store.Data.togo, v => Store.Data.togo = v);
-            Toggle(panel, "i.depth", "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL",
+            Toggle(Art.RicDepth, "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL",
                    () => Store.Data.depth, v => Store.Data.depth = v);
-            Bar(panel, "i.buzz", "HAPTIC FEEDBACK", "INTENSITY", 0, 150, () => Store.Data.buzz, v => Store.Data.buzz = v);
-            // Both default to 100, and at 100 no filter is applied at all — the
-            // cost of these two is zero for anyone who leaves them alone.
-            Bar(panel, "i.bright", "BRIGHTNESS", "", 60, 160, () => Store.Data.bright, v => Store.Data.bright = v);
-            Bar(panel, "i.contrast", "CONTRAST", "", 70, 150, () => Store.Data.contrast, v => Store.Data.contrast = v);
+            // A SWITCH SAYS WHETHER, A SLIDER SAYS HOW MUCH. Haptics were one bit
+            // for a thing that is not one bit: a pattern that reads as a ratchet on
+            // one phone is a jolt on another, and the only person who can settle
+            // that is holding the phone.
+            Bar(Art.RicBuzz, "HAPTIC FEEDBACK", "INTENSITY", 0, 150,
+                () => Store.Data.buzz, v => Store.Data.buzz = v, false);
+            // A DARK GAME ON A BRIGHT DAY IS AN UNREADABLE GAME, and the phone's own
+            // brightness slider moves the whole system, not this. Both default to
+            // 100, and at 100 no filter is applied at all.
+            Bar(Art.RicBright, "BRIGHTNESS", "", 60, 160,
+                () => Store.Data.bright, v => Store.Data.bright = v, true);
+            Bar(Art.RicContrast, "CONTRAST", "", 70, 150,
+                () => Store.Data.contrast, v => Store.Data.contrast = v, true);
 
-            RectTransform feet = UiKit.Rect(L, "feet", new Vector2(0, 0), new Vector2(1, 0),
-                                            new Vector2(40, 90), new Vector2(-40, 152));
-            Third(feet, 0, "MANUAL", ShowManual);
-            Third(feet, 1, "BACK", Back);
-            Third(feet, 2, "MENU", ShowTitle);
-        }
+            panel.sizeDelta = new Vector2(panel.sizeDelta.x, y);
+            col.Layout();
 
-        static int _calRow;
-        const int CalRows = 8;
-
-        static void Third(RectTransform parent, int i, string label, System.Action act)
-        {
-            RectTransform slot = UiKit.Rect(parent, label, new Vector2(i / 3f, 0), new Vector2((i + 1) / 3f, 1),
-                                            new Vector2(6, 0), new Vector2(-6, 0));
-            UiKit.Bracketed(slot, label, label, act, 24);
-        }
-
-        /// <summary>A row of the calibrate panel: mark, name, what it does, and the control.</summary>
-        static RectTransform CalRow(RectTransform panel, string icon, string label, string hint, bool wideHint)
-        {
-            float h = 1f / CalRows;
-            int slot = _calRow++;
-            RectTransform r = UiKit.Rect(panel, label, new Vector2(0, 1 - (slot + 1) * h), new Vector2(1, 1 - slot * h),
-                                         new Vector2(0, 2), new Vector2(0, -2));
-
-            UiKit.Icon(r, icon, Palette.Rust, 26, new Vector2(0, 0.5f), new Vector2(34, 0));
-            UiKit.Label(r, "l", label, 21, Palette.Ink, TextAnchor.MiddleLeft,
-                        new Vector2(0, string.IsNullOrEmpty(hint) ? 0 : 0.40f), new Vector2(0.62f, 1),
-                        new Vector2(58, 0), Vector2.zero);
-            if (!string.IsNullOrEmpty(hint))
-                UiKit.Label(r, "h", hint, 17, Palette.Dim, TextAnchor.MiddleLeft,
-                            new Vector2(0, 0), new Vector2(wideHint ? 0.72f : 0.30f, 0.40f),
-                            new Vector2(58, 0), Vector2.zero);
-
-            // a hairline under every row but the last, so eight rows read as one
-            // instrument rather than eight unrelated controls
-            if (slot < CalRows - 1)
-                UiKit.Panel(r, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.20f),
-                            new Vector2(0, 0), new Vector2(1, 0), new Vector2(20, 0), new Vector2(-20, 1));
-            return r;
-        }
-
-        static void Toggle(RectTransform panel, string icon, string label, string hint,
-                           System.Func<int> get, System.Action<int> set)
-        {
-            RectTransform r = CalRow(panel, icon, label, hint, true);
-            UiKit.Switch(r, "sw", get() != 0, _ =>
+            Btn2(col, "feet", false, true, new[]
             {
-                int v = get() != 0 ? 0 : 1;
-                set(v);
-                Store.Save();
-                return v != 0;
-            }, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-108, -21), new Vector2(-18, 21));
-        }
-
-        static void Bar(RectTransform panel, string icon, string label, string hint,
-                        int lo, int hi, System.Func<int> get, System.Action<int> set)
-        {
-            // The reading sits AFTER the hint rather than on top of it. Both were
-            // pinned to the same left edge of the same band, so "120%" was printed
-            // straight through the word INTENSITY.
-            RectTransform r = CalRow(panel, icon, label, hint, false);
-            Text val = UiKit.Label(r, "v", get() + "%", 21, Palette.Rust, TextAnchor.MiddleLeft,
-                                   new Vector2(0.30f, 0), new Vector2(0.52f, 0.40f), Vector2.zero, Vector2.zero);
-            UiKit.Bar(r, "bar", lo, hi, get(), v =>
-            {
-                set(v);
-                Store.Save();
-                val.text = v + "%";
-            }, new Vector2(0.52f, 0.5f), new Vector2(1, 0.5f), new Vector2(0, -18), new Vector2(-18, 18));
+                ("MANUAL", (System.Action)ShowManual, UiKit.Kind.Ghost),
+                ("BACK", (System.Action)Back, UiKit.Kind.Ghost),
+                ("MENU", (System.Action)ShowTitle, UiKit.Kind.Ghost),
+            });
         }
 
         public static void ShowCalibrate() => Show("calibrate");
 
         // ---- boards ----------------------------------------------------------
         //
-        // Every row reads its own local record, so the screen is worth opening on
-        // a plane — the RANKING is the part that needs a host, not the number.
+        // The bridge could always POST a score and there was never anywhere to go
+        // and look at one. Every row here reads its own local record too, so the
+        // screen is worth opening on a plane — the RANKING is the part that needs a
+        // host, not the number.
 
-        static RectTransform _boardList;
+        static RectTransform _boardList, _boardRail;
+        static Text _boardHead;
 
         static void BuildBoards()
         {
             RectTransform L = Layer("boards");
-            Solid(L);
-            // LOCAL ONLY, SAID OUT LOUD. Every row here is this device's own
-            // record, and a screen called BOARDS that does not say so is quietly
-            // implying a leaderboard it does not have.
-            UiKit.Label(L, "h", "BOARDS — LOCAL ONLY", 26, Palette.Ink, TextAnchor.LowerCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -158), new Vector2(-40, -118));
-            UiKit.Panel(L, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.5f),
-                        new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-70, -104), new Vector2(70, -102));
+            Flow col = UiKit.Column(L, false);
 
-            // The rows go in a plate for the same reason the win card's do: a name
-            // on the left and a number six hundred pixels away on the right are not
-            // visibly about each other.
-            _boardList = UiKit.Rect(L, "list", new Vector2(0, 1), new Vector2(1, 1),
-                                    new Vector2(56, -770), new Vector2(-56, -186));
-            UiKit.Framed(_boardList, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.55f));
+            RectTransform bar = UiKit.Slot(col, "vaultBar", Css.HCtl, Css.GridMax, 16f);
+            RectTransform id = UiKit.Fill(bar, "vaultId");
+            _boardRail = UiKit.Rect(id, "rail", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                                    Vector2.zero, Vector2.zero);
+            _boardRail.sizeDelta = new Vector2(Mathf.Min(180f, Css.Vw(52f)), 3f);
+            _boardHead = UiKit.Label(id, "head", "BOARDS", Css.TTiny, Palette.Dim,
+                                     TextAnchor.UpperCenter, 0.18f,
+                                     new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero, new Vector2(0f, -8f));
 
-            UiKit.Label(L, "foot", "NO HOST ATTACHED — THESE ARE THIS DEVICE'S OWN RECORDS.",
-                        13, Palette.Dim2, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -812), new Vector2(-40, -786));
+            _boardList = UiKit.Slot(col, "boardList", 0f, Css.BtnMax, 12f);
+            var plate = _boardList.gameObject.AddComponent<Image>();
+            plate.sprite = UiKit.Frame(Css.RCard, 0f);
+            plate.type = Image.Type.Sliced;
+            plate.color = Palette.Card;
+            plate.raycastTarget = false;
+            UiKit.Edge(_boardList, Css.Edge2, Css.RCard, Css.Hair);
 
-            RectTransform outs = UiKit.Rect(L, "outs", new Vector2(0, 1), new Vector2(1, 1),
-                                            new Vector2(80, -892), new Vector2(-80, -844));
-            RectTransform bk = UiKit.Rect(outs, "b", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
-            UiKit.Link(bk, "back", "BACK", Back, 21, Palette.Ink);
-            RectTransform mn = UiKit.Rect(outs, "m", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);
-            UiKit.Link(mn, "menu", "MENU", ShowTitle, 21);
+            EdMsg(col, "boardMsg");
+
+            Btn2(col, "outs", false, false, new[]
+            {
+                ("BACK", (System.Action)Back, UiKit.Kind.Ghost),
+                ("MENU", (System.Action)ShowTitle, UiKit.Kind.Ghost),
+            });
         }
 
         public static void ShowBoards()
         {
-            for (int i = _boardList.childCount - 1; i >= 0; i--) Object.Destroy(_boardList.GetChild(i).gameObject);
+            for (int i = _boardList.childCount - 1; i >= 0; i--)
+            {
+                Transform ch = _boardList.GetChild(i);
+                if (ch.name != "edge") Object.Destroy(ch.gameObject);
+            }
+
+            // LOCAL ONLY, SAID OUT LOUD. Every row here is this device's own record,
+            // and a screen called BOARDS that does not say so is quietly implying a
+            // leaderboard it does not have.
+            _boardHead.text = "BOARDS — LOCAL ONLY";
+            UiKit.Rail(_boardRail, Palette.Dim2, 1f);
 
             var rows = new List<(string k, string why, string v)>();
 
@@ -806,14 +1004,11 @@ namespace Singularity.UI
             // more than the worst honest attempt — otherwise skipping a hard cube
             // would be the optimal play. So these read as "lower is better", and
             // turning up and playing badly always beats not turning up.
-            //
-            // Only the days that have HAPPENED are counted: a running total that
-            // charged for tomorrow would be all penalty and would tell you nothing.
             foreach (DailyBoards.Period p in DailyBoards.Periods)
             {
                 var (total, played, of) = DailyBoards.Running(p, today);
                 rows.Add((p.label, p.why, played == 0 ? "0 / " + of + " DAYS"
-                                                       : total + " · " + played + " / " + of + " DAYS"));
+                                                     : total + " · " + played + " / " + of + " DAYS"));
             }
 
             // Then one row per vault: a vault is the unit a board ranks, scored on
@@ -829,146 +1024,110 @@ namespace Singularity.UI
                 for (int i = 0; i < size; i++)
                     if (Store.TryTimeBest(start + i, out long ms)) { total += ms; have++; }
 
-                string v = have == size
-                    ? (total / 1000f).ToString("0.0") + "s"
-                    : have + "/" + size;
                 rows.Add(("VAULT " + Vaults.RomanOf(band),
-                          Vaults.VaultName(band).ToUpperInvariant() + " — TIME TO CLEAR", v));
+                          Vaults.VaultName(band).ToUpperInvariant() + " — TIME TO CLEAR",
+                          have == size ? (total / 1000f).ToString("0.0") + "s" : have + "/" + size));
             }
 
             rows.Add(("STREAK", "CONSECUTIVE DAYS SOLVED", Store.Data.streakCur + " DAYS"));
 
-            float h = 1f / Mathf.Max(1, rows.Count);
+            float y = 0f;
             for (int i = 0; i < rows.Count; i++)
             {
-                RectTransform r = UiKit.Rect(_boardList, "r" + i,
-                    new Vector2(0, 1 - (i + 1) * h), new Vector2(1, 1 - i * h), Vector2.zero, Vector2.zero);
+                float h = 50f + Css.TMicro * 1.4f;
+                RectTransform r = UiKit.Rect(_boardList, "r" + i, new Vector2(0f, 1f), new Vector2(1f, 1f),
+                                             Vector2.zero, Vector2.zero);
+                r.pivot = new Vector2(0.5f, 1f);
+                r.anchoredPosition = new Vector2(0f, -y);
+                r.sizeDelta = new Vector2(0f, h);
+                if (i > 0) Hairline(r);
 
-                UiKit.Label(r, "k", rows[i].k, 19, Palette.Ink, TextAnchor.LowerLeft,
-                            new Vector2(0, 0.44f), new Vector2(0.66f, 1), new Vector2(26, 0), new Vector2(0, -8));
-                UiKit.Label(r, "w", rows[i].why, 17, Palette.Dim, TextAnchor.UpperLeft,
-                            new Vector2(0, 0), new Vector2(0.72f, 0.46f), new Vector2(26, 6), Vector2.zero);
-                UiKit.Label(r, "v", rows[i].v, 17, Palette.Rust, TextAnchor.MiddleRight,
-                            new Vector2(0.66f, 0), Vector2.one, Vector2.zero, new Vector2(-26, 0));
-
-                if (i < rows.Count - 1)
-                    UiKit.Panel(r, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.22f),
-                                new Vector2(0, 0), new Vector2(1, 0), new Vector2(20, 0), new Vector2(-20, 1));
+                UiKit.Label(r, "k", rows[i].k, Css.TSm, Palette.Ink, TextAnchor.MiddleLeft, 0.14f,
+                            new Vector2(0f, 0.5f), new Vector2(0.7f, 1f), new Vector2(14f, 0f), new Vector2(0f, -9f));
+                UiKit.Label(r, "w", rows[i].why, Css.TMicro, Palette.Dim2, TextAnchor.UpperLeft, 0.10f,
+                            new Vector2(0f, 0f), new Vector2(0.75f, 0.5f), new Vector2(14f, 9f), new Vector2(0f, -3f));
+                // .bVal — arc, and dim when there is no host to rank it against
+                UiKit.Label(r, "v", rows[i].v, Css.TTiny, Palette.Dim, TextAnchor.MiddleRight, 0.10f,
+                            new Vector2(0.7f, 0f), new Vector2(1f, 1f), Vector2.zero, new Vector2(-14f, 0f));
+                y += h;
             }
+            _boardList.sizeDelta = new Vector2(_boardList.sizeDelta.x, y);
 
             Show("boards");
         }
 
         // ---- the win card ---------------------------------------------------
 
-        static Text _winWhat, _winVerdict, _winFolds, _winPar, _winBest, _winVault;
-        static RectTransform _winNextRow, _winRetryRow, _winOutsRow;
-        const float WinPad = 84f;
-        static Button _winNext, _winRetry;
+        static Text _winWhat, _winVault, _winVerdict, _winFolds, _winPar, _winBest;
+        static RectTransform _winNextRow, _winRetryRow;
 
         static void BuildWin()
         {
             RectTransform L = Layer("win");
-            L.GetComponent<Image>().color = new Color(0, 0, 0, 0.92f);
+            Flow col = UiKit.Column(L);
 
-            // A CARD, NOT A SCREENFUL.
-            //
-            // This was full-bleed: the stat names sat against the left edge and
-            // their numbers against the right, six hundred pixels away, so nothing
-            // read as a pair. Under it were three identical framed buttons, which is
-            // three equal offers on a card that has exactly one thing you came here
-            // to do. Everything now lives in a centred column the width of the thing
-            // it is reporting on, the numbers sit inside a bordered plate with a
-            // hairline between each row, and only NEXT keeps a plate.
+            _winWhat = Eyebrow(col, "winWhat", "VAULT SOLVED", Palette.Rust, 6f);
+            _winVault = Eyebrow(col, "winVault", "", Palette.Arc, 0f);
 
-            _winWhat = UiKit.Label(L, "what", "VAULT SOLVED", 17, Palette.Rust, TextAnchor.LowerCenter,
-                                   new Vector2(0, 1), new Vector2(1, 1), new Vector2(WinPad, -180), new Vector2(-WinPad, -152));
-            _winVerdict = UiKit.Label(L, "verdict", "AT PAR", 46, Palette.Arc, TextAnchor.UpperCenter,
-                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(WinPad, -252), new Vector2(-WinPad, -186));
-            _winVault = UiKit.Label(L, "vault", "", 18, Palette.Arc, TextAnchor.UpperCenter,
-                                    new Vector2(0, 1), new Vector2(1, 1), new Vector2(WinPad, -284), new Vector2(-WinPad, -256));
+            // .verdict — t-2xl, .2em, and it arrives by tightening from .52em on a
+            // four-step ease, which is the one animation on this card.
+            RectTransform v = UiKit.Slot(col, "verdict", Css.T2Xl * 1.5f, 0f, 3f);
+            _winVerdict = UiKit.Type(v, "verdict", "AT PAR", Css.T2Xl, Palette.Arc,
+                                     TextAnchor.MiddleCenter, 0.2f);
 
-            RectTransform stats = UiKit.Rect(L, "stats", new Vector2(0, 1), new Vector2(1, 1),
-                                             new Vector2(WinPad, -474), new Vector2(-WinPad, -306));
-            UiKit.Framed(stats, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.55f));
-            _winFolds = Stat(stats, "FOLDS USED", 0);
-            _winPar   = Stat(stats, "PAR", 1);
-            _winBest  = Stat(stats, "YOUR BEST", 2);
+            col.Space(16f);
 
-            _winNextRow = UiKit.Rect(L, "next", new Vector2(0, 1), new Vector2(1, 1),
-                                     new Vector2(WinPad, -498 - UiKit.PrimaryH), new Vector2(-WinPad, -498));
-            RectTransform go = _winNextRow;
-            _winNext = UiKit.Bracketed(go, "next", "NEXT", () =>
+            // .card{ max-width:360;padding:26px 22px 20px;border-radius:var(--r-card);
+            //        background:var(--card);box-shadow:inset 0 0 0 var(--hair) var(--edge) }
+            float statH = Css.TLg * 1.4f + 22f;
+            RectTransform card = UiKit.Slot(col, "card", 26f + statH * 3f + 20f, Css.CardMax, 20f);
+            var plate = card.gameObject.AddComponent<Image>();
+            plate.sprite = UiKit.Frame(Css.RCard, 0f);
+            plate.type = Image.Type.Sliced;
+            plate.color = Palette.Card;
+            plate.raycastTarget = false;
+            UiKit.Edge(card, Css.Edge, Css.RCard, Css.Hair);
+
+            _winFolds = Stat(card, "FOLDS USED", 0, statH);
+            _winPar = Stat(card, "PAR", 1, statH);
+            _winBest = Stat(card, "YOUR BEST", 2, statH);
+
+            _winNextRow = UiKit.Slot(col, "next", UiKit.BtnHeight(UiKit.Kind.Primary), Css.BtnMax, 16f);
+            UiKit.Btn(_winNextRow, "NEXT", () => { Show(null); _dir.Play(_dir.S.levelNo + 1); }, UiKit.Kind.Primary);
+
+            _winRetryRow = UiKit.Slot(col, "retry", UiKit.BtnHeight(UiKit.Kind.Ghost), Css.BtnMax, 0f);
+            UiKit.Btn(_winRetryRow, "RETRY FOR PAR",
+                      () => { Show(null); _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey); }, UiKit.Kind.Ghost);
+
+            // The shelf button says where it actually goes — it led to the FORGE on
+            // a built cube while still reading VAULTS — and there is a way to the
+            // front from here, which there was not.
+            Btn2(col, "outs", true, false, new[]
             {
-                Show(null);
-                _dir.Play(_dir.S.levelNo + 1);
-            }, 28, true);
-
-            // The rest are text. They are ways OUT of this card rather than things
-            // it is for, and a bracketed label with nothing behind it says that
-            // without needing to be smaller or greyer than it can be read at.
-            _winRetryRow = UiKit.Rect(L, "retry", new Vector2(0, 1), new Vector2(1, 1),
-                                      new Vector2(WinPad, -640), new Vector2(-WinPad, -592));
-            RectTransform retry = _winRetryRow;
-            _winRetry = UiKit.Link(retry, "retry", "RETRY FOR PAR", () =>
-            {
-                Show(null);
-                _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey);
-            }, 21, Palette.Ink);
-
-            _winOutsRow = UiKit.Rect(L, "outs", new Vector2(0, 1), new Vector2(1, 1),
-                                     new Vector2(WinPad, -700), new Vector2(-WinPad, -652));
-            RectTransform outs = _winOutsRow;
-            RectTransform vSlot = UiKit.Rect(outs, "v", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
-            UiKit.Link(vSlot, "vaults", "VAULTS", OpenVaults, 20);
-            RectTransform mSlot = UiKit.Rect(outs, "m", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);
-            UiKit.Link(mSlot, "menu", "MENU", ShowTitle, 20);
+                ("VAULTS", (System.Action)OpenVaults, UiKit.Kind.Ghost),
+                ("MENU", (System.Action)ShowTitle, UiKit.Kind.Ghost),
+            });
         }
 
         /// <summary>
-        /// AND THE ACTIONS FLOW, because two of the three come and go: NEXT is
-        /// meaningless after the daily and RETRY FOR PAR only exists if you went
-        /// over. Fixed positions would leave the hole this card had before — and a
-        /// PERFECT COLLAPSE, the best outcome in the game, is exactly the case that
-        /// hides one.
+        /// .stat — its name on the left, its number on the right, and a hairline
+        /// between each so three of them read as one instrument. Close enough
+        /// together that the eye pairs them without being told to.
         /// </summary>
-        static void FlowWin()
+        static Text Stat(RectTransform card, string key, int slot, float h)
         {
-            float y = 498f;
-
-            void Place(RectTransform r, float h, float gap)
-            {
-                if (!r.gameObject.activeSelf) return;
-                r.offsetMax = new Vector2(-WinPad, -y);
-                r.offsetMin = new Vector2(WinPad, -(y + h));
-                y += h + gap;
-            }
-
-            Place(_winNextRow, UiKit.PrimaryH, 20f);
-            Place(_winRetryRow, 52f, 14f);
-            Place(_winOutsRow, 52f, 0f);
-        }
-
-        /// <summary>
-        /// One reading of the card: its name on the left, its number on the right,
-        /// and a hairline under it so three of them read as one instrument. Close
-        /// enough together that the eye pairs them without being told to.
-        /// </summary>
-        static Text Stat(RectTransform card, string key, int slot)
-        {
-            const int Rows = 3;
-            float h = 1f / Rows;
-            RectTransform r = UiKit.Rect(card, key, new Vector2(0, 1 - (slot + 1) * h), new Vector2(1, 1 - slot * h),
+            RectTransform r = UiKit.Rect(card, key, new Vector2(0f, 1f), new Vector2(1f, 1f),
                                          Vector2.zero, Vector2.zero);
+            r.pivot = new Vector2(0.5f, 1f);
+            r.anchoredPosition = new Vector2(0f, -(26f + slot * h));
+            r.sizeDelta = new Vector2(-44f, h);
 
-            UiKit.Label(r, "k", key, 17, Palette.Dim, TextAnchor.MiddleLeft,
-                        Vector2.zero, Vector2.one, new Vector2(28, 0), new Vector2(-120, 0));
-            if (slot < Rows - 1)
-                UiKit.Panel(r, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.22f),
-                            new Vector2(0, 0), new Vector2(1, 0), new Vector2(22, 0), new Vector2(-22, 1));
+            UiKit.Label(r, "k", key, Css.TFine, Palette.Dim, TextAnchor.MiddleLeft, 0.17f,
+                        Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-100f, 0f));
+            if (slot > 0) Hairline(r);
 
-            return UiKit.Label(r, "v", "0", 26, Palette.Ink, TextAnchor.MiddleRight,
-                               Vector2.zero, Vector2.one, new Vector2(0, 0), new Vector2(-28, 0));
+            return UiKit.Label(r, "v", "0", Css.TLg, Palette.Ink, TextAnchor.MiddleRight, 0f,
+                               Vector2.zero, Vector2.one, new Vector2(0f, 0f), Vector2.zero);
         }
 
         public static void ShowWin(Session s, GameDirector dir)
@@ -983,6 +1142,7 @@ namespace Singularity.UI
             _winVerdict.text = s.turns < s.lv.par ? "BELOW PAR"
                              : s.turns == s.lv.par ? "PERFECT COLLAPSE"
                              : (s.turns - s.lv.par) + " OVER PAR";
+            // .verdict.par is arc, .verdict.over is rust
             _winVerdict.color = s.turns <= s.lv.par ? Palette.Arc : Palette.Rust;
 
             // A vault boundary is worth marking — it is the only structure an
@@ -994,9 +1154,8 @@ namespace Singularity.UI
                            : "";
 
             // there is no next cube after the daily — there is tomorrow
-            _winNext.transform.parent.gameObject.SetActive(!s.IsDaily && !s.IsMade);
-            _winRetry.transform.parent.gameObject.SetActive(s.turns > s.lv.par);
-            FlowWin();
+            _winNextRow.gameObject.SetActive(!s.IsDaily && !s.IsMade);
+            _winRetryRow.gameObject.SetActive(s.turns > s.lv.par);
 
             Show("win");
         }
