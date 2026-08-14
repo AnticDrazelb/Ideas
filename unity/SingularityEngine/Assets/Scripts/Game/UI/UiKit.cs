@@ -670,6 +670,52 @@ namespace Singularity.UI
             return btn;
         }
 
+        /// <summary>
+        /// MOVE THE ONE LIT THING, without rebuilding either control.
+        ///
+        /// A screen has exactly one primary and it is meant to be "the thing you
+        /// came here to do" — but on a screen where that CHANGES, a primary baked
+        /// in at construction is a promise the screen cannot keep. The Forge is
+        /// the case: its coach names the next step, and the step is VERIFY until
+        /// the cube is proved and SAVE afterwards, while the plate sat on SAVE
+        /// from the moment the editor opened. A button lit before it can do
+        /// anything is worse than no primary at all.
+        ///
+        /// Only a control BUILT primary can be lit again later — the glow is a
+        /// sibling object that is created on request — so a screen that intends to
+        /// move its primary builds both that way and switches one off.
+        /// </summary>
+        public static void SetPrimary(Button b, bool on)
+        {
+            if (b == null) return;
+
+            var plate = b.GetComponent<Image>();
+            if (plate != null) plate.color = on ? Palette.Rust : Palette.Panel;
+
+            Transform edge = b.transform.Find("edge");
+            if (edge != null)
+            {
+                var e = edge.GetComponent<Image>();
+                if (e != null) e.color = on ? EdgeOn : Edge;
+            }
+
+            Transform label = b.transform.Find("label");
+            if (label != null)
+            {
+                var t = label.GetComponent<Text>();
+                if (t != null) t.color = on ? Palette.Void : Palette.Ink;
+            }
+
+            // the glow is a SIBLING, because a child can never draw behind its
+            // parent's own graphic — see Bracketed
+            Transform parent = b.transform.parent;
+            if (parent != null)
+            {
+                Transform glow = parent.Find(b.gameObject.name + "_glow");
+                if (glow != null && glow.gameObject.activeSelf != on) glow.gameObject.SetActive(on);
+            }
+        }
+
         public static void SetLabel(Button b, string text)
         {
             var t = b.GetComponentInChildren<Text>();

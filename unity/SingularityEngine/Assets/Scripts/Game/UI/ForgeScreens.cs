@@ -30,7 +30,7 @@ namespace Singularity.UI
         static RectTransform _slice, _toolRow, _coach;
         static Text _deckLabel, _edMsg, _codeText, _coachN, _coachText;
         static InputField _nameField;
-        static Button _sizeBtn, _deleteBtn;
+        static Button _sizeBtn, _deleteBtn, _verifyBtn, _saveBtn;
 
         public static void Build(GameDirector dir)
         {
@@ -212,11 +212,19 @@ namespace Singularity.UI
             _edMsg = UiKit.Label(msgRow, "msg", "", 18, Palette.Dim, TextAnchor.MiddleCenter,
                                  Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
+            // BOTH BUILT PRIMARY, ONE LIT AT A TIME.
+            //
+            // SAVE was the lit plate from the moment the editor opened, while the
+            // coach two rows above it was still saying "lay eight more traces" —
+            // so the one thing the screen looked like it wanted was a button that
+            // could not work yet. The plate follows the coach now: VERIFY until the
+            // cube is proved, SAVE once it is. See UiKit.SetPrimary for why both
+            // have to be built this way.
             RectTransform two = Band("two", 62);
             RectTransform vSlot = UiKit.Rect(two, "v", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, new Vector2(-6, 0));
-            UiKit.Bracketed(vSlot, "verify", "VERIFY", DoVerify, 24);
+            _verifyBtn = UiKit.Bracketed(vSlot, "verify", "VERIFY", DoVerify, 24, true);
             RectTransform sSlot = UiKit.Rect(two, "s", new Vector2(0.5f, 0), Vector2.one, new Vector2(6, 0), Vector2.zero);
-            UiKit.Bracketed(sSlot, "save", "SAVE", DoSave, 24, true);
+            _saveBtn = UiKit.Bracketed(sSlot, "save", "SAVE", DoSave, 24, true);
 
             RectTransform three = Band("three", 58);
             Third(three, 0, "PLAY", DoPlay);
@@ -268,6 +276,12 @@ namespace Singularity.UI
             var (step, say) = _ed.Advice();
             _coachN.text = step.ToString();
             _coachText.text = say;
+
+            // The coach's steps: 4 is VERIFY, 5 is SAVE. Anything earlier is a
+            // cube that cannot be verified yet, and neither plate is lit — the
+            // work is on the deck, not on a button.
+            UiKit.SetPrimary(_verifyBtn, step == 4);
+            UiKit.SetPrimary(_saveBtn, step >= 5);
         }
 
         static void PaintTools()

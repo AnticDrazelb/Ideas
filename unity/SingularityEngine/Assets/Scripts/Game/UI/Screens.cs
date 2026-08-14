@@ -275,8 +275,13 @@ namespace Singularity.UI
             _jumpMsg = UiKit.Label(L, "jumpMsg", "", 18, Palette.Dim, TextAnchor.UpperCenter,
                                    new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -324), new Vector2(-40, -290));
 
+            // A LINK, NOT A PLATE. This screen's subject is the rack; BACK was a
+            // full-width filled control at the bottom of it, which made the heaviest
+            // object on the screen the one way OFF the screen. The house rule is
+            // already written down in UiKit: one plate per screen, and everything
+            // else is a bracketed label with nothing behind it.
             RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 90 + Access.TapTarget));
-            UiKit.Bracketed(back, "back", "BACK", Back, 28);
+            UiKit.Link(back, "back", "BACK", Back, 24, Palette.Ink);
         }
 
         static InputField _jumpField;
@@ -350,8 +355,19 @@ namespace Singularity.UI
             {
                 int level = start + i;
                 int cx = i % cols, cy = i / cols;
+
+                // THE LAST ROW IS CENTRED, NOT LEFT-ALIGNED.
+                //
+                // A vault of ten in three columns is three, three, three and then
+                // ONE CARD alone against the left edge — which does not read as a
+                // tenth cube, it reads as a layout that broke. Shifting the short
+                // row by half a cell per missing card costs nothing and is the
+                // difference between a rack and an accident.
+                int inRow = Mathf.Min(cols, size - cy * cols);
+                float nudge = (cols - inRow) * 0.5f / cols;
+
                 RectTransform slot = UiKit.Rect(_grid, "c" + level,
-                    new Vector2(cx / (float)cols, 1f), new Vector2((cx + 1f) / cols, 1f),
+                    new Vector2(cx / (float)cols + nudge, 1f), new Vector2((cx + 1f) / cols + nudge, 1f),
                     new Vector2(6, -(cy + 1) * cellH + 6), new Vector2(-6, -cy * cellH - 6));
 
                 bool reached = level <= Store.Data.reached;
@@ -413,7 +429,11 @@ namespace Singularity.UI
         {
             RectTransform L = Layer("manual");
             Solid(L);
-            UiKit.Label(L, "h", "CALIBRATION", 40, Palette.Ink, TextAnchor.UpperCenter,
+            // A SCREEN IS NAMED AFTER THE CONTROL THAT OPENS IT. This was
+            // CALIBRATION and the settings screen is CALIBRATE — two headings one
+            // word apart, and the button that opens this one says MANUAL, so the
+            // player had three names for two screens.
+            UiKit.Label(L, "h", "MANUAL", 40, Palette.Ink, TextAnchor.UpperCenter,
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -130), new Vector2(0, -80));
 
             // The title stays put and the rules scroll under it, so the heading is
@@ -677,7 +697,7 @@ namespace Singularity.UI
                    () => Store.Data.togo, v => Store.Data.togo = v);
             Toggle(panel, "i.depth", "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL",
                    () => Store.Data.depth, v => Store.Data.depth = v);
-            Bar(panel, "i.buzz", "HAPTIC FEEDBACK", "INTENSITY", 0, 150, () => Store.Data.buzz, v => Store.Data.buzz = v);
+            Bar(panel, "i.buzz", "HAPTIC FEEDBACK", "", 0, 150, () => Store.Data.buzz, v => Store.Data.buzz = v);
             // Both default to 100, and at 100 no filter is applied at all — the
             // cost of these two is zero for anyone who leaves them alone.
             Bar(panel, "i.bright", "BRIGHTNESS", "", 60, 160, () => Store.Data.bright, v => Store.Data.bright = v);
@@ -745,9 +765,17 @@ namespace Singularity.UI
             // The reading sits AFTER the hint rather than on top of it. Both were
             // pinned to the same left edge of the same band, so "120%" was printed
             // straight through the word INTENSITY.
+            // ONE COLUMN FOR THE READING, ON EVERY ROW.
+            //
+            // It was anchored into the hint's band, so a row WITH a hint printed
+            // the number under the label and a row without one printed it beside —
+            // three sliders, two different layouts, and the odd one out was the
+            // only row that also had a second word under its name. It now sits in
+            // its own column, right-aligned hard against the track, so the three
+            // readings line up with each other whatever the row above them says.
             RectTransform r = CalRow(panel, icon, label, hint, false);
-            Text val = UiKit.Label(r, "v", get() + "%", 21, Palette.Rust, TextAnchor.MiddleLeft,
-                                   new Vector2(0.30f, 0), new Vector2(0.52f, 0.40f), Vector2.zero, Vector2.zero);
+            Text val = UiKit.Label(r, "v", get() + "%", 21, Palette.Rust, TextAnchor.MiddleRight,
+                                   new Vector2(0.30f, 0), new Vector2(0.50f, 1f), Vector2.zero, new Vector2(-10, 0));
             UiKit.Bar(r, "bar", lo, hi, get(), v =>
             {
                 set(v);
@@ -886,8 +914,8 @@ namespace Singularity.UI
                            int lo, int hi, System.Func<int> get, System.Action<int> set)
         {
             RectTransform r = AccRow(panel, icon, label, hint);
-            Text val = UiKit.Label(r, "v", get() + "%", 21, Palette.Rust, TextAnchor.MiddleLeft,
-                                   new Vector2(0.30f, 0), new Vector2(0.52f, 0.40f), Vector2.zero, Vector2.zero);
+            Text val = UiKit.Label(r, "v", get() + "%", 21, Palette.Rust, TextAnchor.MiddleRight,
+                                   new Vector2(0.30f, 0), new Vector2(0.50f, 1f), Vector2.zero, new Vector2(-10, 0));
             UiKit.Bar(r, "bar", lo, hi, get(), v =>
             {
                 set(v);
@@ -973,8 +1001,14 @@ namespace Singularity.UI
                                     new Vector2(56, -770), new Vector2(-56, -186));
             UiKit.Framed(_boardList, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.55f));
 
+            // SEVENTEEN, AND DIM RATHER THAN DIM2. This line was thirteen units of
+            // Dim2 on black: 2.03:1, the worst pair in the interface, and four units
+            // under --t-micro, which this project's own README says nothing may go
+            // below. It was invisible on a phone, and the one thing it says — that
+            // there is no host and these are local records — is the whole reason the
+            // screen is honest.
             UiKit.Label(L, "foot", "NO HOST ATTACHED — THESE ARE THIS DEVICE'S OWN RECORDS.",
-                        13, Palette.Dim2, TextAnchor.UpperCenter,
+                        Access.SmallestType, Palette.Dim, TextAnchor.UpperCenter,
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -812), new Vector2(-40, -786));
 
             RectTransform outs = UiKit.Rect(L, "outs", new Vector2(0, 1), new Vector2(1, 1),

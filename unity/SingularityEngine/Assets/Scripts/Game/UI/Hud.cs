@@ -133,23 +133,30 @@ namespace Singularity.UI
                                       new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -190), new Vector2(0, -166));
             _plateBar.gameObject.SetActive(false);
 
-            // ---- the fold ticks ----------------------------------------------
+            // ---- the four folds, at the four edges ----------------------------
             //
-            // Four marks around the board saying which folds have footing. This is
-            // the one piece of the HUD that is about the RULE rather than the run:
-            // where you stand decides which folds you have.
-            _ticks[0] = Tick("tickL", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(18, -34), new Vector2(24, 34));
-            _ticks[1] = Tick("tickR", new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-24, -34), new Vector2(-18, 34));
-            _ticks[2] = Tick("tickU", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-34, -206), new Vector2(34, -200));
-            _ticks[3] = Tick("tickD", new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-34, 200), new Vector2(34, 206));
-
-            // and the same four, as things you can press — see RefreshAssist.
-            // The turn indices are InputRouter's: 0 left, 1 right, 2 up, 3 down.
-            float T = Access.TapTarget, H = T * 0.5f;
-            _foldBtns[0] = FoldButton("foldL", 0, "<", new Vector2(0, 0.5f), new Vector2(10, -H), new Vector2(10 + T, H));
-            _foldBtns[1] = FoldButton("foldR", 1, ">", new Vector2(1, 0.5f), new Vector2(-10 - T, -H), new Vector2(-10, H));
-            _foldBtns[2] = FoldButton("foldU", 2, "^", new Vector2(0.5f, 1), new Vector2(-H, -212 - T), new Vector2(H, -212));
-            _foldBtns[3] = FoldButton("foldD", 3, "v", new Vector2(0.5f, 0), new Vector2(-H, 212), new Vector2(H, 212 + T));
+            // FOUR ARROWS, NOT FOUR DASHES.
+            //
+            // This is the one piece of the HUD that is about the RULE rather than
+            // the run — where you stand decides which folds you have — and it was
+            // four six-unit bars. On a phone that is exactly what they looked like:
+            // orange ticks at the edges of the screen with nothing to say which way
+            // any of them meant. The rule was reading as dust on the lens.
+            //
+            // The arrow already exists; the manual draws the four folds with it. So
+            // this is the mark the player was taught, pointing the way the fold
+            // goes, lit when that fold has footing and nearly out when it does not.
+            //
+            // ONE MARK PER EDGE, IN BOTH MODES. The assisted fold buttons want to be
+            // in the same four places, because that is where the answer to "can I
+            // fold that way" already is — so they are, and the passive arrow steps
+            // aside when the pressable one is on. Two arrows at one edge would be
+            // the interface disagreeing with itself about which one to look at.
+            for (int t = 0; t < 4; t++)
+            {
+                _ticks[t] = Tick("tick" + t, FoldAnchor[t], FoldOffset[t], FoldSpin[t]);
+                _foldBtns[t] = FoldButton("fold" + t, t, FoldAnchor[t], FoldOffset[t], FoldSpin[t]);
+            }
             RefreshAssist();
 
             // ---- bottom band ---------------------------------------------------
@@ -181,23 +188,49 @@ namespace Singularity.UI
             _caption.color = new Color(1, 1, 1, 0);
         }
 
-        Button FoldButton(string name, int turn, string arrow, Vector2 anchor, Vector2 oMin, Vector2 oMax)
+        Button FoldButton(string name, int turn, Vector2 anchor, Vector2 offset, float spin)
         {
-            RectTransform slot = UiKit.Rect(_root, name, anchor, anchor, oMin, oMax);
-            return UiKit.Bracketed(slot, name, arrow, () =>
+            float H = Access.TapTarget * 0.5f;
+            RectTransform slot = UiKit.Rect(_root, name, anchor, anchor,
+                                            new Vector2(offset.x - H, offset.y - H),
+                                            new Vector2(offset.x + H, offset.y + H));
+
+            // The plate is a hit target rather than a picture: the ARROW is the
+            // picture, and it is the same arrow the passive tick draws. A bracketed
+            // "<" would be a third thing meaning the same as the other two.
+            Button b = UiKit.Bracketed(slot, name, "", () =>
             {
                 Session s = _dir.S;
                 if (s?.lv == null || s.won) return;
                 // the same two lines the swipe and the arrow keys both end in, so
                 // an assisted fold is the same event and gets the same refusal
                 if (!s.TryTurn(turn)) s.RefuseTurn(turn);
-            }, 26);
+            }, 1);
+
+            Transform label = b.transform.Find("label");
+            if (label != null) Object.Destroy(label.gameObject);
+
+            Image mark = UiKit.Icon((RectTransform)b.transform, "arrow", Palette.Rust,
+                                    30f, new Vector2(0.5f, 0.5f), Vector2.zero);
+            mark.rectTransform.localEulerAngles = new Vector3(0f, 0f, spin);
+            return b;
         }
 
-        Image Tick(string name, Vector2 aMin, Vector2 aMax, Vector2 oMin, Vector2 oMax)
+        // The turn indices are InputRouter's: 0 left, 1 right, 2 up, 3 down. One
+        // table, so the passive mark and the pressable one cannot drift apart.
+        static readonly Vector2[] FoldAnchor =
+            { new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0.5f, 1), new Vector2(0.5f, 0) };
+        static readonly Vector2[] FoldOffset =
+            { new Vector2(52, 0), new Vector2(-52, 0), new Vector2(0, -212), new Vector2(0, 212) };
+        static readonly float[] FoldSpin = { 90f, -90f, 0f, 180f };
+
+        Image Tick(string name, Vector2 anchor, Vector2 offset, float spin)
         {
-            Image i = UiKit.Panel(_root, name, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.30f),
-                                  aMin, aMax, oMin, oMax);
+            Image i = UiKit.Icon(_root, "arrow", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.30f),
+                                 30f, anchor, offset);
+            i.gameObject.name = name;
+            // the glyph is drawn pointing up; every other direction is that one turned
+            i.rectTransform.localEulerAngles = new Vector3(0f, 0f, spin);
             return i;
         }
 
@@ -247,8 +280,14 @@ namespace Singularity.UI
         {
             bool on = Access.Assist;
             for (int i = 0; i < _foldBtns.Length; i++)
+            {
                 if (_foldBtns[i] != null && _foldBtns[i].gameObject.activeSelf != on)
                     _foldBtns[i].gameObject.SetActive(on);
+                // the pressable arrow replaces the passive one rather than landing
+                // on top of it — see the note where the four are built
+                if (_ticks[i] != null && _ticks[i].gameObject.activeSelf == on)
+                    _ticks[i].gameObject.SetActive(!on);
+            }
         }
 
         public void Toast(string msg)
@@ -337,8 +376,16 @@ namespace Singularity.UI
             for (int t = 0; t < 4; t++)
             {
                 bool ok = s.CanTurn(t);
-                var c = _ticks[t].color;
                 _ticks[t].color = new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, ok ? 0.85f : 0.14f);
+
+                // A CONTROL THAT CANNOT BE USED SAYS SO BEFORE IT IS PRESSED.
+                //
+                // The passive arrow already answered "does this fold have footing"
+                // by going nearly out; the pressable one has to answer it too, or
+                // the assisted player is the only one who has to find out by being
+                // refused. Set only on the change, because this runs every frame.
+                Button b = _foldBtns[t];
+                if (b != null && b.interactable != ok) b.interactable = ok;
             }
         }
 

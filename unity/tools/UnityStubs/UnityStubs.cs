@@ -201,6 +201,7 @@ namespace UnityEngine
         public Vector3 localScale { get; set; }
         public Quaternion rotation { get; set; }
         public Quaternion localRotation { get; set; }
+        public Vector3 localEulerAngles { get; set; }
         public Vector3 forward => default;
         public Vector3 up => default;
         public Vector3 right => default;
@@ -649,6 +650,7 @@ namespace UnityEngine
         {
             public Graphic targetGraphic { get; set; }
             public ColorBlock colors { get; set; }
+            public bool interactable { get; set; }
         }
 
         public struct ColorBlock
