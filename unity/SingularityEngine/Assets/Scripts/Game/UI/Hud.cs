@@ -24,6 +24,7 @@ namespace Singularity.UI
 
         Text _foldN, _parN, _keyN, _keyTot, _goN, _hintN, _lvNo, _lvName, _vault, _toast, _plateClock, _caption;
         Image _keyChip, _goChip, _flash, _vignette, _plateBar;
+        RectTransform _aperture;
         Image[] _ticks = new Image[4];
         readonly Button[] _foldBtns = new Button[4];
         RectTransform _root;
@@ -60,6 +61,37 @@ namespace Singularity.UI
             // ---- the flash and the vignette sit under everything -------------
             _flash = UiKit.Panel(_root, "flash", new Color(0, 0, 0, 0), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _vignette = UiKit.Panel(_root, "vignette", new Color(0, 0, 0, 0), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+
+            // ---- the aperture --------------------------------------------------
+            //
+            // THE BOARD IS INSIDE THE MACHINE, AND UNTIL NOW IT WAS NOT.
+            //
+            // Every other surface in this interface is a framed plate — that is
+            // what makes the chrome read as an instrument rather than as words on
+            // black — and the one thing the whole game is about had no housing at
+            // all. It floated, and because a square cube fitted to a portrait
+            // width cannot fill a portrait height, what it floated in was a large
+            // and obviously unaccounted-for hole.
+            //
+            // This is the aperture that hole was always meant to be: the same
+            // rounded stroke and the same --edge rust as every control, drawn
+            // around exactly the rectangle Layout reserves for the board. It costs
+            // one nine-sliced quad and it changes what the empty space MEANS —
+            // from "the layout did not reach" to "this is the window".
+            //
+            // A STROKE, NOT A PLATE. The canvas is a screen-space overlay and
+            // draws after the camera, so anything filled here would paint over the
+            // cube. And the void inside it stays void: a cell that is not there is
+            // still unrendered space, which is the one thing this game will not
+            // decorate.
+            _aperture = UiKit.Rect(_root, "aperture", new Vector2(0, 0), new Vector2(1, 1),
+                                   new Vector2(16, Layout.BottomBand + 10),
+                                   new Vector2(-16, -(Layout.TopBand + 10)));
+            var apEdge = _aperture.gameObject.AddComponent<Image>();
+            apEdge.sprite = UiKit.RoundLine;
+            apEdge.type = Image.Type.Sliced;
+            apEdge.color = UiKit.Edge;
+            apEdge.raycastTarget = false;
 
             // ---- top band ----------------------------------------------------
             RectTransform top = UiKit.Rect(_root, "barTop", new Vector2(0, 1), new Vector2(1, 1),
@@ -152,6 +184,14 @@ namespace Singularity.UI
             // fold that way" already is — so they are, and the passive arrow steps
             // aside when the pressable one is on. Two arrows at one edge would be
             // the interface disagreeing with itself about which one to look at.
+            //
+            // THEY HANG ON THE APERTURE, NOT ON THE SCREEN. They were anchored to
+            // the screen edges with hand-written offsets that happened to land near
+            // the board, which is a coincidence that survives exactly until the
+            // bands change height. Parented to the frame, "on the left edge of the
+            // play area" is what the anchor SAYS, in both orientations and on any
+            // phone, and the mark reads as part of the housing rather than as
+            // something floating beside it.
             for (int t = 0; t < 4; t++)
             {
                 _ticks[t] = Tick("tick" + t, FoldAnchor[t], FoldOffset[t], FoldSpin[t]);
@@ -191,7 +231,7 @@ namespace Singularity.UI
         Button FoldButton(string name, int turn, Vector2 anchor, Vector2 offset, float spin)
         {
             float H = Access.TapTarget * 0.5f;
-            RectTransform slot = UiKit.Rect(_root, name, anchor, anchor,
+            RectTransform slot = UiKit.Rect(_aperture, name, anchor, anchor,
                                             new Vector2(offset.x - H, offset.y - H),
                                             new Vector2(offset.x + H, offset.y + H));
 
@@ -220,13 +260,22 @@ namespace Singularity.UI
         // table, so the passive mark and the pressable one cannot drift apart.
         static readonly Vector2[] FoldAnchor =
             { new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0.5f, 1), new Vector2(0.5f, 0) };
+
+        /// <summary>
+        /// Inward from the aperture's own edge by half a tap target, so the
+        /// pressable arrow sits entirely inside the housing and the passive one
+        /// sits exactly where it will be.
+        /// </summary>
         static readonly Vector2[] FoldOffset =
-            { new Vector2(52, 0), new Vector2(-52, 0), new Vector2(0, -212), new Vector2(0, 212) };
+        {
+            new Vector2(Access.TapTarget * 0.5f, 0), new Vector2(-Access.TapTarget * 0.5f, 0),
+            new Vector2(0, -Access.TapTarget * 0.5f), new Vector2(0, Access.TapTarget * 0.5f)
+        };
         static readonly float[] FoldSpin = { 90f, -90f, 0f, 180f };
 
         Image Tick(string name, Vector2 anchor, Vector2 offset, float spin)
         {
-            Image i = UiKit.Icon(_root, "arrow", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.30f),
+            Image i = UiKit.Icon(_aperture, "arrow", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.30f),
                                  30f, anchor, offset);
             i.gameObject.name = name;
             // the glyph is drawn pointing up; every other direction is that one turned

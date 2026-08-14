@@ -405,6 +405,25 @@ What that has already settled, so nobody re-litigates it:
 Still to be measured against the CSS rather than guessed: the Forge editor's band
 heights, the Calibrate row rhythm, and the manual's gutters.
 
+### Where it deliberately does not match
+
+One element is here that is not in the shipped build, and it is listed rather
+than smuggled: **the aperture** — a rounded stroke around the rectangle `Layout`
+reserves for the board, in the same `--edge` rust as every control.
+
+The reason is a shape the web build never had to answer. A square cube fitted to
+a portrait *width* cannot fill a portrait *height*, so there is always leftover
+vertical space, and on a phone it read as a layout that had not reached rather
+than as a frame. Every other surface in this interface is a framed plate; the one
+thing the game is about had no housing. The stroke costs one nine-sliced quad,
+and the four fold marks hang on it — which is also what stopped them being
+anchored to the screen edges by hand-written offsets that only happened to land
+near the board.
+
+It is a stroke and never a plate: the canvas is a screen-space overlay and draws
+after the camera, so anything filled would paint over the cube. The void inside
+it stays void.
+
 ## What is not here yet
 
 Three things, none of them rules.
