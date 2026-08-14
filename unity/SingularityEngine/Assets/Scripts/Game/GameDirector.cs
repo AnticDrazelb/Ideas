@@ -24,6 +24,7 @@ namespace Singularity.Game
         public CameraRig Rig { get; private set; }
         public Hud Hud { get; private set; }
         public ScreenFilter Filter { get; private set; }
+        public Bloom Glow { get; private set; }
 
         InputRouter _input;
         Sfx _sfx;
@@ -51,6 +52,9 @@ namespace Singularity.Game
 
             Hud = Hud.Build(this);
 
+            // ORDER MATTERS: bloom first, so the brightness control raises the
+            // finished picture rather than the picture the glow was computed from.
+            Glow = Bloom.Attach(Rig.cam);
             Filter = ScreenFilter.Attach(Rig.cam);
 
             Wire();
@@ -488,6 +492,7 @@ namespace Singularity.Game
 
             Rig.Tick(dt, View.cube);
             Filter.Refresh();
+            Glow.Refresh();
 
             if (Input.GetKeyDown(KeyCode.Escape) && !_screenUp && S.lv != null) Screens.ShowPause(this);
         }

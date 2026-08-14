@@ -263,6 +263,8 @@ namespace UnityEngine
         public void SetFloat(string n, float f) { }
         public void SetInt(string n, int i) { }
         public void SetVector(string n, Vector3 v) { }
+        public void SetVector(string n, Vector4 v) { }
+        public void SetTexture(string n, Texture t) { }
     }
 
     public class Shader : Object { public static Shader Find(string n) => null; }
@@ -303,12 +305,23 @@ namespace UnityEngine
         public Vector4(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; }
     }
 
-    public class RenderTexture : Texture { }
+    public class RenderTexture : Texture
+    {
+        public int width { get; set; }
+        public int height { get; set; }
+        public RenderTextureFormat format { get; set; }
+        public FilterMode filterMode { get; set; }
+        public static RenderTexture GetTemporary(int w, int h, int depth, RenderTextureFormat fmt) => null;
+        public static void ReleaseTemporary(RenderTexture rt) { }
+    }
+
+    public enum RenderTextureFormat { Default, ARGB32, ARGBHalf, RGB565 }
 
     public static class Graphics
     {
         public static void Blit(RenderTexture s, RenderTexture d) { }
         public static void Blit(RenderTexture s, RenderTexture d, Material m) { }
+        public static void Blit(RenderTexture s, RenderTexture d, Material m, int pass) { }
     }
 
     [AttributeUsage(AttributeTargets.Class)]

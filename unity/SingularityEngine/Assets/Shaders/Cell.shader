@@ -23,6 +23,8 @@ Shader "Singularity/Cell"
         _Facing   ("Side-face darkening", Range(0,1)) = 0.42
         _Edge     ("Edge inset", Range(0,0.5)) = 0.06
         _EdgeLift ("Edge brightness", Range(0,2)) = 0.55
+        _Gutter   ("Gutter", Range(0,0.3)) = 0.055
+        _Round    ("Corner radius", Range(0,0.5)) = 0.16
         _Dim      ("Dim", Range(0,2)) = 1
         _Reveal   ("Reveal front", Float) = 99
         _Wave     ("Transition front", Float) = 99
@@ -74,7 +76,7 @@ Shader "Singularity/Cell"
             };
 
             fixed4 _ColFar, _ColNear;
-            float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim, _Reveal, _Unlit;
+            float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim, _Reveal, _Unlit, _Gutter, _Round;
             float _Wave, _WaveDir, _WaveSoft;
 
             v2f vert(appdata v)
@@ -126,12 +128,27 @@ Shader "Singularity/Cell"
                 float facing = saturate(dot(i.vnrm, float3(0, 0, 1)));
                 c *= lerp(1.0 - _Facing, 1.0, facing);
 
-                // The schematic hairline: every cell is drawn inset, so a run of
-                // adjacent traces still reads as separate cells you could stand on
-                // one at a time.
-                float2 d = min(i.uv, 1.0 - i.uv);
-                float edge = 1.0 - smoothstep(0.0, _Edge, min(d.x, d.y));
-                c *= 1.0 + edge * _EdgeLift * facing;
+                // A CELL IS A TILE, NOT A SHARE OF THE SURFACE.
+                //
+                // Every cell is drawn as a rounded plate with a dark gutter around
+                // it, so a run of adjacent traces reads as separate things you could
+                // stand on one at a time rather than as one lit region. That is the
+                // whole difference between a schematic and a heat map, and it is the
+                // shape the eye uses to count a route before the hand moves.
+                //
+                // The gutter is DARKENED rather than discarded. Cutting the corners
+                // away would let whatever is behind show through a hole inside a
+                // cell, and this game's one rule is that a column shows exactly its
+                // nearest solid cell — a gap the rules do not know about would be
+                // the renderer disagreeing with the solver about what is visible.
+                float2 p = abs(i.uv - 0.5);
+                float2 q = p - (0.5 - _Gutter - _Round);
+                float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - _Round;
+
+                float plate = 1.0 - smoothstep(-0.010, 0.010, sd);
+                float rim = (1.0 - smoothstep(0.0, _Edge, -sd)) * plate;
+                c *= 1.0 + rim * _EdgeLift * facing;
+                c *= lerp(0.09, 1.0, plate);
 
                 // THE REVEAL. After every fold the lit reachable set sweeps outward
                 // from the player in BFS order rather than snapping on. It is the
