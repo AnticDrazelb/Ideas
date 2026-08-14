@@ -69,7 +69,19 @@ namespace Singularity.UI
             void Update()
             {
                 Rect safe = Screen.safeArea;
-                if (safe == _last || Screen.width == 0 || Screen.height == 0) return;
+                if (Screen.width == 0 || Screen.height == 0) return;
+
+                // A TELEVISION THROWS AWAY THE OUTER FEW PERCENT OF THE PICTURE, so
+                // nothing that has to be read may live there. This is a platform
+                // rule rather than a taste, and it applies only where the display is
+                // actually wide enough to be one.
+                int ov = Layout.OverscanPixels;
+                if (ov > 0)
+                    safe = new Rect(safe.xMin + ov, safe.yMin + ov,
+                                    Mathf.Max(1f, safe.width - ov * 2f),
+                                    Mathf.Max(1f, safe.height - ov * 2f));
+
+                if (safe == _last) return;
                 _last = safe;
 
                 for (int i = 0; i < _rt.childCount; i++)

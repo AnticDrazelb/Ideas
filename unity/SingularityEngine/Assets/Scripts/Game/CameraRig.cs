@@ -22,6 +22,7 @@ namespace Singularity.Game
         float _trauma, _punch, _kickX, _kickY, _kickDecay;
         float _sqX, _sqY, _sqT = 1f;
         float _baseSize = 4f;
+        Vector2 _baseOffset;
 
         /// <summary>Effects at 40% rather than nothing when the player has turned them down.</summary>
         static float Amount => Store.Data.fx != 0 ? 1f : 0.4f;
@@ -47,18 +48,38 @@ namespace Singularity.Game
         }
 
         /// <summary>
-        /// Fit the cube to the screen with a margin for the two HUD bands. The
-        /// cube is one unit per cell, so this is the only place that needs to know
-        /// how big a cube is.
+        /// Fit the cube into the space the HUD is not using, and CENTRE IT THERE
+        /// rather than on the screen.
+        ///
+        /// That distinction is the whole of this method. Centring on the screen and
+        /// hoping the bands do not reach is what puts the primary action of the
+        /// game on top of the hero object the first time somebody adds a button or
+        /// runs it on a shorter phone. The bands have real heights; the board takes
+        /// exactly what is left between them and sits in the middle of that.
+        ///
+        /// It works the same in both orientations because it asks for a RECTANGLE
+        /// and fits to whichever of its sides is smaller — landscape is not a
+        /// special case, it is the same question with a different answer.
         /// </summary>
         public void Fit(int n, float margin = 1.28f)
         {
-            // the diagonal, because a cube mid-fold is wider than its face
-            float halfFace = n * 0.5f;
-            float need = halfFace * margin;
-            float aspect = cam.aspect <= 0.0001f ? 1f : cam.aspect;
-            _baseSize = aspect < 1f ? need / aspect : need;
-            _baseSize = Mathf.Max(_baseSize, need);
+            Rect board = Layout.BoardRect();
+            float screenH = Mathf.Max(1f, Screen.height);
+
+            // the cube needs this many world units across, allowing for the fact
+            // that a cube mid-fold is wider than its face
+            float need = n * margin;
+            float shorter = Mathf.Max(1f, Mathf.Min(board.width, board.height));
+
+            // orthographicSize is half the world height of the WHOLE screen
+            _baseSize = need * screenH / (2f * shorter);
+
+            // and the board's centre is not the screen's centre
+            Vector2 drift = board.center - new Vector2(Screen.width * 0.5f, screenH * 0.5f);
+            float worldPerPixel = 2f * _baseSize / screenH;
+            _baseOffset = drift * worldPerPixel;
+
+            PerfWatch.Settle();
         }
 
         public void Kick(float mag, float dx, float dy)
@@ -92,7 +113,10 @@ namespace Singularity.Game
             float sx = (Mathf.PerlinNoise(Time.time * 34f, 0f) - 0.5f) * 2f * t2 * 0.55f;
             float sy = (Mathf.PerlinNoise(0f, Time.time * 31f) - 0.5f) * 2f * t2 * 0.55f;
 
-            cam.transform.localPosition = new Vector3(sx + _kickX * _kickDecay, sy + _kickY * _kickDecay, -40f);
+            cam.transform.localPosition = new Vector3(
+                _baseOffset.x + sx + _kickX * _kickDecay,
+                _baseOffset.y + sy + _kickY * _kickDecay,
+                -40f);
             cam.orthographicSize = _baseSize * (1f - _punch);
 
             if (cube != null)

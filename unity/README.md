@@ -31,6 +31,33 @@ hex values picked by eye and the board is read off one property — a trace is
 brighter than the lattice at every depth. Linear re-maps all of them and the two
 depth ramps stop being the distances they were authored to be.
 
+## First run: what to look at, and what to send me
+
+The rules are proved; the presentation is not. So the useful bugs are all in one
+half, and these are the ones most likely to be real:
+
+1. **Does the board read?** A trace has to be visibly brighter than the lattice
+   at every depth. If it does not, colour space is the first suspect.
+2. **Does a fold look like a fold** — a solid turning, not squares sliding?
+3. **Is the cube in the right place** — centred between the two HUD bands, not
+   under them, in both orientations?
+4. **Does a tap land on the cell you tapped**, including mid-fold and under a
+   held MATRIX?
+5. **Is the glyph set legible at phone size** — node, lock, core, and you?
+6. **Does the audio arrive on the beat** — the footstep's ping eighty
+   milliseconds behind the thud, the fold's knock at the detent?
+7. **The Forge**: build a five-cube, verify, save, play it back.
+
+When something is wrong, the thing that helps most is:
+
+```sh
+adb logcat -c && adb logcat -s Unity:V > se.log     # then reproduce, then Ctrl-C
+```
+
+plus a screenshot and the device name. Anything the game itself noticed is
+prefixed `[Singularity]`. A stack trace beats a description; a screenshot beats
+a stack trace for anything about layout or colour.
+
 ## Building an APK
 
 ```sh

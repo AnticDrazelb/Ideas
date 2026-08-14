@@ -30,6 +30,7 @@ namespace Singularity.Game
         Fx _fx;
         PlayerOrb _orb;
         bool _screenUp = true;      // a menu is over the board
+        int _lastW, _lastH;
 
         void Awake()
         {
@@ -453,6 +454,19 @@ namespace Singularity.Game
 
             Store.Tick();
             LevelSupply.Tick();
+
+            // A ROTATION IS A RE-LAYOUT, NOT A RESIZE. The board is centred in the
+            // space the HUD is not using, and that space is a different shape the
+            // instant the device turns — so the fit is redone rather than stretched.
+            if (Screen.width != _lastW || Screen.height != _lastH)
+            {
+                _lastW = Screen.width;
+                _lastH = Screen.height;
+                if (S.lv != null) { Rig.Fit(S.N); _fx.SetBoard(S.N); }
+            }
+
+            // measured, not guessed: see PerfWatch
+            PerfWatch.Tick(dt);
 
             if (S.lv != null)
             {

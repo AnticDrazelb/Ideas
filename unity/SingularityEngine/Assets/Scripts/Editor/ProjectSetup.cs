@@ -57,14 +57,16 @@ namespace Singularity.EditorTools
             // because the web build is sRGB and so is the brief.
             PlayerSettings.colorSpace = ColorSpace.Gamma;
 
-            // The interface is composed at 720x1280 and the board is fitted to the
-            // shorter axis. Landscape is not ported yet — see the note in the
-            // README — so it is not offered rather than being offered badly.
-            PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
+            // The interface is composed at 720x1280, but the board is centred in
+            // whatever the HUD is not using rather than on the screen — so a
+            // rotation is a re-layout the game already knows how to do. Both ways
+            // up, and upside-down portrait left off because a phone that flips
+            // while it is put down on a table is not a request.
+            PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
             PlayerSettings.allowedAutorotateToPortrait = true;
             PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
-            PlayerSettings.allowedAutorotateToLandscapeLeft = false;
-            PlayerSettings.allowedAutorotateToLandscapeRight = false;
+            PlayerSettings.allowedAutorotateToLandscapeLeft = true;
+            PlayerSettings.allowedAutorotateToLandscapeRight = true;
 
             // A puzzle game has nothing to gain from a hot phone, and the frame
             // rate is set again at runtime in Bootstrap for platforms that ignore

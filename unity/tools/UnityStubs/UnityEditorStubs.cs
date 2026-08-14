@@ -51,6 +51,8 @@ namespace UnityEditor
     {
         public static void SaveAssets() { }
         public static void ImportAsset(string path) { }
+        public static void ImportAsset(string path, ImportAssetOptions options) { }
+        public static T LoadAssetAtPath<T>(string path) where T : UnityEngine.Object => null;
         public static void Refresh() { }
     }
 
@@ -97,6 +99,25 @@ namespace UnityEditor
         public static bool SwitchActiveBuildTarget(BuildTargetGroup g, BuildTarget t) => true;
     }
 
+    public enum IconKind { Any = -1, Application = 0, Settings = 1, Notification = 2, Spotlight = 3, Store = 4, AdaptiveForeground = 5, AdaptiveBackground = 6 }
+
+    public enum TextureImporterType { Default, NormalMap, GUI, Sprite, Cursor }
+
+    public class AssetImporter
+    {
+        public static AssetImporter GetAtPath(string path) => null;
+        public void SaveAndReimport() { }
+    }
+
+    public class TextureImporter : AssetImporter
+    {
+        public TextureImporterType textureType { get; set; }
+        public bool mipmapEnabled { get; set; }
+        public bool alphaIsTransparency { get; set; }
+    }
+
+    [Flags] public enum ImportAssetOptions { Default = 0, ForceUpdate = 1, ForceSynchronousImport = 8 }
+
     public enum ScriptingImplementation { Mono2x = 0, IL2CPP = 1, CoreCLR = 2 }
     public enum UIOrientation { Portrait, PortraitUpsideDown, LandscapeRight, LandscapeLeft, AutoRotation }
 
@@ -121,7 +142,9 @@ namespace UnityEditor
         public static bool allowedAutorotateToLandscapeLeft { get; set; }
         public static bool allowedAutorotateToLandscapeRight { get; set; }
 
+        public static string bundleVersion { get; set; }
         public static void SetApplicationIdentifier(Build.NamedBuildTarget t, string id) { }
+        public static void SetIcons(Build.NamedBuildTarget t, UnityEngine.Texture2D[] icons, IconKind kind) { }
         public static void SetScriptingBackend(Build.NamedBuildTarget t, ScriptingImplementation i) { }
 
         public static class Android
@@ -131,6 +154,11 @@ namespace UnityEditor
             public static AndroidSdkVersions targetSdkVersion { get; set; }
             public static bool forceInternetPermission { get; set; }
             public static bool useCustomKeystore { get; set; }
+            public static string keystoreName { get; set; }
+            public static string keystorePass { get; set; }
+            public static string keyaliasName { get; set; }
+            public static string keyaliasPass { get; set; }
+            public static int bundleVersionCode { get; set; }
         }
 
         public static class SplashScreen

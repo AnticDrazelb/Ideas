@@ -2,9 +2,20 @@
 #
 # Build SINGULARITY ENGINE as an Android APK, without opening the editor.
 #
-#   ./build-android.sh                 # development build
-#   ./build-android.sh -release        # release build
+#   ./build-android.sh                 # development APK, debug-signed, for sideloading
+#   ./build-android.sh -release        # release APK, needs an upload key
+#   ./build-android.sh -aab            # Play bundle, needs an upload key
 #   UNITY=/path/to/Unity ./build-android.sh
+#
+# A RELEASE OR BUNDLE BUILD NEEDS AN UPLOAD KEY, from the environment and never
+# from this repository — a keystore committed next to its password is not a
+# keystore:
+#
+#   export SE_KEYSTORE=~/keys/upload.keystore
+#   export SE_KEYSTORE_PASS=...
+#   export SE_KEY_ALIAS=upload
+#   export SE_KEY_PASS=...
+#   export SE_VERSION_NAME=0.1.0 SE_VERSION_CODE=1
 #
 # It applies the project settings first, so a fresh clone on a machine that has
 # never opened this project builds the same thing as one that has. A build that
@@ -76,13 +87,22 @@ if [[ $STATUS -ne 0 ]]; then
   exit $STATUS
 fi
 
-APK="$PROJECT/Builds/SingularityEngine.apk"
+case " $* " in
+  *" -aab "*) OUT="$PROJECT/Builds/SingularityEngine.aab" ;;
+  *)          OUT="$PROJECT/Builds/SingularityEngine.apk" ;;
+esac
+
 echo
-if [[ -f "$APK" ]]; then
-  echo "Built $APK ($(du -h "$APK" | cut -f1))"
+if [[ -f "$OUT" ]]; then
+  echo "Built $OUT ($(du -h "$OUT" | cut -f1))"
   echo
-  echo "Install it with:  adb install -r \"$APK\""
+  if [[ "$OUT" == *.apk ]]; then
+    echo "Install it with:  adb install -r \"$OUT\""
+    echo "Watch it with:    adb logcat -s Unity:V"
+  else
+    echo "Upload it at play.google.com/console — see unity/PLAY.md"
+  fi
 else
-  echo "Unity reported success but no APK is at $APK — see $LOG"
+  echo "Unity reported success but nothing is at $OUT — see $LOG"
   exit 1
 fi

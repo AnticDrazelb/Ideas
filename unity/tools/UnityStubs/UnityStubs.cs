@@ -88,6 +88,8 @@ namespace UnityEngine
     public struct Rect
     {
         public Rect(float x, float y, float w, float h) { }
+        public float width => 0; public float height => 0;
+        public Vector2 center => default;
         public float xMin => 0; public float xMax => 0;
         public float yMin => 0; public float yMax => 0;
         public static bool operator ==(Rect a, Rect b) => true;
@@ -137,6 +139,7 @@ namespace UnityEngine
         public HideFlags hideFlags { get; set; }
         public static void Destroy(Object o) { }
         public static void DontDestroyOnLoad(Object o) { }
+        public static void DestroyImmediate(Object o) { }
         public static implicit operator bool(Object o) => true;
     }
 
@@ -300,6 +303,8 @@ namespace UnityEngine
         public Texture2D(int w, int h, TextureFormat f, bool mips) { }
         public void SetPixels32(Color32[] px) { }
         public void Apply(bool mips, bool noLongerReadable) { }
+        public void Apply() { }
+        public byte[] EncodeToPNG() => null;
     }
 
     public enum TextureFormat { RGBA32 }
@@ -366,6 +371,8 @@ namespace UnityEngine
         public static int height => 0;
         public static SleepTimeout sleepTimeout { get; set; }
         public static Rect safeArea => default;
+        public static bool fullScreen => true;
+        public static void SetResolution(int w, int h, bool fs) { }
     }
 
     public struct SleepTimeout { public static SleepTimeout SystemSetting => default; }
@@ -380,6 +387,7 @@ namespace UnityEngine
         public static bool GetMouseButtonUp(int b) => false;
         public static bool GetKey(KeyCode k) => false;
         public static bool GetKeyDown(KeyCode k) => false;
+        public static bool touchSupported => true;
     }
 
     public struct Touch { public Vector2 position => default; public TouchPhase phase => default; }
