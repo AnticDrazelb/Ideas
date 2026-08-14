@@ -45,6 +45,9 @@ namespace Singularity.UI
             RectTransform rt = UiKit.Rect(_canvas.transform, id, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var bg = rt.gameObject.AddComponent<Image>();
             bg.color = Palette.Scrim;
+            // Every layer fades in, so the group it fades with is part of what a
+            // layer is rather than something the transition goes looking for.
+            rt.gameObject.AddComponent<CanvasGroup>();
             Layers[id] = rt.gameObject;
             return rt;
         }
@@ -94,7 +97,7 @@ namespace Singularity.UI
         static System.Collections.IEnumerator Arrive(GameObject go)
         {
             var rt = (RectTransform)go.transform;
-            var cg = go.GetComponent<CanvasGroup>() ?? go.AddComponent<CanvasGroup>();
+            CanvasGroup cg = UiKit.Ensure<CanvasGroup>(go);
 
             const float Dur = 0.14f, Rise = 18f;
             float t = 0f;

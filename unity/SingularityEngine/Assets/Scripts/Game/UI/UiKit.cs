@@ -21,8 +21,42 @@ namespace Singularity.UI
     /// </summary>
     public static class UiKit
     {
-        public static Font Mono => _mono ??= Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
-                                          ?? Font.CreateDynamicFontFromOSFont("Courier New", 16);
+        /// <summary>
+        /// NEVER ?? OR ?. AGAINST A UnityEngine.Object. THIS IS NOT STYLE.
+        ///
+        /// Unity overloads operator== so that a reference to a destroyed or absent
+        /// native object compares equal to null. The null-coalescing and
+        /// null-conditional operators do NOT use that overload — they test the
+        /// managed reference, which is a real, non-null object. So
+        ///
+        ///     GetComponent&lt;T&gt;() ?? AddComponent&lt;T&gt;()
+        ///
+        /// reads as "get it or make it" and behaves as "get it", handing back a
+        /// live C# handle to a component that is not there. Nothing fails until
+        /// something touches a member, and then it throws from a line that looks
+        /// unrelated. That is exactly how the title screen died: a CanvasGroup that
+        /// was never added, on a reference that was never null.
+        ///
+        /// An explicit == null goes through the overload and is correct. This
+        /// helper exists so there is one place to be right about it.
+        /// </summary>
+        public static T Ensure<T>(GameObject go) where T : Component
+        {
+            T c = go.GetComponent<T>();
+            if (c == null) c = go.AddComponent<T>();
+            return c;
+        }
+
+        public static Font Mono
+        {
+            get
+            {
+                if (_mono != null) return _mono;
+                _mono = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                if (_mono == null) _mono = Font.CreateDynamicFontFromOSFont("Courier New", 16);
+                return _mono;
+            }
+        }
         static Font _mono;
 
         public static Canvas Canvas(string name, int order)
@@ -155,10 +189,10 @@ namespace Singularity.UI
         static Sprite _fill, _line;
 
         /// <summary>The plate: a filled rounded rectangle.</summary>
-        public static Sprite RoundFill => _fill ??= BuildFrame(false);
+        public static Sprite RoundFill { get { if (_fill == null) _fill = BuildFrame(false); return _fill; } }
 
         /// <summary>The edge: the same rectangle as a stroke, and the thing that lights up.</summary>
-        public static Sprite RoundLine => _line ??= BuildFrame(true);
+        public static Sprite RoundLine { get { if (_line == null) _line = BuildFrame(true); return _line; } }
 
         static Sprite BuildFrame(bool stroke)
         {
@@ -219,11 +253,11 @@ namespace Singularity.UI
         //
         // So there are two, each sized for what it is stretched over, and the thin
         // one is used only on the track.
-        public static Sprite PillFill => _pill ??= Round(32, 16, 15);
-        public static Sprite BarFill => _bar ??= Round(16, 8, 7);
+        public static Sprite PillFill { get { if (_pill == null) _pill = Round(32, 16, 15); return _pill; } }
+        public static Sprite BarFill { get { if (_bar == null) _bar = Round(16, 8, 7); return _bar; } }
 
         /// <summary>The knob, and every other circle the interface needs.</summary>
-        public static Sprite Disc => _disc ??= Round(64, 32, 0);
+        public static Sprite Disc { get { if (_disc == null) _disc = Round(64, 32, 0); return _disc; } }
 
         static Sprite Round(int size, int rad, int border)
         {
@@ -492,7 +526,7 @@ namespace Singularity.UI
             tex.SetPixels32(px);
             tex.Apply(false, true);
 
-            var img = rt.gameObject.GetComponent<Image>() ?? rt.gameObject.AddComponent<Image>();
+            Image img = Ensure<Image>(rt.gameObject);
             img.sprite = Sprite.Create(tex, new UnityEngine.Rect(0, 0, 1, N), new Vector2(0.5f, 0.5f), 100f);
             img.type = Image.Type.Simple;
             img.color = Color.white;

@@ -35,7 +35,13 @@ namespace Singularity.Game
         /// because whether a glyph is visible has ALREADY been decided by the
         /// projection — see Singularity/Glyph.shader.
         /// </summary>
-        public static Material Material => _mat ??= new Material(Sh()) { name = "glyph" };
+        public static Material Material
+        {
+            // == null rather than ??=, and not for tidiness: a static cache survives
+            // a domain reload while the native object it points at does not, so the
+            // coalescing form would keep handing back a destroyed material forever.
+            get { if (_mat == null) _mat = new Material(Sh()) { name = "glyph" }; return _mat; }
+        }
 
         /// <summary>
         /// The same shader set to add rather than cover, for the two parts of the
