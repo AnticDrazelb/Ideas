@@ -35,6 +35,12 @@ namespace UnityEngine
         public static Vector2 operator +(Vector2 a, Vector2 b) => new Vector2(a.x + b.x, a.y + b.y);
         public static Vector2 operator *(Vector2 a, float f) => new Vector2(a.x * f, a.y * f);
         public static implicit operator Vector2(Vector3 v) => new Vector2(v.x, v.y);
+        public static bool operator ==(Vector2 a, Vector2 b) => a.x == b.x && a.y == b.y;
+        public static bool operator !=(Vector2 a, Vector2 b) => !(a == b);
+        public override bool Equals(object o) => o is Vector2 v && this == v;
+        public override int GetHashCode() => 0;
+        public static float Dot(Vector2 a, Vector2 b) => a.x * b.x + a.y * b.y;
+        public static float Distance(Vector2 a, Vector2 b) => Mathf.Sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
     }
 
     public struct Vector3
@@ -95,6 +101,7 @@ namespace UnityEngine
         public Rect(float x, float y, float w, float h) { }
         public float width => 0; public float height => 0;
         public Vector2 center => default;
+        public Vector2 size => default;
         public float xMin => 0; public float xMax => 0;
         public float yMin => 0; public float yMax => 0;
         public static bool operator ==(Rect a, Rect b) => true;
@@ -128,6 +135,7 @@ namespace UnityEngine
             => Math.Abs(b - a) <= d ? b : a + Math.Sign(b - a) * d;
         public static float Pow(float a, float b) => (float)Math.Pow(a, b);
         public static float Sqrt(float a) => (float)Math.Sqrt(a);
+        public static bool Approximately(float a, float b) => Math.Abs(b - a) < Math.Max(1e-6f * Math.Max(Math.Abs(a), Math.Abs(b)), 1e-45f * 8);
         public static float PerlinNoise(float x, float y) => 0.5f;
         public static int RoundToInt(float f) => (int)Math.Round(f, MidpointRounding.AwayFromZero);
         public static int CeilToInt(float f) => (int)Math.Ceiling(f);
@@ -189,6 +197,9 @@ namespace UnityEngine
         public Transform GetChild(int i) => null;
         public Transform Find(string n) => null;
         public void SetAsFirstSibling() { }
+        public void SetAsLastSibling2() { }
+        public void SetSiblingIndex(int i) { }
+        public int GetSiblingIndex() => 0;
         public void SetParent(Transform p, bool worldPositionStays) { }
         public void SetAsLastSibling() { }
         public Vector3 TransformPoint(Vector3 v) => default;
@@ -413,6 +424,7 @@ namespace UnityEngine
     {
         public static int width => 0;
         public static int height => 0;
+        public static float dpi => 0;
         public static SleepTimeout sleepTimeout { get; set; }
         public static Rect safeArea => default;
         public static bool fullScreen => true;
@@ -482,6 +494,7 @@ namespace UnityEngine
         public T Call<T>(string m, params object[] args) => default;
         public void Call(string m, params object[] args) { }
         public T GetStatic<T>(string f) => default;
+        public T Get<T>(string f) => default;
         public void Dispose() { }
     }
 
@@ -531,6 +544,7 @@ namespace UnityEngine
         public class Graphic : Component
         {
             public Color color { get; set; }
+            public bool enabled { get; set; }
             public bool raycastTarget { get; set; }
             public RectTransform rectTransform => null;
         }
@@ -582,6 +596,8 @@ namespace UnityEngine
             public string text { get; set; }
             public TextAnchor alignment { get; set; }
             public bool supportRichText { get; set; }
+            public float preferredWidth => 0;
+            public float preferredHeight => 0;
             public HorizontalWrapMode horizontalOverflow { get; set; }
             public VerticalWrapMode verticalOverflow { get; set; }
         }
@@ -589,6 +605,7 @@ namespace UnityEngine
         public class Selectable : Component
         {
             public Graphic targetGraphic { get; set; }
+            public bool interactable { get; set; }
             public ColorBlock colors { get; set; }
         }
 
@@ -618,6 +635,7 @@ namespace UnityEngine
         {
             public ScaleMode uiScaleMode { get; set; }
             public Vector2 referenceResolution { get; set; }
+            public float scaleFactor { get; set; }
             public ScreenMatchMode screenMatchMode { get; set; }
             public float matchWidthOrHeight { get; set; }
             public enum ScaleMode { ConstantPixelSize, ScaleWithScreenSize }
@@ -625,6 +643,34 @@ namespace UnityEngine
         }
 
         public class GraphicRaycaster : Component { }
+
+        // The mesh hook every uGUI effect goes through. BaseMeshEffect is a real
+        // and long-standing part of UnityEngine.UI; ModifyMesh(VertexHelper) is
+        // the overload that has existed since the vertex-helper rewrite, and the
+        // no-argument PopulateUIVertex/SetUIVertex pair is how a Text's own quads
+        // are read back out of it.
+        public abstract class BaseMeshEffect : MonoBehaviour
+        {
+            protected Graphic graphic => null;
+            protected bool IsActive() => true;
+            public abstract void ModifyMesh(VertexHelper vh);
+        }
+
+        public class VertexHelper
+        {
+            public int currentVertCount => 0;
+            public void PopulateUIVertex(ref UIVertex vertex, int i) { }
+            public void SetUIVertex(UIVertex vertex, int i) { }
+        }
+    }
+
+    public struct UIVertex
+    {
+        public Vector3 position;
+        public Vector3 normal;
+        public Color32 color;
+        public Vector2 uv0;
+        public Vector2 uv1;
     }
 
     public class Canvas : Component
@@ -639,5 +685,12 @@ namespace UnityEngine
     {
         public class EventSystem : Component { public static EventSystem current => null; }
         public class StandaloneInputModule : Component { }
+
+        // The pointer interfaces a control implements to answer a press with
+        // something other than a tint. Long-standing UnityEngine.EventSystems API.
+        public class PointerEventData { public int pointerId; }
+        public interface IPointerDownHandler { void OnPointerDown(PointerEventData e); }
+        public interface IPointerUpHandler { void OnPointerUp(PointerEventData e); }
+        public interface IPointerClickHandler { void OnPointerClick(PointerEventData e); }
     }
 }

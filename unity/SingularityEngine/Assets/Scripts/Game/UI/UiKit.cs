@@ -1,23 +1,28 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Singularity.Game;
 
 namespace Singularity.UI
 {
     /// <summary>
-    /// The interface, built in code.
+    /// The interface, built in code, against the shipped build's own stylesheet.
     ///
     /// There are no prefabs and no scene-authored canvases anywhere in this
     /// project, and that is a deliberate choice rather than a shortcut. Every
-    /// screen in the original is a composition of type, hairlines and nine
-    /// colours with no images at all; expressing that as serialised YAML would
-    /// make it unreviewable in a diff and unmergeable by two people at once,
-    /// while expressing it as code keeps the reasons next to the values — which
-    /// is how the original was written and most of why it reads the way it does.
+    /// screen in the original is a composition of type, hairlines and nine colours
+    /// with no images at all; expressing that as serialised YAML would make it
+    /// unreviewable in a diff and unmergeable by two people at once, while
+    /// expressing it as code keeps the reasons next to the values — which is how
+    /// the original was written and most of why it reads the way it does.
     ///
     /// THREE PLANES, AND THE DIFFERENCE BETWEEN THEM IS SMALL ON PURPOSE. Void is
     /// the ground. Panel is anything you can press. Card is anything that has come
     /// forward and taken the screen. Black is a background, not a material.
+    ///
+    /// Every metric below comes from <see cref="Css"/>, which is the APK's `:root`
+    /// ported clamp for clamp. Nothing in this file is allowed a number of its own.
     /// </summary>
     public static class UiKit
     {
@@ -47,18 +52,73 @@ namespace Singularity.UI
             return c;
         }
 
+        // ---- the type -------------------------------------------------------
+        //
+        // THE INTERFACE IS MONOSPACE, AND THIS PORT WAS NOT.
+        //
+        // The sheet's font stack is
+        //
+        //   ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono",
+        //   "IBM Plex Mono", Menlo, Consolas, "Liberation Mono", monospace
+        //
+        // — every entry of which is a fixed-pitch face, and on an Android WebView
+        // it resolves to the system's own monospace. What this port had been
+        // asking for was `LegacyRuntime.ttf`, which is Unity's built-in
+        // proportional face, with a Courier fallback that could never be reached
+        // because the builtin never returns null. So every screen was set in the
+        // wrong genre of typeface: proportional where the original is fixed-pitch,
+        // which changes the colour of every line of text in the game and is most
+        // of why a side-by-side reads as "similar" rather than "the same".
+        //
+        // The stack is walked in the sheet's own order, and the builtin is the
+        // last resort rather than the first.
+
+        static readonly string[] MonoStack =
+        {
+            "monospace",            // Android's own alias, and what the WebView picks
+            "Roboto Mono",
+            "Droid Sans Mono",
+            "DejaVu Sans Mono",
+            "Liberation Mono",
+            "Menlo",
+            "Consolas",
+            "Courier New",
+        };
+
         public static Font Mono
         {
             get
             {
                 if (_mono != null) return _mono;
-                _mono = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                if (_mono == null) _mono = Font.CreateDynamicFontFromOSFont("Courier New", 16);
+                for (int i = 0; i < MonoStack.Length && _mono == null; i++)
+                    _mono = Font.CreateDynamicFontFromOSFont(MonoStack[i], 16);
+                if (_mono == null) _mono = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 return _mono;
             }
         }
         static Font _mono;
 
+        // ---- the canvas -----------------------------------------------------
+
+        /// <summary>
+        /// ONE CANVAS UNIT IS ONE CSS PIXEL.
+        ///
+        /// This canvas used to be 720x1280 reference units with `matchWidthOrHeight
+        /// = 0.5`, and a comment saying one CSS pixel was two canvas units. Those
+        /// two statements cannot both be true. A 0.5 match is a geometric blend of
+        /// the width fit and the height fit, so the canvas is only 720 units across
+        /// on a device whose aspect is exactly 720:1280 — on an ordinary 1080x2400
+        /// phone the scale factor comes out sqrt(1.5 * 1.875) = 1.677, the canvas
+        /// is 644 units wide, and the conversion is 1.79 units per CSS pixel rather
+        /// than 2. Every metric in the interface was landing about a tenth small,
+        /// by a different amount on every device.
+        ///
+        /// A constant pixel size at the device's own density removes the conversion
+        /// instead of correcting it: a canvas unit becomes a density-independent
+        /// pixel, which is the same thing Chromium calls a CSS pixel. The whole
+        /// stylesheet then applies verbatim, `clamp()` and `vw` included, and it is
+        /// right on every device rather than on one.
+        /// </summary>
         public static Canvas Canvas(string name, int order)
         {
             var go = new GameObject(name, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -66,10 +126,8 @@ namespace Singularity.UI
             c.renderMode = RenderMode.ScreenSpaceOverlay;
             c.sortingOrder = order;
             var s = go.GetComponent<CanvasScaler>();
-            s.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            s.referenceResolution = new Vector2(720, 1280);
-            s.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            s.matchWidthOrHeight = 0.5f;
+            s.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
+            s.scaleFactor = Css.Density;
             Object.DontDestroyOnLoad(go);
             go.AddComponent<SafeArea>();
             return c;
@@ -78,12 +136,13 @@ namespace Singularity.UI
         /// <summary>
         /// A NOTCH IS NOT A SUGGESTION.
         ///
-        /// The web original has a long note about this: env(safe-area-inset-*) reads
-        /// zero inside an Android WebView however correctly the host sets
+        /// The web original has a long note about this: env(safe-area-inset-*)
+        /// reads zero inside an Android WebView however correctly the host sets
         /// viewport-fit, because a WebView is a View inside somebody else's
-        /// Activity. Unity does not have that problem — Screen.safeArea is the real
-        /// measurement — but it does have the same requirement, and a HUD band
-        /// under a camera cutout is just as unreadable either way.
+        /// Activity, so the host measures the insets and writes them onto :root
+        /// itself. Unity does not have that problem — Screen.safeArea is the real
+        /// measurement — but it has the same requirement, and a HUD band under a
+        /// camera cutout is just as unreadable either way.
         ///
         /// Applied to the canvas root rather than to each control, so every screen
         /// inherits it and no layout has to think about it.
@@ -93,12 +152,7 @@ namespace Singularity.UI
             RectTransform _rt;
             Rect _last;
 
-            void Awake()
-            {
-                // the canvas's own rect is the whole screen; everything else is
-                // parented under a child that is inset to the safe area
-                _rt = (RectTransform)transform;
-            }
+            void Awake() => _rt = (RectTransform)transform;
 
             void Update()
             {
@@ -130,6 +184,8 @@ namespace Singularity.UI
             }
         }
 
+        // ---- boxes ----------------------------------------------------------
+
         public static RectTransform Rect(Transform parent, string name,
                                          Vector2 anchorMin, Vector2 anchorMax,
                                          Vector2 offsetMin, Vector2 offsetMax)
@@ -144,6 +200,10 @@ namespace Singularity.UI
             return rt;
         }
 
+        /// <summary>A box that fills its parent.</summary>
+        public static RectTransform Fill(Transform parent, string name)
+            => Rect(parent, name, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+
         public static Image Panel(Transform parent, string name, Color col,
                                   Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
         {
@@ -154,300 +214,612 @@ namespace Singularity.UI
             return img;
         }
 
-        public static Text Label(Transform parent, string name, string text, int size,
-                                 Color col, TextAnchor anchor,
+        // ---- text -----------------------------------------------------------
+
+        /// <summary>
+        /// A run of type, with the sheet's tracking on it.
+        /// </summary>
+        /// <param name="track">letter-spacing in em, as the rule states it.</param>
+        public static Text Label(Transform parent, string name, string text, float cssSize,
+                                 Color col, TextAnchor anchor, float track,
                                  Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
         {
             RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
+            return Type(rt, name, text, cssSize, col, anchor, track);
+        }
+
+        /// <summary>The same, filling a box that already exists.</summary>
+        public static Text Type(Transform parent, string name, string text, float cssSize,
+                                Color col, TextAnchor anchor, float track)
+        {
+            RectTransform rt = Fill(parent, name + "_t");
             var t = rt.gameObject.AddComponent<Text>();
             t.font = Mono;
-            t.fontSize = size;
-            t.text = text;
+            t.fontSize = Css.Pt(cssSize);
+            // The body sets `text-transform:uppercase` on html, so every string in
+            // the interface is capitals however it was written in the markup.
+            t.text = text == null ? "" : text.ToUpperInvariant();
             t.color = col;
             t.alignment = anchor;
             t.horizontalOverflow = HorizontalWrapMode.Overflow;
             t.verticalOverflow = VerticalWrapMode.Overflow;
             t.raycastTarget = false;
+            t.supportRichText = false;
+
+            if (track > 0.0001f)
+            {
+                var k = rt.gameObject.AddComponent<Trk>();
+                k.spacing = track * cssSize;
+            }
+            return t;
+        }
+
+        /// <summary>A paragraph: it wraps, and its line-height is the sheet's.</summary>
+        public static Text Para(Transform parent, string name, string text, float cssSize,
+                                Color col, TextAnchor anchor, float track)
+        {
+            Text t = Type(parent, name, text, cssSize, col, anchor, track);
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
             return t;
         }
 
         // ---- the frame ------------------------------------------------------
         //
-        // EVERY PRESSABLE THING IN THIS GAME IS A LIT FRAME, and it took a
-        // side-by-side with the shipped build to notice that this port had been
-        // drawing flat rectangles instead. The brackets around a label say "this is
-        // pressable"; the frame is what makes the whole interface look like an
-        // INSTRUMENT rather than a list of words on black. It is not decoration —
-        // it is the difference the eye reads first.
+        // EVERY PRESSABLE THING IN THIS GAME IS A LIT FRAME. The brackets around a
+        // label say "this is pressable"; the frame is what makes the whole
+        // interface look like an INSTRUMENT rather than a list of words on black.
+        // It is not decoration — it is the difference the eye reads first.
         //
-        // Generated rather than imported, and nine-sliced, so one 64px texture is
+        // Generated rather than imported, and nine-sliced, so one small texture is
         // every button, chip, field and card at every size, and the corner radius
-        // stays the same number of real pixels whatever the control's shape.
-
-        // ---- THE SHIPPED METRICS, EXTRACTED RATHER THAN EYEBALLED -----------
+        // stays the same number of CSS pixels whatever the control's shape.
         //
-        // Every number below is read off the APK's own :root custom properties.
-        // The canvas here is 720 units wide against a viewport that is about 360
-        // CSS pixels, so ONE CSS PIXEL IS TWO CANVAS UNITS and the conversion is
-        // the only arithmetic in it.
-        //
-        //   --r-btn      7px   -> 14    --h-btn   46px -> 92
-        //   --r-card    10px   -> 20    --h-ctl   44px -> 88
-        //   --rule       2px   ->  4    --h-row   50px -> 100
-        //   .btn         min-height  h-btn +  6px -> 104
-        //   .btn.primary min-height  h-btn + 14px -> 120
-        //   --edge      rgba(234,88,12,.34)   the border every control wears
-        //   primary     inset rgba(251,146,60,.55) + a 22px rust glow
-        //
-        // The border was twice as strong as this and the corners nearly twice as
-        // round, which together are most of why the controls read as an app's
-        // rather than an instrument's.
+        // THE RADIUS IS A PARAMETER BECAUSE THE SHEET HAS SIX OF THEM. --r-chip and
+        // --r-ctl are 6, --r-btn is 7, --r-card is 10, --r-sheet is 12 and a board
+        // cell is 4. One shared sprite at a single radius is six controls drawn
+        // with somebody else's corner.
 
-        /// <summary>Standard control height — .btn min-height.</summary>
-        public const float BtnH = 104f;
-        /// <summary>The one lit object on a screen — .btn.primary min-height.</summary>
-        public const float PrimaryH = 120f;
-        /// <summary>--h-row, for list rows.</summary>
-        public const float RowH = 100f;
+        static readonly Dictionary<int, Sprite> Frames = new Dictionary<int, Sprite>();
 
-        /// <summary>--edge. The border weight every control shares.</summary>
-        public static Color Edge => new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.34f);
-        /// <summary>The primary's inset rim: rust-hi at 55%.</summary>
-        public static Color EdgeOn => new Color(Palette.RustHi.r, Palette.RustHi.g, Palette.RustHi.b, 0.55f);
+        /// <summary>
+        /// A rounded rectangle at a given CSS radius — filled, or as an inset
+        /// stroke of a given CSS width.
+        /// </summary>
+        public static Sprite Frame(float radius, float stroke)
+        {
+            int key = Mathf.RoundToInt(radius * 100f) * 1000 + Mathf.RoundToInt(stroke * 100f);
+            if (Frames.TryGetValue(key, out Sprite s) && s != null) return s;
 
-        const int FrameTex = 64, FrameRad = 14, FrameSlice = 20, FrameStroke = 4;
+            float px = Mathf.Clamp(Css.Density, 1f, 4f);
+            // enough texture for both corners plus a middle row to stretch
+            float sizeCss = radius * 2f + 4f;
+            int n = Mathf.Max(8, Mathf.CeilToInt(sizeCss * px));
+            float half = n * 0.5f;
+            float radPx = radius * px;
+            float strokePx = stroke * px;
 
-        static Sprite _fill, _line, _glow;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                name = "frame" + key
+            };
+
+            var buf = new Color32[n * n];
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    // signed distance to a rounded rectangle: negative inside
+                    float dx = Mathf.Abs(x + 0.5f - half) - (half - radPx);
+                    float dy = Mathf.Abs(y + 0.5f - half) - (half - radPx);
+                    float outside = Mathf.Sqrt(Mathf.Max(dx, 0f) * Mathf.Max(dx, 0f)
+                                             + Mathf.Max(dy, 0f) * Mathf.Max(dy, 0f));
+                    float d = outside + Mathf.Min(Mathf.Max(dx, dy), 0f) - radPx;
+
+                    float a = stroke > 0f
+                        // a band hugging the edge from the inside, feathered both ways
+                        ? Mathf.Clamp01(0.5f - d) * Mathf.Clamp01(d + strokePx + 0.5f)
+                        : Mathf.Clamp01(0.5f - d);
+
+                    buf[y * n + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
+                }
+
+            tex.SetPixels32(buf);
+            tex.Apply(false, true);
+
+            // The nine-slice border is in texels and the pixels-per-unit is the
+            // density, so a corner keeps its CSS radius at any control size.
+            float border = radPx + px;
+            s = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), px,
+                              0, SpriteMeshType.FullRect,
+                              new Vector4(border, border, border, border));
+            Frames[key] = s;
+            return s;
+        }
+
+        /// <summary>A circle, for a knob or a mark.</summary>
+        public static Sprite Disc => Frame(500f, 0f);
+
+        /// <summary>A stadium — `--r-pill` is 999, which is "however round it can be".</summary>
+        public static Sprite Pill(float stroke) => Frame(500f, stroke);
+
+        // ---- box-shadow -----------------------------------------------------
+
+        /// <summary>
+        /// `box-shadow: inset 0 0 0 Npx COLOUR` — the edge every control wears.
+        /// A sibling image rather than part of the plate, because a plate that is
+        /// its own border cannot change one without the other.
+        /// </summary>
+        public static Image Edge(RectTransform rt, Color col, float radius, float stroke)
+        {
+            RectTransform er = Fill(rt, "edge");
+            var line = er.gameObject.AddComponent<Image>();
+            line.sprite = Frame(radius, stroke);
+            line.type = Image.Type.Sliced;
+            line.color = col;
+            line.raycastTarget = false;
+            return line;
+        }
+
+        /// <summary>
+        /// `box-shadow: 0 Npx 0 COLOUR` — an un-blurred drop, which is what gives
+        /// every control in this interface its seat. It is drawn as a copy of the
+        /// shape offset downward, behind the plate, which is exactly what the
+        /// declaration means.
+        /// </summary>
+        public static Image Seat(RectTransform rt, Color col, float radius, float dy)
+        {
+            RectTransform sr = Rect(rt.parent, rt.name + "_seat", rt.anchorMin, rt.anchorMax,
+                                    rt.offsetMin + new Vector2(0f, -dy), rt.offsetMax + new Vector2(0f, -dy));
+            sr.pivot = rt.pivot;
+            sr.sizeDelta = rt.sizeDelta;
+            sr.anchoredPosition = rt.anchoredPosition + new Vector2(0f, -dy);
+            var img = sr.gameObject.AddComponent<Image>();
+            img.sprite = Frame(radius, 0f);
+            img.type = Image.Type.Sliced;
+            img.color = col;
+            img.raycastTarget = false;
+            sr.SetSiblingIndex(rt.GetSiblingIndex());
+            return img;
+        }
 
         /// <summary>
         /// THE PRIMARY CASTS. In the shipped build this is one line of CSS —
-        /// box-shadow: 0 0 22px -4px rgba(234,88,12,.7) — and it is most of what
+        /// `box-shadow: 0 0 22px -4px rgba(234,88,12,.7)` — and it is most of what
         /// makes that button look switched ON rather than filled in.
         ///
         /// It is worth knowing that this is NOT the camera bloom the board gets.
         /// The interface is a screen-space overlay and draws after the camera's
         /// post pass, so no amount of bloom would ever have reached it; the glow
         /// was always going to have to be drawn. A soft-edged plate behind the
-        /// button, additive, is the same picture for one more quad.
+        /// button, one more quad, is the same picture.
         /// </summary>
-        public static Sprite GlowFill { get { if (_glow == null) _glow = BuildGlow(); return _glow; } }
-
-        /// <summary>How far the primary's glow reaches past its own edge. 22px blur, -4 spread.</summary>
-        public const float GlowReach = 36f;
-
-        static Sprite BuildGlow()
+        public static Image Glow(RectTransform rt, Color col, float blur, float spread)
         {
-            const int N = 128, Rad = 14, Soft = 36;   // in canvas units, 1:1 with texels here
-            var tex = new Texture2D(N, N, TextureFormat.RGBA32, false)
+            float reach = blur + spread;
+            RectTransform gr = Rect(rt.parent, rt.name + "_glow", rt.anchorMin, rt.anchorMax,
+                                    Vector2.zero, Vector2.zero);
+            gr.pivot = rt.pivot;
+            gr.sizeDelta = rt.sizeDelta + new Vector2(reach * 2f, reach * 2f);
+            gr.anchoredPosition = rt.anchoredPosition;
+            var g = gr.gameObject.AddComponent<Image>();
+            g.sprite = GlowSprite(blur, spread);
+            g.type = Image.Type.Sliced;
+            g.color = col;
+            g.raycastTarget = false;
+            gr.SetSiblingIndex(rt.GetSiblingIndex());
+            return g;
+        }
+
+        static readonly Dictionary<int, Sprite> Glows = new Dictionary<int, Sprite>();
+
+        static Sprite GlowSprite(float blur, float spread)
+        {
+            int key = Mathf.RoundToInt(blur * 10f) * 1000 + Mathf.RoundToInt(spread * 10f) + 500000;
+            if (Glows.TryGetValue(key, out Sprite s) && s != null) return s;
+
+            float px = Mathf.Clamp(Css.Density * 0.5f, 1f, 2f);
+            float reach = blur + spread;
+            float radius = Css.RBtn;
+            int n = Mathf.Max(16, Mathf.CeilToInt((reach * 2f + radius * 2f + 4f) * px));
+            float half = n * 0.5f;
+            float inner = half - (reach + radius) * px;
+
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Bilinear,
                 wrapMode = TextureWrapMode.Clamp,
-                name = "glow"
+                name = "glow" + key
             };
-            var px = new Color32[N * N];
-            const float H = N * 0.5f;
-            for (int y = 0; y < N; y++)
-                for (int x = 0; x < N; x++)
+            var buf = new Color32[n * n];
+            float radPx = radius * px, blurPx = Mathf.Max(1f, blur * px);
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
                 {
-                    float dx = Mathf.Abs(x + 0.5f - H) - (H - Soft - Rad);
-                    float dy = Mathf.Abs(y + 0.5f - H) - (H - Soft - Rad);
+                    float dx = Mathf.Abs(x + 0.5f - half) - inner;
+                    float dy = Mathf.Abs(y + 0.5f - half) - inner;
                     float o = Mathf.Sqrt(Mathf.Max(dx, 0f) * Mathf.Max(dx, 0f) + Mathf.Max(dy, 0f) * Mathf.Max(dy, 0f));
-                    float d = o + Mathf.Min(Mathf.Max(dx, dy), 0f) - Rad;
+                    float d = o + Mathf.Min(Mathf.Max(dx, dy), 0f) - radPx;
                     // a blur falls off faster than linear; squaring it is close
                     // enough to a gaussian at this radius and costs nothing
-                    float a = Mathf.Clamp01(1f - d / Soft);
-                    px[y * N + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * a * 255f));
+                    float a = Mathf.Clamp01(1f - d / blurPx);
+                    buf[y * n + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * a * 255f));
                 }
-            tex.SetPixels32(px);
+            tex.SetPixels32(buf);
             tex.Apply(false, true);
-            const int b = Soft + Rad;
-            return Sprite.Create(tex, new UnityEngine.Rect(0, 0, N, N), new Vector2(0.5f, 0.5f), 100f,
-                                 0, SpriteMeshType.FullRect, new Vector4(b, b, b, b));
+
+            float b = (reach + radius) * px;
+            s = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), px,
+                              0, SpriteMeshType.FullRect, new Vector4(b, b, b, b));
+            Glows[key] = s;
+            return s;
         }
 
-        /// <summary>The plate: a filled rounded rectangle.</summary>
-        public static Sprite RoundFill { get { if (_fill == null) _fill = BuildFrame(false); return _fill; } }
-
-        /// <summary>The edge: the same rectangle as a stroke, and the thing that lights up.</summary>
-        public static Sprite RoundLine { get { if (_line == null) _line = BuildFrame(true); return _line; } }
-
-        static Sprite BuildFrame(bool stroke)
-        {
-            var tex = new Texture2D(FrameTex, FrameTex, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp,
-                name = stroke ? "frame_line" : "frame_fill"
-            };
-
-            var px = new Color32[FrameTex * FrameTex];
-            const float H = FrameTex * 0.5f;
-
-            for (int y = 0; y < FrameTex; y++)
-                for (int x = 0; x < FrameTex; x++)
-                {
-                    // signed distance to a rounded rectangle: negative inside
-                    float dx = Mathf.Abs(x + 0.5f - H) - (H - FrameRad);
-                    float dy = Mathf.Abs(y + 0.5f - H) - (H - FrameRad);
-                    float outside = Mathf.Sqrt(Mathf.Max(dx, 0f) * Mathf.Max(dx, 0f)
-                                             + Mathf.Max(dy, 0f) * Mathf.Max(dy, 0f));
-                    float d = outside + Mathf.Min(Mathf.Max(dx, dy), 0f) - FrameRad;
-
-                    float a = stroke
-                        // a band hugging the edge from the inside, feathered both ways
-                        ? Mathf.Clamp01(0.5f - d) * Mathf.Clamp01(d + FrameStroke + 0.5f)
-                        : Mathf.Clamp01(0.5f - d);
-
-                    px[y * FrameTex + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
-                }
-
-            tex.SetPixels32(px);
-            tex.Apply(false, true);
-            return Sprite.Create(tex, new UnityEngine.Rect(0, 0, FrameTex, FrameTex), new Vector2(0.5f, 0.5f), 100f,
-                                 0, SpriteMeshType.FullRect,
-                                 new Vector4(FrameSlice, FrameSlice, FrameSlice, FrameSlice));
-        }
-
-        // ---- the pill -------------------------------------------------------
-        //
-        // The same nine-slice trick with the radius run all the way to the half
-        // height, so the ends are semicircles at any width. A toggle wants to be a
-        // PILL rather than a small rectangle for one reason: a rectangle that says
-        // ON and a rectangle that says OFF are the same object with different text,
-        // and a pill with the knob at the other end is a different SHAPE. Shape
-        // reads across a room; a three-letter word does not.
-
-        static Sprite _pill, _bar, _disc;
-
-        // A NINE-SLICE BORDER HAS TO FIT INSIDE THE CONTROL IT IS STRETCHED OVER.
-        //
-        // These were one 64px stadium with a 30px border on every side. Sixty pixels
-        // of border in a forty-two pixel switch leaves nothing for the middle, so
-        // Unity scales the slices down to fit — by a different amount on each axis,
-        // and by a different amount again on a six-pixel slider track. That is the
-        // whole of "the pills are not uniform and the sliders look like squashed
-        // circles": one sprite asked to be three sizes it could not be.
-        //
-        // So there are two, each sized for what it is stretched over, and the thin
-        // one is used only on the track.
-        public static Sprite PillFill { get { if (_pill == null) _pill = Round(32, 16, 15); return _pill; } }
-        public static Sprite BarFill { get { if (_bar == null) _bar = Round(16, 8, 7); return _bar; } }
-
-        /// <summary>The knob, and every other circle the interface needs.</summary>
-        public static Sprite Disc { get { if (_disc == null) _disc = Round(64, 32, 0); return _disc; } }
-
-        static Sprite Round(int size, int rad, int border)
-        {
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp,
-                name = border == 0 ? "disc" : "stadium" + size
-            };
-            var px = new Color32[size * size];
-            float h = size * 0.5f;
-            for (int y = 0; y < size; y++)
-                for (int x = 0; x < size; x++)
-                {
-                    float dx = Mathf.Abs(x + 0.5f - h) - (h - rad);
-                    float dy = Mathf.Abs(y + 0.5f - h) - (h - rad);
-                    float o = Mathf.Sqrt(Mathf.Max(dx, 0f) * Mathf.Max(dx, 0f) + Mathf.Max(dy, 0f) * Mathf.Max(dy, 0f));
-                    float d = o + Mathf.Min(Mathf.Max(dx, dy), 0f) - rad;
-                    px[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(0.5f - d) * 255f));
-                }
-            tex.SetPixels32(px);
-            tex.Apply(false, true);
-            return Sprite.Create(tex, new UnityEngine.Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f,
-                                 0, SpriteMeshType.FullRect, new Vector4(border, border, border, border));
-        }
+        // ---- pressing -------------------------------------------------------
 
         /// <summary>
-        /// A switch that is a shape rather than a word. Orange and knob-right is on;
-        /// slate and knob-left is off, and you can tell which from further away than
-        /// you can read the label.
+        /// `:active` IS A STATE, NOT A TINT.
+        ///
+        /// Every control in the sheet answers a press by changing what it is made
+        /// of and sitting down by the rule it is shadowed with:
+        ///
+        ///     .btn:active{ background:var(--rust); color:#000;
+        ///                  transform:translateY(var(--rule));
+        ///                  box-shadow:inset 0 0 0 var(--rule) var(--rust),
+        ///                             0 0 0 rgba(0,0,0,.55); }
+        ///
+        /// — the seat collapses to nothing as the button moves down onto it, which
+        /// is the whole illusion. uGUI's own ColorBlock can only multiply the
+        /// target graphic, so it can tint a plate and it can do none of the rest.
+        /// This does the rest.
         /// </summary>
-        public static Button Switch(Transform parent, string name, bool on, System.Func<bool, bool> set,
-                                    Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
+        public class Press : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
         {
-            RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
+            public Image plate, edge, seat;
+            public Text label;
+            public Color plateUp, plateDown, edgeUp, edgeDown, inkUp, inkDown;
+            public float travel;
+            RectTransform _rt;
+            Vector2 _home;
+            bool _down;
 
-            var track = rt.gameObject.AddComponent<Image>();
-            track.sprite = PillFill;
+            void Awake()
+            {
+                _rt = (RectTransform)transform;
+                _home = _rt.anchoredPosition;
+            }
+
+            public void OnPointerDown(PointerEventData e) => Set(true);
+            public void OnPointerUp(PointerEventData e) => Set(false);
+
+            void OnDisable() { if (_down) Set(false); }
+
+            void Set(bool down)
+            {
+                _down = down;
+                if (_rt == null) return;
+                if (plate != null) plate.color = down ? plateDown : plateUp;
+                if (edge != null) edge.color = down ? edgeDown : edgeUp;
+                if (label != null) label.color = down ? inkDown : inkUp;
+                if (seat != null) seat.enabled = !down;
+                _rt.anchoredPosition = _home + new Vector2(0f, down ? -travel : 0f);
+            }
+
+            /// <summary>Re-read where the control lives, after a layout pass has moved it.</summary>
+            public void Rehome()
+            {
+                if (_rt == null) _rt = (RectTransform)transform;
+                if (!_down) _home = _rt.anchoredPosition;
+            }
+        }
+
+        // ---- .btn -----------------------------------------------------------
+
+        public enum Kind
+        {
+            /// <summary>.btn — a hole with an edge.</summary>
+            Btn,
+            /// <summary>.btn.primary — the one filled shape on a screen.</summary>
+            Primary,
+            /// <summary>.btn.ghost — no box, no ground, dim ink.</summary>
+            Ghost,
+        }
+
+        /// <summary>The height a `.btn` of this kind occupies, margin excluded.</summary>
+        public static float BtnHeight(Kind k)
+            => k == Kind.Primary ? Css.HBtn + 14f
+             : k == Kind.Ghost ? Css.HCtl
+             : Css.HBtn + 6f;
+
+        /// <summary>The margin that follows it. `.btn` is 10, a primary is 16, a ghost none.</summary>
+        public static float BtnMargin(Kind k)
+            => k == Kind.Primary ? 16f : k == Kind.Ghost ? 0f : 10f;
+
+        /// <summary>
+        /// A button is a bracketed label inside a lit frame: [ MENU ]. The brackets
+        /// are part of the design system rather than decoration — they say "this is
+        /// pressable" in the same monospace the rest of the interface speaks.
+        ///
+        /// A PRIMARY IS SOLID AND EVERYTHING ELSE IS A HOLE WITH AN EDGE. There is
+        /// exactly one primary on any screen, and it is the only filled shape in
+        /// the interface, so "the thing to press" needs no arrow, no pulse and no
+        /// hint text — it is the one that is on.
+        /// </summary>
+        public static Button Btn(RectTransform slot, string label, System.Action onClick,
+                                 Kind kind = Kind.Btn, float? sizeOverride = null, float? trackOverride = null)
+        {
+            bool primary = kind == Kind.Primary;
+            bool ghost = kind == Kind.Ghost;
+
+            float size = sizeOverride ?? (primary ? Css.TMd : ghost ? Css.TFine : Css.TSm);
+            float track = trackOverride ?? (primary ? 0.22f : ghost ? 0.22f : 0.20f);
+
+            Image plate = null, edge = null, seat = null;
+
+            if (!ghost)
+            {
+                if (primary)
+                {
+                    Glow(slot, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.7f), 22f, -4f);
+                    seat = Seat(slot, Css.PrimarySeat, Css.RBtn, 3f);
+                }
+                else
+                {
+                    seat = Seat(slot, Css.Seat, Css.RBtn, Css.Rule);
+                }
+
+                plate = slot.gameObject.AddComponent<Image>();
+                plate.sprite = Frame(Css.RBtn, 0f);
+                plate.type = Image.Type.Sliced;
+                plate.color = primary ? Palette.Rust : Palette.Panel;
+
+                edge = Edge(slot, primary ? Css.PrimaryRim : Css.Edge, Css.RBtn, Css.Rule);
+            }
+            else
+            {
+                // a ghost still has to be hittable across its whole rect, and a
+                // Text alone gives the raycaster only the glyphs
+                plate = slot.gameObject.AddComponent<Image>();
+                plate.color = new Color(0f, 0f, 0f, 0f);
+            }
+
+            // THE PRIMARY'S END TICKS. Two pseudo-elements, seven CSS pixels wide,
+            // inset four from each end, drawn as a hairline of black at half alpha
+            // on three sides. They are the detail that makes the one lit control in
+            // the interface read as a MACHINED part rather than a coloured
+            // rectangle, and this port did not have them at all.
+            if (primary) EndTicks(slot);
+
+            Text t = Type(slot, "label", "[ " + label + " ]", size,
+                          primary ? Palette.Void : ghost ? Palette.Dim : Palette.Ink,
+                          TextAnchor.MiddleCenter, track);
+
+            var btn = slot.gameObject.AddComponent<Button>();
+            btn.targetGraphic = plate;
+            // the colour transition is done by Press, which can move the control
+            // and collapse its seat as well as tint it
+            var colors = btn.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = Color.white;
+            colors.pressedColor = Color.white;
+            colors.fadeDuration = 0f;
+            btn.colors = colors;
+
+            var press = slot.gameObject.AddComponent<Press>();
+            press.plate = plate;
+            press.edge = edge;
+            press.seat = seat;
+            press.label = t;
+            press.travel = primary ? 3f : ghost ? 0f : Css.Rule;
+            press.plateUp = plate.color;
+            press.plateDown = ghost ? plate.color : primary ? Palette.RustHi : Palette.Rust;
+            press.edgeUp = edge != null ? edge.color : Color.clear;
+            press.edgeDown = edge != null ? (primary ? Css.PrimaryRim : Palette.Rust) : Color.clear;
+            press.inkUp = t.color;
+            press.inkDown = ghost ? Palette.Rust : primary ? Palette.Void : Palette.Void;
+
+            if (onClick != null) btn.onClick.AddListener(() => onClick());
+            return btn;
+        }
+
+        static void EndTicks(RectTransform slot)
+        {
+            void Tick(bool left)
+            {
+                RectTransform r = Rect(slot, left ? "tickL" : "tickR",
+                                       new Vector2(left ? 0f : 1f, 0f), new Vector2(left ? 0f : 1f, 1f),
+                                       new Vector2(left ? 4f : -11f, 4f), new Vector2(left ? 11f : -4f, -4f));
+                var ink = new Color(0f, 0f, 0f, 0.5f);
+                // top and bottom on both, and the outer side on each
+                Panel(r, "t", ink, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -Css.Hair), Vector2.zero);
+                Panel(r, "b", ink, new Vector2(0, 0), new Vector2(1, 0), Vector2.zero, new Vector2(0, Css.Hair));
+                Panel(r, "s", ink,
+                      new Vector2(left ? 0 : 1, 0), new Vector2(left ? 0 : 1, 1),
+                      new Vector2(left ? 0 : -Css.Hair, 0), new Vector2(left ? Css.Hair : 0, 0));
+            }
+            Tick(true);
+            Tick(false);
+        }
+
+        public static void SetLabel(Button b, string text)
+        {
+            var t = b.GetComponentInChildren<Text>();
+            if (t != null) t.text = ("[ " + text + " ]").ToUpperInvariant();
+        }
+
+        // ---- .pill ----------------------------------------------------------
+        //
+        // .pill{ height:var(--h-ctl); min-width:var(--h-ctl); padding:0 15px;
+        //        border-radius:var(--r-ctl); background:var(--panel);
+        //        box-shadow:inset 0 0 0 var(--hair) var(--edge-2);
+        //        font-size:var(--t-tiny); letter-spacing:.19em; color:var(--dim); }
+
+        public static Button PillBtn(RectTransform slot, string label, System.Action onClick,
+                                     Color? tint = null, float? size = null, float track = 0.19f)
+        {
+            var plate = slot.gameObject.AddComponent<Image>();
+            plate.sprite = Frame(Css.RCtl, 0f);
+            plate.type = Image.Type.Sliced;
+            plate.color = Palette.Panel;
+
+            Image edge = Edge(slot, Css.Edge2, Css.RCtl, Css.Hair);
+
+            Text t = Type(slot, "label", label, size ?? Css.TTiny, tint ?? Palette.Dim,
+                          TextAnchor.MiddleCenter, track);
+
+            var btn = slot.gameObject.AddComponent<Button>();
+            btn.targetGraphic = plate;
+            var colors = btn.colors;
+            colors.normalColor = colors.highlightedColor = colors.pressedColor = Color.white;
+            colors.fadeDuration = 0f;
+            btn.colors = colors;
+
+            var press = slot.gameObject.AddComponent<Press>();
+            press.plate = plate;
+            press.edge = edge;
+            press.label = t;
+            press.plateUp = plate.color;
+            press.plateDown = Palette.Rust;
+            press.edgeUp = edge.color;
+            press.edgeDown = Palette.Rust;
+            press.inkUp = t.color;
+            press.inkDown = Palette.Void;
+            press.travel = 0f;
+
+            if (onClick != null) btn.onClick.AddListener(() => onClick());
+            return btn;
+        }
+
+        /// <summary>`[disabled]` — opacity .34 and nothing to press.</summary>
+        public static void Disable(Button b, bool off)
+        {
+            var cg = Ensure<CanvasGroup>(b.gameObject);
+            cg.alpha = off ? 0.34f : 1f;
+            cg.blocksRaycasts = !off;
+            b.interactable = !off;
+        }
+
+        // ---- .sw ------------------------------------------------------------
+        //
+        // .sw{ width:54px;height:26px;border-radius:var(--r-pill);background:var(--dim-2); }
+        // .sw::before{ content:'OFF'; ... font-size:8px; padding-right:8px }
+        // .sw::after { content:''; top:3px;left:3px;width:20px;height:20px;border-radius:50% }
+        // .sw.on{ background:var(--rust) } .sw.on::after{ transform:translateX(28px);background:#fff }
+
+        public const float SwW = 54f, SwH = 26f, SwKnob = 20f, SwInset = 3f, SwThrow = 28f;
+
+        /// <summary>
+        /// A switch that is a SHAPE rather than a word. Orange and knob-right is
+        /// on; slate and knob-left is off, and you can tell which from further away
+        /// than you can read the label — which is the entire argument for a pill
+        /// over a checkbox.
+        /// </summary>
+        public static Button Switch(RectTransform slot, bool on, System.Func<bool, bool> set)
+        {
+            slot.sizeDelta = new Vector2(SwW, SwH);
+
+            var track = slot.gameObject.AddComponent<Image>();
+            track.sprite = Pill(0f);
             track.type = Image.Type.Sliced;
 
-            RectTransform kr = Rect(rt, "knob", new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
-            kr.sizeDelta = new Vector2(34, 34);
+            // box-shadow:inset 0 0 0 var(--hair) rgba(255,255,255,.10)
+            RectTransform er = Fill(slot, "edge");
+            var rim = er.gameObject.AddComponent<Image>();
+            rim.sprite = Pill(Css.Hair);
+            rim.type = Image.Type.Sliced;
+            rim.color = new Color(1f, 1f, 1f, 0.10f);
+            rim.raycastTarget = false;
+
+            Text lbl = Type(slot, "state", "", 8f, Palette.Dim, TextAnchor.MiddleRight, 0.1f);
+            var lr = (RectTransform)lbl.transform;
+            lr.offsetMin = new Vector2(9f, 0f);
+            lr.offsetMax = new Vector2(-8f, 0f);
+
+            RectTransform kr = Rect(slot, "knob", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                                    Vector2.zero, Vector2.zero);
+            kr.sizeDelta = new Vector2(SwKnob, SwKnob);
+            kr.pivot = new Vector2(0f, 0.5f);
             var knob = kr.gameObject.AddComponent<Image>();
             knob.sprite = Disc;
-            knob.color = Palette.Ink;
+            knob.type = Image.Type.Sliced;
             knob.raycastTarget = false;
-
-            Text lbl = Label(rt, "state", "", 19, Palette.Void, TextAnchor.MiddleCenter,
-                             Vector2.zero, Vector2.one, new Vector2(12, 0), new Vector2(-12, 0));
 
             void Paint(bool v)
             {
                 track.color = v ? Palette.Rust : Palette.Dim2;
-                kr.anchorMin = kr.anchorMax = new Vector2(v ? 1f : 0f, 0.5f);
-                kr.anchoredPosition = new Vector2(v ? -22f : 22f, 0f);
+                kr.anchoredPosition = new Vector2(SwInset + (v ? SwThrow : 0f), 0f);
+                knob.color = v ? Color.white : Palette.Ink;
                 lbl.text = v ? "ON" : "OFF";
-                lbl.color = v ? Palette.Void : Palette.Ink;
+                // .sw.on::before{ color:#3a1200 }
+                lbl.color = v ? new Color32(0x3a, 0x12, 0x00, 0xff) : Palette.Dim;
                 lbl.alignment = v ? TextAnchor.MiddleLeft : TextAnchor.MiddleRight;
             }
             Paint(on);
 
-            var btn = rt.gameObject.AddComponent<Button>();
+            var btn = slot.gameObject.AddComponent<Button>();
             btn.targetGraphic = track;
+            var colors = btn.colors;
+            colors.normalColor = colors.highlightedColor = colors.pressedColor = Color.white;
+            colors.fadeDuration = 0f;
+            btn.colors = colors;
             btn.onClick.AddListener(() => Paint(set(true)));
             return btn;
         }
 
+        // ---- the range ------------------------------------------------------
+        //
+        // input[type=range]{ height:3px; background:linear-gradient(90deg,
+        //   var(--rust) 0 var(--fill), var(--dim-2) var(--fill) 100%) }
+        // ::-webkit-slider-thumb{ width:17px;height:17px;border-radius:50%;
+        //   background:var(--ink);box-shadow:0 0 0 1px rgba(0,0,0,.6) }
+
+        public const float RangeTrack = 3f, RangeThumb = 17f;
+
         /// <summary>
-        /// A continuous control for a continuous quantity. These were plus and minus
-        /// buttons, which is a fine way to change a number by one and a poor way to
-        /// answer "how bright, out of how bright it goes" — a stepper shows you a
-        /// reading, a slider shows you a POSITION IN A RANGE, and brightness is only
-        /// ever adjusted by comparison with the ends.
+        /// A continuous control for a continuous quantity. These were plus and
+        /// minus buttons, which is a fine way to change a number by one and a poor
+        /// way to answer "how bright, out of how bright it goes" — a stepper shows
+        /// you a reading, a slider shows you a POSITION IN A RANGE, and brightness
+        /// is only ever adjusted by comparison with the ends.
         /// </summary>
-        public static Slider Bar(Transform parent, string name, int lo, int hi, int now,
-                                 System.Action<int> set,
-                                 Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
+        public static Slider Range(RectTransform slot, int lo, int hi, int now, System.Action<int> set)
         {
-            RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
-
-            const float TrackH = 14f, Knob = 28f;
-
-            RectTransform bg = Rect(rt, "track", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                    new Vector2(Knob * 0.5f, -TrackH * 0.5f), new Vector2(-Knob * 0.5f, TrackH * 0.5f));
+            RectTransform bg = Rect(slot, "track", new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
+                                    new Vector2(RangeThumb * 0.5f, -RangeTrack * 0.5f),
+                                    new Vector2(-RangeThumb * 0.5f, RangeTrack * 0.5f));
             var bgi = bg.gameObject.AddComponent<Image>();
-            bgi.sprite = BarFill;
+            bgi.sprite = Frame(2f, 0f);
             bgi.type = Image.Type.Sliced;
             bgi.color = Palette.Dim2;
 
-            RectTransform fillArea = Rect(rt, "fillArea", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                          new Vector2(Knob * 0.5f, -TrackH * 0.5f), new Vector2(-Knob * 0.5f, TrackH * 0.5f));
-            RectTransform fill = Rect(fillArea, "fill", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            RectTransform fillArea = Rect(slot, "fillArea", new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
+                                          new Vector2(RangeThumb * 0.5f, -RangeTrack * 0.5f),
+                                          new Vector2(-RangeThumb * 0.5f, RangeTrack * 0.5f));
+            RectTransform fill = Fill(fillArea, "fill");
             var fi = fill.gameObject.AddComponent<Image>();
-            fi.sprite = BarFill;
+            fi.sprite = Frame(2f, 0f);
             fi.type = Image.Type.Sliced;
             fi.color = Palette.Rust;
 
             // THE HANDLE'S AREA IS A BAND, NOT THE WHOLE ROW.
             //
             // Slider drives handleRect's anchors to (v,0)-(v,1) of this rect and
-            // leaves sizeDelta alone, so a handle with sizeDelta 30 inside a
-            // hundred-pixel row comes out a hundred and thirty tall and thirty
-            // wide. That is the squashed circle. Give it a band its own height and
-            // ask for no extra, and it is the circle it was drawn as.
-            RectTransform handleArea = Rect(rt, "handleArea", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                            new Vector2(Knob * 0.5f, -Knob * 0.5f), new Vector2(-Knob * 0.5f, Knob * 0.5f));
-            RectTransform handle = Rect(handleArea, "handle", new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
-            handle.sizeDelta = new Vector2(Knob, 0f);
+            // leaves sizeDelta alone, so a handle with sizeDelta 17 inside a
+            // fifty-unit row comes out sixty-seven tall and seventeen wide. That is
+            // the squashed circle. Give it a band its own height and ask for no
+            // extra, and it is the circle it was drawn as.
+            RectTransform handleArea = Rect(slot, "handleArea", new Vector2(0f, 0.5f), new Vector2(1f, 0.5f),
+                                            new Vector2(RangeThumb * 0.5f, -RangeThumb * 0.5f),
+                                            new Vector2(-RangeThumb * 0.5f, RangeThumb * 0.5f));
+            RectTransform handle = Rect(handleArea, "handle", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                                        Vector2.zero, Vector2.zero);
+            handle.sizeDelta = new Vector2(RangeThumb, 0f);
             var hi2 = handle.gameObject.AddComponent<Image>();
             hi2.sprite = Disc;
+            hi2.type = Image.Type.Sliced;
             hi2.color = Palette.Ink;
 
-            var s = rt.gameObject.AddComponent<Slider>();
+            var s = slot.gameObject.AddComponent<Slider>();
             s.direction = Slider.Direction.LeftToRight;
             s.minValue = lo;
             s.maxValue = hi;
@@ -460,156 +832,116 @@ namespace Singularity.UI
             return s;
         }
 
-        /// <summary>A plate and its edge, stretched over the whole of <paramref name="rt"/>.</summary>
-        public static Image Framed(RectTransform rt, Color fill, Color edge)
-        {
-            var plate = rt.gameObject.AddComponent<Image>();
-            plate.sprite = RoundFill;
-            plate.type = Image.Type.Sliced;
-            plate.color = fill;
-
-            RectTransform er = Rect(rt, "edge", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            var line = er.gameObject.AddComponent<Image>();
-            line.sprite = RoundLine;
-            line.type = Image.Type.Sliced;
-            line.color = edge;
-            line.raycastTarget = false;
-
-            return plate;
-        }
+        // ---- .edIn ----------------------------------------------------------
+        //
+        // .edIn{ font-size:var(--t-tiny);letter-spacing:.1em;color:var(--ink);
+        //        background:var(--panel);padding:10px 12px;border-radius:var(--r-card);
+        //        box-shadow:inset 0 0 0 var(--hair) var(--edge-2) }
 
         /// <summary>
-        /// A button is a bracketed label inside a lit frame: [ MENU ]. The brackets
-        /// are part of the design system rather than decoration — they say "this is
-        /// pressable" in the same monospace the rest of the interface speaks.
-        ///
-        /// A PRIMARY IS SOLID AND EVERYTHING ELSE IS A HOLE WITH AN EDGE. There is
-        /// exactly one primary on any screen, and it is the only filled shape in the
-        /// interface, so "the thing to press" needs no arrow, no pulse and no hint
-        /// text — it is the one that is on.
+        /// The only free text in the game: a cube's name, a cube number, and a
+        /// pasted share code. All three are folded to the character set the
+        /// interface already speaks before they go anywhere, which is a house-style
+        /// decision that also means no authored string can ever be markup.
         /// </summary>
-        public static Button Bracketed(Transform parent, string name, string label,
-                                       System.Action onClick, int size = 26, bool primary = false)
+        public static InputField Field(RectTransform slot, string placeholder)
         {
-            RectTransform rt = Rect(parent, name, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var bg = slot.gameObject.AddComponent<Image>();
+            bg.sprite = Frame(Css.RCard, 0f);
+            bg.type = Image.Type.Sliced;
+            bg.color = Palette.Panel;
+            Edge(slot, Css.Edge2, Css.RCard, Css.Hair);
 
-            // OPAQUE, ALWAYS. The pause card is deliberately translucent — it sits
-            // over a puzzle somebody is in the middle of and should let it through —
-            // but that is the CARD's job, not its buttons'. A translucent plate put
-            // the board inside the controls, so the cube was visibly running through
-            // the middle of the words VAULTS and BOARDS. A control is a solid thing
-            // you press; whatever is behind the screen stops at its edge.
-            // THE GLOW GOES BEHIND, WHICH MEANS BESIDE. UGUI draws a parent's own
-            // graphic before its children, so a child can never be behind its
-            // parent's plate — the glow has to be a sibling, ordered first.
-            if (primary)
-            {
-                RectTransform gr = Rect(parent, name + "_glow", Vector2.zero, Vector2.one,
-                                        new Vector2(-GlowReach, -GlowReach), new Vector2(GlowReach, GlowReach));
-                var g = gr.gameObject.AddComponent<Image>();
-                g.sprite = GlowFill;
-                g.type = Image.Type.Sliced;
-                g.color = new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.70f);
-                g.raycastTarget = false;
-                gr.SetAsFirstSibling();
-                rt.SetAsLastSibling();
-            }
+            Text text = Type(slot, "text", "", Css.TTiny, Palette.Ink, TextAnchor.MiddleLeft, 0.1f);
+            var tr = (RectTransform)text.transform;
+            tr.offsetMin = new Vector2(12f, 0f);
+            tr.offsetMax = new Vector2(-12f, 0f);
 
-            Image plate = Framed(rt, primary ? Palette.Rust : Palette.Panel,
-                                     primary ? EdgeOn : Edge);
+            Text hint = Type(slot, "placeholder", placeholder, Css.TTiny, Palette.Dim2,
+                             TextAnchor.MiddleLeft, 0.1f);
+            var hr = (RectTransform)hint.transform;
+            hr.offsetMin = new Vector2(12f, 0f);
+            hr.offsetMax = new Vector2(-12f, 0f);
 
-            var btn = rt.gameObject.AddComponent<Button>();
-            btn.targetGraphic = plate;
-
-            var colors = btn.colors;
-            colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(1.15f, 1.15f, 1.15f, 1f);
-            colors.pressedColor = new Color(0.8f, 0.8f, 0.8f, 1f);
-            colors.fadeDuration = 0.06f;
-            btn.colors = colors;
-
-            // --t-sm on a control, --t-md on a primary; black on the rust, because
-            // the shipped rule is literally color:#000
-            Label(rt, "label", "[ " + label + " ]", size,
-                  primary ? Palette.Void : Palette.Ink, TextAnchor.MiddleCenter,
-                  Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-
-            if (onClick != null) btn.onClick.AddListener(() => onClick());
-            return btn;
-        }
-
-        /// <summary>
-        /// A PRESSABLE THING THAT IS NOT A BUTTON.
-        ///
-        /// Three framed buttons in a column are three equal offers, and a card that
-        /// offers three equal things has not decided what it is for. The one action
-        /// the screen exists for keeps its plate; everything else becomes a
-        /// bracketed label with nothing behind it — still obviously pressable,
-        /// because the brackets are what say so, and audibly quieter because it has
-        /// no weight on the page.
-        ///
-        /// The invisible Image is not decoration either: a Text alone has nothing
-        /// for the raycaster to hit across its whole rect, so the target would be
-        /// the glyphs and not the gap between them.
-        /// </summary>
-        public static Button Link(Transform parent, string name, string label,
-                                  System.Action onClick, int size = 22, Color? tint = null)
-        {
-            RectTransform rt = Rect(parent, name, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            var hit = rt.gameObject.AddComponent<Image>();
-            hit.color = new Color(0, 0, 0, 0);
-
-            var btn = rt.gameObject.AddComponent<Button>();
-            btn.targetGraphic = hit;
-
-            Text t = Label(rt, "label", "[ " + label + " ]", size, tint ?? Palette.Dim,
-                           TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-
-            var colors = btn.colors;
-            colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(1f, 1f, 1f, 1f);
-            colors.pressedColor = new Color(1f, 1f, 1f, 0.5f);
-            colors.fadeDuration = 0.06f;
-            btn.colors = colors;
-
-            if (onClick != null) btn.onClick.AddListener(() => onClick());
-            return btn;
-        }
-
-        public static void SetLabel(Button b, string text)
-        {
-            var t = b.GetComponentInChildren<Text>();
-            if (t != null) t.text = "[ " + text + " ]";
-        }
-
-        /// <summary>
-        /// The only free text in the game: a cube's name, and a pasted share code.
-        /// Both are folded to the character set the interface already speaks before
-        /// they go anywhere, which is a house-style decision that also means no
-        /// authored string can ever be markup.
-        /// </summary>
-        public static InputField Field(Transform parent, string name, string placeholder,
-                                       Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
-        {
-            RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
-            Image bg = Framed(rt, Palette.Panel, Edge);
-
-            Text text = Label(rt, "text", "", 22, Palette.Ink, TextAnchor.MiddleLeft,
-                              Vector2.zero, Vector2.one, new Vector2(14, 0), new Vector2(-14, 0));
-            text.raycastTarget = false;
-            text.supportRichText = false;
-
-            Text hint = Label(rt, "placeholder", placeholder, 20, Palette.Dim2, TextAnchor.MiddleLeft,
-                              Vector2.zero, Vector2.one, new Vector2(14, 0), new Vector2(-14, 0));
-            hint.raycastTarget = false;
-
-            var field = rt.gameObject.AddComponent<InputField>();
+            var field = slot.gameObject.AddComponent<InputField>();
             field.targetGraphic = bg;
             field.textComponent = text;
             field.placeholder = hint;
             field.lineType = InputField.LineType.SingleLine;
             return field;
         }
+
+        // ---- marks ----------------------------------------------------------
+
+        /// <summary>One of the shipped drawings, at a size in CSS pixels.</summary>
+        public static Image Mark(Transform parent, string name, Sprite sprite, Color col,
+                                 float w, float h, Vector2 anchor, Vector2 offset)
+        {
+            RectTransform rt = Rect(parent, name, anchor, anchor, Vector2.zero, Vector2.zero);
+            rt.sizeDelta = new Vector2(w, h);
+            rt.anchoredPosition = offset;
+            var img = rt.gameObject.AddComponent<Image>();
+            img.sprite = sprite;
+            img.color = col;
+            img.raycastTarget = false;
+            return img;
+        }
+
+        // ---- the scroller ---------------------------------------------------
+
+        /// <summary>
+        /// A SCREEN THAT DOES NOT FIT IS NOT A LAYOUT PROBLEM, IT IS A SCROLL.
+        ///
+        /// `.layer` is `overflow-y:auto`, so this is not a special case for the
+        /// manual — it is what every screen in the game does when the content is
+        /// taller than the device. The two elastic spacers collapse and the column
+        /// runs from the top.
+        ///
+        /// Returns the CONTENT, with a <see cref="Flow"/> already on it.
+        /// </summary>
+        public static Flow Column(RectTransform layer, bool centred = true)
+        {
+            RectTransform view = Rect(layer, "view", Vector2.zero, Vector2.one,
+                                      new Vector2(Css.PadX, Css.PadY), new Vector2(-Css.PadX, -Css.PadY));
+
+            // the mask needs something to raycast against or the drag never starts,
+            // and it has to be invisible or it is a panel
+            var catcher = view.gameObject.AddComponent<Image>();
+            catcher.color = new Color(0f, 0f, 0f, 0f);
+            view.gameObject.AddComponent<RectMask2D>();
+
+            RectTransform content = Rect(view, "content", new Vector2(0f, 1f), new Vector2(1f, 1f),
+                                         Vector2.zero, Vector2.zero);
+            content.pivot = new Vector2(0.5f, 1f);
+
+            var sr = view.gameObject.AddComponent<ScrollRect>();
+            sr.viewport = view;
+            sr.content = content;
+            sr.horizontal = false;
+            sr.vertical = true;
+            // Clamped rather than elastic: this is a document, and a document that
+            // bounces off its own end reads as a toy. Inertia stays, because a flick
+            // through a page of rules is the one gesture this screen exists for.
+            sr.movementType = ScrollRect.MovementType.Clamped;
+            sr.inertia = true;
+            sr.decelerationRate = 0.135f;
+            sr.scrollSensitivity = 28f;
+
+            Flow f = Flow.On(content, view);
+            f.centred = centred;
+            return f;
+        }
+
+        /// <summary>A child of a column: an empty box, ready to be filled.</summary>
+        public static RectTransform Slot(Flow col, string name, float height, float maxW, float marginBottom)
+        {
+            RectTransform rt = Rect(((MonoBehaviour)col).transform, name,
+                                    Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+            col.Add(rt, height, maxW, marginBottom);
+            return rt;
+        }
+
+        // ---- the title's stage ----------------------------------------------
 
         /// <summary>
         /// THE TITLE SCREEN IS A STAGE, NOT A PANE OF GLASS.
@@ -620,9 +952,9 @@ namespace Singularity.UI
         /// between the player and the object. The gradient only darkens where words
         /// have to sit on top of it.
         ///
-        /// The stops are the original's, and they are load-bearing rather than
-        /// tasteful — the two zero-alpha stops in the middle are what make it a
-        /// stage instead of a tint.
+        /// The stops are the shipped ones, read straight off `#scTitle`, and they
+        /// are load-bearing rather than tasteful — the two zero-alpha stops in the
+        /// middle are what make it a stage instead of a tint.
         /// </summary>
         public static Image Stage(RectTransform rt)
         {
@@ -634,14 +966,12 @@ namespace Singularity.UI
                 name = "stage"
             };
 
-            // position down the screen -> alpha of black
-            // The clear window sits LOWER than the original's, because this port
-            // prints two extra lines at the top — the vault and the cube it will
-            // resume — and the pitch underneath them was landing at a third of the
-            // way down, where the old ramp had already gone transparent. Type over
-            // an unscrimmed turning cube is type nobody can read.
-            float[] stopAt = { 0f, 0.18f, 0.36f, 0.46f, 0.56f, 0.66f, 0.76f, 1f };
-            float[] stopA  = { 0.96f, 0.88f, 0.16f, 0f, 0f, 0.34f, 0.90f, 1f };
+            // linear-gradient(180deg,
+            //   rgba(0,0,0,.96) 0%, rgba(0,0,0,.80) 13%, rgba(0,0,0,.12) 27%,
+            //   rgba(0,0,0,0) 42%, rgba(0,0,0,0) 52%,
+            //   rgba(0,0,0,.32) 62%, rgba(0,0,0,.90) 74%, rgba(0,0,0,1) 100%)
+            float[] stopAt = { 0f, 0.13f, 0.27f, 0.42f, 0.52f, 0.62f, 0.74f, 1f };
+            float[] stopA = { 0.96f, 0.80f, 0.12f, 0f, 0f, 0.32f, 0.90f, 1f };
 
             var px = new Color32[N];
             for (int i = 0; i < N; i++)
@@ -658,75 +988,60 @@ namespace Singularity.UI
             tex.Apply(false, true);
 
             Image img = Ensure<Image>(rt.gameObject);
-            img.sprite = Sprite.Create(tex, new UnityEngine.Rect(0, 0, 1, N), new Vector2(0.5f, 0.5f), 100f);
+            img.sprite = Sprite.Create(tex, new Rect(0, 0, 1, N), new Vector2(0.5f, 0.5f), 100f);
             img.type = Image.Type.Simple;
             img.color = Color.white;
             return img;
         }
 
         /// <summary>
-        /// A SCREEN THAT DOES NOT FIT IS NOT A LAYOUT PROBLEM, IT IS A SCROLL.
-        ///
-        /// The manual was tuned until it fitted a 1280-tall canvas, which is a
-        /// number, not a phone: a short device or a large system font puts the last
-        /// two entries under the button again, and the only honest answer to "how
-        /// much text is there" is "as much as there is". Everything below goes in a
-        /// clipped viewport with a content rect that is however tall it turns out
-        /// to be.
-        ///
-        /// Returns the CONTENT to fill; call <see cref="EndScroll"/> with its final
-        /// height when you have finished filling it.
+        /// `.stick` — the gradient that nails GOT IT to the bottom of a scrolling
+        /// page. `linear-gradient(180deg, transparent, rgba(0,0,0,.94) 34%, #000 62%)`,
+        /// so the last line of the manual fades out under the button instead of
+        /// being cut off by it.
         /// </summary>
-        public static RectTransform Scroll(RectTransform parent, string name,
-                                           Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
+        public static Image StickFade(RectTransform rt)
         {
-            RectTransform view = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
+            const int N = 64;
+            var tex = new Texture2D(1, N, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+                name = "stick"
+            };
+            var px = new Color32[N];
+            for (int i = 0; i < N; i++)
+            {
+                float down = 1f - i / (float)(N - 1);
+                float a = down < 0.34f ? Mathf.Lerp(0f, 0.94f, down / 0.34f)
+                        : down < 0.62f ? Mathf.Lerp(0.94f, 1f, (down - 0.34f) / 0.28f)
+                        : 1f;
+                px[i] = new Color32(0, 0, 0, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
 
-            // the mask needs something to raycast against or the drag never starts,
-            // and it has to be invisible or it is a panel
-            var catcher = view.gameObject.AddComponent<Image>();
-            catcher.color = new Color(0, 0, 0, 0);
-            view.gameObject.AddComponent<RectMask2D>();
-
-            RectTransform content = Rect(view, "content", new Vector2(0, 1), new Vector2(1, 1), Vector2.zero, Vector2.zero);
-            content.pivot = new Vector2(0.5f, 1f);
-
-            var sr = view.gameObject.AddComponent<ScrollRect>();
-            sr.viewport = view;
-            sr.content = content;
-            sr.horizontal = false;
-            sr.vertical = true;
-            // Clamped rather than elastic: this is a document, and a document that
-            // bounces off its own end reads as a toy. Inertia stays, because a flick
-            // through a page of rules is the one gesture this screen exists for.
-            sr.movementType = ScrollRect.MovementType.Clamped;
-            sr.inertia = true;
-            sr.decelerationRate = 0.135f;
-            sr.scrollSensitivity = 28f;
-            return content;
-        }
-
-        /// <summary>Tell a scroll how tall its content turned out to be.</summary>
-        public static void EndScroll(RectTransform content, float height)
-            => content.sizeDelta = new Vector2(0f, height);
-
-        /// <summary>One of the drawn marks from <see cref="Glyphs"/>, in the interface.</summary>
-        public static Image Icon(Transform parent, string role, Color col, float size,
-                                 Vector2 anchor, Vector2 offset)
-        {
-            RectTransform rt = Rect(parent, role, anchor, anchor, Vector2.zero, Vector2.zero);
-            rt.sizeDelta = new Vector2(size, size);
-            rt.anchoredPosition = offset;
-            var img = rt.gameObject.AddComponent<Image>();
-            img.sprite = Glyphs.For(role);
-            img.color = col;
+            Image img = Ensure<Image>(rt.gameObject);
+            img.sprite = Sprite.Create(tex, new Rect(0, 0, 1, N), new Vector2(0.5f, 0.5f), 100f);
+            img.type = Image.Type.Simple;
+            img.color = Color.white;
             img.raycastTarget = false;
             return img;
         }
 
-        /// <summary>A hairline. One pixel of rust at low alpha, the only border in the game.</summary>
-        public static Image Rule(Transform parent, float y, float alpha = 0.34f)
-            => Panel(parent, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, alpha),
-                     new Vector2(0, y), new Vector2(1, y), new Vector2(24, -1), new Vector2(-24, 1));
+        /// <summary>
+        /// A LINEAR-GRADIENT WITH A HARD STOP IS A PROGRESS RAIL. Both the vault
+        /// swatch and the boards rail are written that way in the shipped build —
+        /// `linear-gradient(90deg,var(--arc) 0 62%,transparent 0)` — which is a
+        /// filled bar and an empty one, not a fade.
+        /// </summary>
+        public static void Rail(RectTransform rt, Color col, float fraction, Color? rest = null)
+        {
+            for (int i = rt.childCount - 1; i >= 0; i--) Object.Destroy(rt.GetChild(i).gameObject);
+            Panel(rt, "on", col, Vector2.zero, new Vector2(Mathf.Clamp01(fraction), 1f), Vector2.zero, Vector2.zero);
+            if (rest.HasValue)
+                Panel(rt, "off", rest.Value, new Vector2(Mathf.Clamp01(fraction), 0f), Vector2.one,
+                      Vector2.zero, Vector2.zero);
+        }
     }
 }
