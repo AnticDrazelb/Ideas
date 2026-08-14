@@ -45,6 +45,13 @@ namespace Singularity.Game
             cam.transform.rotation = Quaternion.identity;   // looks down +Z
             cam.allowHDR = false;
             cam.allowMSAA = true;
+
+            // THE EAR. Unity plays nothing at all without one of these, and it says
+            // so as a warning rather than an error — so a build with no listener is
+            // a silent game that looks like it is working. Every scene here is built
+            // in code from Bootstrap, which means there is no scene-authored camera
+            // carrying the default one, which means it has to be put here.
+            go.AddComponent<AudioListener>();
         }
 
         /// <summary>

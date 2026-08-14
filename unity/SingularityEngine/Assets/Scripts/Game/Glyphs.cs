@@ -21,22 +21,38 @@ namespace Singularity.Game
 
         static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
 
-        static Material _mat;
+        static Material _mat, _add;
+
+        static Shader Sh()
+        {
+            Shader sh = Shader.Find("Singularity/Glyph");
+            if (sh == null) { Debug.LogError("Singularity/Glyph shader missing"); sh = Shader.Find("Sprites/Default"); }
+            return sh;
+        }
 
         /// <summary>
         /// One shared material for every glyph. It draws with the depth test off,
         /// because whether a glyph is visible has ALREADY been decided by the
         /// projection — see Singularity/Glyph.shader.
         /// </summary>
-        public static Material Material
+        public static Material Material => _mat ??= new Material(Sh()) { name = "glyph" };
+
+        /// <summary>
+        /// The same shader set to add rather than cover, for the two parts of the
+        /// marker that are LIGHT — the photon ring and the lensing halo. They sit
+        /// on top of a hole that has already removed the board, so anything less
+        /// than additive would be a bright ring painted ON something rather than
+        /// light bending around an absence.
+        /// </summary>
+        public static Material Additive
         {
             get
             {
-                if (_mat != null) return _mat;
-                Shader sh = Shader.Find("Singularity/Glyph");
-                if (sh == null) { Debug.LogError("Singularity/Glyph shader missing"); sh = Shader.Find("Sprites/Default"); }
-                _mat = new Material(sh) { name = "glyph" };
-                return _mat;
+                if (_add != null) return _add;
+                _add = new Material(Sh()) { name = "glyph+" };
+                _add.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.One);
+                _add.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.One);
+                return _add;
             }
         }
 
@@ -63,17 +79,19 @@ namespace Singularity.Game
                 {
                     // sample on a -1..1 square, with a little supersampling so the
                     // diagonals do not stair-step at small sizes
-                    float a = 0f;
+                    var acc = Color.clear;
                     const int SS = 3;
                     for (int sy = 0; sy < SS; sy++)
                         for (int sx = 0; sx < SS; sx++)
                         {
                             float u = ((x + (sx + 0.5f) / SS) / R) * 2f - 1f;
                             float v = ((y + (sy + 0.5f) / SS) / R) * 2f - 1f;
-                            a += Sample(role, u, v);
+                            acc += role == "halo" ? Halo(u, v)
+                                                  : new Color(1f, 1f, 1f, Sample(role, u, v));
                         }
-                    a /= SS * SS;
-                    px[y * R + x] = new Color32(255, 255, 255, (byte)Mathf.Clamp01(a).ScaleTo255());
+                    acc /= SS * SS;
+                    px[y * R + x] = new Color32((byte)acc.r.ScaleTo255(), (byte)acc.g.ScaleTo255(),
+                                                (byte)acc.b.ScaleTo255(), (byte)acc.a.ScaleTo255());
                 }
 
             tex.SetPixels32(px);
@@ -130,18 +148,70 @@ namespace Singularity.Game
                     float r = Mathf.Sqrt(d * d + v * v);
                     return r < 0.82f ? 1f : Mathf.Clamp01(1f - (r - 0.82f) / 0.12f);
                 }
-                default: // "player" — the singularity itself
+                case "ring":
                 {
+                    // THE EDGE DOES THE FINDING. One thin, very bright circle right
+                    // on the silhouette. On a pale deck this ring is the whole
+                    // difference between "a hole in the world" and "a hole in the
+                    // floor", and it is the only reason a black object is allowed to
+                    // be the player marker in a game where dark already means
+                    // impassable.
                     float r = Mathf.Sqrt(u * u + v * v);
-                    float horizon = Band(r, 0.74f, 0.11f);
-                    // the hole is a HOLE: opaque black is drawn by the renderer's
-                    // own dark colour behind it, so the sprite carries only the
-                    // horizon and a soft accretion edge
-                    float glow = Mathf.Clamp01(1f - Mathf.Abs(r - 0.90f) / 0.16f) * 0.35f;
-                    float disc = r < 0.66f ? 1f : 0f;
-                    return Mathf.Max(Mathf.Max(horizon, glow), disc * 0.92f);
+                    return Band(r, 0.965f, 0.0525f);      // lineWidth rr*0.105
+                }
+                case "arc":
+                {
+                    // Brighter over one arc, travelling: the whole of "it is turning".
+                    float r = Mathf.Sqrt(u * u + v * v);
+                    float band = Band(r, 0.965f, 0.025f);  // lineWidth rr*0.05
+                    if (band <= 0f) return 0f;
+                    float a = Mathf.Atan2(v, u);
+                    if (a < 0f) a += Mathf.PI * 2f;
+                    // two radians of it, feathered at both ends rather than butt-capped
+                    const float Span = 2.0f, Fade = 0.10f;
+                    if (a > Span + Fade) return 0f;
+                    float ends = Mathf.Min(Mathf.Clamp01(a / Fade), Mathf.Clamp01((Span + Fade - a) / Fade));
+                    return band * ends;
+                }
+                default: // "hole" — the event horizon itself
+                {
+                    // A HOLE, NOT A BALL. This is drawn opaque and black, so it does
+                    // not cover the deck it stands on — it REMOVES it, down to the
+                    // same nothing the void columns are. A dark disc would be a spot
+                    // of black ON the board; this is an absence OF board, and the eye
+                    // reads the difference long before it can name it.
+                    float r = Mathf.Sqrt(u * u + v * v);
+                    return r < 0.985f ? 1f : Mathf.Clamp01(1f - (r - 0.985f) / 0.015f);
                 }
             }
+        }
+
+        /// <summary>
+        /// THE LENSING HALO, and the one detail that decides whether any of this works.
+        ///
+        /// A radial gradient FILLS ITS INNER CIRCLE with the stop-0 colour, so a
+        /// "donut" whose first stop is bright is a filled disc with extra steps —
+        /// which is exactly what floods the horizon and turns the one black thing on
+        /// the board into a slate-grey disc. Stop 0 is transparent; the light starts
+        /// a hair outside it. The original carries a paragraph about getting this
+        /// wrong, and it is worth carrying the fix across with it.
+        ///
+        /// Sampled so r=1 is 2.1 marker radii, which is where the halo ends.
+        /// </summary>
+        static Color Halo(float u, float v)
+        {
+            float r = Mathf.Sqrt(u * u + v * v) * 2.1f;      // back into marker radii
+            float t = (r - 0.86f) / (2.1f - 0.86f);
+            if (t <= 0f || t >= 1f) return Color.clear;
+
+            Color c0 = new Color(0.133f, 0.827f, 0.933f, 0f);        // #22d3ee, transparent
+            Color c1 = new Color(0.133f, 0.827f, 0.933f, 0.34f);
+            Color c2 = new Color(0.055f, 0.647f, 0.914f, 0.15f);     // #0ea5e9
+            Color c3 = new Color(0.047f, 0.290f, 0.427f, 0f);        // #0c4a6e, transparent
+
+            if (t < 0.04f) return Color.Lerp(c0, c1, t / 0.04f);
+            if (t < 0.22f) return Color.Lerp(c1, c2, (t - 0.04f) / 0.18f);
+            return Color.Lerp(c2, c3, (t - 0.22f) / 0.78f);
         }
 
         static float Band(float value, float at, float halfWidth)

@@ -137,20 +137,105 @@ namespace Singularity.UI
             return t;
         }
 
+        // ---- the frame ------------------------------------------------------
+        //
+        // EVERY PRESSABLE THING IN THIS GAME IS A LIT FRAME, and it took a
+        // side-by-side with the shipped build to notice that this port had been
+        // drawing flat rectangles instead. The brackets around a label say "this is
+        // pressable"; the frame is what makes the whole interface look like an
+        // INSTRUMENT rather than a list of words on black. It is not decoration —
+        // it is the difference the eye reads first.
+        //
+        // Generated rather than imported, and nine-sliced, so one 64px texture is
+        // every button, chip, field and card at every size, and the corner radius
+        // stays the same number of real pixels whatever the control's shape.
+
+        const int FrameTex = 64, FrameRad = 16, FrameSlice = 20, FrameStroke = 3;
+
+        static Sprite _fill, _line;
+
+        /// <summary>The plate: a filled rounded rectangle.</summary>
+        public static Sprite RoundFill => _fill ??= BuildFrame(false);
+
+        /// <summary>The edge: the same rectangle as a stroke, and the thing that lights up.</summary>
+        public static Sprite RoundLine => _line ??= BuildFrame(true);
+
+        static Sprite BuildFrame(bool stroke)
+        {
+            var tex = new Texture2D(FrameTex, FrameTex, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                name = stroke ? "frame_line" : "frame_fill"
+            };
+
+            var px = new Color32[FrameTex * FrameTex];
+            const float H = FrameTex * 0.5f;
+
+            for (int y = 0; y < FrameTex; y++)
+                for (int x = 0; x < FrameTex; x++)
+                {
+                    // signed distance to a rounded rectangle: negative inside
+                    float dx = Mathf.Abs(x + 0.5f - H) - (H - FrameRad);
+                    float dy = Mathf.Abs(y + 0.5f - H) - (H - FrameRad);
+                    float outside = Mathf.Sqrt(Mathf.Max(dx, 0f) * Mathf.Max(dx, 0f)
+                                             + Mathf.Max(dy, 0f) * Mathf.Max(dy, 0f));
+                    float d = outside + Mathf.Min(Mathf.Max(dx, dy), 0f) - FrameRad;
+
+                    float a = stroke
+                        // a band hugging the edge from the inside, feathered both ways
+                        ? Mathf.Clamp01(0.5f - d) * Mathf.Clamp01(d + FrameStroke + 0.5f)
+                        : Mathf.Clamp01(0.5f - d);
+
+                    px[y * FrameTex + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
+                }
+
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            return Sprite.Create(tex, new UnityEngine.Rect(0, 0, FrameTex, FrameTex), new Vector2(0.5f, 0.5f), 100f,
+                                 0, SpriteMeshType.FullRect,
+                                 new Vector4(FrameSlice, FrameSlice, FrameSlice, FrameSlice));
+        }
+
+        /// <summary>A plate and its edge, stretched over the whole of <paramref name="rt"/>.</summary>
+        public static Image Framed(RectTransform rt, Color fill, Color edge)
+        {
+            var plate = rt.gameObject.AddComponent<Image>();
+            plate.sprite = RoundFill;
+            plate.type = Image.Type.Sliced;
+            plate.color = fill;
+
+            RectTransform er = Rect(rt, "edge", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var line = er.gameObject.AddComponent<Image>();
+            line.sprite = RoundLine;
+            line.type = Image.Type.Sliced;
+            line.color = edge;
+            line.raycastTarget = false;
+
+            return plate;
+        }
+
         /// <summary>
-        /// A button is a bracketed label on a panel, because that is what every
-        /// control in this game looks like: [ MENU ]. The brackets are part of the
-        /// design system, not decoration — they say "this is pressable" without
-        /// needing a border to do it.
+        /// A button is a bracketed label inside a lit frame: [ MENU ]. The brackets
+        /// are part of the design system rather than decoration — they say "this is
+        /// pressable" in the same monospace the rest of the interface speaks.
+        ///
+        /// A PRIMARY IS SOLID AND EVERYTHING ELSE IS A HOLE WITH AN EDGE. There is
+        /// exactly one primary on any screen, and it is the only filled shape in the
+        /// interface, so "the thing to press" needs no arrow, no pulse and no hint
+        /// text — it is the one that is on.
         /// </summary>
         public static Button Bracketed(Transform parent, string name, string label,
                                        System.Action onClick, int size = 26, bool primary = false)
         {
             RectTransform rt = Rect(parent, name, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            var img = rt.gameObject.AddComponent<Image>();
-            img.color = primary ? new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.16f) : Palette.Panel;
+
+            Image plate = Framed(rt,
+                primary ? Palette.Rust : new Color(Palette.Panel.r, Palette.Panel.g, Palette.Panel.b, 0.82f),
+                primary ? Palette.RustHi : new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.70f));
+
             var btn = rt.gameObject.AddComponent<Button>();
-            btn.targetGraphic = img;
+            btn.targetGraphic = plate;
 
             var colors = btn.colors;
             colors.normalColor = Color.white;
@@ -160,7 +245,7 @@ namespace Singularity.UI
             btn.colors = colors;
 
             Label(rt, "label", "[ " + label + " ]", size,
-                  primary ? Palette.RustHi : Palette.Ink, TextAnchor.MiddleCenter,
+                  primary ? Palette.Void : Palette.Ink, TextAnchor.MiddleCenter,
                   Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             if (onClick != null) btn.onClick.AddListener(() => onClick());
@@ -183,8 +268,8 @@ namespace Singularity.UI
                                        Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
         {
             RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
-            var bg = rt.gameObject.AddComponent<Image>();
-            bg.color = Palette.Panel;
+            Image bg = Framed(rt, new Color(Palette.Panel.r, Palette.Panel.g, Palette.Panel.b, 0.9f),
+                                  new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.45f));
 
             Text text = Label(rt, "text", "", 22, Palette.Ink, TextAnchor.MiddleLeft,
                               Vector2.zero, Vector2.one, new Vector2(14, 0), new Vector2(-14, 0));
@@ -201,6 +286,54 @@ namespace Singularity.UI
             field.placeholder = hint;
             field.lineType = InputField.LineType.SingleLine;
             return field;
+        }
+
+        /// <summary>
+        /// THE TITLE SCREEN IS A STAGE, NOT A PANE OF GLASS.
+        ///
+        /// A flat scrim over the whole screen darkens the one thing the screen is
+        /// actually about — the cube turning behind it. So the chrome occupies a
+        /// band at each end and THE MIDDLE IS LEFT COMPLETELY ALONE: nothing at all
+        /// between the player and the object. The gradient only darkens where words
+        /// have to sit on top of it.
+        ///
+        /// The stops are the original's, and they are load-bearing rather than
+        /// tasteful — the two zero-alpha stops in the middle are what make it a
+        /// stage instead of a tint.
+        /// </summary>
+        public static Image Stage(RectTransform rt)
+        {
+            const int N = 256;
+            var tex = new Texture2D(1, N, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+                name = "stage"
+            };
+
+            // position down the screen -> alpha of black
+            float[] stopAt = { 0f, 0.13f, 0.27f, 0.42f, 0.52f, 0.62f, 0.74f, 1f };
+            float[] stopA  = { 0.96f, 0.80f, 0.12f, 0f, 0f, 0.32f, 0.90f, 1f };
+
+            var px = new Color32[N];
+            for (int i = 0; i < N; i++)
+            {
+                float t = i / (float)(N - 1);
+                float down = 1f - t;                 // texture row 0 is the BOTTOM
+                int s = 0;
+                while (s < stopAt.Length - 2 && down > stopAt[s + 1]) s++;
+                float k = Mathf.InverseLerp(stopAt[s], stopAt[s + 1], down);
+                float a = Mathf.Lerp(stopA[s], stopA[s + 1], k);
+                px[i] = new Color32(0, 0, 0, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+
+            var img = rt.gameObject.GetComponent<Image>() ?? rt.gameObject.AddComponent<Image>();
+            img.sprite = Sprite.Create(tex, new UnityEngine.Rect(0, 0, 1, N), new Vector2(0.5f, 0.5f), 100f);
+            img.type = Image.Type.Simple;
+            img.color = Color.white;
+            return img;
         }
 
         /// <summary>A hairline. One pixel of rust at low alpha, the only border in the game.</summary>

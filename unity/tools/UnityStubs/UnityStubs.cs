@@ -64,6 +64,8 @@ namespace UnityEngine
         public static Quaternion identity => default;
         public static Quaternion LookRotation(Vector3 f, Vector3 u) => default;
         public static Quaternion AngleAxis(float a, Vector3 axis) => default;
+        public static Quaternion Euler(float x, float y, float z) => default;
+        public static Quaternion Euler(Vector3 e) => default;
         public static Quaternion operator *(Quaternion a, Quaternion b) => default;
         public static Vector3 operator *(Quaternion a, Vector3 v) => default;
     }
@@ -74,6 +76,9 @@ namespace UnityEngine
         public Color(float r, float g, float b, float a = 1) { this.r = r; this.g = g; this.b = b; this.a = a; }
         public static Color white => new Color(1, 1, 1);
         public static Color black => new Color(0, 0, 0);
+        public static Color clear => new Color(0, 0, 0, 0);
+        public static Color operator +(Color a, Color b) => a;
+        public static Color operator /(Color c, float f) => c;
         public static Color Lerp(Color a, Color b, float t) => a;
         public static Color operator *(Color c, float f) => c;
         public static implicit operator Color(Color32 c) => new Color(c.r / 255f, c.g / 255f, c.b / 255f, c.a / 255f);
@@ -130,6 +135,8 @@ namespace UnityEngine
         public static float Round(float f) => (float)Math.Round(f, MidpointRounding.AwayFromZero);
         public static float Sin(float f) => (float)Math.Sin(f);
         public static float Cos(float f) => (float)Math.Cos(f);
+        public static float Atan2(float y, float x) => (float)Math.Atan2(y, x);
+        public static float InverseLerp(float a, float b, float v) => a == b ? 0f : Clamp01((v - a) / (b - a));
         public static float Exp(float f) => (float)Math.Exp(f);
     }
 
@@ -178,6 +185,7 @@ namespace UnityEngine
         public Vector3 up => default;
         public Vector3 right => default;
         public int childCount => 0;
+        public Transform parent { get; set; }
         public Transform GetChild(int i) => null;
         public Transform Find(string n) => null;
         public void SetParent(Transform p, bool worldPositionStays) { }
@@ -194,6 +202,8 @@ namespace UnityEngine
         public Vector2 offsetMin { get; set; }
         public Vector2 offsetMax { get; set; }
         public Vector2 anchoredPosition { get; set; }
+        public Vector2 sizeDelta { get; set; }
+        public Rect rect => default;
     }
 
     public class MonoBehaviour : Behaviour
@@ -281,6 +291,16 @@ namespace UnityEngine
     public class Sprite : Object
     {
         public static Sprite Create(Texture2D t, Rect r, Vector2 pivot, float ppu) => null;
+        public static Sprite Create(Texture2D t, Rect r, Vector2 pivot, float ppu,
+                                    uint extrude, SpriteMeshType meshType, Vector4 border) => null;
+    }
+
+    public enum SpriteMeshType { FullRect, Tight }
+
+    public struct Vector4
+    {
+        public float x, y, z, w;
+        public Vector4(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; }
     }
 
     public class RenderTexture : Texture { }
@@ -319,6 +339,8 @@ namespace UnityEngine
         public static AudioClip Create(string name, int lengthSamples, int channels, int frequency, bool stream, PCMReaderCallback read) => null;
         public bool SetData(float[] data, int offset) => true;
     }
+
+    public class AudioListener : Behaviour { }
 
     public class AudioSource : Behaviour
     {
@@ -471,6 +493,15 @@ namespace UnityEngine
         public enum ShadowCastingMode { Off, On }
         public enum LightProbeUsage { Off, BlendProbes }
         public enum CompareFunction { Disabled = 0, Never = 1, Less = 2, Equal = 3, LessEqual = 4, Greater = 5, NotEqual = 6, GreaterEqual = 7, Always = 8 }
+
+        // The values matter: they are what a material's _SrcBlend/_DstBlend floats
+        // are set to, so a wrong number here is a wrong blend in the build.
+        public enum BlendMode
+        {
+            Zero = 0, One = 1, DstColor = 2, SrcColor = 3, OneMinusDstColor = 4,
+            SrcAlpha = 5, OneMinusSrcColor = 6, DstAlpha = 7, OneMinusDstAlpha = 8,
+            SrcAlphaSaturate = 9, OneMinusSrcAlpha = 10
+        }
     }
 
     namespace UI
@@ -482,7 +513,13 @@ namespace UnityEngine
             public RectTransform rectTransform => null;
         }
 
-        public class Image : Graphic { }
+        public class Image : Graphic
+        {
+            public enum Type { Simple, Sliced, Tiled, Filled }
+            public Sprite sprite { get; set; }
+            public Type type { get; set; }
+            public bool preserveAspect { get; set; }
+        }
 
         public class Text : Graphic
         {

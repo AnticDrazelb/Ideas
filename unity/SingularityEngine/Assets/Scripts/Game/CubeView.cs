@@ -220,9 +220,9 @@ namespace Singularity.Game
                 var go = new GameObject("pip" + i);
                 go.transform.SetParent(_markerRoot, false);
                 var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = Glyphs.For("player");
+                sr.sprite = Glyphs.For("pip");
                 sr.sharedMaterial = Glyphs.Material;
-                sr.sortingOrder = 96;
+                sr.sortingOrder = 95;
                 go.transform.localScale = Vector3.one * 0.22f;
                 go.SetActive(false);
                 _nearPips.Add(go.transform);
@@ -234,7 +234,11 @@ namespace Singularity.Game
             t.transform.SetParent(_markerRoot, false);
             _throughSr = t.AddComponent<SpriteRenderer>();
             _throughSr.sharedMaterial = Glyphs.Material;
-            _throughSr.sortingOrder = 94;
+            // ABOVE THE HORIZON, NOT BEHIND IT. This is the far side of the world
+            // seen THROUGH the hole, so it has to draw after the hole has removed
+            // the deck — at 94 it was being covered by the very thing it is meant
+            // to be visible through. See PlayerOrb for the rest of the stack.
+            _throughSr.sortingOrder = 98;
             t.transform.localScale = Vector3.one * 0.34f;
             _through = t.transform;
             t.SetActive(false);
@@ -271,7 +275,8 @@ namespace Singularity.Game
                 _throughSr.color = new Color(Colour(through).r, Colour(through).g, Colour(through).b, 0.30f);
                 _through.position = cube.TransformPoint(CubeMesh.CellToObject(_s.N, _s.pos))
                                   - cam.transform.forward * 0.40f;
-                _through.rotation = face;
+                // rocking very slightly, because the point is that it is GLIMPSED
+                _through.rotation = face * Quaternion.Euler(0, 0, Mathf.Sin(Time.time * 0.42f) * 4f);
             }
         }
 

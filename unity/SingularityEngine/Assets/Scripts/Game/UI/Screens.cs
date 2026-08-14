@@ -49,6 +49,20 @@ namespace Singularity.UI
             return rt;
         }
 
+        /// <summary>
+        /// A SCREEN MADE OF WORDS IS NOT A WINDOW.
+        ///
+        /// The pause card sits over a puzzle somebody is in the middle of and should
+        /// let it through. The manual, the plate lesson, calibrate, the vault list
+        /// and the Forge are text from top to bottom — and brickwork behind a
+        /// paragraph is just contrast the reader has to fight. Those get a solid
+        /// plate, which is also the difference between an interface and a stack of
+        /// labels floating over a rotating object.
+        /// </summary>
+        static void Solid(RectTransform L) => L.GetComponent<Image>().color = Palette.Void;
+
+        internal static void SolidLayer(RectTransform L) => Solid(L);
+
         static void HideAll() { foreach (var kv in Layers) kv.Value.SetActive(false); }
 
         public static void Show(string id)
@@ -73,6 +87,16 @@ namespace Singularity.UI
             => UiKit.Rect(parent, "col", new Vector2(0, 0), new Vector2(1, 1),
                           new Vector2(40, bottom), new Vector2(-40, -top));
 
+        /// <summary>One of the four quiet destinations under the primary: 0,1 top row; 2,3 bottom.</summary>
+        static void Quad(RectTransform col, int i, string label, System.Action act)
+        {
+            float x = i % 2, y = i / 2;
+            RectTransform r = UiKit.Rect(col, label,
+                new Vector2(x * 0.5f, (1 - y) * 0.28f), new Vector2((x + 1) * 0.5f, (2 - y) * 0.28f),
+                new Vector2(x == 0 ? 0 : 6, 6), new Vector2(x == 0 ? -6 : 0, -6));
+            UiKit.Bracketed(r, label, label, act, 24);
+        }
+
         internal static void Row(RectTransform col, int slot, int of, string label, System.Action act, bool primary = false)
         {
             float h = 1f / of;
@@ -88,7 +112,7 @@ namespace Singularity.UI
         static void BuildTitle()
         {
             RectTransform L = Layer("title");
-            L.GetComponent<Image>().color = new Color(0, 0, 0, 0.86f);
+            UiKit.Stage(L);
 
             UiKit.Label(L, "wordmark1", "SINGULARITY", 66, Palette.Ink, TextAnchor.UpperCenter,
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -170), new Vector2(0, -90));
@@ -109,15 +133,28 @@ namespace Singularity.UI
                 22, Palette.Dim, TextAnchor.UpperCenter,
                 new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -420), new Vector2(0, -330));
 
+            // ONE PRIMARY, THEN A GRID OF FOUR.
+            //
+            // Five equal rows is a list, and a list has no answer to "what do I
+            // press". The thing you came here to do is a full-width solid; the four
+            // places you might go instead are a quiet two-by-two under it. That
+            // shape also buys back most of the height five stacked rows were
+            // spending, which is what leaves room for the cube to be the biggest
+            // object on its own title screen.
             RectTransform col = UiKit.Rect(L, "buttons", new Vector2(0, 0), new Vector2(1, 0),
-                                           new Vector2(60, 90), new Vector2(-60, 460));
-            Row(col, 0, 5, "CONTINUE", () => { Show(null); _dir.Play(Mathf.Max(1, Store.Data.reached)); }, true);
-            Row(col, 1, 5, "DAILY", () => { Show(null); _dir.Play(Daily.SpecLevel, LoadKind.Daily); });
-            Row(col, 2, 5, "VAULTS", OpenVaults);
-            Row(col, 3, 5, "FORGE", ForgeScreens.OpenShelf);
-            Row(col, 4, 5, "CALIBRATE", ShowCalibrate);
+                                           new Vector2(48, 96), new Vector2(-48, 400));
 
-            _playLabel = col.Find("CONTINUE").GetComponentInChildren<Text>();
+            RectTransform go = UiKit.Rect(col, "CONTINUE", new Vector2(0, 0.56f), new Vector2(1, 1),
+                                          new Vector2(0, 8), new Vector2(0, 0));
+            UiKit.Bracketed(go, "CONTINUE", "CONTINUE",
+                            () => { Show(null); _dir.Play(Mathf.Max(1, Store.Data.reached)); }, 30, true);
+
+            Quad(col, 0, "DAILY", () => { Show(null); _dir.Play(Daily.SpecLevel, LoadKind.Daily); });
+            Quad(col, 1, "VAULTS", OpenVaults);
+            Quad(col, 2, "FORGE", ForgeScreens.OpenShelf);
+            Quad(col, 3, "CALIBRATE", ShowCalibrate);
+
+            _playLabel = go.GetComponentInChildren<Text>();
 
             UiKit.Label(L, "foot", "DIAGNOSTIC BUILD · NO DEAD PIXELS", 15, Palette.Dim2, TextAnchor.LowerCenter,
                         new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 40), new Vector2(0, 76));
@@ -150,6 +187,7 @@ namespace Singularity.UI
         static void BuildVaults()
         {
             RectTransform L = Layer("vaults");
+            Solid(L);
 
             _vaultName = UiKit.Label(L, "vaultName", "VAULT I", 32, Palette.Ink, TextAnchor.MiddleCenter,
                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(120, -140), new Vector2(-120, -80));
@@ -227,14 +265,23 @@ namespace Singularity.UI
             int cols = 5;
             int rows = Mathf.CeilToInt(size / (float)cols);
 
+            // A CUBE IS A SQUARE, NOT A SHARE OF THE SCREEN.
+            //
+            // The rows used to divide the grid's whole height between them, so a
+            // ten-cube vault got two four-hundred-pixel-tall buttons and the screen
+            // read as a broken table rather than a rack of cubes. The cell is sized
+            // off the WIDTH — which is the axis that is actually constrained — and
+            // the block is pinned to the top of the space it was given.
+            float cellW = (_grid.rect.width - 12f) / cols;
+            float cellH = Mathf.Min(cellW, 96f);
+
             for (int i = 0; i < size; i++)
             {
                 int level = start + i;
                 int cx = i % cols, cy = i / cols;
                 RectTransform slot = UiKit.Rect(_grid, "c" + level,
-                    new Vector2(cx / (float)cols, 1f - (cy + 1f) / rows),
-                    new Vector2((cx + 1f) / cols, 1f - cy / (float)rows),
-                    new Vector2(6, 6), new Vector2(-6, -6));
+                    new Vector2(cx / (float)cols, 1f), new Vector2((cx + 1f) / cols, 1f),
+                    new Vector2(6, -(cy + 1) * cellH + 6), new Vector2(-6, -cy * cellH - 6));
 
                 bool reached = level <= Store.Data.reached;
                 bool cleared = Store.TryBest(level, out int best);
@@ -255,6 +302,7 @@ namespace Singularity.UI
         static void BuildManual()
         {
             RectTransform L = Layer("manual");
+            Solid(L);
             UiKit.Label(L, "h", "CALIBRATION", 40, Palette.Ink, TextAnchor.UpperCenter,
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -130), new Vector2(0, -80));
 
@@ -326,6 +374,7 @@ namespace Singularity.UI
         static void BuildPlateTeach()
         {
             RectTransform L = Layer("plate");
+            Solid(L);
             UiKit.Label(L, "eyebrow", "A NEW COMPONENT", 20, Palette.Dim, TextAnchor.UpperCenter,
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -130), new Vector2(0, -100));
             UiKit.Label(L, "h", "PLATES", 44, Palette.Rust, TextAnchor.UpperCenter,
@@ -369,6 +418,7 @@ namespace Singularity.UI
         static void BuildCalibrate()
         {
             RectTransform L = Layer("calibrate");
+            Solid(L);
             UiKit.Label(L, "h", "CALIBRATE", 40, Palette.Ink, TextAnchor.UpperCenter,
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -140), new Vector2(0, -90));
             UiKit.Label(L, "sub", "TUNE THE INSTRUMENT", 20, Palette.Dim, TextAnchor.UpperCenter,
@@ -443,6 +493,7 @@ namespace Singularity.UI
         static void BuildBoards()
         {
             RectTransform L = Layer("boards");
+            Solid(L);
             UiKit.Label(L, "h", "BOARDS", 40, Palette.Ink, TextAnchor.UpperCenter,
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -140), new Vector2(0, -90));
             _boardList = UiKit.Rect(L, "list", new Vector2(0, 0), new Vector2(1, 1), new Vector2(40, 200), new Vector2(-40, -180));
@@ -531,23 +582,53 @@ namespace Singularity.UI
             _winPar = Stat(L, "PAR", -420);
             _winBest = Stat(L, "YOUR BEST", -480);
 
-            RectTransform col = Column(L, 560, 200);
-            RectTransform n = UiKit.Rect(col, "next", new Vector2(0, 0.66f), new Vector2(1, 1), new Vector2(0, 8), new Vector2(0, -8));
-            _winNext = UiKit.Bracketed(n, "next", "NEXT", () =>
+            // A HIDDEN CONTROL MUST NOT LEAVE ITS HOLE BEHIND.
+            //
+            // These were fixed thirds of a column, and two of them come and go: NEXT
+            // is meaningless after the daily, and RETRY FOR PAR only exists if you
+            // went over. Switching one off left a third of the card empty — so a
+            // PERFECT COLLAPSE, the best outcome in the game, produced the most
+            // broken-looking card in it. They are now flowed over however many are
+            // actually on, which is the only arrangement that cannot leave a gap.
+            _winCol = Column(L, 560, 200);
+            _winNext = Stacked("next", "NEXT", 30, true, () =>
             {
                 Show(null);
                 _dir.Play(_dir.S.levelNo + 1);
-            }, 30, true);
-
-            RectTransform rt = UiKit.Rect(col, "retry", new Vector2(0, 0.33f), new Vector2(1, 0.66f), new Vector2(0, 8), new Vector2(0, -8));
-            _winRetry = UiKit.Bracketed(rt, "retry", "RETRY FOR PAR", () =>
+            });
+            _winRetry = Stacked("retry", "RETRY FOR PAR", 26, false, () =>
             {
                 Show(null);
                 _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey);
-            }, 26);
+            });
+            _winVaults = Stacked("vaults", "VAULTS", 26, false, OpenVaults);
+        }
 
-            RectTransform v = UiKit.Rect(col, "vaults", new Vector2(0, 0), new Vector2(1, 0.33f), new Vector2(0, 8), new Vector2(0, -8));
-            UiKit.Bracketed(v, "vaults", "VAULTS", OpenVaults, 26);
+        static RectTransform _winCol;
+        static Button _winVaults;
+
+        static Button Stacked(string name, string label, int size, bool primary, System.Action act)
+        {
+            RectTransform r = UiKit.Rect(_winCol, name, Vector2.zero, Vector2.one, new Vector2(0, 8), new Vector2(0, -8));
+            return UiKit.Bracketed(r, name, label, act, size, primary);
+        }
+
+        static void FlowWin()
+        {
+            Button[] all = { _winNext, _winRetry, _winVaults };
+            int on = 0;
+            foreach (Button b in all) if (b.transform.parent.gameObject.activeSelf) on++;
+
+            float h = 1f / Mathf.Max(1, on);
+            int slot = 0;
+            foreach (Button b in all)
+            {
+                var rt = (RectTransform)b.transform.parent;
+                if (!rt.gameObject.activeSelf) continue;
+                rt.anchorMin = new Vector2(0, 1f - (slot + 1) * h);
+                rt.anchorMax = new Vector2(1, 1f - slot * h);
+                slot++;
+            }
         }
 
         static Text Stat(RectTransform L, string key, float y)
@@ -581,8 +662,9 @@ namespace Singularity.UI
                            : "";
 
             // there is no next cube after the daily — there is tomorrow
-            _winNext.gameObject.SetActive(!s.IsDaily && !s.IsMade);
-            _winRetry.gameObject.SetActive(s.turns > s.lv.par);
+            _winNext.transform.parent.gameObject.SetActive(!s.IsDaily && !s.IsMade);
+            _winRetry.transform.parent.gameObject.SetActive(s.turns > s.lv.par);
+            FlowWin();
 
             Show("win");
         }

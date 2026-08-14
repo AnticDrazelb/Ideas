@@ -14,6 +14,13 @@ Shader "Singularity/Glyph"
     {
         [PerRendererData] _MainTex ("Sprite", 2D) = "white" {}
         _Color ("Tint", Color) = (1,1,1,1)
+
+        // The marker needs both blends from one shader. The hole is OPAQUE — it
+        // has to remove the board under it, not tint it — while the photon ring
+        // and the lensing halo around it are light and must ADD. Two materials,
+        // one shader, and the sprite pipeline stays a single batch.
+        [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Src", Float) = 5   // SrcAlpha
+        [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Dst", Float) = 10  // OneMinusSrcAlpha
     }
 
     SubShader
@@ -31,7 +38,7 @@ Shader "Singularity/Glyph"
         Lighting Off
         ZWrite Off
         ZTest Always
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend [_SrcBlend] [_DstBlend]
 
         Pass
         {

@@ -44,6 +44,7 @@ namespace Singularity.UI
         static void BuildShelf()
         {
             RectTransform L = Screens.Layer("forge");
+            Screens.SolidLayer(L);
 
             _shelfCount = UiKit.Label(L, "count", "FORGE", 34, Palette.Ink, TextAnchor.UpperCenter,
                                       new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -140), new Vector2(0, -90));
@@ -127,6 +128,7 @@ namespace Singularity.UI
         static void BuildEditor()
         {
             RectTransform L = Screens.Layer("forgeEdit");
+            Screens.SolidLayer(L);
 
             RectTransform bar = UiKit.Rect(L, "deckBar", new Vector2(0, 1), new Vector2(1, 1),
                                            new Vector2(40, -150), new Vector2(-40, -90));

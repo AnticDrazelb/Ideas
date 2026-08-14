@@ -5,25 +5,40 @@ using Singularity.Core;
 namespace Singularity.Game
 {
     /// <summary>
-    /// You.
+    /// You: A HOLE, AND SOMETHING ON THE OTHER SIDE OF IT.
     ///
-    /// A black hole with a face, and the face is not decoration. It is the only
-    /// thing in the game that reacts to the player rather than to the rules, and
-    /// it is doing three jobs at once:
+    /// This had a face for a while — a glowing ball with two eyes, on the sound
+    /// argument that a circle with eyes is a character and a glowing ball is an
+    /// effect. It is gone, and the reason is worth keeping next to the code that
+    /// replaced it: a black hole does not have a face, and hanging accretion
+    /// rings off one made it a planet. The ring ended up doing the work of being
+    /// found, which left the hole itself as decoration on its own character.
     ///
-    ///   IT LOOKS WHERE YOU ARE GOING. While walking, ahead; while folding, down;
-    ///   otherwise back to centre. That is a free readout of the thing the player
-    ///   just asked for, delivered by something they are already watching.
+    /// What is left has to earn its legibility the way the real thing does: with
+    /// an edge, and with what can be seen through it.
     ///
-    ///   IT BLINKS. Ninety milliseconds closed, then a fresh irregular wait, so it
-    ///   never falls into a rhythm you can hear ticking.
+    ///   IT IS A HOLE, NOT A DISC. The horizon is drawn opaque and black, so it
+    ///   REMOVES the deck under it rather than covering it — an absence of board,
+    ///   which is exactly what a void column is. Stand beside a gap in the cube
+    ///   and the two are made of the same nothing.
     ///
-    ///   AND IT GETS BORED. Every five and a half seconds of a player thinking, it
-    ///   bounces once on the spot. No sound, no particles, nothing that could be
-    ///   mistaken for the game asking for something — just a small sign of life in
-    ///   the corner of the eye of somebody staring at a puzzle. That is the whole
-    ///   of "surprise and delight" in about eight lines: a character that does
-    ///   something when you do nothing.
+    ///   THE EDGE DOES THE FINDING. A photon ring — one thin, very bright circle
+    ///   right on the silhouette — with a soft lensing halo outside it and a
+    ///   brighter arc travelling round. On a pale deck that ring is the whole
+    ///   difference between "a hole in the world" and "a hole in the floor", and
+    ///   it is the only reason a black object is allowed to be the player marker
+    ///   in a game where dark already means impassable.
+    ///
+    ///   IT REACTS WITHOUT A FACE. Everything the character used to say with eyes
+    ///   now happens as gravity: the rim flares and the halo swells on a node or
+    ///   a gate, and it flinches on a refusal. A thing with no face that answers
+    ///   what you did is not less expressive than one with eyes — it is
+    ///   expressive in the only language it has.
+    ///
+    ///   AND IT STILL GETS BORED. Every five and a half seconds of a player
+    ///   thinking it bounces once on the spot: no sound, no particles, nothing
+    ///   that could be mistaken for the game asking for something. A character
+    ///   that does something when you do nothing.
     ///
     /// INFALL, NOT EMISSION. The debris around it is spawned out on a ring and
     /// thrown INWARD, so what you see is light being pulled in and going out at
@@ -38,14 +53,15 @@ namespace Singularity.Game
         Fx _fx;
 
         Transform _root;
-        SpriteRenderer _body;
-        SpriteRenderer _eyeL, _eyeR;
+        SpriteRenderer _hole, _ring, _arc, _halo;
 
-        // ---- the face -------------------------------------------------------
+        /// <summary>The marker's radius in cells, before breathing. The original's sz*0.325.</summary>
+        const float Rad = 0.325f;
+
+        // ---- what it has to say ---------------------------------------------
         string _mood = "";
         float _moodT, _moodDur;
-        float _blink = 1800f, _nextBlink = 1800f;
-        float _lookX, _lookY, _tgtX, _tgtY, _idle;
+        float _idle;
 
         /// <summary>The bounce. 1 means at rest; 0 restarts it.</summary>
         float _hop = 1f;
@@ -70,21 +86,27 @@ namespace Singularity.Game
             _root = new GameObject("orb").transform;
             _root.SetParent(transform, false);
 
-            _body = Sprite("body", "player", Palette.Arc, 0.70f, 100);
-            _eyeL = Sprite("eyeL", "eye", Palette.Void, 0.16f, 102);
-            _eyeR = Sprite("eyeR", "eye", Palette.Void, 0.16f, 102);
+            // THE STACK, AND WHY IT IS THIS ORDER.
+            //   96  the hole      opaque black; takes the deck away
+            //   98  the antipode  drawn in CubeView, INSIDE the hole it shows through
+            //   99  the halo      light bending round the outside
+            //  100  the ring      the silhouette
+            //  101  the arc       the bright part of the ring, travelling
+            _hole = Sprite("hole", "hole", Palette.Void, 96, additive: false);
+            _halo = Sprite("halo", "halo", Color.white, 99, additive: true);
+            _ring = Sprite("ring", "ring", Palette.Arc, 100, additive: true);
+            _arc  = Sprite("arc",  "arc",  Palette.Hex("#a5f3fc"), 101, additive: true);
         }
 
-        SpriteRenderer Sprite(string name, string glyph, Color col, float size, int order)
+        SpriteRenderer Sprite(string name, string glyph, Color col, int order, bool additive)
         {
             var go = new GameObject(name);
             go.transform.SetParent(_root, false);
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = Glyphs.For(glyph);
-            sr.sharedMaterial = Glyphs.Material;
+            sr.sharedMaterial = additive ? Glyphs.Additive : Glyphs.Material;
             sr.color = col;
             sr.sortingOrder = order;
-            go.transform.localScale = Vector3.one * size;
             return sr;
         }
 
@@ -114,12 +136,12 @@ namespace Singularity.Game
             if (_s?.lv == null || !visible) { _root.gameObject.SetActive(false); return; }
             _root.gameObject.SetActive(true);
 
-            StepFace(dtMs);
+            StepMood(dtMs);
             StepTrail(dtMs);
             Place();
         }
 
-        void StepFace(float dt)
+        void StepMood(float dt)
         {
             if (_moodDur > 0f)
             {
@@ -127,42 +149,8 @@ namespace Singularity.Game
                 if (_moodT >= _moodDur) { _mood = ""; _moodDur = 0f; }
             }
 
-            // the blink: closed for 90ms, then a fresh irregular wait
-            _blink -= dt;
-            if (_blink < -90f)
-            {
-                _blink = _nextBlink;
-                _nextBlink = 1500f + Random.value * 3400f;
-            }
-
-            if (_s.walking != null)
-            {
-                Int3 from = Projection.ViewOf(_s.N, _s.M, _s.walking.from);
-                Int3 now = Projection.ViewOf(_s.N, _s.M, _s.pos);
-                _tgtX = Mathf.Clamp(now.x - from.x, -1f, 1f);
-                _tgtY = Mathf.Clamp(now.y - from.y, -1f, 1f);
-                _idle = 0f;
-            }
-            else if (_s.anim != null || _s.drag != null)
-            {
-                _tgtX = 0f; _tgtY = -0.25f; _idle = 0f;
-            }
-            else
-            {
-                _idle += dt;
-                if (_idle > 4000f)
-                {
-                    // after four seconds of thinking, the eyes wander
-                    float ph = (_idle - 4000f) / 2600f;
-                    _tgtX = Mathf.Sin(ph * 1.9f) * 0.85f;
-                    _tgtY = Mathf.Sin(ph * 0.7f) * 0.30f;
-                }
-                else { _tgtX = 0f; _tgtY = 0f; }
-            }
-
-            float k = Mathf.Min(1f, dt / 90f);
-            _lookX += (_tgtX - _lookX) * k;
-            _lookY += (_tgtY - _lookY) * k;
+            if (_s.walking != null || _s.anim != null || _s.drag != null) _idle = 0f;
+            else _idle += dt;
 
             // and it gets bored
             if (_idle > 5500f && _hop >= 1f && !_s.won)
@@ -171,7 +159,22 @@ namespace Singularity.Game
                 Hop();
             }
 
-            _hop = Mathf.Min(1f, _hop + dt / 260f);
+            _hop = Mathf.Min(1f, _hop + dt / 300f);
+        }
+
+        /// <summary>
+        /// How hard it is reacting, 0..1. This is the whole emotional range of a
+        /// thing with no face: the rim brightens and the halo swells, and that is
+        /// the entire vocabulary. A node or the core gets the full flare; a refused
+        /// fold gets a smaller one, because a flinch is not a cheer.
+        /// </summary>
+        float Flare()
+        {
+            if (_moodDur <= 0f) return 0f;
+            float left = 1f - _moodT / _moodDur;
+            return _mood == "happy" || _mood == "win" ? left
+                 : _mood == "wide" ? 0.6f * left
+                 : 0f;
         }
 
         void StepTrail(float dt)
@@ -219,42 +222,64 @@ namespace Singularity.Game
 
         void Place()
         {
-            // The orb rides the cube's own projection while it folds, so it stays
+            float t = Time.time;
+
+            // IT BREATHES. Two beats at unrelated rates, so the size never settles
+            // into a pulse you can count — the difference between something alive
+            // and something animating.
+            float br = 0.90f + 0.10f * Mathf.Sin(t * 3.1f) + 0.045f * Mathf.Sin(t * 7.3f);
+            float rr = Rad * br;
+
+            float flare = Flare();
+            float rim = 1f + flare * 0.9f;
+
+            // SQUASH ON THE WAY DOWN, STRETCH ON THE WAY UP — applied to the whole
+            // marker rather than to each piece, so the ring and the halo deform with
+            // the hole. A squashed hole with a round ring on it is a sticker.
+            float sqx = 1f, sqy = 1f, lift = 0f;
+            if (_s.walking != null)
+            {
+                float vv = Mathf.Cos(_s.walking.t * Mathf.PI);      // +1 rising, -1 falling
+                sqy = 1f + vv * 0.10f;
+                sqx = 1f - vv * 0.09f;
+            }
+            else if (_hop < 1f)
+            {
+                float hb = Mathf.Sin(_hop * Mathf.PI * 1.6f) * Mathf.Pow(1f - _hop, 2.2f);
+                sqy = 1f - hb * 0.30f;
+                sqx = 1f + hb * 0.24f;
+                lift = Mathf.Abs(Mathf.Sin(_hop * Mathf.PI * 1.6f)) * Mathf.Pow(1f - _hop, 2f) * 0.10f;
+            }
+
+            // The marker rides the cube's own projection while it folds, so it stays
             // on the cell it is standing on rather than hanging in the air. At rest
             // that is exactly the flat grid position.
             Vector3 at = _view.cube.TransformPoint(CubeMesh.CellToObject(_s.N, _s.pos))
                        - _cam.transform.forward * 0.62f;
 
-            // the bounce: a single squashed arc, not a loop
-            float h = 1f - _hop;
-            float lift = Mathf.Sin(h * Mathf.PI) * 0.20f;
-            float squash = 1f + Mathf.Sin(h * Mathf.PI) * 0.10f;
+            Vector3 up = _cam.transform.up;
+            // the slow bob, and the squash pivoting near the bottom rather than the
+            // centre, so a compressed hole sits down instead of shrinking in place
+            at += up * (0.022f * Mathf.Sin(t * 2.2f) + lift - rr * (1f - sqy));
 
-            _root.position = at + _cam.transform.up * lift;
+            _root.position = at;
             _root.rotation = _cam.transform.rotation;
-            _root.localScale = new Vector3(1f / Mathf.Max(0.4f, squash), squash, 1f);
+            _root.localScale = new Vector3(sqx, sqy, 1f);
 
-            // the eyes
-            float open = _blink < 0f ? 0.12f : 1f;
-            float wide = _mood == "wide" ? 1.45f : 1f;
-            float happy = _mood == "happy" || _mood == "win" ? 0.45f : 1f;
-            float ey = _mood == "happy" || _mood == "win" ? 0.06f : 0f;
+            float d = rr * 2f;
+            _hole.transform.localScale = Vector3.one * d;
+            _ring.transform.localScale = Vector3.one * d;
+            _arc.transform.localScale  = Vector3.one * d;
 
-            float sx = 0.16f * wide;
-            float sy = 0.16f * wide * open * happy;
+            // the halo swells with the flare; its sprite is baked out to 2.1 radii
+            _halo.transform.localScale = Vector3.one * (d * 2.1f * (1f + flare * 0.333f));
 
-            var offL = new Vector3(-0.15f + _lookX * 0.06f, 0.05f + _lookY * 0.05f + ey, 0f);
-            var offR = new Vector3(0.15f + _lookX * 0.06f, 0.05f + _lookY * 0.05f + ey, 0f);
+            _ring.color = new Color(Palette.Arc.r, Palette.Arc.g, Palette.Arc.b, Mathf.Min(1f, 0.95f * rim));
+            _halo.color = new Color(1f, 1f, 1f, Mathf.Min(1f, rim));
 
-            _eyeL.transform.localPosition = offL;
-            _eyeR.transform.localPosition = offR;
-            _eyeL.transform.localScale = new Vector3(sx, sy, 1f);
-            _eyeR.transform.localScale = new Vector3(sx, sy, 1f);
-
-            // the horizon brightens on a mood and while walking
-            float lit = _mood == "" ? 1f : 1.25f;
-            _body.color = Palette.Arc * lit;
-            _body.transform.localScale = Vector3.one * (0.70f * (_mood == "wide" ? 1.08f : 1f));
+            // brighter over one arc, travelling: the whole of "it is turning"
+            _arc.transform.localRotation = Quaternion.Euler(0f, 0f, t * 0.7f * Mathf.Rad2Deg);
+            _arc.color = new Color(0.647f, 0.953f, 0.988f, Mathf.Min(1f, 0.55f * rim));
         }
 
         /// <summary>The trail, handed to Fx so it draws in the same additive pass as everything else.</summary>
