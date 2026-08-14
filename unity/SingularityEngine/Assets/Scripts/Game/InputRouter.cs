@@ -102,7 +102,21 @@ namespace Singularity.Game
                 // thumb, at the same pixels-per-quarter-turn the drag uses.
                 float q = PxPerQuarter() * 0.66f;
                 _view.peekYaw += (p.x - _last.x) / q * (Mathf.PI / 2f);
-                _view.peekPitch = Mathf.Clamp(_view.peekPitch - (p.y - _last.y) / q * (Mathf.PI / 2f),
+
+                // PLUS, NOT MINUS — AND THE MINUS IS WHERE IT CAME FROM.
+                //
+                // The original runs in canvas coordinates, where y grows DOWNWARD,
+                // so it writes `pitch -= dy` to mean "pull the front face down and
+                // the top tips toward you". Unity's screen y grows UPWARD, so the
+                // same expression produces the opposite gesture: dragging down
+                // revealed the bottom instead of the top.
+                //
+                // The fold drag a few lines below already handles this — the
+                // original negates its dy and this port does not, because it does
+                // not have to. This line was copied across without the same thought,
+                // which is the one shape of bug a type-check can never see: correct
+                // arithmetic, on an input that changed sign underneath it.
+                _view.peekPitch = Mathf.Clamp(_view.peekPitch + (p.y - _last.y) / q * (Mathf.PI / 2f),
                                               -CubeView.PeekMaxPitch, CubeView.PeekMaxPitch);
                 _last = p;
                 return;
