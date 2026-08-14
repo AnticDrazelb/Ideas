@@ -184,9 +184,86 @@ namespace Singularity.UI
         // every button, chip, field and card at every size, and the corner radius
         // stays the same number of real pixels whatever the control's shape.
 
-        const int FrameTex = 64, FrameRad = 16, FrameSlice = 20, FrameStroke = 3;
+        // ---- THE SHIPPED METRICS, EXTRACTED RATHER THAN EYEBALLED -----------
+        //
+        // Every number below is read off the APK's own :root custom properties.
+        // The canvas here is 720 units wide against a viewport that is about 360
+        // CSS pixels, so ONE CSS PIXEL IS TWO CANVAS UNITS and the conversion is
+        // the only arithmetic in it.
+        //
+        //   --r-btn      7px   -> 14    --h-btn   46px -> 92
+        //   --r-card    10px   -> 20    --h-ctl   44px -> 88
+        //   --rule       2px   ->  4    --h-row   50px -> 100
+        //   .btn         min-height  h-btn +  6px -> 104
+        //   .btn.primary min-height  h-btn + 14px -> 120
+        //   --edge      rgba(234,88,12,.34)   the border every control wears
+        //   primary     inset rgba(251,146,60,.55) + a 22px rust glow
+        //
+        // The border was twice as strong as this and the corners nearly twice as
+        // round, which together are most of why the controls read as an app's
+        // rather than an instrument's.
 
-        static Sprite _fill, _line;
+        /// <summary>Standard control height — .btn min-height.</summary>
+        public const float BtnH = 104f;
+        /// <summary>The one lit object on a screen — .btn.primary min-height.</summary>
+        public const float PrimaryH = 120f;
+        /// <summary>--h-row, for list rows.</summary>
+        public const float RowH = 100f;
+
+        /// <summary>--edge. The border weight every control shares.</summary>
+        public static Color Edge => new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.34f);
+        /// <summary>The primary's inset rim: rust-hi at 55%.</summary>
+        public static Color EdgeOn => new Color(Palette.RustHi.r, Palette.RustHi.g, Palette.RustHi.b, 0.55f);
+
+        const int FrameTex = 64, FrameRad = 14, FrameSlice = 20, FrameStroke = 4;
+
+        static Sprite _fill, _line, _glow;
+
+        /// <summary>
+        /// THE PRIMARY CASTS. In the shipped build this is one line of CSS —
+        /// box-shadow: 0 0 22px -4px rgba(234,88,12,.7) — and it is most of what
+        /// makes that button look switched ON rather than filled in.
+        ///
+        /// It is worth knowing that this is NOT the camera bloom the board gets.
+        /// The interface is a screen-space overlay and draws after the camera's
+        /// post pass, so no amount of bloom would ever have reached it; the glow
+        /// was always going to have to be drawn. A soft-edged plate behind the
+        /// button, additive, is the same picture for one more quad.
+        /// </summary>
+        public static Sprite GlowFill { get { if (_glow == null) _glow = BuildGlow(); return _glow; } }
+
+        /// <summary>How far the primary's glow reaches past its own edge. 22px blur, -4 spread.</summary>
+        public const float GlowReach = 36f;
+
+        static Sprite BuildGlow()
+        {
+            const int N = 128, Rad = 14, Soft = 36;   // in canvas units, 1:1 with texels here
+            var tex = new Texture2D(N, N, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                name = "glow"
+            };
+            var px = new Color32[N * N];
+            const float H = N * 0.5f;
+            for (int y = 0; y < N; y++)
+                for (int x = 0; x < N; x++)
+                {
+                    float dx = Mathf.Abs(x + 0.5f - H) - (H - Soft - Rad);
+                    float dy = Mathf.Abs(y + 0.5f - H) - (H - Soft - Rad);
+                    float o = Mathf.Sqrt(Mathf.Max(dx, 0f) * Mathf.Max(dx, 0f) + Mathf.Max(dy, 0f) * Mathf.Max(dy, 0f));
+                    float d = o + Mathf.Min(Mathf.Max(dx, dy), 0f) - Rad;
+                    // a blur falls off faster than linear; squaring it is close
+                    // enough to a gaussian at this radius and costs nothing
+                    float a = Mathf.Clamp01(1f - d / Soft);
+                    px[y * N + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * a * 255f));
+                }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            const int b = Soft + Rad;
+            return Sprite.Create(tex, new UnityEngine.Rect(0, 0, N, N), new Vector2(0.5f, 0.5f), 100f,
+                                 0, SpriteMeshType.FullRect, new Vector4(b, b, b, b));
+        }
 
         /// <summary>The plate: a filled rounded rectangle.</summary>
         public static Sprite RoundFill { get { if (_fill == null) _fill = BuildFrame(false); return _fill; } }
@@ -422,9 +499,24 @@ namespace Singularity.UI
             // the board inside the controls, so the cube was visibly running through
             // the middle of the words VAULTS and BOARDS. A control is a solid thing
             // you press; whatever is behind the screen stops at its edge.
-            Image plate = Framed(rt,
-                primary ? Palette.Rust : Palette.Panel,
-                primary ? Palette.RustHi : new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.70f));
+            // THE GLOW GOES BEHIND, WHICH MEANS BESIDE. UGUI draws a parent's own
+            // graphic before its children, so a child can never be behind its
+            // parent's plate — the glow has to be a sibling, ordered first.
+            if (primary)
+            {
+                RectTransform gr = Rect(parent, name + "_glow", Vector2.zero, Vector2.one,
+                                        new Vector2(-GlowReach, -GlowReach), new Vector2(GlowReach, GlowReach));
+                var g = gr.gameObject.AddComponent<Image>();
+                g.sprite = GlowFill;
+                g.type = Image.Type.Sliced;
+                g.color = new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.70f);
+                g.raycastTarget = false;
+                gr.SetAsFirstSibling();
+                rt.SetAsLastSibling();
+            }
+
+            Image plate = Framed(rt, primary ? Palette.Rust : Palette.Panel,
+                                     primary ? EdgeOn : Edge);
 
             var btn = rt.gameObject.AddComponent<Button>();
             btn.targetGraphic = plate;
@@ -436,6 +528,8 @@ namespace Singularity.UI
             colors.fadeDuration = 0.06f;
             btn.colors = colors;
 
+            // --t-sm on a control, --t-md on a primary; black on the rust, because
+            // the shipped rule is literally color:#000
             Label(rt, "label", "[ " + label + " ]", size,
                   primary ? Palette.Void : Palette.Ink, TextAnchor.MiddleCenter,
                   Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -498,8 +592,7 @@ namespace Singularity.UI
                                        Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
         {
             RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
-            Image bg = Framed(rt, Palette.Panel,
-                                  new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.45f));
+            Image bg = Framed(rt, Palette.Panel, Edge);
 
             Text text = Label(rt, "text", "", 22, Palette.Ink, TextAnchor.MiddleLeft,
                               Vector2.zero, Vector2.one, new Vector2(14, 0), new Vector2(-14, 0));

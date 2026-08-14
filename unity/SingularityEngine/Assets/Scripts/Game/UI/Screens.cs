@@ -128,9 +128,10 @@ namespace Singularity.UI
         static void Quad(RectTransform col, int i, string label, System.Action act)
         {
             float x = i % 2, y = i / 2;
+            float top = -(UiKit.PrimaryH + 16f + y * (UiKit.BtnH + 12f));
             RectTransform r = UiKit.Rect(col, label,
-                new Vector2(x * 0.5f, (1 - y) * 0.28f), new Vector2((x + 1) * 0.5f, (2 - y) * 0.28f),
-                new Vector2(x == 0 ? 0 : 6, 6), new Vector2(x == 0 ? -6 : 0, -6));
+                new Vector2(x * 0.5f, 1), new Vector2((x + 1) * 0.5f, 1),
+                new Vector2(x == 0 ? 0 : 6, top - UiKit.BtnH), new Vector2(x == 0 ? -6 : 0, top));
             UiKit.Bracketed(r, label, label, act, 24);
         }
 
@@ -178,11 +179,14 @@ namespace Singularity.UI
             // shape also buys back most of the height five stacked rows were
             // spending, which is what leaves room for the cube to be the biggest
             // object on its own title screen.
+            // Heights are the shipped ones rather than fractions of a guessed
+            // column: 120 for the primary, 104 for a control, stacked from the
+            // floor so the block is exactly as tall as its contents.
             RectTransform col = UiKit.Rect(L, "buttons", new Vector2(0, 0), new Vector2(1, 0),
-                                           new Vector2(48, 96), new Vector2(-48, 400));
+                                           new Vector2(48, 96), new Vector2(-48, 452));
 
-            RectTransform go = UiKit.Rect(col, "CONTINUE", new Vector2(0, 0.56f), new Vector2(1, 1),
-                                          new Vector2(0, 8), new Vector2(0, 0));
+            RectTransform go = UiKit.Rect(col, "CONTINUE", new Vector2(0, 1), new Vector2(1, 1),
+                                          new Vector2(0, -UiKit.PrimaryH), new Vector2(0, 0));
             UiKit.Bracketed(go, "CONTINUE", "CONTINUE",
                             () => { Show(null); _dir.Play(Mathf.Max(1, Store.Data.reached)); }, 30, true);
 
@@ -545,17 +549,17 @@ namespace Singularity.UI
                                       new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(40, 112), new Vector2(-40, 142));
 
             RectTransform go = UiKit.Rect(L, "resume", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                          new Vector2(72, -6), new Vector2(-72, 74));
+                                          new Vector2(72, -12), new Vector2(-72, 108));
             UiKit.Bracketed(go, "resume", "RESUME", () => Show(null), 28, true);
 
             RectTransform three = UiKit.Rect(L, "three", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                             new Vector2(72, -98), new Vector2(-72, -26));
+                                             new Vector2(72, -128), new Vector2(-72, -24));
             Third(three, 0, "RESET", () => { Show(null); _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey); });
             Third(three, 1, "VAULTS", OpenVaults);
             Third(three, 2, "MENU", ShowTitle);
 
             RectTransform links = UiKit.Rect(L, "links", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                             new Vector2(72, -176), new Vector2(-72, -126));
+                                             new Vector2(72, -196), new Vector2(-72, -146));
             RectTransform bSlot = UiKit.Rect(links, "b", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
             UiKit.Link(bSlot, "boards", "BOARDS", ShowBoards, 20);
             RectTransform cSlot = UiKit.Rect(links, "c", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);
@@ -679,8 +683,8 @@ namespace Singularity.UI
         static void Third(RectTransform parent, int i, string label, System.Action act)
         {
             RectTransform slot = UiKit.Rect(parent, label, new Vector2(i / 3f, 0), new Vector2((i + 1) / 3f, 1),
-                                            new Vector2(5, 0), new Vector2(-5, 0));
-            UiKit.Bracketed(slot, label, label, act, 22);
+                                            new Vector2(6, 0), new Vector2(-6, 0));
+            UiKit.Bracketed(slot, label, label, act, 24);
         }
 
         /// <summary>A row of the calibrate panel: mark, name, what it does, and the control.</summary>
@@ -884,7 +888,7 @@ namespace Singularity.UI
             _winBest  = Stat(stats, "YOUR BEST", 2);
 
             _winNextRow = UiKit.Rect(L, "next", new Vector2(0, 1), new Vector2(1, 1),
-                                     new Vector2(WinPad, -574), new Vector2(-WinPad, -498));
+                                     new Vector2(WinPad, -498 - UiKit.PrimaryH), new Vector2(-WinPad, -498));
             RectTransform go = _winNextRow;
             _winNext = UiKit.Bracketed(go, "next", "NEXT", () =>
             {
@@ -932,9 +936,9 @@ namespace Singularity.UI
                 y += h + gap;
             }
 
-            Place(_winNextRow, 76f, 20f);
-            Place(_winRetryRow, 48f, 14f);
-            Place(_winOutsRow, 48f, 0f);
+            Place(_winNextRow, UiKit.PrimaryH, 20f);
+            Place(_winRetryRow, 52f, 14f);
+            Place(_winOutsRow, 52f, 0f);
         }
 
         /// <summary>

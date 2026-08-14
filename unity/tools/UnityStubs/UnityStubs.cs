@@ -188,6 +188,7 @@ namespace UnityEngine
         public Transform parent { get; set; }
         public Transform GetChild(int i) => null;
         public Transform Find(string n) => null;
+        public void SetAsFirstSibling() { }
         public void SetParent(Transform p, bool worldPositionStays) { }
         public void SetAsLastSibling() { }
         public Vector3 TransformPoint(Vector3 v) => default;

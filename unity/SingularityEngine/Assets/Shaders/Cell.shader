@@ -24,7 +24,7 @@ Shader "Singularity/Cell"
         _Edge     ("Edge inset", Range(0,0.5)) = 0.06
         _EdgeLift ("Edge brightness", Range(0,2)) = 0.55
         _Gutter   ("Gutter", Range(0,0.3)) = 0.055
-        _Round    ("Corner radius", Range(0,0.5)) = 0.16
+        _Round    ("Corner radius", Range(0,0.5)) = 0.09
         _Dim      ("Dim", Range(0,2)) = 1
         _Reveal   ("Reveal front", Float) = 99
         _Wave     ("Transition front", Float) = 99
@@ -128,6 +128,14 @@ Shader "Singularity/Cell"
                 float facing = saturate(dot(i.vnrm, float3(0, 0, 1)));
                 c *= lerp(1.0 - _Facing, 1.0, facing);
 
+                // --r-cell IS FOUR CSS PIXELS, which on this canvas is eight units
+                // and on a mid-sized cube about nine hundredths of a cell. This was
+                // 0.16 — nearly twice as round — which is what turned a rack of
+                // circuit tiles into a tray of lozenges. The radius is a fraction of
+                // the cell rather than an absolute, so it is right in the middle of
+                // the size ladder and a hair off at either end; plumbing the board
+                // size into the shader to fix four pixels is not worth the uniform.
+                //
                 // A CELL IS A TILE, NOT A SHARE OF THE SURFACE.
                 //
                 // Every cell is drawn as a rounded plate with a dark gutter around
