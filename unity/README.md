@@ -311,6 +311,38 @@ current-period standings on its own, with no reset and no server-side job.
 
 ---
 
+## Matching the shipped build, exactly
+
+The reference is the APK, and the APK is a WebView wrapper: `assets/game/index.html`
+inside it is the whole game. Unzip it and the `:root` block is a complete design
+token set — every colour, radius, control height and type step the interface uses.
+
+**One CSS pixel is two canvas units.** The viewport in the WebView is about 360
+CSS px wide; the `CanvasScaler` here references 720. That single conversion is all
+the arithmetic involved, and it turns "does this look right" into a lookup.
+
+```sh
+unzip -o SE.apk -d apk && sed -n '/^:root{/,/^}/p' apk/assets/game/index.html
+```
+
+What that has already settled, so nobody re-litigates it:
+
+- **The colours are exact.** All twenty-one, checked value by value.
+- The APK's HTML differs from the source this port was written against in
+  **two non-visual ways only** — touchscreen-based television detection, and the
+  adaptive resolution controller. Both are here and match constant for constant.
+  The gap was never a stale source; it was fidelity.
+- `--edge` is rust at **.34**, not .70. `--r-btn` is **7px**. `.btn` is
+  `h-btn + 6` and `.btn.primary` is `h-btn + 14`. The smallest type in the whole
+  interface is `--t-micro`, 8.5 CSS px — **seventeen units here**, and nothing
+  may be smaller.
+- The primary's glow is **not** camera bloom and never could be: the interface is
+  a screen-space overlay and draws after the camera's post pass. In the shipped
+  build it is one `box-shadow`. It is drawn.
+
+Still to be measured against the CSS rather than guessed: the Forge editor's band
+heights, the Calibrate row rhythm, and the manual's gutters.
+
 ## What is not here yet
 
 Three things, none of them rules.
