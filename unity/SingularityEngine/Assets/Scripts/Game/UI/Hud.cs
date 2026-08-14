@@ -56,29 +56,53 @@ namespace Singularity.UI
             RectTransform top = UiKit.Rect(_root, "barTop", new Vector2(0, 1), new Vector2(1, 1),
                                            new Vector2(0, -160), new Vector2(0, 0));
 
-            _foldN = UiKit.Label(top, "foldN", "0", 40, Palette.Ink, TextAnchor.MiddleLeft,
-                                 new Vector2(0, 0.45f), new Vector2(0, 1), new Vector2(28, 0), new Vector2(120, 0));
-            _parN = UiKit.Label(top, "parN", "/0", 26, Palette.Dim, TextAnchor.MiddleLeft,
-                                new Vector2(0, 0.45f), new Vector2(0, 1), new Vector2(78, 0), new Vector2(180, 0));
+            RectTransform Chip(RectTransform bar, string name, float x0, float x1, Color hue)
+            {
+                RectTransform rt = UiKit.Rect(bar, name, new Vector2(x0, 0.42f), new Vector2(x1, 1f),
+                                              new Vector2(14, 8), new Vector2(-6, -10));
+                UiKit.Framed(rt, new Color(hue.r, hue.g, hue.b, 0.10f),
+                                 new Color(hue.r, hue.g, hue.b, 0.80f));
+                return rt;
+            }
 
-            _keyChip = UiKit.Panel(top, "keyChip", new Color(0, 0, 0, 0),
-                                   new Vector2(0, 0.45f), new Vector2(0, 1), new Vector2(190, 0), new Vector2(330, 0));
-            _keyN = UiKit.Label(_keyChip.rectTransform, "keyN", "0", 34, Palette.Node, TextAnchor.MiddleLeft,
-                                Vector2.zero, Vector2.one, new Vector2(28, 0), Vector2.zero);
-            UiKit.Label(_keyChip.rectTransform, "keyIcon", "◆", 26, Palette.Node, TextAnchor.MiddleLeft,
-                        Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            _keyTot = UiKit.Label(_keyChip.rectTransform, "keyTot", "/0", 22, Palette.Dim, TextAnchor.MiddleLeft,
-                                  Vector2.zero, Vector2.one, new Vector2(58, 0), Vector2.zero);
+            // FOUR READINGS, FOUR INSTRUMENTS.
+            //
+            // These were four runs of bare text sharing one strip, which is a
+            // sentence rather than a panel: nothing said where one number stopped
+            // and the next began, and the colours had to do all the separating on
+            // their own. Each is now a lit chip in the colour of the thing it
+            // counts — the same colour that thing is on the board — so the top of
+            // the screen reads as instrumentation, and a glance can find the one
+            // number it came for without parsing the other three.
+            RectTransform foldChip = Chip(top, "foldChip", 0.00f, 0.25f, Palette.Rust);
+            UiKit.Label(foldChip, "foldIcon", "▤", 20, Palette.Rust, TextAnchor.MiddleLeft,
+                        Vector2.zero, Vector2.one, new Vector2(14, 0), Vector2.zero);
+            _foldN = UiKit.Label(foldChip, "foldN", "0", 34, Palette.Ink, TextAnchor.MiddleCenter,
+                                 Vector2.zero, Vector2.one, new Vector2(10, 0), new Vector2(-26, 0));
+            _parN = UiKit.Label(foldChip, "parN", "/0", 20, Palette.Dim, TextAnchor.MiddleRight,
+                                Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-12, 0));
 
-            _goChip = UiKit.Panel(top, "goChip", new Color(0, 0, 0, 0),
-                                  new Vector2(1, 0.45f), new Vector2(1, 1), new Vector2(-330, 0), new Vector2(-150, 0));
-            UiKit.Label(_goChip.rectTransform, "goLbl", "TO GO", 18, Palette.Dim, TextAnchor.MiddleLeft,
-                        Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            _goN = UiKit.Label(_goChip.rectTransform, "goN", "·", 36, Palette.Arc, TextAnchor.MiddleRight,
-                               Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            _keyChip = Chip(top, "keyChip", 0.25f, 0.50f, Palette.Node).GetComponent<Image>();
+            var keyRt = _keyChip.rectTransform;
+            UiKit.Label(keyRt, "keyIcon", "◆", 20, Palette.Node, TextAnchor.MiddleLeft,
+                        Vector2.zero, Vector2.one, new Vector2(14, 0), Vector2.zero);
+            _keyN = UiKit.Label(keyRt, "keyN", "0", 34, Palette.Node, TextAnchor.MiddleCenter,
+                                Vector2.zero, Vector2.one, new Vector2(10, 0), new Vector2(-26, 0));
+            _keyTot = UiKit.Label(keyRt, "keyTot", "/0", 20, Palette.Dim, TextAnchor.MiddleRight,
+                                  Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-12, 0));
 
-            _hintN = UiKit.Label(top, "hintN", "3", 28, Palette.Dim, TextAnchor.MiddleRight,
-                                 new Vector2(1, 0.45f), new Vector2(1, 1), new Vector2(-120, 0), new Vector2(-28, 0));
+            _goChip = Chip(top, "goChip", 0.50f, 0.78f, Palette.Arc).GetComponent<Image>();
+            var goRt = _goChip.rectTransform;
+            UiKit.Label(goRt, "goLbl", "TO GO", 16, Palette.Arc, TextAnchor.MiddleLeft,
+                        Vector2.zero, Vector2.one, new Vector2(14, 0), Vector2.zero);
+            _goN = UiKit.Label(goRt, "goN", "·", 34, Palette.Arc, TextAnchor.MiddleRight,
+                               Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-14, 0));
+
+            RectTransform hintChip = Chip(top, "hintChip", 0.78f, 1.00f, Palette.Lock);
+            UiKit.Label(hintChip, "hintIcon", "⬡", 20, Palette.Lock, TextAnchor.MiddleLeft,
+                        Vector2.zero, Vector2.one, new Vector2(14, 0), Vector2.zero);
+            _hintN = UiKit.Label(hintChip, "hintN", "3", 30, Palette.Lock, TextAnchor.MiddleRight,
+                                 Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-14, 0));
 
             _lvNo = UiKit.Label(top, "lvNo", "—", 22, Palette.Rust, TextAnchor.MiddleLeft,
                                 new Vector2(0, 0), new Vector2(0.6f, 0.45f), new Vector2(28, 0), Vector2.zero);

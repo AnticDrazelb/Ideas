@@ -202,23 +202,34 @@ dependency to marshal:
 
 ## The character
 
-You are a black hole with a face, and the face is not decoration — it is the
-only thing in the game that reacts to the *player* rather than to the rules,
-and it does three jobs at once.
+You are **a hole, and something on the other side of it**.
 
-**It looks where you are going.** Ahead while walking, down while folding, back
-to centre otherwise: a free readout of what you just asked for, delivered by
-something you are already watching.
+This had a face for a while — a glowing ball with two eyes, on the sound
+argument that a circle with eyes is a character and a glowing ball is an effect.
+It is gone, and the reason is worth keeping: a black hole does not have a face,
+and hanging accretion rings off one made it a planet. The ring ended up doing
+the work of being found, which left the hole itself as decoration on its own
+character.
 
-**It blinks** — ninety milliseconds closed, then a fresh irregular wait, so it
-never falls into a rhythm you can hear ticking.
+**It is a hole, not a disc.** The horizon is drawn opaque and black, so it
+*removes* the deck under it rather than covering it — an absence of board, which
+is exactly what a void column is. Stand beside a gap in the cube and the two are
+made of the same nothing.
 
-**And it gets bored.** Every five and a half seconds of a player thinking, it
-bounces once on the spot. No sound, no particles, nothing that could be mistaken
-for the game asking for something — just a small sign of life in the corner of
-the eye of somebody staring at a puzzle. That is the whole of "surprise and
-delight" in about eight lines: a character that does something when you do
-nothing.
+**The edge does the finding.** A photon ring — one thin, very bright circle
+right on the silhouette — with a soft lensing halo outside it and a brighter arc
+travelling round. On a pale deck that ring is the whole difference between "a
+hole in the world" and "a hole in the floor", and it is the only reason a black
+object is allowed to be the player marker in a game where dark already means
+impassable.
+
+**It reacts without a face.** Everything the character used to say with eyes now
+happens as gravity: the rim flares and the halo swells on a node or a gate, and
+it flinches on a refusal. A thing with no face that answers what you did is not
+less expressive than one with eyes — it is expressive in the only language it
+has. It also still **gets bored**, bouncing once on the spot after five and a
+half seconds of a player thinking: no sound, no particles, nothing that could be
+mistaken for the game asking for something.
 
 The debris around it falls **inward**. Motes are spawned out on a ring and
 thrown at the centre with a sideways kick, so what you see is light being pulled
