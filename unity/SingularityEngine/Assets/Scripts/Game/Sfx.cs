@@ -24,6 +24,26 @@ namespace Singularity.Game
     {
         public static Sfx I { get; private set; }
 
+        /// <summary>
+        /// EVERYTHING THE GAME SAYS WITH A SOUND, IT ALSO SAYS IN WORDS.
+        ///
+        /// Almost every cue in this game already has a picture — the flash, the
+        /// vignette, the HUD count, the draining bar — and that is the stronger
+        /// guarantee, because it costs a player nothing to switch on. Captions
+        /// are for the two places the picture is not where the eyes are: the
+        /// plate clock, which is deliberately a sound BECAUSE the eyes have to
+        /// be on the board and the number is at the top edge, and the refusals,
+        /// whose whole design is that they happen in the dark.
+        ///
+        /// The words live next to the sound they caption rather than in a table
+        /// somewhere else, because the failure mode of a table is a cue that
+        /// gets added and never captioned, and nobody notices in a build they
+        /// can hear.
+        /// </summary>
+        public static System.Action<string> Caption;
+
+        static void Say(string words) { if (Access.Captions) Caption?.Invoke(words); }
+
         const int Voices = 20;
 
         AudioSource[] _dry, _wet;
@@ -65,6 +85,9 @@ namespace Singularity.Game
             I = s;
             return s;
         }
+
+        /// <summary>The bed's level, which is the room's level. See Play.</summary>
+        float BedLevel => 0.055f * Access.Room;
 
         void Init()
         {
@@ -132,16 +155,23 @@ namespace Singularity.Game
         {
             if (Store.Data.sound == 0 || clip == null) return;
 
+            // TWO LEVELS, BECAUSE THERE ARE TWO BUSES AND THEY ARE NOT THE SAME
+            // SOUND. The dry bus is the instrument — the thud, the knock, the
+            // chime — and the wet bus is the room it is in. A player who needs
+            // the cues louder does not necessarily want more reverb, and a
+            // player on a small speaker usually wants the room turned down
+            // rather than everything turned up. One master fader cannot say
+            // either of those things.
             AudioSource d = _dry[_dryAt++ % Voices];
             d.clip = clip;
-            d.volume = gain;
+            d.volume = gain * Access.Volume;
             d.PlayScheduled(AudioSettings.dspTime + delay);
 
-            if (send > 0.001f)
+            if (send > 0.001f && Access.Room > 0.001f)
             {
                 AudioSource w = _wet[_wetAt++ % Voices];
                 w.clip = clip;
-                w.volume = gain * send;
+                w.volume = gain * send * Access.Volume * Access.Room;
                 w.PlayScheduled(AudioSettings.dspTime + delay);
             }
         }
@@ -174,6 +204,7 @@ namespace Singularity.Game
         /// <summary>The fold: a servo. Whirr, static under it, and a knock at the detent.</summary>
         public void Fold()
         {
+            Say("FOLD");
             Tone(78f, 0.34f, Wave.Saw, 0.055f, 132f, 0.10f);
             Tone(157f, 0.30f, Wave.Square, 0.016f, 262f, 0.08f);
             Noise(0.30f, 1800f, 0.055f, 0.14f, 320f);
@@ -197,6 +228,7 @@ namespace Singularity.Game
         /// </summary>
         public void Deny()
         {
+            Say("REFUSED");
             Noise(0.10f, 5200f, 0.075f, 0.06f, 400f);
             Tone(96f, 0.22f, Wave.Square, 0.045f, 62f, 0.06f);
         }
@@ -204,6 +236,7 @@ namespace Singularity.Game
         /// <summary>The node: one glassy partial, climbing a fifth-stack per node taken.</summary>
         public void Node()
         {
+            Say("NODE");
             float f = 1174.7f * Mathf.Pow(1.5f, Mathf.Min(5, _nodeN));
             _nodeN++;
             Tone(f, 0.30f, Wave.Sine, 0.075f, 0f, 0.55f);
@@ -214,6 +247,7 @@ namespace Singularity.Game
         /// <summary>The lock: something in the machine being energised, and the barrier hissing out.</summary>
         public void Lock()
         {
+            Say("GATE OPEN");
             Tone(41f, 0.85f, Wave.Sine, 0.15f, 110f, 0.28f);
             Tone(82f, 0.70f, Wave.Triangle, 0.055f, 220f, 0.30f);
             Noise(0.55f, 400f, 0.045f, 0.34f, 5200f);
@@ -228,6 +262,7 @@ namespace Singularity.Game
         /// </summary>
         public void Win()
         {
+            Say("COLLAPSE");
             Tone(220f, 2.2f, Wave.Sine, 0.13f, 0f, 0.55f);
             Tone(440f, 2.0f, Wave.Sine, 0.055f, 0f, 0.60f);
             Tone(880f, 1.4f, Wave.Sine, 0.028f, 0f, 0.65f, 0.240);
@@ -235,6 +270,7 @@ namespace Singularity.Game
 
         public void Vault()
         {
+            Say("VAULT CLEARED");
             Tone(55f, 2.4f, Wave.Sine, 0.13f, 82.4f, 0.55f);
             Noise(1.4f, 300f, 0.035f, 0.45f, 4000f);
         }
@@ -243,6 +279,7 @@ namespace Singularity.Game
         public void Plate(int bit)
         {
             bool up = bit == 1;
+            Say(up ? "INVERTED" : "RESTORED");
             Tone(up ? 60f : 480f, 0.75f, Wave.Saw, 0.075f, up ? 480f : 60f, 0.30f);
             Noise(0.70f, up ? 400f : 6000f, 0.06f, 0.36f, up ? 7000f : 300f);
             Noise(0.08f, 1100f, 0.075f, 0.10f, 0f, 0.620);
@@ -255,6 +292,7 @@ namespace Singularity.Game
         /// </summary>
         public void Tick(int secondsLeft)
         {
+            Say("PLATE · " + secondsLeft + "S");
             int i = Mathf.Clamp(3 - secondsLeft, 0, 2);
             Tone(880f + i * 110f, 0.09f, Wave.Triangle, 0.055f, 0f, 0.14f);
         }
@@ -262,6 +300,7 @@ namespace Singularity.Game
         /// <summary>The tape running backwards.</summary>
         public void Undo()
         {
+            Say("UNDONE");
             Tone(180f, 0.26f, Wave.Saw, 0.045f, 92f, 0.12f);
             Noise(0.20f, 2400f, 0.030f, 0.12f, 600f);
         }
@@ -269,6 +308,7 @@ namespace Singularity.Game
         /// <summary>The machine reporting a dead end: two clicks and a low held note.</summary>
         public void Stuck()
         {
+            Say("NO ROUTE FROM HERE");
             Noise(0.05f, 1600f, 0.06f, 0.08f);
             Noise(0.05f, 1200f, 0.05f, 0.08f, 0f, 0.120);
             Tone(73.4f, 0.9f, Wave.Sine, 0.085f, 69f, 0.24f, 0.240);
@@ -277,12 +317,14 @@ namespace Singularity.Game
         /// <summary>The lattice going to glass and back: the drive spinning up, and down.</summary>
         public void Peek()
         {
+            Say("MATRIX");
             Tone(58f, 0.60f, Wave.Saw, 0.055f, 175f, 0.18f);
             Noise(0.50f, 600f, 0.032f, 0.30f, 6000f);
         }
 
         public void PeekOff()
         {
+            Say("MATRIX OFF");
             Tone(140f, 0.22f, Wave.Saw, 0.045f, 62f, 0.14f);
             Noise(0.16f, 3000f, 0.022f, 0.12f, 500f);
         }
@@ -301,7 +343,7 @@ namespace Singularity.Game
             _bed.clip = Synth.Bed(Synth.RootFor(band));
             _bed.volume = 0f;
             _bed.Play();
-            StartCoroutine(Fade(0.055f, 1.2f));
+            StartCoroutine(Fade(BedLevel, 1.2f));
         }
 
         public void StopAmbience()
@@ -336,7 +378,7 @@ namespace Singularity.Game
         {
             yield return Fade(0.0001f, 0.04f);
             yield return new WaitForSecondsRealtime(seconds + 2.4f);
-            yield return Fade(0.055f, 1.2f);
+            yield return Fade(BedLevel, 1.2f);
             _duck = null;
         }
     }

@@ -99,15 +99,7 @@ namespace Singularity.Game
             _matLattice = new Material(sh) { name = "lattice" };
             _matPlate = new Material(sh) { name = "plate" };
 
-            _matTrace.SetColor("_ColFar", Palette.TraceFar);
-            _matTrace.SetColor("_ColNear", Palette.TraceNear);
-            _matLattice.SetColor("_ColFar", Palette.LatticeFar);
-            _matLattice.SetColor("_ColNear", Palette.LatticeNear);
-
-            // A plate is the one thing that is the same in every world, so it does
-            // not take the depth ramp: it is rust at full strength wherever it is.
-            _matPlate.SetColor("_ColFar", Palette.Rust * 0.62f);
-            _matPlate.SetColor("_ColNear", Palette.RustHi);
+            PushPalette();
             _matPlate.SetFloat("_EdgeLift", 1.4f);
             // It is cut clean through the lattice and legible from every face, so it
             // draws over whatever is in front of it. That is the rule, not a hack:
@@ -284,6 +276,28 @@ namespace Singularity.Game
             => s == Session.Special.Core ? Palette.Core
              : s == Session.Special.Node ? Palette.Node
              : Palette.Lock;
+
+        /// <summary>
+        /// The two depth ramps, onto the materials that draw them.
+        ///
+        /// Separated out because legibility moves the near lattice, and a
+        /// setting that changes the board has to be able to say so to the board
+        /// after it has already been built. These are the only colours the cube
+        /// has: everything else about a cell is arithmetic in the shader.
+        /// </summary>
+        public void PushPalette()
+        {
+            if (_matTrace == null) return;
+            _matTrace.SetColor("_ColFar", Palette.TraceFar);
+            _matTrace.SetColor("_ColNear", Palette.TraceNear);
+            _matLattice.SetColor("_ColFar", Palette.LatticeFar);
+            _matLattice.SetColor("_ColNear", Palette.LatticeNear);
+
+            // A plate is the one thing that is the same in every world, so it does
+            // not take the depth ramp: it is rust at full strength wherever it is.
+            _matPlate.SetColor("_ColFar", Palette.Rust * 0.62f);
+            _matPlate.SetColor("_ColNear", Palette.RustHi);
+        }
 
         public void Rebuild(bool force = false)
         {

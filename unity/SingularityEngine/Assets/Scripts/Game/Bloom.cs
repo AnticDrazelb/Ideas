@@ -73,7 +73,7 @@ namespace Singularity.Game
         /// for less, and a full-screen pass they cannot see the benefit of is
         /// exactly the kind of thing that setting is for.
         /// </summary>
-        public void Refresh() => enabled = _mat != null && Store.Data.fx != 0;
+        public void Refresh() => enabled = _mat != null && Access.Bloom;
 
         void OnRenderImage(RenderTexture src, RenderTexture dst)
         {

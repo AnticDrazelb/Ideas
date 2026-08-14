@@ -28,7 +28,16 @@ namespace Singularity.Game
         static float _freezeMs;
         static float _scale = 1f, _from = 1f, _slowT, _slowDur;
 
-        static float Amount => Store.Data.fx != 0 ? 1f : 0.4f;
+        /// <summary>
+        /// A BENT CLOCK IS MOTION, even though nothing on screen has moved.
+        ///
+        /// It belongs with the camera rather than with the sparks: what a stop
+        /// and a slowmo do is change the rate the whole picture arrives at, and
+        /// that is the same complaint as a shaking frame for the same player. At
+        /// STILL both knobs go to zero and the game runs at one speed, all the
+        /// time — which is a legitimate way to play it and not a lesser one.
+        /// </summary>
+        static float Amount => Access.MotionAmount;
 
         /// <summary>Hold the frame. Milliseconds.</summary>
         public static void Hitstop(float ms) => _freezeMs = Mathf.Max(_freezeMs, ms * Amount);

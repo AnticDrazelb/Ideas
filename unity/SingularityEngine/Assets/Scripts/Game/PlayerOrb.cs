@@ -205,7 +205,7 @@ namespace Singularity.Game
         /// <summary>One mote, spawned out on a ring and aimed back in on a spiral.</summary>
         void InfallOne(Vector3 at)
         {
-            if (_fx == null || Store.Data.fx == 0) return;
+            if (_fx == null || !Access.Light) return;
             float a = Random.value * Mathf.PI * 2f;
             float r = 0.38f + Random.value * 0.14f;
             var from = new Vector3(at.x + Mathf.Cos(a) * r, at.y + Mathf.Sin(a) * r, 0f);

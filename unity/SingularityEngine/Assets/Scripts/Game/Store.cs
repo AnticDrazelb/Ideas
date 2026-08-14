@@ -42,6 +42,29 @@ namespace Singularity.Game
         public int taught = 0, sawPlate = 0, sawPeek = 0, peekHinted = 0, taughtForge = 0;
         public int buzz = 100, bright = 100, contrast = 100;
 
+        // ---- access ---------------------------------------------------------
+        //
+        // ONE SWITCH WAS ANSWERING TWO PEOPLE. `motion` is the camera and the
+        // bent clock — vestibular; `light` is sparks, bloom and the full-screen
+        // flash — photosensitive. They were both `fx`, they are different
+        // criteria with different answers, and each now has an OFF rather than
+        // a quieter setting. See Access.
+        public int motion = 0;                       // 0 full, 1 reduced, 2 still
+        public int light = 0;                        // 0 full, 1 reduced, 2 none
+        public int legible = 0, captions = 0, assist = 0;
+        public int vol = 100, room = 100;            // instrument level, room level
+
+        /// <summary>
+        /// A SAVE THAT PREDATES A SETTING HAS AN OPINION ABOUT IT ANYWAY.
+        ///
+        /// Motion used to be half of the EFFECTS bit, so a player who turned
+        /// effects off had already said they wanted less movement — and a new
+        /// field defaulting to zero would silently hand them full camera shake
+        /// back on the update that was supposed to help them. The version rides
+        /// with the save so that intent can be carried across exactly once.
+        /// </summary>
+        public int v = 0;
+
         public int dailyDay = -1, dailyBest = 0, dailySolved = 0;
         public List<int> dhistDay = new List<int>();
         public List<int> dhistFolds = new List<int>();
@@ -95,11 +118,32 @@ namespace Singularity.Game
             // to say it again is not a preference, it is a tax.
             if (!PlayerPrefs.HasKey(Key)) Data.fx = SystemInfo.deviceType == DeviceType.Handheld ? 1 : 1;
 
+            Migrate();
+
             Rehydrate(Data.bestK, Data.bestV, Best);
             Rehydrate(Data.parK, Data.parV, Pars);
             Rehydrate(Data.tbestK, Data.tbestV, TBest);
             Rehydrate(Data.vbestK, Data.vbestV, VBest);
             Rehydrate(Data.dhistDay, Data.dhistFolds, DHist);
+        }
+
+        /// <summary>
+        /// Carry an old save's intent into the settings that did not exist when
+        /// it was written. Runs once per save, and the version is what makes
+        /// "once" true — a migration that runs every load is a setting the player
+        /// cannot change.
+        /// </summary>
+        static void Migrate()
+        {
+            if (Data.v >= 1) return;
+            // EFFECTS OFF MEANT BOTH LESS MOVEMENT AND LESS LIGHT, and it still
+            // means both — it splits into two settings that start where it left
+            // them, rather than into two settings that start switched on.
+            bool wasOn = Data.fx != 0;
+            Data.motion = wasOn ? (int)Access.MotionLevel.Full : (int)Access.MotionLevel.Reduced;
+            Data.light = wasOn ? (int)Access.LightLevel.Full : (int)Access.LightLevel.Reduced;
+            Data.v = 1;
+            Save();
         }
 
         static void Rehydrate<T>(List<int> k, List<T> v, Dictionary<int, T> into)

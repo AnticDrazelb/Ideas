@@ -32,6 +32,7 @@ namespace Singularity.UI
             BuildPlateTeach();
             BuildPause();
             BuildCalibrate();
+            BuildAccess();
             BuildBoards();
             BuildWin();
             ForgeScreens.Build(dir);
@@ -242,9 +243,9 @@ namespace Singularity.UI
             _vaultName = UiKit.Label(L, "vaultName", "VAULT I", 32, Palette.Ink, TextAnchor.MiddleCenter,
                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(120, -140), new Vector2(-120, -80));
 
-            RectTransform prev = UiKit.Rect(L, "prev", new Vector2(0, 1), new Vector2(0, 1), new Vector2(40, -140), new Vector2(140, -80));
+            RectTransform prev = UiKit.Rect(L, "prev", new Vector2(0, 1), new Vector2(0, 1), new Vector2(40, -154), new Vector2(140, -66));
             UiKit.Bracketed(prev, "prev", "<", () => { _viewBand = Mathf.Max(0, _viewBand - 1); PaintVaults(); }, 26);
-            RectTransform next = UiKit.Rect(L, "next", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-140, -140), new Vector2(-40, -80));
+            RectTransform next = UiKit.Rect(L, "next", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-140, -154), new Vector2(-40, -66));
             UiKit.Bracketed(next, "next", ">", () => { _viewBand++; PaintVaults(); }, 26);
 
             _grid = UiKit.Rect(L, "grid", new Vector2(0, 0), new Vector2(1, 1), new Vector2(40, 300), new Vector2(-40, -170));
@@ -274,7 +275,7 @@ namespace Singularity.UI
             _jumpMsg = UiKit.Label(L, "jumpMsg", "", 18, Palette.Dim, TextAnchor.UpperCenter,
                                    new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -324), new Vector2(-40, -290));
 
-            RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
+            RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 90 + Access.TapTarget));
             UiKit.Bracketed(back, "back", "BACK", Back, 28);
         }
 
@@ -341,9 +342,9 @@ namespace Singularity.UI
             // and the seed box follows the rack rather than the floor
             float below = 170f + rows * cellH + 26f;
             _jumpRow.offsetMax = new Vector2(-40, -below);
-            _jumpRow.offsetMin = new Vector2(40, -(below + 62f));
-            _jumpMsg.rectTransform.offsetMax = new Vector2(-40, -(below + 68f));
-            _jumpMsg.rectTransform.offsetMin = new Vector2(40, -(below + 102f));
+            _jumpRow.offsetMin = new Vector2(40, -(below + Access.TapTarget));
+            _jumpMsg.rectTransform.offsetMax = new Vector2(-40, -(below + Access.TapTarget + 6f));
+            _jumpMsg.rectTransform.offsetMin = new Vector2(40, -(below + Access.TapTarget + 40f));
 
             for (int i = 0; i < size; i++)
             {
@@ -567,7 +568,7 @@ namespace Singularity.UI
             Third(three, 2, "MENU", ShowTitle);
 
             RectTransform links = UiKit.Rect(L, "links", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                             new Vector2(72, -196), new Vector2(-72, -146));
+                                             new Vector2(72, -(128 + Access.TapTarget)), new Vector2(-72, -128));
             RectTransform bSlot = UiKit.Rect(links, "b", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
             UiKit.Link(bSlot, "boards", "BOARDS", ShowBoards, 20);
             RectTransform cSlot = UiKit.Rect(links, "c", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);
@@ -666,8 +667,12 @@ namespace Singularity.UI
             Toggle(panel, "i.sound", "SOUND", "", () => Store.Data.sound,
                    v => { Store.Data.sound = v; if (v == 0) Sfx.I.StopAmbience(); else Sfx.I.Ambience(Vaults.VaultOf(_dir.S.levelNo)); });
             Toggle(panel, "i.haptic", "HAPTICS", "", () => Store.Data.haptic, v => Store.Data.haptic = v);
-            Toggle(panel, "i.fx", "EFFECTS", "SHAKE · SPARKS · BLOOM", () => Store.Data.fx,
-                   v => { Store.Data.fx = v; _dir.Glow.Refresh(); });
+            // THE EFFECTS SWITCH WAS TWO SETTINGS WEARING ONE COAT, and both of
+            // them belong on the screen that is about being able to play at all
+            // rather than on the one about taste. What is left here is a door to
+            // it, which is also how somebody finds a screen they did not know
+            // the game had.
+            Link(panel, "i.fx", "ACCESS", "MOTION · LIGHT · CONTRAST · WORDS", ShowAccess);
             Toggle(panel, "i.togo", "FOLDS TO GO", "CYAN: PERFECT LINE · RUST: YOU SLIPPED",
                    () => Store.Data.togo, v => Store.Data.togo = v);
             Toggle(panel, "i.depth", "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL",
@@ -679,7 +684,7 @@ namespace Singularity.UI
             Bar(panel, "i.contrast", "CONTRAST", "", 70, 150, () => Store.Data.contrast, v => Store.Data.contrast = v);
 
             RectTransform feet = UiKit.Rect(L, "feet", new Vector2(0, 0), new Vector2(1, 0),
-                                            new Vector2(40, 90), new Vector2(-40, 152));
+                                            new Vector2(40, 90), new Vector2(-40, 90 + Access.TapTarget));
             Third(feet, 0, "MANUAL", ShowManual);
             Third(feet, 1, "BACK", Back);
             Third(feet, 2, "MENU", ShowTitle);
@@ -730,7 +735,8 @@ namespace Singularity.UI
                 set(v);
                 Store.Save();
                 return v != 0;
-            }, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-108, -21), new Vector2(-18, 21));
+            }, new Vector2(1, 0.5f), new Vector2(1, 0.5f),
+                new Vector2(-108, -Access.TapTarget * 0.5f), new Vector2(-18, Access.TapTarget * 0.5f));
         }
 
         static void Bar(RectTransform panel, string icon, string label, string hint,
@@ -747,10 +753,199 @@ namespace Singularity.UI
                 set(v);
                 Store.Save();
                 val.text = v + "%";
-            }, new Vector2(0.52f, 0.5f), new Vector2(1, 0.5f), new Vector2(0, -18), new Vector2(-18, 18));
+            }, new Vector2(0.52f, 0.5f), new Vector2(1, 0.5f),
+                new Vector2(0, -Access.TapTarget * 0.5f), new Vector2(-18, Access.TapTarget * 0.5f));
+        }
+
+        /// <summary>A calibrate row whose control is a way somewhere else.</summary>
+        static void Link(RectTransform panel, string icon, string label, string hint, System.Action act)
+        {
+            RectTransform r = CalRow(panel, icon, label, hint, true);
+            RectTransform slot = UiKit.Rect(r, "go", new Vector2(1, 0.5f), new Vector2(1, 0.5f),
+                                            new Vector2(-158, -Access.TapTarget * 0.5f),
+                                            new Vector2(-18, Access.TapTarget * 0.5f));
+            UiKit.Bracketed(slot, "open", "OPEN", act, 20);
         }
 
         public static void ShowCalibrate() => Show("calibrate");
+
+        // ---- access ----------------------------------------------------------
+        //
+        // THE SCREEN THIS GAME NEEDED AND DID NOT HAVE.
+        //
+        // Everything here answers a question of the form "can this player take
+        // delivery of what the game is saying", which is a different question
+        // from the one CALIBRATE answers — that one is about taste and about the
+        // room you are sitting in. Keeping them apart is not tidiness: a player
+        // looking for the setting that stops the screen shaking should not have
+        // to go through eight rows about brightness to find out whether it
+        // exists.
+        //
+        // Three sections, one per sense, in the order the grades are stated:
+        // what you can see, what you can hear, what your hand has to do.
+
+        static int _accRow;
+        const int AccRows = 8;
+
+        static void BuildAccess()
+        {
+            RectTransform L = Layer("access");
+            Solid(L);
+            UiKit.Label(L, "h", "ACCESS", 40, Palette.Ink, TextAnchor.UpperCenter,
+                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -140), new Vector2(0, -90));
+            UiKit.Label(L, "sub", "SIGHT · SOUND · HAND", 20, Palette.Dim, TextAnchor.UpperCenter,
+                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -176), new Vector2(0, -146));
+
+            RectTransform panel = UiKit.Rect(L, "panel", new Vector2(0, 0), new Vector2(1, 1),
+                                             new Vector2(28, 190), new Vector2(-28, -200));
+            UiKit.Framed(panel, Palette.Panel, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.55f));
+
+            _accRow = 0;
+
+            // ---- sight -------------------------------------------------------
+            Steps(panel, "i.fx", "MOTION", "SHAKE · ZOOM · THE BENT CLOCK",
+                  new[] { "FULL", "LESS", "STILL" },
+                  () => Store.Data.motion, v => Store.Data.motion = v);
+
+            Steps(panel, "i.fx", "LIGHT", "SPARKS · BLOOM · THE FLASH",
+                  new[] { "FULL", "LESS", "NONE" },
+                  () => Store.Data.light, v => { Store.Data.light = v; _dir.Glow.Refresh(); });
+
+            // THE ONE SETTING THAT REPAINTS THE GAME UNDERNEATH ITSELF, which is
+            // exactly why it is worth doing in place: the row you just pressed is
+            // still under your thumb, and the contrast you asked for is a thing
+            // you can now see on the screen you asked for it on.
+            AccToggle(panel, "i.bright", "LEGIBILITY", "EVERY LABEL AT 7:1",
+                      () => Store.Data.legible,
+                      v =>
+                      {
+                          Store.Data.legible = v;
+                          UiKit.Repaint();
+                          _dir.View.PushPalette();
+                          _dir.Filter.Refresh();
+                      });
+
+            // ---- sound -------------------------------------------------------
+            AccToggle(panel, "i.sound", "CAPTIONS", "EVERY CUE, IN WORDS",
+                      () => Store.Data.captions, v => Store.Data.captions = v);
+            AccBar(panel, "i.sound", "INSTRUMENT", "", 0, 150, () => Store.Data.vol, v => Store.Data.vol = v);
+            AccBar(panel, "i.sound", "ROOM", "", 0, 150, () => Store.Data.room, v => Store.Data.room = v);
+
+            // ---- hand --------------------------------------------------------
+            AccToggle(panel, "i.haptic", "FOLD BUTTONS", "FOUR ARROWS · NO SWIPE NEEDED",
+                      () => Store.Data.assist,
+                      v => { Store.Data.assist = v; _dir.Hud.RefreshAssist(); });
+            AccToggle(panel, "i.depth", "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL",
+                      () => Store.Data.depth, v => Store.Data.depth = v);
+
+            RectTransform feet = UiKit.Rect(L, "feet", new Vector2(0, 0), new Vector2(1, 0),
+                                            new Vector2(40, 90), new Vector2(-40, 90 + Access.TapTarget));
+            Third(feet, 0, "MANUAL", ShowManual);
+            Third(feet, 1, "BACK", Back);
+            Third(feet, 2, "MENU", ShowTitle);
+        }
+
+        public static void ShowAccess() => Show("access");
+
+        static RectTransform AccRow(RectTransform panel, string icon, string label, string hint)
+        {
+            float h = 1f / AccRows;
+            int slot = _accRow++;
+            RectTransform r = UiKit.Rect(panel, label, new Vector2(0, 1 - (slot + 1) * h), new Vector2(1, 1 - slot * h),
+                                         new Vector2(0, 2), new Vector2(0, -2));
+
+            UiKit.Icon(r, icon, Palette.Rust, 26, new Vector2(0, 0.5f), new Vector2(34, 0));
+            UiKit.Label(r, "l", label, 21, Palette.Ink, TextAnchor.MiddleLeft,
+                        new Vector2(0, string.IsNullOrEmpty(hint) ? 0 : 0.40f), new Vector2(0.55f, 1),
+                        new Vector2(58, 0), Vector2.zero);
+            if (!string.IsNullOrEmpty(hint))
+                UiKit.Label(r, "h", hint, 17, Palette.Dim, TextAnchor.MiddleLeft,
+                            new Vector2(0, 0), new Vector2(0.72f, 0.40f), new Vector2(58, 0), Vector2.zero);
+
+            if (slot < AccRows - 1)
+                UiKit.Panel(r, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.20f),
+                            new Vector2(0, 0), new Vector2(1, 0), new Vector2(20, 0), new Vector2(-20, 1));
+            return r;
+        }
+
+        static void AccToggle(RectTransform panel, string icon, string label, string hint,
+                              System.Func<int> get, System.Action<int> set)
+        {
+            RectTransform r = AccRow(panel, icon, label, hint);
+            UiKit.Switch(r, "sw", get() != 0, _ =>
+            {
+                int v = get() != 0 ? 0 : 1;
+                set(v);
+                Store.Save();
+                return v != 0;
+            }, new Vector2(1, 0.5f), new Vector2(1, 0.5f),
+               new Vector2(-108, -Access.TapTarget * 0.5f), new Vector2(-18, Access.TapTarget * 0.5f));
+        }
+
+        static void AccBar(RectTransform panel, string icon, string label, string hint,
+                           int lo, int hi, System.Func<int> get, System.Action<int> set)
+        {
+            RectTransform r = AccRow(panel, icon, label, hint);
+            Text val = UiKit.Label(r, "v", get() + "%", 21, Palette.Rust, TextAnchor.MiddleLeft,
+                                   new Vector2(0.30f, 0), new Vector2(0.52f, 0.40f), Vector2.zero, Vector2.zero);
+            UiKit.Bar(r, "bar", lo, hi, get(), v =>
+            {
+                set(v);
+                Store.Save();
+                val.text = v + "%";
+            }, new Vector2(0.52f, 0.5f), new Vector2(1, 0.5f),
+               new Vector2(0, -Access.TapTarget * 0.5f), new Vector2(-18, Access.TapTarget * 0.5f));
+        }
+
+        /// <summary>
+        /// THREE STATES IS NOT A SWITCH AND IT IS NOT A SLIDER.
+        ///
+        /// A switch can only say two things, and this setting has three because
+        /// the middle one is the honest answer for most people — a slider would
+        /// invite a player to hunt for a number when there are only three
+        /// answers and each is named. So: three labelled stops, the current one
+        /// lit the way the primary is lit, and the whole row is a target.
+        /// </summary>
+        static void Steps(RectTransform panel, string icon, string label, string hint, string[] names,
+                          System.Func<int> get, System.Action<int> set)
+        {
+            RectTransform r = AccRow(panel, icon, label, hint);
+            RectTransform row = UiKit.Rect(r, "steps", new Vector2(0.52f, 0.5f), new Vector2(1, 0.5f),
+                                           new Vector2(0, -Access.TapTarget * 0.5f),
+                                           new Vector2(-18, Access.TapTarget * 0.5f));
+
+            var plates = new Image[names.Length];
+            var labels = new Text[names.Length];
+
+            void Paint()
+            {
+                int now = Mathf.Clamp(get(), 0, names.Length - 1);
+                for (int i = 0; i < names.Length; i++)
+                {
+                    if (plates[i] == null) continue;
+                    plates[i].color = i == now ? Palette.Rust : Palette.Panel;
+                    labels[i].color = i == now ? Palette.Void : Palette.Dim;
+                }
+            }
+
+            for (int i = 0; i < names.Length; i++)
+            {
+                int which = i;
+                RectTransform slot = UiKit.Rect(row, names[i],
+                    new Vector2(i / (float)names.Length, 0), new Vector2((i + 1f) / (float)names.Length, 1),
+                    new Vector2(i == 0 ? 0 : 3, 0), new Vector2(i == names.Length - 1 ? 0 : -3, 0));
+
+                Button b = UiKit.Bracketed(slot, names[i], names[i], () =>
+                {
+                    set(which);
+                    Store.Save();
+                    Paint();
+                }, 17);
+                plates[i] = b.GetComponent<Image>();
+                labels[i] = b.GetComponentInChildren<Text>();
+            }
+            Paint();
+        }
 
         // ---- boards ----------------------------------------------------------
         //
@@ -783,7 +978,7 @@ namespace Singularity.UI
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -812), new Vector2(-40, -786));
 
             RectTransform outs = UiKit.Rect(L, "outs", new Vector2(0, 1), new Vector2(1, 1),
-                                            new Vector2(80, -892), new Vector2(-80, -844));
+                                            new Vector2(80, -(820 + Access.TapTarget)), new Vector2(-80, -820));
             RectTransform bk = UiKit.Rect(outs, "b", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
             UiKit.Link(bk, "back", "BACK", Back, 21, Palette.Ink);
             RectTransform mn = UiKit.Rect(outs, "m", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);
@@ -945,8 +1140,8 @@ namespace Singularity.UI
             }
 
             Place(_winNextRow, UiKit.PrimaryH, 20f);
-            Place(_winRetryRow, 52f, 14f);
-            Place(_winOutsRow, 52f, 0f);
+            Place(_winRetryRow, Access.TapTarget, 14f);
+            Place(_winOutsRow, Access.TapTarget, 0f);
         }
 
         /// <summary>

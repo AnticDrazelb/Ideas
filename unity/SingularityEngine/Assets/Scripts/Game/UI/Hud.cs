@@ -22,17 +22,22 @@ namespace Singularity.UI
         Canvas _canvas;
         GameDirector _dir;
 
-        Text _foldN, _parN, _keyN, _keyTot, _goN, _hintN, _lvNo, _lvName, _vault, _toast, _plateClock;
+        Text _foldN, _parN, _keyN, _keyTot, _goN, _hintN, _lvNo, _lvName, _vault, _toast, _plateClock, _caption;
         Image _keyChip, _goChip, _flash, _vignette, _plateBar;
         Image[] _ticks = new Image[4];
+        readonly Button[] _foldBtns = new Button[4];
         RectTransform _root;
 
         readonly List<Text> _depthPool = new List<Text>();
         RectTransform _depthRoot;
 
-        float _toastT, _flashT, _flashDur, _vig;
+        float _toastT, _flashT, _flashDur, _vig, _capT;
         Color _flashCol;
         string _goShown = "";
+
+        // the last three flashes, on the real clock — see Flash
+        readonly float[] _flashAt = new float[Access.FlashesPerSecond];
+        int _flashIdx;
 
         public static Hud Build(GameDirector dir)
         {
@@ -46,6 +51,10 @@ namespace Singularity.UI
 
         void Compose()
         {
+            // a zeroed timestamp is "now" during the first second of the process,
+            // which would spend the whole flash budget before anything happened
+            for (int i = 0; i < _flashAt.Length; i++) _flashAt[i] = -9f;
+
             _root = UiKit.Rect(_canvas.transform, "root", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             // ---- the flash and the vignette sit under everything -------------
@@ -134,6 +143,15 @@ namespace Singularity.UI
             _ticks[2] = Tick("tickU", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-34, -206), new Vector2(34, -200));
             _ticks[3] = Tick("tickD", new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(-34, 200), new Vector2(34, 206));
 
+            // and the same four, as things you can press — see RefreshAssist.
+            // The turn indices are InputRouter's: 0 left, 1 right, 2 up, 3 down.
+            float T = Access.TapTarget, H = T * 0.5f;
+            _foldBtns[0] = FoldButton("foldL", 0, "<", new Vector2(0, 0.5f), new Vector2(10, -H), new Vector2(10 + T, H));
+            _foldBtns[1] = FoldButton("foldR", 1, ">", new Vector2(1, 0.5f), new Vector2(-10 - T, -H), new Vector2(-10, H));
+            _foldBtns[2] = FoldButton("foldU", 2, "^", new Vector2(0.5f, 1), new Vector2(-H, -212 - T), new Vector2(H, -212));
+            _foldBtns[3] = FoldButton("foldD", 3, "v", new Vector2(0.5f, 0), new Vector2(-H, 212), new Vector2(H, 212 + T));
+            RefreshAssist();
+
             // ---- bottom band ---------------------------------------------------
             RectTransform bot = UiKit.Rect(_root, "barBot", new Vector2(0, 0), new Vector2(1, 0),
                                            new Vector2(0, 0), new Vector2(0, 128));
@@ -150,6 +168,30 @@ namespace Singularity.UI
             _toast = UiKit.Label(_root, "toast", "", 26, Palette.Ink, TextAnchor.LowerCenter,
                                  new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 140), new Vector2(0, 220));
             _toast.color = new Color(1, 1, 1, 0);
+
+            // THE CAPTION SITS UNDER THE PLATE CLOCK, NOT UNDER THE TOAST.
+            //
+            // A toast is the game talking; a caption is the game's SOUND written
+            // down, and they are different enough that stacking them in one line
+            // would make each look like an interruption of the other. It goes
+            // just below the top rule for the same reason the plate clock does:
+            // the eyes are on the board, and that is the nearest edge to them.
+            _caption = UiKit.Label(_root, "caption", "", 19, Palette.Dim, TextAnchor.UpperCenter,
+                                   new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -232), new Vector2(0, -196));
+            _caption.color = new Color(1, 1, 1, 0);
+        }
+
+        Button FoldButton(string name, int turn, string arrow, Vector2 anchor, Vector2 oMin, Vector2 oMax)
+        {
+            RectTransform slot = UiKit.Rect(_root, name, anchor, anchor, oMin, oMax);
+            return UiKit.Bracketed(slot, name, arrow, () =>
+            {
+                Session s = _dir.S;
+                if (s?.lv == null || s.won) return;
+                // the same two lines the swipe and the arrow keys both end in, so
+                // an assisted fold is the same event and gets the same refusal
+                if (!s.TryTurn(turn)) s.RefuseTurn(turn);
+            }, 26);
         }
 
         Image Tick(string name, Vector2 aMin, Vector2 aMax, Vector2 oMin, Vector2 oMax)
@@ -161,8 +203,12 @@ namespace Singularity.UI
 
         void Third(RectTransform parent, int i, string label, System.Action act)
         {
+            // The band is 128 tall and these were inset 22 top and bottom, which
+            // leaves 84 — four units under the target, on the three controls that
+            // are pressed more than everything else in the game put together.
+            const float Inset = (128f - Access.TapTarget) * 0.5f;
             RectTransform slot = UiKit.Rect(parent, label, new Vector2(i / 3f, 0), new Vector2((i + 1) / 3f, 1),
-                                            new Vector2(10, 22), new Vector2(-10, -22));
+                                            new Vector2(10, Inset), new Vector2(-10, -Inset));
             UiKit.Bracketed(slot, label, label, act);
         }
 
@@ -182,20 +228,82 @@ namespace Singularity.UI
 
         public void SetVisible(bool on) => _root.gameObject.SetActive(on);
 
+        /// <summary>
+        /// A FOLD THAT IS NOT A SWIPE.
+        ///
+        /// Both of this game's gestures are two-part — travel far enough, or
+        /// stay still long enough — and neither is available to somebody using a
+        /// head pointer, a switch, or one unsteady finger. There is no difficulty
+        /// argument for the swipe either: the same four folds have been on the
+        /// arrow keys since the first build, for anybody who happens to open this
+        /// on a desktop. This is that keyboard, for a thumb.
+        ///
+        /// They sit ON the four ticks, which is the one place in the interface
+        /// that already means "this is the fold in this direction" — so the
+        /// buttons appear where the answer to "can I fold that way" already was,
+        /// rather than as a fifth thing to learn.
+        /// </summary>
+        public void RefreshAssist()
+        {
+            bool on = Access.Assist;
+            for (int i = 0; i < _foldBtns.Length; i++)
+                if (_foldBtns[i] != null && _foldBtns[i].gameObject.activeSelf != on)
+                    _foldBtns[i].gameObject.SetActive(on);
+        }
+
         public void Toast(string msg)
         {
             _toast.text = msg.ToUpperInvariant();
             _toastT = 1.6f;
         }
 
+        /// <summary>
+        /// THE FLASH IS THE ONE EFFECT WITH A SEIZURE IN IT, and the game cannot
+        /// promise 2.3.1 by being tasteful — it can only promise it by counting.
+        ///
+        /// Every flash here is raised by something the PLAYER did: a fold, a
+        /// node, a lock, a plate. Nothing in the design limits how fast those can
+        /// happen and nothing should, so on a small cube a quick hand can put
+        /// four or five full-screen luminance changes inside one second without
+        /// the game having done anything wrong. So the last few are remembered
+        /// and a fourth inside a second is simply not raised: the event still
+        /// gets its sound, its haptic, its shake and its debris, and loses only
+        /// the one channel that was over budget.
+        ///
+        /// The window is the real clock, not the bent one — a hitstop must not
+        /// buy back a flash.
+        /// </summary>
         public void Flash(Color c, float amount, float dur = 0.5f)
         {
+            amount *= Access.LightAmount;
+            if (amount <= 0.001f) return;
+
+            float now = Time.realtimeSinceStartup;
+            int recent = 0;
+            for (int i = 0; i < _flashAt.Length; i++) if (now - _flashAt[i] < 1f) recent++;
+            if (recent >= Access.FlashesPerSecond) return;
+
+            _flashAt[_flashIdx] = now;
+            _flashIdx = (_flashIdx + 1) % _flashAt.Length;
+
             _flashCol = c;
             _flashT = amount;
             _flashDur = dur;
         }
 
         public void Vignette(float amount) => _vig = Mathf.Max(_vig, amount);
+
+        /// <summary>
+        /// The words for a sound that has just played. Short-lived, and it
+        /// REPLACES rather than queues: two cues inside a second are two things
+        /// that just happened, and a caption still showing the first of them is
+        /// telling the player about the past.
+        /// </summary>
+        public void Caption(string words)
+        {
+            _caption.text = words;
+            _capT = 1.1f;
+        }
 
         public void Refresh(Session s)
         {
@@ -262,6 +370,13 @@ namespace Singularity.UI
                 _toastT -= dt;
                 float a = Mathf.Clamp01(_toastT / 0.4f);
                 _toast.color = new Color(Palette.Ink.r, Palette.Ink.g, Palette.Ink.b, a);
+            }
+
+            if (_capT > 0f)
+            {
+                _capT -= dt;
+                float a = Mathf.Clamp01(_capT / 0.3f);
+                _caption.color = new Color(Palette.Dim.r, Palette.Dim.g, Palette.Dim.b, a);
             }
 
             if (_flashT > 0f)

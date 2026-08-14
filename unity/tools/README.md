@@ -51,6 +51,18 @@ returning zero is harmless — the call is a no-op whose result nobody reads.
 There it would be a landmine: a `Mathf` that quietly answers 0 turns a runnable
 check into one that passes for the wrong reason.
 
+`Color` and `ColorUtility` are real for exactly the same reason, and it is worth
+recording that they were *not* until the access audit was written. `Color`'s
+arithmetic all returned its left operand and `TryParseHtmlString` answered black,
+which is harmless while nothing reads the result and a landmine the moment
+something does — and the audit reads every one of them. A stubbed `Lerp` turns
+"is a trace brighter than the lattice at every depth" into a comparison of two
+identical values; a parser that answers black turns twenty contrast assertions
+into twenty comparisons of black against black. Both pass. Neither means
+anything, and **a green check that means nothing is worse than no check.** The
+first thing `AccessChecks` does is prove the parser and the ratio on values whose
+answers are known, so that failure mode cannot come back quietly.
+
 With it real, the harness can **execute** the pure-logic half of the game layer,
 not merely compile it:
 

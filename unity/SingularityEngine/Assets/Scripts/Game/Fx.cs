@@ -60,12 +60,16 @@ namespace Singularity.Game
         readonly List<int> _tri = new List<int>(6144);
 
         /// <summary>
-        /// A hard cap, and a lower one when effects are turned down. A player who
-        /// has asked for less motion still gets every beat — they just get it at
-        /// forty per cent, because the beats are the game and the confetti is not.
+        /// A hard cap, and a lower one when the light is turned down. A player
+        /// who has asked for less still gets every beat — they just get it at
+        /// forty per cent, because the beats are the game and the confetti is
+        /// not. At NONE the debris stops entirely and the beat is carried by the
+        /// sound, the haptic and the board itself, all three of which are still
+        /// there.
         /// </summary>
-        int Cap => Store.Data.fx != 0 ? 460 : 130;
-        static float Amount => Store.Data.fx != 0 ? 1f : 0.4f;
+        int Cap => Access.Lighting == Access.LightLevel.Full ? 460
+                 : Access.Lighting == Access.LightLevel.Reduced ? 130 : 0;
+        static float Amount => Access.LightAmount;
 
         public static Fx Build(Transform under)
         {
@@ -144,7 +148,10 @@ namespace Singularity.Game
 
         public void Burst(Vector3 world, int n, BurstOpts o)
         {
-            if (Store.Data.fx == 0) n = Mathf.Max(1, Mathf.RoundToInt(n * 0.4f));
+            // Scaled rather than floored at one: at NONE the answer is none, and
+            // a Max(1, …) here is how "no particles" quietly becomes "one".
+            n = Mathf.RoundToInt(n * Amount);
+            if (n <= 0) return;
             var at = new Vector2(world.x, world.y);
 
             for (int i = 0; i < n && _parts.Count < Cap; i++)
@@ -171,7 +178,8 @@ namespace Singularity.Game
 
         public void Ring2(Vector3 world, float r0, float r1, float dur, Color col, float width, bool square)
         {
-            if (Store.Data.fx == 0 && _rings.Count > 3) return;
+            if (Access.Lighting == Access.LightLevel.None) return;
+            if (Access.Lighting == Access.LightLevel.Reduced && _rings.Count > 3) return;
             _rings.Add(new Ring
             {
                 pos = new Vector2(world.x, world.y),

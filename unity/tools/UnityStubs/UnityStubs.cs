@@ -70,6 +70,18 @@ namespace UnityEngine
         public static Vector3 operator *(Quaternion a, Vector3 v) => default;
     }
 
+    /// <summary>
+    /// IMPLEMENTED FOR REAL, and for the same reason Mathf is.
+    ///
+    /// This was a struct whose arithmetic all returned its left operand and
+    /// whose parser returned black, which is harmless as long as nothing reads
+    /// the result — and a landmine the moment something does. The access audit
+    /// reads every one of these: a stubbed Lerp turns "is a trace brighter than
+    /// the lattice at every depth" into a comparison of two identical values,
+    /// and a parser that answers black turns twenty contrast assertions into
+    /// twenty comparisons of black against black. Both pass. Neither means
+    /// anything, and a green check that means nothing is worse than no check.
+    /// </summary>
     public struct Color
     {
         public float r, g, b, a;
@@ -77,10 +89,16 @@ namespace UnityEngine
         public static Color white => new Color(1, 1, 1);
         public static Color black => new Color(0, 0, 0);
         public static Color clear => new Color(0, 0, 0, 0);
-        public static Color operator +(Color a, Color b) => a;
-        public static Color operator /(Color c, float f) => c;
-        public static Color Lerp(Color a, Color b, float t) => a;
-        public static Color operator *(Color c, float f) => c;
+        public static Color magenta => new Color(1, 0, 1);
+        public static Color operator +(Color a, Color b) => new Color(a.r + b.r, a.g + b.g, a.b + b.b, a.a + b.a);
+        public static Color operator /(Color c, float f) => new Color(c.r / f, c.g / f, c.b / f, c.a / f);
+        public static Color operator *(Color c, float f) => new Color(c.r * f, c.g * f, c.b * f, c.a * f);
+        public static Color Lerp(Color a, Color b, float t)
+        {
+            t = Mathf.Clamp01(t);
+            return new Color(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t,
+                             a.b + (b.b - a.b) * t, a.a + (b.a - a.a) * t);
+        }
         public static implicit operator Color(Color32 c) => new Color(c.r / 255f, c.g / 255f, c.b / 255f, c.a / 255f);
     }
 
@@ -156,6 +174,8 @@ namespace UnityEngine
         public GameObject gameObject => null;
         public T GetComponent<T>() => default;
         public T GetComponentInChildren<T>() => default;
+        // an empty array rather than null: the caller foreaches it
+        public T[] GetComponentsInChildren<T>(bool includeInactive = false) => new T[0];
     }
 
     public class Behaviour : Component { public bool enabled; }
@@ -471,9 +491,37 @@ namespace UnityEngine
     public enum DeviceType { Unknown, Handheld, Console, Desktop }
     public static class Handheld { public static void Vibrate() { } }
 
+    /// <summary>
+    /// Real, for the reason given on <see cref="Color"/>: the whole palette is
+    /// declared as hex strings, so a parser that answers black makes every
+    /// colour in the game the same colour and every check about them vacuous.
+    ///
+    /// Unity's accepts #RGB, #RRGGBB and #RRGGBBAA with or without the hash, and
+    /// answers false on anything it cannot read. This does the same.
+    /// </summary>
     public static class ColorUtility
     {
-        public static bool TryParseHtmlString(string s, out Color c) { c = default; return true; }
+        public static bool TryParseHtmlString(string s, out Color c)
+        {
+            c = default;
+            if (string.IsNullOrEmpty(s)) return false;
+            if (s[0] == '#') s = s.Substring(1);
+            if (s.Length != 3 && s.Length != 6 && s.Length != 8) return false;
+            foreach (char ch in s) if (System.Uri.IsHexDigit(ch) == false) return false;
+
+            int Hex2(int i) => Convert.ToInt32(s.Substring(i, 2), 16);
+            if (s.Length == 3)
+            {
+                int r3 = Convert.ToInt32(new string(s[0], 2), 16);
+                int g3 = Convert.ToInt32(new string(s[1], 2), 16);
+                int b3 = Convert.ToInt32(new string(s[2], 2), 16);
+                c = new Color(r3 / 255f, g3 / 255f, b3 / 255f, 1f);
+                return true;
+            }
+            c = new Color(Hex2(0) / 255f, Hex2(2) / 255f, Hex2(4) / 255f,
+                          s.Length == 8 ? Hex2(6) / 255f : 1f);
+            return true;
+        }
     }
 
     public class AndroidJavaObject : IDisposable

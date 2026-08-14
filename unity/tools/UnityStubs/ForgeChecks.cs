@@ -85,6 +85,8 @@ public static class ForgeChecks
 
         Daily();
 
+        fails += AccessChecks.Run();
+
         Console.WriteLine(fails == 0 ? "CHECKS PASSED" : fails + " CHECKS FAILED");
         return fails;
     }

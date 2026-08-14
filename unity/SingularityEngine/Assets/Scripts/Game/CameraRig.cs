@@ -24,8 +24,13 @@ namespace Singularity.Game
         float _baseSize = 4f;
         Vector2 _baseOffset;
 
-        /// <summary>Effects at 40% rather than nothing when the player has turned them down.</summary>
-        static float Amount => Store.Data.fx != 0 ? 1f : 0.4f;
+        /// <summary>
+        /// EVERY IMPULSE IN THIS FILE GOES THROUGH ONE NUMBER, and at STILL that
+        /// number is zero — not forty per cent, which is what it used to bottom
+        /// out at. Forty per cent of a plate fire is still a plate fire to the
+        /// player who cannot take one.
+        /// </summary>
+        static float Amount => Access.MotionAmount;
 
         public void Init()
         {

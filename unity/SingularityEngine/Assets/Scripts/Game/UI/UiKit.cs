@@ -59,6 +59,16 @@ namespace Singularity.UI
         }
         static Font _mono;
 
+        /// <summary>
+        /// Every canvas this kit has made, so legibility can repaint the
+        /// interface where it stands. A list rather than a Find call because
+        /// there are exactly two of them and they are both made right here —
+        /// searching the scene for something you handed out yourself is how a
+        /// third canvas somebody adds later quietly stops being repainted.
+        /// </summary>
+        public static readonly System.Collections.Generic.List<Canvas> Canvases
+            = new System.Collections.Generic.List<Canvas>();
+
         public static Canvas Canvas(string name, int order)
         {
             var go = new GameObject(name, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -72,8 +82,52 @@ namespace Singularity.UI
             s.matchWidthOrHeight = 0.5f;
             Object.DontDestroyOnLoad(go);
             go.AddComponent<SafeArea>();
+            Canvases.Add(c);
             return c;
         }
+
+        /// <summary>
+        /// Swap the interface between the shipped palette and the legible one,
+        /// in place. See Palette.TypeSwaps for why type and surfaces are walked
+        /// separately and why doing it twice is harmless.
+        ///
+        /// Alpha is carried through untouched, so the hairline that is rust at
+        /// .20 is still the same hairline at .20 afterwards, and a colour that is
+        /// in neither list — an interpolated tint, a button's pressed state — is
+        /// left exactly where it was.
+        /// </summary>
+        public static void Repaint()
+        {
+            bool legible = Access.Legible;
+
+            bool Swap(Palette.Swap[] list, Color had, out Color want)
+            {
+                foreach (Palette.Swap s in list)
+                {
+                    Color from = legible ? s.shipped : s.legible;
+                    Color to = legible ? s.legible : s.shipped;
+                    if (Same(had, from)) { want = new Color(to.r, to.g, to.b, had.a); return true; }
+                }
+                want = had;
+                return false;
+            }
+
+            for (int i = Canvases.Count - 1; i >= 0; i--)
+            {
+                Canvas c = Canvases[i];
+                if (c == null) { Canvases.RemoveAt(i); continue; }   // == null, not ?., see Ensure
+
+                foreach (Text t in c.GetComponentsInChildren<Text>(true))
+                    if (Swap(Palette.TypeSwaps, t.color, out Color to)) t.color = to;
+
+                foreach (Image im in c.GetComponentsInChildren<Image>(true))
+                    if (Swap(Palette.FillSwaps, im.color, out Color to)) im.color = to;
+            }
+        }
+
+        /// <summary>Equal to the byte a colour was authored as. Ignores alpha.</summary>
+        static bool Same(Color a, Color b)
+            => Mathf.Abs(a.r - b.r) < 0.002f && Mathf.Abs(a.g - b.g) < 0.002f && Mathf.Abs(a.b - b.b) < 0.002f;
 
         /// <summary>
         /// A NOTCH IS NOT A SUGGESTION.
@@ -366,14 +420,37 @@ namespace Singularity.UI
         /// slate and knob-left is off, and you can tell which from further away than
         /// you can read the label.
         /// </summary>
+        /// <summary>
+        /// THE TARGET IS NOT THE INK.
+        ///
+        /// A pill drawn forty-two units tall is a good-looking switch and half a
+        /// tap target: 2.5.5 at AAA asks for 44 CSS px on the shortest side,
+        /// which is eighty-eight units here. Growing the pill to meet that would
+        /// make it a rectangle with rounded ends rather than a pill, and the
+        /// SHAPE is the whole reason a switch beats a three-letter word — you can
+        /// read knob-left from across a room.
+        ///
+        /// So the pressable rect and the drawn pill are separated. The outer rect
+        /// takes whatever height it is given, carries the Button and an invisible
+        /// raycast plate, and the pill is drawn inside it at the size it was
+        /// designed. Nothing about the picture changes; the thing you can hit
+        /// stops being the picture.
+        /// </summary>
         public static Button Switch(Transform parent, string name, bool on, System.Func<bool, bool> set,
                                     Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
         {
-            RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
+            RectTransform hit = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
+            var plate = hit.gameObject.AddComponent<Image>();
+            plate.color = new Color(0, 0, 0, 0);
+
+            const float PillH = 42f;
+            RectTransform rt = Rect(hit, "pill", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
+                                    new Vector2(0, -PillH * 0.5f), new Vector2(0, PillH * 0.5f));
 
             var track = rt.gameObject.AddComponent<Image>();
             track.sprite = PillFill;
             track.type = Image.Type.Sliced;
+            track.raycastTarget = false;
 
             RectTransform kr = Rect(rt, "knob", new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, Vector2.zero);
             kr.sizeDelta = new Vector2(34, 34);
@@ -387,7 +464,9 @@ namespace Singularity.UI
 
             void Paint(bool v)
             {
-                track.color = v ? Palette.Rust : Palette.Dim2;
+                // Inert rather than Dim2: this is a SURFACE, and under legibility
+                // the quiet type it used to share a value with goes the other way.
+                track.color = v ? Palette.Rust : Palette.Inert;
                 kr.anchorMin = kr.anchorMax = new Vector2(v ? 1f : 0f, 0.5f);
                 kr.anchoredPosition = new Vector2(v ? -22f : 22f, 0f);
                 lbl.text = v ? "ON" : "OFF";
@@ -396,7 +475,7 @@ namespace Singularity.UI
             }
             Paint(on);
 
-            var btn = rt.gameObject.AddComponent<Button>();
+            var btn = hit.gameObject.AddComponent<Button>();
             btn.targetGraphic = track;
             btn.onClick.AddListener(() => Paint(set(true)));
             return btn;
@@ -415,6 +494,21 @@ namespace Singularity.UI
         {
             RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
 
+            // A SLIDER WITH NO GRAPHIC ON ITSELF CAN ONLY BE DRAGGED BY ITS
+            // HANDLE, and this one's handle is twenty-eight units across.
+            //
+            // Slider takes pointer events on its OWN GameObject, and the
+            // raycaster only finds a GameObject that has a Graphic with
+            // raycastTarget set. There was none here — the target graphic was the
+            // handle, which is a child — so a tap anywhere on the track did
+            // nothing at all and the only way to move the value was to catch a
+            // twenty-eight unit disc. That is a bug and a 2.5.5 failure at the
+            // same time, and one invisible plate is the whole of both fixes: the
+            // track becomes tappable along its length, and the target becomes
+            // however tall this rect is.
+            var catcher = rt.gameObject.AddComponent<Image>();
+            catcher.color = new Color(0, 0, 0, 0);
+
             const float TrackH = 14f, Knob = 28f;
 
             RectTransform bg = Rect(rt, "track", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
@@ -422,7 +516,7 @@ namespace Singularity.UI
             var bgi = bg.gameObject.AddComponent<Image>();
             bgi.sprite = BarFill;
             bgi.type = Image.Type.Sliced;
-            bgi.color = Palette.Dim2;
+            bgi.color = Palette.Inert;      // a surface, not type — see Palette.Inert
 
             RectTransform fillArea = Rect(rt, "fillArea", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
                                           new Vector2(Knob * 0.5f, -TrackH * 0.5f), new Vector2(-Knob * 0.5f, TrackH * 0.5f));

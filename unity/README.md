@@ -311,6 +311,68 @@ current-period standings on its own, with no reset and no server-side job.
 
 ---
 
+## AAA — three senses, three grades, and every grade is a number
+
+The game speaks in light, in sound and in the motor. A player who cannot take
+delivery of one of those three is not playing a harder version of this game,
+they are playing a broken one — the plate clock is a five-second timer with no
+display to somebody deaf, and a board read off brightness alone is unplayable on
+a phone held in sunlight by anybody at all.
+
+So each sense has a grade, each grade is a measurement rather than an intention,
+and every measurement is asserted by a test that runs with no Unity install.
+
+| | |
+|---|---|
+| **APPARENT** | every printed pair reaches **7:1** (1.4.6 AAA); every graphical object reaches **3:1** against its neighbour (1.4.11); nothing is carried by hue alone |
+| **AUDIBLE** | everything said with a sound is also said in words; the instrument and the room have separate levels |
+| **ATTAINABLE** | every control is **88 units** on its shortest side (2.5.5 AAA, 44 CSS px); every verb has a form that needs no swipe and no hold; motion has an **off**, not a quieter setting |
+
+`Assets/Scripts/Game/Access.cs` is the whole standard: the settings, WCAG's own
+arithmetic, a dichromat simulation, and the list of ink-on-ground pairs the
+interface actually prints. The audit runs against **the game's palette**, not
+against a copy of it, which is what makes it notice a hint printed on a card
+instead of on the void.
+
+**The default is the shipped build, exactly.** Nine of the twenty-one printed
+pairs were below AAA and two below AA — `Dim2` on the void is **2.03:1**, and
+that is the title footer and every field placeholder; black on the primary's
+rust is **5.90:1**, and that is the one button every screen is built around.
+Those are measurements, and a game's answer to them is a *mode*, not a repaint:
+the colours stay matched to the APK value by value, and `LEGIBILITY` moves the
+five that have to move. Each new value is the smallest step in lightness, at the
+same hue and saturation, that clears 7:1 on all four dark grounds — solved for,
+not picked.
+
+Two things came out of writing it down:
+
+- **The band guarantee is true.** "A trace is brighter than the lattice at every
+  depth, so the board survives a colour-blind eye" is now simulated rather than
+  believed — Viénot/Brettel/Mollon, all three dichromacies, every depth of every
+  cube size. It holds, with the narrowest margin under deuteranopia. What it did
+  *not* hold was 1.4.11: the worst pair is 2.56:1, so legibility sinks the near
+  lattice fifteen per cent and takes it to 3.03:1, widening the game's own band
+  from 48 to 59 out of 255.
+- **One switch was answering two people.** `EFFECTS` bundled camera shake and the
+  bent clock (vestibular) with sparks, bloom and the flash (photosensitive) —
+  two different criteria with two different answers — and it bottomed out at 40%,
+  so there was no way to ask this game to hold still. They are now `MOTION` and
+  `LIGHT`, three steps each, and both reach zero. An old save's `EFFECTS OFF`
+  migrates into both rather than into neither.
+
+Also fixed on the way through: the flash is capped at 2.3.1's three a second
+(every flash is player-triggered, so a fast hand could outrun it without the game
+doing anything wrong); the switch and the slider were 42 and 28 units against a
+target of 88; and **a slider had no raycast target of its own**, so a tap
+anywhere on the track did nothing at all and the only way to move a value was to
+catch a 28-unit disc.
+
+Settings live on `ACCESS`, reached from `CALIBRATE`. Legibility repaints the
+interface where it stands rather than rebuilding it — type and surfaces are
+walked separately, because the shipped build spends one token on both the quiet
+type and the inert track, and only under legibility do those two want to go in
+opposite directions.
+
 ## Matching the shipped build, exactly
 
 The reference is the APK, and the APK is a WebView wrapper: `assets/game/index.html`

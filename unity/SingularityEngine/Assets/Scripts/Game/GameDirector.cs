@@ -52,6 +52,12 @@ namespace Singularity.Game
 
             Hud = Hud.Build(this);
 
+            // The sound's words go to the readout. Sfx does not know what a Hud
+            // is and must not: it raises the caption and something else decides
+            // where words go, exactly as Session raises events and this decides
+            // what they look like.
+            Sfx.Caption = Hud.Caption;
+
             // ORDER MATTERS: bloom first, so the brightness control raises the
             // finished picture rather than the picture the glow was computed from.
             Glow = Bloom.Attach(Rig.cam);
