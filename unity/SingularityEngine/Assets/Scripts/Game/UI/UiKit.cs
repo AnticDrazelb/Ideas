@@ -449,8 +449,13 @@ namespace Singularity.UI
             };
 
             // position down the screen -> alpha of black
-            float[] stopAt = { 0f, 0.13f, 0.27f, 0.42f, 0.52f, 0.62f, 0.74f, 1f };
-            float[] stopA  = { 0.96f, 0.80f, 0.12f, 0f, 0f, 0.32f, 0.90f, 1f };
+            // The clear window sits LOWER than the original's, because this port
+            // prints two extra lines at the top — the vault and the cube it will
+            // resume — and the pitch underneath them was landing at a third of the
+            // way down, where the old ramp had already gone transparent. Type over
+            // an unscrimmed turning cube is type nobody can read.
+            float[] stopAt = { 0f, 0.18f, 0.36f, 0.46f, 0.56f, 0.66f, 0.76f, 1f };
+            float[] stopA  = { 0.96f, 0.88f, 0.16f, 0f, 0f, 0.34f, 0.90f, 1f };
 
             var px = new Color32[N];
             for (int i = 0; i < N; i++)

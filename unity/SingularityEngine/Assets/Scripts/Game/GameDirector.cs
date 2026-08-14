@@ -59,8 +59,7 @@ namespace Singularity.Game
 
             Wire();
             Screens.Build(this);
-            Screens.ShowTitle();
-            StartCoroutine(Attract());
+            Screens.ShowTitle();   // which starts the attract cube
         }
 
         /// <summary>
@@ -216,6 +215,20 @@ namespace Singularity.Game
         /// it is deliberately the cube the player is up to, so the front of the
         /// game is about where they are rather than about where the game starts.
         /// </summary>
+        /// <summary>
+        /// THE FRONT OF THE GAME IS NEVER A STILL PICTURE.
+        ///
+        /// This used to run once, at boot, and Play() turned it off — so the first
+        /// visit to the menu had a turning cube and every visit after it had the
+        /// dead board of whatever was last played. Showing the title is what asks
+        /// for it now, so there is no way to arrive at that screen without it.
+        /// </summary>
+        public void ShowAttract()
+        {
+            if (View.attract) return;      // already turning; do not reload under it
+            StartCoroutine(Attract());
+        }
+
         IEnumerator Attract()
         {
             yield return null;

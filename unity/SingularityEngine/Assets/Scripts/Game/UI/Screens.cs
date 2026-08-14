@@ -177,6 +177,7 @@ namespace Singularity.UI
             }
             Stack.Clear();
             Show("title");
+            _dir.ShowAttract();
         }
 
         // ---- vault select ---------------------------------------------------
@@ -328,16 +329,16 @@ namespace Singularity.UI
             // saccade, a line under it, and a DIAGRAM beside it — because the four
             // things this page has to explain are all spatial, and a sentence about
             // a fold is a worse description of a fold than two squares and an arrow.
-            float y = 190f;
+            float y = 170f;
 
             void Kicker(string s)
             {
-                UiKit.Label(L, s, s, 17, Palette.Rust, TextAnchor.LowerLeft,
-                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + 26)), new Vector2(-44, -y));
-                y += 34;
+                UiKit.Label(L, s, s, 16, Palette.Rust, TextAnchor.LowerLeft,
+                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + 24)), new Vector2(-44, -y));
+                y += 28;
             }
 
-            RectTransform Entry(string head, string body, float h = 104f)
+            RectTransform Entry(string head, string body, float h = 88f)
             {
                 UiKit.Label(L, head, head, 23, Palette.Ink, TextAnchor.UpperLeft,
                             new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + 30)), new Vector2(-190, -y));
@@ -348,7 +349,7 @@ namespace Singularity.UI
                 // on the page shares one optical column
                 RectTransform art = UiKit.Rect(L, head + "_art", new Vector2(1, 1), new Vector2(1, 1),
                                                new Vector2(-176, -(y + 96)), new Vector2(-44, -(y + 4)));
-                y += h + 24f;
+                y += h + 16f;
                 return art;
             }
 
@@ -381,17 +382,17 @@ namespace Singularity.UI
             Mark(a3, "hole", Palette.Void, 15, 0, 32);
             Mark(a3, "ring", Palette.Arc, 17, 0, 32);
 
-            RectTransform a4 = Entry("COLLAPSE INTO THE CORE", "Reach it and the vault is solved.", 72f);
+            RectTransform a4 = Entry("COLLAPSE INTO THE CORE", "Reach it and the vault is solved.", 62f);
             Mark(a4, "core", Palette.Core, 52, 0, 0);
 
             Kicker("THE OBJECTS");
             RectTransform cards = UiKit.Rect(L, "cards", new Vector2(0, 1), new Vector2(1, 1),
-                                             new Vector2(44, -(y + 96)), new Vector2(-44, -y));
-            Card(cards, 0, "trace", Palette.Trace, "TRACE", "CIRCUIT");
+                                             new Vector2(44, -(y + 92)), new Vector2(-44, -y));
+            Card(cards, 0, "sqfill", Palette.Trace, "TRACE", "CIRCUIT");
             Card(cards, 1, "node", Palette.Node, "NODE", "COLLECT");
             Card(cards, 2, "lock", Palette.Lock, "LOCK", "BARRIER");
             Card(cards, 3, "plate", Palette.Rust, "PLATE", "INVERTS");
-            y += 120f;
+            y += 106f;
 
             Kicker("WORTH KNOWING");
             RectTransform a5 = Entry("HOLD FOR MATRIX",
@@ -408,7 +409,7 @@ namespace Singularity.UI
             Mark(a6, "sq", Palette.Dim2, 26, -16, -16);
             Mark(a6, "sqfill", Palette.Trace, 26, 14, -16);
 
-            RectTransform a7 = Entry("TO GO", "The fewest folds still possible from where you stand.", 72f);
+            RectTransform a7 = Entry("TO GO", "The fewest folds still possible from where you stand.", 62f);
             Mark(a7, "i.togo", Palette.Arc, 44, 0, 0);
 
             RectTransform got = UiKit.Rect(L, "got", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
@@ -558,7 +559,7 @@ namespace Singularity.UI
         }
 
         /// <summary>A row of the calibrate panel: mark, name, what it does, and the control.</summary>
-        static RectTransform CalRow(RectTransform panel, string icon, string label, string hint)
+        static RectTransform CalRow(RectTransform panel, string icon, string label, string hint, bool wideHint)
         {
             float h = 1f / CalRows;
             int slot = _calRow++;
@@ -571,7 +572,8 @@ namespace Singularity.UI
                         new Vector2(58, 0), Vector2.zero);
             if (!string.IsNullOrEmpty(hint))
                 UiKit.Label(r, "h", hint, 14, Palette.Dim, TextAnchor.MiddleLeft,
-                            new Vector2(0, 0), new Vector2(0.72f, 0.40f), new Vector2(58, 0), Vector2.zero);
+                            new Vector2(0, 0), new Vector2(wideHint ? 0.72f : 0.30f, 0.40f),
+                            new Vector2(58, 0), Vector2.zero);
 
             // a hairline under every row but the last, so eight rows read as one
             // instrument rather than eight unrelated controls
@@ -584,7 +586,7 @@ namespace Singularity.UI
         static void Toggle(RectTransform panel, string icon, string label, string hint,
                            System.Func<int> get, System.Action<int> set)
         {
-            RectTransform r = CalRow(panel, icon, label, hint);
+            RectTransform r = CalRow(panel, icon, label, hint, true);
             UiKit.Switch(r, "sw", get() != 0, _ =>
             {
                 int v = get() != 0 ? 0 : 1;
@@ -597,9 +599,12 @@ namespace Singularity.UI
         static void Bar(RectTransform panel, string icon, string label, string hint,
                         int lo, int hi, System.Func<int> get, System.Action<int> set)
         {
-            RectTransform r = CalRow(panel, icon, label, hint);
+            // The reading sits AFTER the hint rather than on top of it. Both were
+            // pinned to the same left edge of the same band, so "120%" was printed
+            // straight through the word INTENSITY.
+            RectTransform r = CalRow(panel, icon, label, hint, false);
             Text val = UiKit.Label(r, "v", get() + "%", 16, Palette.Rust, TextAnchor.MiddleLeft,
-                                   new Vector2(0, 0), new Vector2(0.4f, 0.40f), new Vector2(58, 0), Vector2.zero);
+                                   new Vector2(0.30f, 0), new Vector2(0.52f, 0.40f), Vector2.zero, Vector2.zero);
             UiKit.Bar(r, "bar", lo, hi, get(), v =>
             {
                 set(v);

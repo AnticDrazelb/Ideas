@@ -239,11 +239,29 @@ namespace Singularity.Game
                 }
                 else
                 {
-                    const int seg = 20;
+                    // A RING IS AN ANNULUS, NOT A NECKLACE.
+                    //
+                    // This was twenty round dots spaced around the circumference,
+                    // which works at a one-cell radius and disappears at any other:
+                    // the collapse ring grows to several cells across, so twenty
+                    // specks a tenth of a cell wide ended up more than a cell apart
+                    // and the round front simply was not there. What you saw was the
+                    // square front alone — which is why the biggest moment in the
+                    // game came out square when the original draws both.
+                    //
+                    // Built from the geometry instead, so the width is the width at
+                    // every radius. The uv sits at the centre of the shape mask so
+                    // the fragment is solid: the triangles ARE the ring, and there
+                    // is nothing for a mask to round off.
+                    const int seg = 48;
+                    float ri = rad - w * 0.5f, ro = rad + w * 0.5f;
                     for (int i = 0; i < seg; i++)
                     {
-                        float a = i / (float)seg * Mathf.PI * 2f;
-                        Quad(r.pos + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * rad, w, w, c, 0f);
+                        float a0 = i / (float)seg * Mathf.PI * 2f;
+                        float a1 = (i + 1) / (float)seg * Mathf.PI * 2f;
+                        var d0 = new Vector2(Mathf.Cos(a0), Mathf.Sin(a0));
+                        var d1 = new Vector2(Mathf.Cos(a1), Mathf.Sin(a1));
+                        Band(r.pos + d0 * ri, r.pos + d1 * ri, r.pos + d1 * ro, r.pos + d0 * ro, c);
                     }
                 }
             }
@@ -259,6 +277,30 @@ namespace Singularity.Game
             _mesh.SetColors(_col);
             _mesh.SetTriangles(_tri, 0, false);
             _mesh.RecalculateBounds();
+        }
+
+        /// <summary>
+        /// Four corners, filled flat. The uv is pinned to the middle of the shape
+        /// mask so every fragment is solid — this is for shapes the TRIANGLES
+        /// describe, where a disc or square mask would only eat the edges off it.
+        /// </summary>
+        void Band(Vector2 a, Vector2 b, Vector2 c, Vector2 d, Color col)
+        {
+            int i = _v.Count;
+            _v.Add(new Vector3(a.x, a.y, _z));
+            _v.Add(new Vector3(b.x, b.y, _z));
+            _v.Add(new Vector3(c.x, c.y, _z));
+            _v.Add(new Vector3(d.x, d.y, _z));
+
+            var mid = new Vector2(0.5f, 0.5f);
+            _uv.Add(mid); _uv.Add(mid); _uv.Add(mid); _uv.Add(mid);
+
+            var k = new Vector2(0f, 0f);
+            _kind.Add(k); _kind.Add(k); _kind.Add(k); _kind.Add(k);
+            _col.Add(col); _col.Add(col); _col.Add(col); _col.Add(col);
+
+            _tri.Add(i); _tri.Add(i + 1); _tri.Add(i + 2);
+            _tri.Add(i); _tri.Add(i + 2); _tri.Add(i + 3);
         }
 
         void Quad(Vector2 at, float w, float h, Color c, float square)

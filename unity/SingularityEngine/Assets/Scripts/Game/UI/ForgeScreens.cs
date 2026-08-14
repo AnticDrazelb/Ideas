@@ -71,10 +71,20 @@ namespace Singularity.UI
             _shelfMsg = UiKit.Label(L, "msg", "", 18, Palette.Dim, TextAnchor.UpperCenter,
                                     new Vector2(0, 0), new Vector2(1, 0), new Vector2(40, 210), new Vector2(-40, 246));
 
+            // SIDE BY SIDE, NOT STACKED. Two full-width bars in a hundred pixels
+            // gives two controls forty pixels tall and four hundred wide, which is a
+            // shape no thumb wants and no eye reads as a button. Halved, they come
+            // out close to square — and these two are alternatives to each other
+            // rather than steps in a sequence, which is what a row says and a stack
+            // does not.
             RectTransform bot = UiKit.Rect(L, "bot", new Vector2(0, 0), new Vector2(1, 0),
-                                           new Vector2(60, 90), new Vector2(-60, 200));
-            Screens.Row(bot, 0, 2, "NEW CUBE", () => OpenEditor(Forge.New()), true);
-            Screens.Row(bot, 1, 2, "BACK", Screens.Back);
+                                           new Vector2(50, 96), new Vector2(-50, 178));
+            RectTransform mk = UiKit.Rect(bot, "mk", new Vector2(0, 0), new Vector2(0.5f, 1),
+                                          Vector2.zero, new Vector2(-7, 0));
+            UiKit.Bracketed(mk, "NEW CUBE", "NEW CUBE", () => OpenEditor(Forge.New()), 24, true);
+            RectTransform bk = UiKit.Rect(bot, "bk", new Vector2(0.5f, 0), Vector2.one,
+                                          new Vector2(7, 0), Vector2.zero);
+            UiKit.Bracketed(bk, "BACK", "BACK", Screens.Back, 24);
         }
 
         public static void OpenShelf()
