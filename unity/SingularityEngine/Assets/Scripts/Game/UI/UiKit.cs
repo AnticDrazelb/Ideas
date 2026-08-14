@@ -230,8 +230,14 @@ namespace Singularity.UI
         {
             RectTransform rt = Rect(parent, name, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
+            // OPAQUE, ALWAYS. The pause card is deliberately translucent — it sits
+            // over a puzzle somebody is in the middle of and should let it through —
+            // but that is the CARD's job, not its buttons'. A translucent plate put
+            // the board inside the controls, so the cube was visibly running through
+            // the middle of the words VAULTS and BOARDS. A control is a solid thing
+            // you press; whatever is behind the screen stops at its edge.
             Image plate = Framed(rt,
-                primary ? Palette.Rust : new Color(Palette.Panel.r, Palette.Panel.g, Palette.Panel.b, 0.82f),
+                primary ? Palette.Rust : Palette.Panel,
                 primary ? Palette.RustHi : new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.70f));
 
             var btn = rt.gameObject.AddComponent<Button>();
@@ -268,7 +274,7 @@ namespace Singularity.UI
                                        Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
         {
             RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
-            Image bg = Framed(rt, new Color(Palette.Panel.r, Palette.Panel.g, Palette.Panel.b, 0.9f),
+            Image bg = Framed(rt, Palette.Panel,
                                   new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.45f));
 
             Text text = Label(rt, "text", "", 22, Palette.Ink, TextAnchor.MiddleLeft,

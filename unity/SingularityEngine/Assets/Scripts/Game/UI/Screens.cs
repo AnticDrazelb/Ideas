@@ -206,16 +206,23 @@ namespace Singularity.UI
             // And typing one is a seed viewer, not a shortcut: a jump past `reached`
             // records nothing, unlocks nothing and posts nothing, or the whole
             // progression would be one text field wide.
-            RectTransform jumpRow = UiKit.Rect(L, "jumpRow", new Vector2(0, 0), new Vector2(1, 0),
-                                               new Vector2(40, 220), new Vector2(-40, 286));
-            _jumpField = UiKit.Field(jumpRow, "jump", "CUBE NUMBER",
+            // THESE FOLLOW THE GRID RATHER THAN THE FLOOR.
+            //
+            // They were pinned to the bottom of the screen while the grid was pinned
+            // to the top, so a ten-cube vault left seven hundred pixels of nothing
+            // between the rack and the seed box — the two halves of one screen with
+            // a hole punched between them. PaintVaults now puts them directly under
+            // however many rows it actually drew.
+            _jumpRow = UiKit.Rect(L, "jumpRow", new Vector2(0, 1), new Vector2(1, 1),
+                                  new Vector2(40, -286), new Vector2(-40, -220));
+            _jumpField = UiKit.Field(_jumpRow, "jump", "CUBE NUMBER",
                                      new Vector2(0, 0), new Vector2(0.72f, 1), Vector2.zero, new Vector2(-8, 0));
             _jumpField.contentType = InputField.ContentType.IntegerNumber;
-            RectTransform goSlot = UiKit.Rect(jumpRow, "goSlot", new Vector2(0.72f, 0), Vector2.one, Vector2.zero, Vector2.zero);
+            RectTransform goSlot = UiKit.Rect(_jumpRow, "goSlot", new Vector2(0.72f, 0), Vector2.one, Vector2.zero, Vector2.zero);
             UiKit.Bracketed(goSlot, "go", "GO", Jump, 24);
 
             _jumpMsg = UiKit.Label(L, "jumpMsg", "", 18, Palette.Dim, TextAnchor.UpperCenter,
-                                   new Vector2(0, 0), new Vector2(1, 0), new Vector2(40, 182), new Vector2(-40, 216));
+                                   new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -324), new Vector2(-40, -290));
 
             RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
             UiKit.Bracketed(back, "back", "BACK", Back, 28);
@@ -223,6 +230,7 @@ namespace Singularity.UI
 
         static InputField _jumpField;
         static Text _jumpMsg;
+        static RectTransform _jumpRow;
 
         static void Jump()
         {
@@ -274,6 +282,13 @@ namespace Singularity.UI
             // the block is pinned to the top of the space it was given.
             float cellW = (_grid.rect.width - 12f) / cols;
             float cellH = Mathf.Min(cellW, 96f);
+
+            // and the seed box follows the rack rather than the floor
+            float below = 170f + rows * cellH + 26f;
+            _jumpRow.offsetMax = new Vector2(-40, -below);
+            _jumpRow.offsetMin = new Vector2(40, -(below + 62f));
+            _jumpMsg.rectTransform.offsetMax = new Vector2(-40, -(below + 68f));
+            _jumpMsg.rectTransform.offsetMin = new Vector2(40, -(below + 102f));
 
             for (int i = 0; i < size; i++)
             {

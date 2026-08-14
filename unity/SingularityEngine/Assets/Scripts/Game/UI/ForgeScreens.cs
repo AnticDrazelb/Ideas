@@ -130,8 +130,30 @@ namespace Singularity.UI
             RectTransform L = Screens.Layer("forgeEdit");
             Screens.SolidLayer(L);
 
-            RectTransform bar = UiKit.Rect(L, "deckBar", new Vector2(0, 1), new Vector2(1, 1),
-                                           new Vector2(40, -150), new Vector2(-40, -90));
+            // A COLUMN, NOT TWO STACKS MEETING IN THE MIDDLE.
+            //
+            // This screen was laid out as hand-picked pixel offsets, some measured
+            // down from the top and some up from the bottom. Nine bands, two
+            // origins, and no arithmetic anywhere saying they could not meet: the
+            // tool palette sat at 400..565 and the name field at 400..466, so the
+            // second row of tools was drawn straight through the name box. Numbers
+            // that happen not to collide on the one screen they were tuned against
+            // are not a layout.
+            //
+            // Everything is placed by a cursor running down from the top now. Bands
+            // cannot overlap because each one starts where the last finished, and
+            // adding or resizing one moves what follows instead of landing on it.
+            float y = 84f;
+
+            RectTransform Band(string name, float h, float gap = 12f)
+            {
+                RectTransform r = UiKit.Rect(L, name, new Vector2(0, 1), new Vector2(1, 1),
+                                             new Vector2(40, -(y + h)), new Vector2(-40, -y));
+                y += h + gap;
+                return r;
+            }
+
+            RectTransform bar = Band("deckBar", 60);
             RectTransform dn = UiKit.Rect(bar, "dn", new Vector2(0, 0), new Vector2(0.22f, 1), Vector2.zero, Vector2.zero);
             UiKit.Bracketed(dn, "dn", "<", () => { _ed.layer = Mathf.Max(0, _ed.layer - 1); PaintSlice(); }, 24);
             _deckLabel = UiKit.Label(bar, "deck", "DECK 1 / 5", 24, Palette.Ink, TextAnchor.MiddleCenter,
@@ -139,14 +161,17 @@ namespace Singularity.UI
             RectTransform up = UiKit.Rect(bar, "up", new Vector2(0.78f, 0), Vector2.one, Vector2.zero, Vector2.zero);
             UiKit.Bracketed(up, "up", ">", () => { _ed.layer = Mathf.Min(_ed.n - 1, _ed.layer + 1); PaintSlice(); }, 24);
 
-            _slice = UiKit.Rect(L, "slice", new Vector2(0, 1), new Vector2(1, 1),
-                                new Vector2(60, -700), new Vector2(-60, -170));
+            // The deck is the one band that should take what is spare, because it is
+            // the thing being edited — so it is measured from what the fixed bands
+            // below it need, rather than being given a number of its own.
+            // the seven fixed bands under it, their gaps, this band's own wider gap,
+            // and a margin off the bottom edge
+            const float Below = 118 + 62 + 58 + 30 + 62 + 58 + 56 + 12 * 7 + 16 + 28;
+            _slice = Band("slice", Mathf.Max(240f, 1280f - y - Below), 16f);
 
-            _toolRow = UiKit.Rect(L, "tools", new Vector2(0, 1), new Vector2(1, 1),
-                                  new Vector2(30, -880), new Vector2(-30, -715));
+            _toolRow = Band("tools", 118);
 
-            RectTransform nameRow = UiKit.Rect(L, "nameRow", new Vector2(0, 0), new Vector2(1, 0),
-                                               new Vector2(40, 400), new Vector2(-40, 466));
+            RectTransform nameRow = Band("nameRow", 62);
             _nameField = UiKit.Field(nameRow, "name", "NAME THIS CUBE",
                                      new Vector2(0, 0), new Vector2(0.72f, 1), Vector2.zero, new Vector2(-8, 0));
             _nameField.characterLimit = 18;
@@ -156,30 +181,27 @@ namespace Singularity.UI
             // The code used to be printed into the verdict line next to a clipboard
             // call that does not exist offline. It was on screen and there was no
             // way on earth to get it off — so it lives in a selectable field.
-            RectTransform codeRow = UiKit.Rect(L, "codeRow", new Vector2(0, 0), new Vector2(1, 0),
-                                               new Vector2(40, 330), new Vector2(-40, 392));
+            RectTransform codeRow = Band("codeRow", 58);
             InputField codeField = UiKit.Field(codeRow, "code", "", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             codeField.readOnly = true;
             _codeText = codeField.textComponent;
 
-            _edMsg = UiKit.Label(L, "msg", "", 18, Palette.Dim, TextAnchor.UpperCenter,
-                                 new Vector2(0, 0), new Vector2(1, 0), new Vector2(40, 288), new Vector2(-40, 326));
+            RectTransform msgRow = Band("msg", 30);
+            _edMsg = UiKit.Label(msgRow, "msg", "", 18, Palette.Dim, TextAnchor.MiddleCenter,
+                                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-            RectTransform two = UiKit.Rect(L, "two", new Vector2(0, 0), new Vector2(1, 0),
-                                           new Vector2(40, 214), new Vector2(-40, 280));
+            RectTransform two = Band("two", 62);
             RectTransform vSlot = UiKit.Rect(two, "v", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, new Vector2(-6, 0));
             UiKit.Bracketed(vSlot, "verify", "VERIFY", DoVerify, 24);
             RectTransform sSlot = UiKit.Rect(two, "s", new Vector2(0.5f, 0), Vector2.one, new Vector2(6, 0), Vector2.zero);
             UiKit.Bracketed(sSlot, "save", "SAVE", DoSave, 24, true);
 
-            RectTransform three = UiKit.Rect(L, "three", new Vector2(0, 0), new Vector2(1, 0),
-                                             new Vector2(40, 140), new Vector2(-40, 206));
+            RectTransform three = Band("three", 58);
             Third(three, 0, "PLAY", DoPlay);
             Third(three, 1, "BACK", Screens.Back);
             Third(three, 2, "MENU", Screens.ShowTitle);
 
-            RectTransform del = UiKit.Rect(L, "del", new Vector2(0, 0), new Vector2(1, 0),
-                                           new Vector2(40, 70), new Vector2(-40, 132));
+            RectTransform del = Band("del", 56);
             _deleteBtn = UiKit.Bracketed(del, "delete", "DELETE THIS CUBE", () =>
             {
                 _ed.Delete();

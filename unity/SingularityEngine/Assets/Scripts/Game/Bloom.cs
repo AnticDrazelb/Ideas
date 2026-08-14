@@ -31,9 +31,22 @@ namespace Singularity.Game
     {
         Material _mat;
 
-        /// <summary>Where light starts. Below this the lattice would glow, and then nothing means anything.</summary>
-        const float Threshold = 0.62f;
-        const float Intensity = 1.15f;
+        /// <summary>
+        /// Where light starts, and how much of it comes back.
+        ///
+        /// These were 0.62 and 1.15, which put the knee below the trace colour's own
+        /// brightness and then added more than the original back on top — so every
+        /// trace, every cage edge and every particle bloomed at nearly full strength
+        /// and the board came out as overlapping halos with the cells lost inside
+        /// them. A glow that swallows the thing it is glowing off is not a glow.
+        ///
+        /// The knee sits above the lattice and inside the trace, so the two
+        /// materials are still separated by the one property the whole board is read
+        /// off — and the amount is well under one, because this is a rim on the
+        /// picture rather than a second copy of it.
+        /// </summary>
+        const float Threshold = 0.78f;
+        const float Intensity = 0.45f;
 
         /// <summary>How many halvings before blurring. Two is quarter res on each axis.</summary>
         const int Down = 2;
