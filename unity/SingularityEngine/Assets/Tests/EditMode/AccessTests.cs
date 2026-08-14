@@ -59,8 +59,11 @@ namespace Singularity.Tests
             // weighted sum of the sRGB values, which is what the depth ramps were
             // authored against; this one linearises first, which is what makes a
             // ratio computed from it mean "can a human read this".
-            Assert.AreNotEqual(Palette.Luminance(Palette.Rust),
-                               Access.Relative(Palette.Rust), 0.02f);
+            // AreNotEqual takes no tolerance — its third argument is the message —
+            // so the distance is the thing to assert. On rust they are 0.445 and
+            // 0.245, which is not a rounding difference, it is a different answer.
+            Assert.Greater(Mathf.Abs(Palette.Luminance(Palette.Rust) - Access.Relative(Palette.Rust)), 0.02f,
+                           "the two luminances have converged, so one of them is now wrong");
         }
 
         // ---- what a dichromat sees -------------------------------------------
@@ -102,7 +105,9 @@ namespace Singularity.Tests
             // and it does something to everybody else, or the whole check above
             // is comparing a colour with itself four times
             Color deutan = Access.Simulate(Palette.Node, Access.Sight.Deutan);
-            Assert.AreNotEqual(c.r, deutan.r, 0.01f);
+            Assert.Greater(Mathf.Abs(c.r - deutan.r), 0.01f,
+                           "deuteranopia left the node unchanged, so the simulation is a no-op "
+                           + "and every band check above is comparing a colour with itself");
         }
 
         // ---- what the interface prints ---------------------------------------
@@ -127,14 +132,17 @@ namespace Singularity.Tests
             // value by value. Nothing else in this project would notice a palette
             // drifting one step at a time.
             Store.Data.legible = 0;
-            Assert.AreEqual("EA580C", ColorUtility.ToHtmlStringRGB(Palette.Rust));
-            Assert.AreEqual("F97316", ColorUtility.ToHtmlStringRGB(Palette.Core));
-            Assert.AreEqual("EF4444", ColorUtility.ToHtmlStringRGB(Palette.Fault));
-            Assert.AreEqual("64748B", ColorUtility.ToHtmlStringRGB(Palette.Dim));
-            Assert.AreEqual("334155", ColorUtility.ToHtmlStringRGB(Palette.Dim2));
-            Assert.AreEqual("3B485C", ColorUtility.ToHtmlStringRGB(Palette.LatticeNear));
+            Assert.AreEqual("EA580C", Hex(Palette.Rust));
+            Assert.AreEqual("F97316", Hex(Palette.Core));
+            Assert.AreEqual("EF4444", Hex(Palette.Fault));
+            Assert.AreEqual("64748B", Hex(Palette.Dim));
+            Assert.AreEqual("334155", Hex(Palette.Dim2));
+            Assert.AreEqual("3B485C", Hex(Palette.LatticeNear));
             Assert.AreEqual(17, Access.SmallestType);
         }
+
+        /// <summary>Six hex digits, case folded — Unity's case is not worth depending on.</summary>
+        static string Hex(Color c) => ColorUtility.ToHtmlStringRGB(c).ToUpperInvariant();
 
         [Test]
         public void NoRoleIsSilentlyMisspelt()

@@ -522,6 +522,17 @@ namespace UnityEngine
                           s.Length == 8 ? Hex2(6) / 255f : 1f);
             return true;
         }
+
+        /// <summary>
+        /// The other direction, and real for the same reason. Six hex digits, no
+        /// hash — Unity answers uppercase, and callers here fold the case anyway
+        /// rather than depend on that.
+        /// </summary>
+        public static string ToHtmlStringRGB(Color c)
+        {
+            int B(float v) => (int)System.Math.Round(Mathf.Clamp01(v) * 255f);
+            return B(c.r).ToString("X2") + B(c.g).ToString("X2") + B(c.b).ToString("X2");
+        }
     }
 
     public class AndroidJavaObject : IDisposable

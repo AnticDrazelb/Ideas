@@ -1,0 +1,41 @@
+<!--
+  TYPE-CHECKS THE TEST ASSEMBLY, which UnityStubs deliberately does not.
+
+  The stub harness catches a misspelled member or a signature that drifted
+  anywhere under Assets/Scripts, and it needs nothing but a C# compiler. The
+  tests were outside that net, and the gap is not theoretical: AccessTests
+  shipped with two calls to Assert.AreNotEqual passing a tolerance as the third
+  argument. NUnit has no such overload — AreEqual does, AreNotEqual does not —
+  so the float bound to the `message` parameter and the file did not compile.
+  Nothing here could have known, because nothing here had ever seen NUnit.
+
+  So this project does, and it is SEPARATE on purpose: it takes a NuGet
+  dependency, and UnityStubs' whole virtue is that it takes none. A fresh clone
+  with no network still gets the harness; this one is the extra mile when there
+  is a network to walk it on.
+
+  The NUnit version is the one Unity's Test Framework carries, so an overload
+  that exists here exists in the editor.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>SingularityTestCheck</AssemblyName>
+    <NoWarn>CS0169;CS0649;CS0067;CS0414;CS0108;CS0114;CS8321;CS0162</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NUnit" Version="3.13.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../UnityStubs/UnityStubs.cs" />
+    <Compile Include="../UnityStubs/UnityEditorStubs.cs" />
+    <Compile Include="../../SingularityEngine/Assets/Scripts/Core/**/*.cs" />
+    <Compile Include="../../SingularityEngine/Assets/Scripts/Game/**/*.cs" />
+    <Compile Include="../../SingularityEngine/Assets/Scripts/Editor/**/*.cs" />
+    <Compile Include="../../SingularityEngine/Assets/Tests/EditMode/**/*.cs" />
+  </ItemGroup>
+</Project>

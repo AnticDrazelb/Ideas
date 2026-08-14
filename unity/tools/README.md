@@ -1,6 +1,6 @@
 # tools
 
-Two harnesses that let this project be checked without a Unity install.
+Harnesses that let this project be checked without a Unity install.
 
 ## `UnityStubs`
 
@@ -79,6 +79,33 @@ original is written to survive. It is not a special case invented for the test.
 The same assertions exist in `Assets/Tests/EditMode/ForgeTests.cs`. They are
 duplicated rather than replaced: the harness proves the logic, and the Test
 Runner proves it still works with Unity's serialisation and lifecycle underneath.
+
+## `TestCheck`
+
+The same trick pointed at `Assets/Tests`, which `UnityStubs` deliberately does
+not compile:
+
+```sh
+dotnet build unity/tools/TestCheck
+```
+
+It exists because the gap was real rather than theoretical. `AccessTests` was
+written with two calls to `Assert.AreNotEqual` passing a tolerance as the third
+argument — NUnit has no such overload, `AreEqual` has one and `AreNotEqual` does
+not, so the float bound to the `message` parameter and the file did not compile.
+Nothing in this directory could have caught it, because nothing in this
+directory had ever seen NUnit. It went to a real editor to be found, which is
+exactly the round trip these harnesses exist to prevent.
+
+So this project references the NUnit package Unity's Test Framework carries, and
+an overload that resolves here resolves in the editor. It is **separate** from
+`UnityStubs` on purpose: it takes a dependency, and `UnityStubs`' whole virtue is
+that it takes none. A fresh clone with no network still gets the harness; this is
+the extra mile when there is a network to walk it on.
+
+It found a second thing on its first run, and that one is the older lesson
+again: `ColorUtility.ToHtmlStringRGB` was missing from the stub, because until
+something called it nobody had had to declare it.
 
 ## Parity against the original
 
