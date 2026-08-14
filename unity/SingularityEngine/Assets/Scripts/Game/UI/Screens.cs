@@ -477,22 +477,54 @@ namespace Singularity.UI
 
         // ---- pause ----------------------------------------------------------
 
+        static Text _pauseName, _pauseWhere;
+
         static void BuildPause()
         {
             RectTransform L = Layer("pause");
-            UiKit.Label(L, "h", "PAUSED", 44, Palette.Ink, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -180), new Vector2(0, -120));
 
-            RectTransform col = Column(L, 300, 200);
-            Row(col, 0, 6, "RESUME", () => Show(null), true);
-            Row(col, 1, 6, "RESET", () => { Show(null); _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey); });
-            Row(col, 2, 6, "VAULTS", OpenVaults);
-            Row(col, 3, 6, "BOARDS", ShowBoards);
-            Row(col, 4, 6, "CALIBRATE", ShowCalibrate);
-            Row(col, 5, 6, "MENU", ShowTitle);
+            // THE CARD IS ABOUT THE CUBE YOU ARE IN, NOT ABOUT BEING PAUSED.
+            //
+            // "PAUSED" over six identical bars tells you one thing you already know
+            // and then asks you to read six labels to find the one that says go
+            // back. Naming the cube and its vault costs nothing and turns the card
+            // into a place; RESUME takes the only plate, the three ways to a
+            // different board share a row, and the two settings screens are text.
+            _pauseName = UiKit.Label(L, "h", "", 40, Palette.Ink, TextAnchor.LowerCenter,
+                                     new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -252), new Vector2(-40, -196));
+            _pauseWhere = UiKit.Label(L, "where", "", 17, Palette.Rust, TextAnchor.UpperCenter,
+                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -290), new Vector2(-40, -260));
+
+            RectTransform go = UiKit.Rect(L, "resume", new Vector2(0, 1), new Vector2(1, 1),
+                                          new Vector2(72, -428), new Vector2(-72, -348));
+            UiKit.Bracketed(go, "resume", "RESUME", () => Show(null), 28, true);
+
+            RectTransform three = UiKit.Rect(L, "three", new Vector2(0, 1), new Vector2(1, 1),
+                                             new Vector2(72, -520), new Vector2(-72, -448));
+            Third(three, 0, "RESET", () => { Show(null); _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey); });
+            Third(three, 1, "VAULTS", OpenVaults);
+            Third(three, 2, "MENU", ShowTitle);
+
+            RectTransform links = UiKit.Rect(L, "links", new Vector2(0, 1), new Vector2(1, 1),
+                                             new Vector2(72, -598), new Vector2(-72, -548));
+            RectTransform bSlot = UiKit.Rect(links, "b", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
+            UiKit.Link(bSlot, "boards", "BOARDS", ShowBoards, 20);
+            RectTransform cSlot = UiKit.Rect(links, "c", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Link(cSlot, "calibrate", "CALIBRATE", ShowCalibrate, 20);
         }
 
-        public static void ShowPause(GameDirector dir) => Show("pause");
+        public static void ShowPause(GameDirector dir)
+        {
+            Session sn = dir.S;
+            int band = Vaults.VaultOf(sn.levelNo);
+            _pauseName.text = sn.IsMade ? (sn.lv.name ?? "MADE CUBE")
+                            : sn.IsDaily ? "DAILY " + Daily.DayLabel()
+                            : Vaults.LevelName(sn.levelNo);
+            _pauseWhere.text = sn.IsDaily
+                ? "PAR " + sn.lv.par
+                : "VAULT " + Vaults.RomanOf(band) + " / " + Vaults.VaultName(band) + " / PAR " + sn.lv.par;
+            Show("pause");
+        }
 
         // ---- the plate, taught once -----------------------------------------
         //
@@ -740,79 +772,113 @@ namespace Singularity.UI
         // ---- the win card ---------------------------------------------------
 
         static Text _winWhat, _winVerdict, _winFolds, _winPar, _winBest, _winVault;
+        static RectTransform _winNextRow, _winRetryRow, _winOutsRow;
+        const float WinPad = 84f;
         static Button _winNext, _winRetry;
 
         static void BuildWin()
         {
             RectTransform L = Layer("win");
-            L.GetComponent<Image>().color = new Color(0, 0, 0, 0.9f);
+            L.GetComponent<Image>().color = new Color(0, 0, 0, 0.92f);
 
-            _winWhat = UiKit.Label(L, "what", "VAULT SOLVED", 22, Palette.Dim, TextAnchor.UpperCenter,
-                                   new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -160), new Vector2(0, -120));
-            _winVault = UiKit.Label(L, "vault", "", 20, Palette.Arc, TextAnchor.UpperCenter,
-                                    new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -196), new Vector2(0, -164));
-            _winVerdict = UiKit.Label(L, "verdict", "AT PAR", 48, Palette.Arc, TextAnchor.UpperCenter,
-                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -280), new Vector2(0, -210));
-
-            _winFolds = Stat(L, "FOLDS USED", -360);
-            _winPar = Stat(L, "PAR", -420);
-            _winBest = Stat(L, "YOUR BEST", -480);
-
-            // A HIDDEN CONTROL MUST NOT LEAVE ITS HOLE BEHIND.
+            // A CARD, NOT A SCREENFUL.
             //
-            // These were fixed thirds of a column, and two of them come and go: NEXT
-            // is meaningless after the daily, and RETRY FOR PAR only exists if you
-            // went over. Switching one off left a third of the card empty — so a
-            // PERFECT COLLAPSE, the best outcome in the game, produced the most
-            // broken-looking card in it. They are now flowed over however many are
-            // actually on, which is the only arrangement that cannot leave a gap.
-            _winCol = Column(L, 560, 200);
-            _winNext = Stacked("next", "NEXT", 30, true, () =>
+            // This was full-bleed: the stat names sat against the left edge and
+            // their numbers against the right, six hundred pixels away, so nothing
+            // read as a pair. Under it were three identical framed buttons, which is
+            // three equal offers on a card that has exactly one thing you came here
+            // to do. Everything now lives in a centred column the width of the thing
+            // it is reporting on, the numbers sit inside a bordered plate with a
+            // hairline between each row, and only NEXT keeps a plate.
+
+            _winWhat = UiKit.Label(L, "what", "VAULT SOLVED", 17, Palette.Rust, TextAnchor.LowerCenter,
+                                   new Vector2(0, 1), new Vector2(1, 1), new Vector2(WinPad, -180), new Vector2(-WinPad, -152));
+            _winVerdict = UiKit.Label(L, "verdict", "AT PAR", 46, Palette.Arc, TextAnchor.UpperCenter,
+                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(WinPad, -252), new Vector2(-WinPad, -186));
+            _winVault = UiKit.Label(L, "vault", "", 18, Palette.Arc, TextAnchor.UpperCenter,
+                                    new Vector2(0, 1), new Vector2(1, 1), new Vector2(WinPad, -284), new Vector2(-WinPad, -256));
+
+            RectTransform stats = UiKit.Rect(L, "stats", new Vector2(0, 1), new Vector2(1, 1),
+                                             new Vector2(WinPad, -474), new Vector2(-WinPad, -306));
+            UiKit.Framed(stats, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.55f));
+            _winFolds = Stat(stats, "FOLDS USED", 0);
+            _winPar   = Stat(stats, "PAR", 1);
+            _winBest  = Stat(stats, "YOUR BEST", 2);
+
+            _winNextRow = UiKit.Rect(L, "next", new Vector2(0, 1), new Vector2(1, 1),
+                                     new Vector2(WinPad, -574), new Vector2(-WinPad, -498));
+            RectTransform go = _winNextRow;
+            _winNext = UiKit.Bracketed(go, "next", "NEXT", () =>
             {
                 Show(null);
                 _dir.Play(_dir.S.levelNo + 1);
-            });
-            _winRetry = Stacked("retry", "RETRY FOR PAR", 26, false, () =>
+            }, 28, true);
+
+            // The rest are text. They are ways OUT of this card rather than things
+            // it is for, and a bracketed label with nothing behind it says that
+            // without needing to be smaller or greyer than it can be read at.
+            _winRetryRow = UiKit.Rect(L, "retry", new Vector2(0, 1), new Vector2(1, 1),
+                                      new Vector2(WinPad, -640), new Vector2(-WinPad, -592));
+            RectTransform retry = _winRetryRow;
+            _winRetry = UiKit.Link(retry, "retry", "RETRY FOR PAR", () =>
             {
                 Show(null);
                 _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey);
-            });
-            _winVaults = Stacked("vaults", "VAULTS", 26, false, OpenVaults);
+            }, 21, Palette.Ink);
+
+            _winOutsRow = UiKit.Rect(L, "outs", new Vector2(0, 1), new Vector2(1, 1),
+                                     new Vector2(WinPad, -700), new Vector2(-WinPad, -652));
+            RectTransform outs = _winOutsRow;
+            RectTransform vSlot = UiKit.Rect(outs, "v", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
+            UiKit.Link(vSlot, "vaults", "VAULTS", OpenVaults, 20);
+            RectTransform mSlot = UiKit.Rect(outs, "m", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Link(mSlot, "menu", "MENU", ShowTitle, 20);
         }
 
-        static RectTransform _winCol;
-        static Button _winVaults;
-
-        static Button Stacked(string name, string label, int size, bool primary, System.Action act)
-        {
-            RectTransform r = UiKit.Rect(_winCol, name, Vector2.zero, Vector2.one, new Vector2(0, 8), new Vector2(0, -8));
-            return UiKit.Bracketed(r, name, label, act, size, primary);
-        }
-
+        /// <summary>
+        /// AND THE ACTIONS FLOW, because two of the three come and go: NEXT is
+        /// meaningless after the daily and RETRY FOR PAR only exists if you went
+        /// over. Fixed positions would leave the hole this card had before — and a
+        /// PERFECT COLLAPSE, the best outcome in the game, is exactly the case that
+        /// hides one.
+        /// </summary>
         static void FlowWin()
         {
-            Button[] all = { _winNext, _winRetry, _winVaults };
-            int on = 0;
-            foreach (Button b in all) if (b.transform.parent.gameObject.activeSelf) on++;
+            float y = 498f;
 
-            float h = 1f / Mathf.Max(1, on);
-            int slot = 0;
-            foreach (Button b in all)
+            void Place(RectTransform r, float h, float gap)
             {
-                var rt = (RectTransform)b.transform.parent;
-                if (!rt.gameObject.activeSelf) continue;
-                rt.anchorMin = new Vector2(0, 1f - (slot + 1) * h);
-                rt.anchorMax = new Vector2(1, 1f - slot * h);
-                slot++;
+                if (!r.gameObject.activeSelf) return;
+                r.offsetMax = new Vector2(-WinPad, -y);
+                r.offsetMin = new Vector2(WinPad, -(y + h));
+                y += h + gap;
             }
+
+            Place(_winNextRow, 76f, 20f);
+            Place(_winRetryRow, 48f, 14f);
+            Place(_winOutsRow, 48f, 0f);
         }
 
-        static Text Stat(RectTransform L, string key, float y)
+        /// <summary>
+        /// One reading of the card: its name on the left, its number on the right,
+        /// and a hairline under it so three of them read as one instrument. Close
+        /// enough together that the eye pairs them without being told to.
+        /// </summary>
+        static Text Stat(RectTransform card, string key, int slot)
         {
-            UiKit.Label(L, key, key, 20, Palette.Dim, TextAnchor.MiddleLeft,
-                        new Vector2(0, 1), new Vector2(0.5f, 1), new Vector2(70, y - 26), new Vector2(0, y));
-            return UiKit.Label(L, key + "_v", "0", 26, Palette.Ink, TextAnchor.MiddleRight,
-                               new Vector2(0.5f, 1), new Vector2(1, 1), new Vector2(0, y - 26), new Vector2(-70, y));
+            const int Rows = 3;
+            float h = 1f / Rows;
+            RectTransform r = UiKit.Rect(card, key, new Vector2(0, 1 - (slot + 1) * h), new Vector2(1, 1 - slot * h),
+                                         Vector2.zero, Vector2.zero);
+
+            UiKit.Label(r, "k", key, 17, Palette.Dim, TextAnchor.MiddleLeft,
+                        Vector2.zero, Vector2.one, new Vector2(28, 0), new Vector2(-120, 0));
+            if (slot < Rows - 1)
+                UiKit.Panel(r, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.22f),
+                            new Vector2(0, 0), new Vector2(1, 0), new Vector2(22, 0), new Vector2(-22, 1));
+
+            return UiKit.Label(r, "v", "0", 26, Palette.Ink, TextAnchor.MiddleRight,
+                               Vector2.zero, Vector2.one, new Vector2(0, 0), new Vector2(-28, 0));
         }
 
         public static void ShowWin(Session s, GameDirector dir)
@@ -827,7 +893,7 @@ namespace Singularity.UI
             _winVerdict.text = s.turns < s.lv.par ? "BELOW PAR"
                              : s.turns == s.lv.par ? "PERFECT COLLAPSE"
                              : (s.turns - s.lv.par) + " OVER PAR";
-            _winVerdict.color = s.turns <= s.lv.par ? Palette.Arc : Palette.Lock;
+            _winVerdict.color = s.turns <= s.lv.par ? Palette.Arc : Palette.Rust;
 
             // A vault boundary is worth marking — it is the only structure an
             // endless game has, and it is where the demand steps up.

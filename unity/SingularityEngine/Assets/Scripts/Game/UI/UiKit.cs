@@ -444,6 +444,44 @@ namespace Singularity.UI
             return btn;
         }
 
+        /// <summary>
+        /// A PRESSABLE THING THAT IS NOT A BUTTON.
+        ///
+        /// Three framed buttons in a column are three equal offers, and a card that
+        /// offers three equal things has not decided what it is for. The one action
+        /// the screen exists for keeps its plate; everything else becomes a
+        /// bracketed label with nothing behind it — still obviously pressable,
+        /// because the brackets are what say so, and audibly quieter because it has
+        /// no weight on the page.
+        ///
+        /// The invisible Image is not decoration either: a Text alone has nothing
+        /// for the raycaster to hit across its whole rect, so the target would be
+        /// the glyphs and not the gap between them.
+        /// </summary>
+        public static Button Link(Transform parent, string name, string label,
+                                  System.Action onClick, int size = 22, Color? tint = null)
+        {
+            RectTransform rt = Rect(parent, name, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var hit = rt.gameObject.AddComponent<Image>();
+            hit.color = new Color(0, 0, 0, 0);
+
+            var btn = rt.gameObject.AddComponent<Button>();
+            btn.targetGraphic = hit;
+
+            Text t = Label(rt, "label", "[ " + label + " ]", size, tint ?? Palette.Dim,
+                           TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+
+            var colors = btn.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1f, 1f, 1f, 1f);
+            colors.pressedColor = new Color(1f, 1f, 1f, 0.5f);
+            colors.fadeDuration = 0.06f;
+            btn.colors = colors;
+
+            if (onClick != null) btn.onClick.AddListener(() => onClick());
+            return btn;
+        }
+
         public static void SetLabel(Button b, string text)
         {
             var t = b.GetComponentInChildren<Text>();
