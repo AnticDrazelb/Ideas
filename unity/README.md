@@ -169,6 +169,12 @@ Assets/Scripts/Game/     everything that draws, listens or remembers
   Forge                  the editor's model, with no UnityEngine in it
   CameraRig, InputRouter, RemainSolver, LevelSupply, Store, ...
   UI/                    built in code; no prefabs anywhere
+    Css                  the shipped :root, ported clamp for clamp
+    Flow                 the centred column every .layer is
+    UiKit                every control, built from its own CSS rule
+    Trk                  letter-spacing, which uGUI does not have
+    Svg, Art             the shipped drawings, and the rasteriser for them
+    Screens, Hud, ForgeScreens
 
 Assets/Tests/EditMode/   the port's contract with the original
 Assets/Shaders/          Cell (the solid + the reveal), Glyph (the four
@@ -317,31 +323,77 @@ The reference is the APK, and the APK is a WebView wrapper: `assets/game/index.h
 inside it is the whole game. Unzip it and the `:root` block is a complete design
 token set — every colour, radius, control height and type step the interface uses.
 
-**One CSS pixel is two canvas units.** The viewport in the WebView is about 360
-CSS px wide; the `CanvasScaler` here references 720. That single conversion is all
-the arithmetic involved, and it turns "does this look right" into a lookup.
-
 ```sh
 unzip -o SE.apk -d apk && sed -n '/^:root{/,/^}/p' apk/assets/game/index.html
 ```
 
-What that has already settled, so nobody re-litigates it:
+**One canvas unit is one CSS pixel**, and there is no conversion factor at all.
+Chromium defines one CSS px as one Android dp, so a canvas at
+`ConstantPixelSize` with the device's own density makes a canvas unit a dp makes
+it a CSS px, and the stylesheet applies verbatim — `clamp()`, `vw` and all.
 
-- **The colours are exact.** All twenty-one, checked value by value.
+That replaces an earlier arrangement worth naming, because the arithmetic was
+wrong in a way that reads as right. The canvas was 720×1280 reference units with
+`matchWidthOrHeight = 0.5`, alongside the claim that one CSS pixel was two
+canvas units. Those two statements cannot both hold: a 0.5 match is a geometric
+blend of the width fit and the height fit, so the canvas is 720 units across
+only on a device whose aspect is exactly 720:1280. On an ordinary 1080×2400
+phone the scale factor is √(1.5 × 1.875) ≈ 1.677, the canvas comes out 644 units
+wide, and the conversion is 1.79 — every metric in the interface landing about a
+tenth small, by a different amount on every device.
+
+**And the tokens are clamps, not numbers.** Every size in that `:root` is
+`clamp(min, Nvw, max)`. Writing down the single value each one produces at a 360
+CSS px viewport is right on exactly one device: `--t-micro` is 8.5px at 360 wide
+and 10px — its ceiling — on anything past 455, and `--h-btn` moves six points
+across the same range. So `Css.cs` ports the clamps and re-evaluates them against
+the real viewport, including the `html.tv` ladder for a docked display.
+
+What the APK has already settled, so nobody re-litigates it:
+
+- **The colours are exact**, checked value by value. `:root` carries 26
+  colour-valued tokens — 20 hex and 6 rgba.
 - The APK's HTML differs from the source this port was written against in
   **two non-visual ways only** — touchscreen-based television detection, and the
   adaptive resolution controller. Both are here and match constant for constant.
   The gap was never a stale source; it was fidelity.
-- `--edge` is rust at **.34**, not .70. `--r-btn` is **7px**. `.btn` is
-  `h-btn + 6` and `.btn.primary` is `h-btn + 14`. The smallest type in the whole
-  interface is `--t-micro`, 8.5 CSS px — **seventeen units here**, and nothing
-  may be smaller.
+- `--edge` is rust at **.34**, not .70. `--r-btn` is **7px**, and there are six
+  radii in the sheet rather than one. `.btn` is `h-btn + 6` and `.btn.primary` is
+  `h-btn + 14`. The smallest type in the interface is `--t-micro`, floored at
+  8.5 CSS px, and nothing may be smaller than whatever that clamp is returning.
 - The primary's glow is **not** camera bloom and never could be: the interface is
   a screen-space overlay and draws after the camera's post pass. In the shipped
   build it is one `box-shadow`. It is drawn.
 
-Still to be measured against the CSS rather than guessed: the Forge editor's band
-heights, the Calibrate row rhythm, and the manual's gutters.
+### What the sheet turned out to be made of
+
+Four things the interface is built from that this port did not have at all, and
+each of them changes every screen rather than one:
+
+- **Tracking.** Every rule in the sheet carries a `letter-spacing` — `.26em` on
+  the wordmark down to `.055em` on a cube's name, with `.1em` as the body's
+  floor. uGUI has no such property, so it is applied to the generated mesh in
+  `Trk.cs`, alignment re-done per line the way a browser measures one. Monospace
+  capitals set solid read as a serial number; the tracking is most of what makes
+  them read as an instrument's label.
+- **The typeface.** The sheet's stack is eight fixed-pitch faces and then
+  `monospace`. This port was asking for `LegacyRuntime.ttf` — Unity's built-in
+  *proportional* face — behind a Courier fallback that could never be reached,
+  because the builtin never returns null.
+- **The column.** A `.layer` is a centred flex column with two elastic
+  pseudo-elements that split the leftover height, so a screen composes the same
+  on a tall phone and a short one and scrolls when it does not fit. The port was
+  placing children at absolute offsets from the top of a 1280-unit canvas, which
+  is that composition transcribed at one screen size. `Flow.cs` is the rule
+  instead of one of its outputs.
+- **The drawings.** Seven manual diagrams, four object tiles and twelve icons,
+  all inline SVG. They are carried over as the shipped path data in `Art.cs` and
+  rasterised by `Svg.cs`; round joins and caps fall out of measuring distance to
+  the skeleton, which is exactly the shape `stroke-linejoin:round` asks for.
+  There is not one bezier in the shipped artwork — every curve is a circular arc.
+
+Still to be measured against the CSS rather than derived: the Forge editor's
+coach band, and the landscape (`html.vpLand`) grid the title screen switches to.
 
 ## What is not here yet
 

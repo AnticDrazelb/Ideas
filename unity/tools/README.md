@@ -51,6 +51,26 @@ returning zero is harmless — the call is a no-op whose result nobody reads.
 There it would be a landmine: a `Mathf` that quietly answers 0 turns a runnable
 check into one that passes for the wrong reason.
 
+Two more are real for the same reason, and both were found the same way — by
+running something and getting a blank result rather than a failure:
+
+- **`ColorUtility.TryParseHtmlString`.** `Palette` is nothing but twenty-one
+  calls to it, so a stub that answers transparent black makes every colour in
+  the game invisible under the harness. That does not fail; it passes while
+  drawing nothing, which is exactly the landmine the note above describes.
+- **`Texture2D` keeps its pixels.** The interface generates all of its own
+  artwork — the frames, the glow, the title gradient, and every icon and diagram
+  — so a `SetPixels32` that discards them turns the one part of this port that
+  cannot be checked by reading it into a part that cannot be checked at all.
+  With the buffer kept, the rasteriser can be run and its output looked at;
+  `Sprite.LastTexture` is how a generated mark is got back out, since the
+  harness has no renderer to hand it to.
+
+That is what caught the two real bugs in the interface pass: every control's
+drop shadow was a sibling positioned at build time, so the column would lay the
+button out and leave its shadow behind, and wrapped text was measured with
+`preferredHeight`, which answers against the width it last laid out at.
+
 With it real, the harness can **execute** the pure-logic half of the game layer,
 not merely compile it:
 
