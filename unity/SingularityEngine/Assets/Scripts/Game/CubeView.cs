@@ -469,6 +469,7 @@ namespace Singularity.Game
             _wave += Time.unscaledDeltaTime * WavePerSecond;
             foreach (Material m in new[] { _matTrace, _matLattice, _matPlate })
             {
+                m.SetFloat("_Peek", peekAmt * peekAmt * (3f - 2f * peekAmt));
                 m.SetFloat("_Wave", _wave);
                 m.SetFloat("_WaveDir", _waveDir);
             }

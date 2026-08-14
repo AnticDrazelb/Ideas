@@ -23,6 +23,7 @@ Shader "Singularity/Cell"
         _Facing   ("Side-face darkening", Range(0,1)) = 0.42
         _Edge     ("Edge inset", Range(0,0.5)) = 0.06
         _EdgeLift ("Edge brightness", Range(0,2)) = 0.55
+        _Peek     ("Matrix", Range(0,1)) = 0
         _Gutter   ("Gutter", Range(0,0.3)) = 0.055
         _Round    ("Corner radius", Range(0,0.5)) = 0.09
         _Dim      ("Dim", Range(0,2)) = 1
@@ -76,7 +77,7 @@ Shader "Singularity/Cell"
             };
 
             fixed4 _ColFar, _ColNear;
-            float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim, _Reveal, _Unlit, _Gutter, _Round;
+            float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim, _Reveal, _Unlit, _Gutter, _Round, _Peek;
             float _Wave, _WaveDir, _WaveSoft;
 
             v2f vert(appdata v)
@@ -157,6 +158,23 @@ Shader "Singularity/Cell"
                 float rim = (1.0 - smoothstep(0.0, _Edge, -sd)) * plate;
                 c *= 1.0 + rim * _EdgeLift * facing;
                 c *= lerp(0.09, 1.0, plate);
+
+                // THE LATTICE GOES TO GLASS.
+                //
+                // Under a held MATRIX the solid does not vanish, it THINS — and the
+                // edges come up as it goes, so what is left at the end of the lean
+                // is a lit wireframe with a film of material still stretched across
+                // it. Those are two separate movements and doing only the first
+                // gives you a dim cube rather than a glass one, which is exactly
+                // what this port was doing.
+                //
+                // The fill drops to 22% (the original's globalAlpha = 1 - 0.78*e)
+                // and the rim is ADDED rather than multiplied, so it survives the
+                // fill going away underneath it. On a void background a fade to
+                // black and a fade to transparent are the same picture, which is
+                // what lets this stay an opaque pass.
+                c *= 1.0 - 0.78 * _Peek;
+                c += _ColNear.rgb * rim * _Peek * 0.62;
 
                 // THE REVEAL. After every fold the lit reachable set sweeps outward
                 // from the player in BFS order rather than snapping on. It is the
