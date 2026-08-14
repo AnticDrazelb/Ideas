@@ -99,7 +99,13 @@ namespace UnityEditor
         public static bool SwitchActiveBuildTarget(BuildTargetGroup g, BuildTarget t) => true;
     }
 
-    public enum IconKind { Any = -1, Application = 0, Settings = 1, Notification = 2, Spotlight = 3, Store = 4, AdaptiveForeground = 5, AdaptiveBackground = 6 }
+    // NO ADAPTIVE MEMBERS HERE, AND THAT ABSENCE IS THE POINT. An earlier version
+    // of this stub had AdaptiveForeground and AdaptiveBackground because I assumed
+    // they were here; they are not, they belong to SetPlatformIcons, and the
+    // harness cheerfully agreed with me because I had written both sides. Unity
+    // caught it on first open. A stub proves the SHAPE of a call, never the
+    // existence of the thing being called.
+    public enum IconKind { Any = -1, Application = 0, Settings = 1, Notification = 2, Spotlight = 3, Store = 4 }
 
     public enum TextureImporterType { Default, NormalMap, GUI, Sprite, Cursor }
 
@@ -126,8 +132,13 @@ namespace UnityEditor
 
     public enum AndroidSdkVersions
     {
-        AndroidApiLevelAuto = 0, AndroidApiLevel23 = 23, AndroidApiLevel24 = 24,
-        AndroidApiLevel29 = 29, AndroidApiLevel33 = 33, AndroidApiLevel34 = 34
+        AndroidApiLevelAuto = 0,
+        // Carrying Unity's own deprecation, so the harness reproduces the warning
+        // rather than letting it arrive on somebody else's machine.
+        [Obsolete("Minimum supported Android API level is 25.")] AndroidApiLevel23 = 23,
+        [Obsolete("Minimum supported Android API level is 25.")] AndroidApiLevel24 = 24,
+        AndroidApiLevel25 = 25, AndroidApiLevel29 = 29,
+        AndroidApiLevel33 = 33, AndroidApiLevel34 = 34, AndroidApiLevel35 = 35
     }
 
     public static class PlayerSettings

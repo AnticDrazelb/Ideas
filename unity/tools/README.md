@@ -22,6 +22,25 @@ fails here is broken for certain, and one that passes is at least well-formed.
 It is also an honest inventory of what this game asks of Unity. If a new call
 needs a declaration adding, that is the point: the list should stay short.
 
+### What it cannot do, learned the hard way
+
+**A stub proves the SHAPE of a call, never the EXISTENCE of the thing being
+called.** The first time this project was opened in a real editor, it failed to
+compile on two lines naming `IconKind.AdaptiveForeground` and
+`IconKind.AdaptiveBackground`. Those members do not exist — adaptive icons go
+through `SetPlatformIcons`, not `SetIcons` — and the harness had agreed with the
+code because the same person wrote both sides of it.
+
+So the failure mode is specific and worth naming: the harness catches typos and
+signature drift, and it is blind to anything invented wholesale. The mitigation
+is not more stub, it is discipline about which APIs get used at all — prefer the
+call you are sure of over the one that would be nicer, when nobody can run it.
+
+Two things changed as a result. `IconKind` now has no adaptive members, so that
+exact mistake fails here first. And `AndroidSdkVersions` carries Unity's own
+`[Obsolete]` attributes, so a deprecation that Unity would warn about warns here
+instead of arriving on somebody else's machine.
+
 It is deliberately **not** inside `Assets/`, so Unity never compiles it and
 there is no chance of it shadowing the real engine.
 

@@ -38,13 +38,20 @@ namespace Singularity.EditorTools
             var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(Path512);
             if (tex == null) { Debug.LogWarning("[Singularity] icon asset missing after write"); return; }
 
-            var icons = new[] { tex };
-            PlayerSettings.SetIcons(NamedBuildTarget.Android, icons, IconKind.Application);
-            // Adaptive icons want a foreground and a background; the design already
-            // has a solid ground, so the same square serves as both and nothing
-            // gets cropped into a shape it was not drawn for.
-            PlayerSettings.SetIcons(NamedBuildTarget.Android, icons, IconKind.AdaptiveForeground);
-            PlayerSettings.SetIcons(NamedBuildTarget.Android, icons, IconKind.AdaptiveBackground);
+            PlayerSettings.SetIcons(NamedBuildTarget.Android, new[] { tex }, IconKind.Application);
+
+            // ADAPTIVE ICONS ARE DELIBERATELY NOT SET HERE. Android 8+ wants a
+            // separate foreground and background layer, and they do not go through
+            // IconKind at all — they need SetPlatformIcons with the Android
+            // PlatformIconKind, which is a wider API than this needs.
+            //
+            // The reason for stopping rather than reaching for it: the two lines
+            // that used to be here named IconKind members that DO NOT EXIST, and
+            // the stub harness happily agreed with me because I had written the
+            // stub. Guessing at an API twice in the same file would be careless.
+            // Unity shims the legacy icon onto Android 8+ launchers, which is not
+            // as good and is honest, and the layered version can be added once
+            // somebody can watch it import.
         }
 
         static void Write()

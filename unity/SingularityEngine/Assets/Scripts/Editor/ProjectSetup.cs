@@ -79,7 +79,9 @@ namespace Singularity.EditorTools
             // Support module.
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
-            PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel23;
+            // 25 is Unity's own floor now — 23 is deprecated and becomes an error
+            // in the next release. It is Android 7.1, which is a decade of phones.
+            PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel25;
             PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevelAuto;
 
             // Nothing here talks to a network. The daily is computed from the date,

@@ -8,6 +8,7 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <AssemblyName>UnityStubsCheck</AssemblyName>
     <NoWarn>CS0169;CS0649;CS0067;CS0414;CS0108;CS0114;CS8321;CS0162</NoWarn>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="UnityStubs.cs" />
