@@ -483,7 +483,15 @@ namespace Singularity.Game
             bool cageOn = e > 0.01f;
             if (_cageR.enabled != cageOn) _cageR.enabled = cageOn;
             if (cageOn)
-                _cageR.sharedMaterial.SetColor("_Tint", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, e * 0.55f));
+            {
+                // 0.46 at rest and 0.40 more under a full lean, which is the
+                // original's drawCage alpha. The cage is the twelve edges of the
+                // thing you are HOLDING, so it has to come up as the material goes
+                // away — glass with no edges is just a dimmer board.
+                float peekE = peekAmt * peekAmt * (3f - 2f * peekAmt);
+                _cageR.sharedMaterial.SetColor("_Tint",
+                    new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, e * (0.46f + peekE * 0.40f)));
+            }
 
             PlaceMarkers(cam);
             PlaceReads(cam);

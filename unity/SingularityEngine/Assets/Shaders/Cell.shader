@@ -174,7 +174,25 @@ Shader "Singularity/Cell"
                 // black and a fade to transparent are the same picture, which is
                 // what lets this stay an opaque pass.
                 c *= 1.0 - 0.78 * _Peek;
-                c += _ColNear.rgb * rim * _Peek * 0.62;
+
+                // AND THE FAR SIDE IS WIRE ONLY, WHEN IT IS THERE AT ALL.
+                //
+                // A translucent fill behind a translucent fill behind a translucent
+                // fill is mud, and mud is the opposite of what a look-inside is for.
+                // So the back of the solid is not drawn until the lean has actually
+                // started, and when it arrives it arrives as edges: no fill, and a
+                // rim at 0.22 against the near side's 0.62.
+                //
+                // Keyed off the FACING term rather than off cull state on purpose.
+                // The cube's own Z is flipped to convert the rules' right-handed
+                // basis into Unity's left-handed one, which inverts winding — so
+                // "back face" and "clockwise" have come apart in this mesh, and only
+                // one of the two still means what it says.
+                float back = step(facing, 0.01);
+                if (back > 0.5 && _Peek < 0.12) discard;
+
+                c *= 1.0 - back * _Peek;
+                c += _ColNear.rgb * rim * _Peek * lerp(0.62, 0.22, back);
 
                 // THE REVEAL. After every fold the lit reachable set sweeps outward
                 // from the player in BFS order rather than snapping on. It is the
