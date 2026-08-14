@@ -305,7 +305,7 @@ namespace Singularity.UI
             knob.color = Palette.Ink;
             knob.raycastTarget = false;
 
-            Text lbl = Label(rt, "state", "", 15, Palette.Void, TextAnchor.MiddleCenter,
+            Text lbl = Label(rt, "state", "", 19, Palette.Void, TextAnchor.MiddleCenter,
                              Vector2.zero, Vector2.one, new Vector2(12, 0), new Vector2(-12, 0));
 
             void Paint(bool v)

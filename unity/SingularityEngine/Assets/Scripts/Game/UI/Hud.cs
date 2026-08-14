@@ -93,7 +93,7 @@ namespace Singularity.UI
 
             _goChip = Chip(top, "goChip", 0.50f, 0.78f, Palette.Arc).GetComponent<Image>();
             var goRt = _goChip.rectTransform;
-            UiKit.Label(goRt, "goLbl", "TO GO", 16, Palette.Arc, TextAnchor.MiddleLeft,
+            UiKit.Label(goRt, "goLbl", "TO GO", 21, Palette.Arc, TextAnchor.MiddleLeft,
                         Vector2.zero, Vector2.one, new Vector2(14, 0), Vector2.zero);
             _goN = UiKit.Label(goRt, "goN", "·", 34, Palette.Arc, TextAnchor.MiddleRight,
                                Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-14, 0));
@@ -304,7 +304,7 @@ namespace Singularity.UI
 
             int n = s.N, want = n * n, used = 0;
             while (_depthPool.Count < want)
-                _depthPool.Add(UiKit.Label(_depthRoot, "d" + _depthPool.Count, "", 16, Palette.Ink,
+                _depthPool.Add(UiKit.Label(_depthRoot, "d" + _depthPool.Count, "", 21, Palette.Ink,
                                            TextAnchor.MiddleCenter, Vector2.zero, Vector2.zero,
                                            new Vector2(-24, -12), new Vector2(24, 12)));
 

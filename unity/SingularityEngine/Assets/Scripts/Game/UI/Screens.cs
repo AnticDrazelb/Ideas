@@ -193,7 +193,7 @@ namespace Singularity.UI
 
             _playLabel = go.GetComponentInChildren<Text>();
 
-            UiKit.Label(L, "foot", "DIAGNOSTIC BUILD · NO DEAD PIXELS", 15, Palette.Dim2, TextAnchor.LowerCenter,
+            UiKit.Label(L, "foot", "DIAGNOSTIC BUILD · NO DEAD PIXELS", 19, Palette.Dim2, TextAnchor.LowerCenter,
                         new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 40), new Vector2(0, 76));
         }
 
@@ -383,7 +383,7 @@ namespace Singularity.UI
                             new Vector2(0, 0.42f), new Vector2(1, 0.86f), Vector2.zero, Vector2.zero);
 
                 if (reached)
-                    UiKit.Label(card, "name", Vaults.LevelName(level), 12, Palette.Dim,
+                    UiKit.Label(card, "name", Vaults.LevelName(level), 17, Palette.Dim,
                                 TextAnchor.UpperCenter,
                                 new Vector2(0, 0.24f), new Vector2(1, 0.44f), Vector2.zero, Vector2.zero);
 
@@ -419,7 +419,7 @@ namespace Singularity.UI
 
             void Kicker(string s)
             {
-                UiKit.Label(M, s, s, 16, Palette.Rust, TextAnchor.LowerLeft,
+                UiKit.Label(M, s, s, 19, Palette.Rust, TextAnchor.LowerLeft,
                             new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + 24)), new Vector2(-44, -y));
                 y += 28;
             }
@@ -511,9 +511,9 @@ namespace Singularity.UI
                                          new Vector2(5, 0), new Vector2(-5, 0));
             UiKit.Framed(c, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.5f));
             UiKit.Icon(c, glyph, col, 34, new Vector2(0.5f, 1f), new Vector2(0, -32));
-            UiKit.Label(c, "n", name, 16, Palette.Ink, TextAnchor.UpperCenter,
+            UiKit.Label(c, "n", name, 19, Palette.Ink, TextAnchor.UpperCenter,
                         new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 26), new Vector2(0, 48));
-            UiKit.Label(c, "j", job, 12, Palette.Dim, TextAnchor.UpperCenter,
+            UiKit.Label(c, "j", job, 17, Palette.Dim, TextAnchor.UpperCenter,
                         new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 8), new Vector2(0, 26));
         }
 
@@ -696,7 +696,7 @@ namespace Singularity.UI
                         new Vector2(0, string.IsNullOrEmpty(hint) ? 0 : 0.40f), new Vector2(0.62f, 1),
                         new Vector2(58, 0), Vector2.zero);
             if (!string.IsNullOrEmpty(hint))
-                UiKit.Label(r, "h", hint, 14, Palette.Dim, TextAnchor.MiddleLeft,
+                UiKit.Label(r, "h", hint, 17, Palette.Dim, TextAnchor.MiddleLeft,
                             new Vector2(0, 0), new Vector2(wideHint ? 0.72f : 0.30f, 0.40f),
                             new Vector2(58, 0), Vector2.zero);
 
@@ -728,7 +728,7 @@ namespace Singularity.UI
             // pinned to the same left edge of the same band, so "120%" was printed
             // straight through the word INTENSITY.
             RectTransform r = CalRow(panel, icon, label, hint, false);
-            Text val = UiKit.Label(r, "v", get() + "%", 16, Palette.Rust, TextAnchor.MiddleLeft,
+            Text val = UiKit.Label(r, "v", get() + "%", 21, Palette.Rust, TextAnchor.MiddleLeft,
                                    new Vector2(0.30f, 0), new Vector2(0.52f, 0.40f), Vector2.zero, Vector2.zero);
             UiKit.Bar(r, "bar", lo, hi, get(), v =>
             {
@@ -834,7 +834,7 @@ namespace Singularity.UI
 
                 UiKit.Label(r, "k", rows[i].k, 19, Palette.Ink, TextAnchor.LowerLeft,
                             new Vector2(0, 0.44f), new Vector2(0.66f, 1), new Vector2(26, 0), new Vector2(0, -8));
-                UiKit.Label(r, "w", rows[i].why, 12, Palette.Dim, TextAnchor.UpperLeft,
+                UiKit.Label(r, "w", rows[i].why, 17, Palette.Dim, TextAnchor.UpperLeft,
                             new Vector2(0, 0), new Vector2(0.72f, 0.46f), new Vector2(26, 6), Vector2.zero);
                 UiKit.Label(r, "v", rows[i].v, 17, Palette.Rust, TextAnchor.MiddleRight,
                             new Vector2(0.66f, 0), Vector2.one, Vector2.zero, new Vector2(-26, 0));

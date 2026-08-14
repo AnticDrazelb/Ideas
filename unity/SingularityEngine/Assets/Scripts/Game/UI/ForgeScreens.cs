@@ -180,7 +180,7 @@ namespace Singularity.UI
             UiKit.Framed(_coach, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.6f));
             _coachN = UiKit.Label(_coach, "n", "1", 17, Palette.Rust, TextAnchor.MiddleCenter,
                                   new Vector2(0, 0), new Vector2(0, 1), new Vector2(8, 0), new Vector2(42, 0));
-            _coachText = UiKit.Label(_coach, "t", "", 15, Palette.Ink, TextAnchor.MiddleLeft,
+            _coachText = UiKit.Label(_coach, "t", "", 19, Palette.Ink, TextAnchor.MiddleLeft,
                                      new Vector2(0, 0), new Vector2(1, 1), new Vector2(46, 0), new Vector2(-12, 0));
 
             // The deck is the one band that should take what is spare, because it is
