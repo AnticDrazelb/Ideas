@@ -220,14 +220,30 @@ useful step is before the hand has to work it out.
 
 ---
 
+## The daily's windows
+
+A missed day is not a zero, it is a **miss** — and it costs more than the worst
+honest attempt, because if it were free then skipping a hard cube would be the
+optimal play. Turning up and playing badly always beats not turning up, and that
+is the ordering a habit board has to have.
+
+Week, month and season totals are computed and shown locally; a window with
+nothing at all in it scores −1 rather than a wall of penalties, so a fresh
+install does not open by charging you for a month it was not installed for.
+
+The one thing that needs a host is the last step. `DailyBoards.Submit` is a
+hook, deliberately not a stub of somebody's SDK: wire a ranking service to it
+and the packed scores start flowing; leave it alone and the game is exactly as
+complete as it is now, minus the ranking. The packing puts the **period above
+the score**, so the newest completed window outranks every older one by
+construction — a service that keeps only a player's best entry becomes
+current-period standings on its own, with no reset and no server-side job.
+
+---
+
 ## What is not here yet
 
-One thing, and it needs a server.
-
-- **Ranked boards.** The BOARDS screen reads every local record and is worth
-  opening on a plane, which is most of what it was for — but the daily's
-  week/month/season rollups compute a ranking that has nowhere to go without a
-  host. The arithmetic is ported in `Daily`; posting it is a backend, not a port.
+Only the ranking itself, which is a backend rather than a port — see above.
 
 Everything else is here: the rules, the three verbs, the vault ladder, the daily
 and its streak, the Forge with its verify pass and share codes, the seed box,

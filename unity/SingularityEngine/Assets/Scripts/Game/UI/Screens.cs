@@ -450,6 +450,19 @@ namespace Singularity.UI
                           ? Store.Data.dailyBest + " FOLDS" : "UNSOLVED"));
             rows.Add(("STREAK", Store.Data.streakCur + " · BEST " + Store.Data.streakBest));
 
+            // THE WINDOWS. A missed day is not a zero, it is a MISS, and it costs
+            // more than the worst honest attempt — otherwise skipping a hard cube
+            // would be the optimal play. So these read as "lower is better", and
+            // turning up and playing badly always beats not turning up.
+            //
+            // Only the days that have HAPPENED are counted: a running total that
+            // charged for tomorrow would be all penalty and would tell you nothing.
+            foreach (DailyBoards.Period p in DailyBoards.Periods)
+            {
+                var (total, played, of) = DailyBoards.Running(p, today);
+                rows.Add((p.label, played == 0 ? "—" : total + "  (" + played + "/" + of + " DAYS)"));
+            }
+
             // Then one row per vault: a vault is the unit a board ranks, scored on
             // the time to clear every cube in it, so a vault with a cube missing has
             // no total at all rather than a flattering partial one.

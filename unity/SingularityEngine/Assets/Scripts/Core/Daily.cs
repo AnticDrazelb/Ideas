@@ -87,6 +87,22 @@ namespace Singularity.Core
         public static (int a, int b) WeekSpan(int w) { int a = 3 + 7 * w; return (a, a + 6); }
         public static int MonthOf(int day) { DateTime d = DayDate(day); return d.Year * 12 + (d.Month - 1); }
 
+        /// <summary>
+        /// The day indices belonging to a month, and THE ANCHOR IS NOT SUBTRACTED
+        /// HERE even though <see cref="MonthOf"/> applies it. That looks
+        /// inconsistent and is the only arithmetic that makes the two inverses of
+        /// each other.
+        ///
+        /// Day <c>d</c> covers the instant <c>d*86400000 + anchor</c>. For that to
+        /// land on or after a month beginning at <c>M</c> you need
+        /// <c>d &gt;= (M - anchor)/86400000</c>, which is <c>M/86400000 - 0.29</c>
+        /// — and the smallest integer satisfying it is <c>M/86400000</c> exactly,
+        /// because the day boundary the anchor introduces falls INSIDE the first
+        /// day rather than before it. Subtracting the anchor and flooring gives
+        /// <c>M/86400000 - 1</c>, which is a day early at both ends: every month's
+        /// window would start on the last day of the previous one, so a player's
+        /// best day would be counted twice and a missed day charged twice.
+        /// </summary>
         public static (int a, int b) MonthSpan(int m)
         {
             int year = m / 12, mon = m % 12;
@@ -94,8 +110,7 @@ namespace Singularity.Core
             var next = first.AddMonths(1);
             long fms = new DateTimeOffset(first).ToUnixTimeMilliseconds();
             long nms = new DateTimeOffset(next).ToUnixTimeMilliseconds();
-            return ((int)Math.Floor((fms - DayAnchorMs) / 86400000.0),
-                    (int)Math.Floor((nms - DayAnchorMs) / 86400000.0) - 1);
+            return ((int)(fms / 86400000L), (int)(nms / 86400000L) - 1);
         }
 
         public static int SeasonOf(int day) => (int)Math.Floor(day / (double)SeasonDays);

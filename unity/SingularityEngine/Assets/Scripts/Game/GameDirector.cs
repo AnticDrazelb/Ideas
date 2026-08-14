@@ -327,25 +327,16 @@ namespace Singularity.Game
 
             if (S.IsDaily)
             {
+                // The daily keeps its own score and never touches the progression:
+                // it is not the forty-eighth vault, it just borrows its difficulty.
                 int today = Daily.DayIndex();
                 if (Store.Data.dailyDay != today) { Store.Data.dailyDay = today; Store.Data.dailyBest = folds; }
                 else Store.Data.dailyBest = Mathf.Min(Store.Data.dailyBest == 0 ? 999 : Store.Data.dailyBest, folds);
                 Store.Data.dailySolved = 1;
-                Store.SetDaily(today, folds);
 
-                // The streak is kept incrementally so it never needs the history it
-                // would otherwise have to keep forever — and a gap of more than one
-                // day breaks it rather than quietly forgiving it.
-                var st = Store.Data;
-                if (st.streakLast == today - 1) st.streakCur++;
-                else if (st.streakLast != today) st.streakCur = 1;
-                st.streakLast = today;
-                if (st.streakCur > st.streakBest) st.streakBest = st.streakCur;
-
-                // the history only has to be as long as the longest window that
-                // reads it, which is a season
-                Store.PruneDaily(today, Daily.SeasonDays);
-                Store.Save();
+                // and everything about windows, streaks and pruning lives in one
+                // place rather than being half here and half in the boards screen
+                DailyBoards.Record(folds);
             }
             else if (S.IsMade)
             {

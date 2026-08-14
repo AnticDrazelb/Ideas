@@ -83,8 +83,64 @@ public static class ForgeChecks
         Ok(!Forge.Import(ShareCode.Encode(Generator.FallbackLevel(1)), out string im2)
            && im2.Contains("BROKEN"), "a corridor imported: " + im2);
 
-        Console.WriteLine(fails == 0 ? "FORGE CHECKS PASSED" : fails + " FORGE CHECKS FAILED");
+        Daily();
+
+        Console.WriteLine(fails == 0 ? "CHECKS PASSED" : fails + " CHECKS FAILED");
         return fails;
+    }
+
+    static void Daily()
+    {
+        // A MISS COSTS MORE THAN THE WORST HONEST ATTEMPT, or skipping a hard cube
+        // would be the optimal play.
+        Ok(DailyBoards.DayMiss > 0, "no miss penalty");
+
+        // every window is the inverse of the function that names it
+        for (int day = 18000; day < 18000 + 400; day++)
+        {
+            foreach (var p in DailyBoards.Periods)
+            {
+                int which = p.Of(day);
+                var span = p.Span(which);
+                Ok(day >= span.a && day <= span.b,
+                   p.label + ": day " + day + " is in period " + which + " but its span is " + span.a + ".." + span.b);
+                Ok(p.Of(span.a) == which && p.Of(span.b) == which,
+                   p.label + ": period " + which + " span ends outside itself");
+                if (span.a > 0) Ok(p.Of(span.a - 1) == which - 1, p.label + ": gap before period " + which);
+                Ok(p.Of(span.b + 1) == which + 1, p.label + ": gap after period " + which);
+            }
+        }
+
+        // spans do not overlap and do not leave holes
+        foreach (var p in DailyBoards.Periods)
+            for (int w = 200; w < 260; w++)
+            {
+                var a = p.Span(w);
+                var b = p.Span(w + 1);
+                Ok(b.a == a.b + 1, p.label + ": period " + w + " and " + (w + 1) + " are not contiguous");
+            }
+
+        // a week is seven days, a season is ninety-one
+        var wk = Singularity.Core.Daily.WeekSpan(1000);
+        Ok(wk.b - wk.a + 1 == 7, "a week is not seven days");
+        var se = Singularity.Core.Daily.SeasonSpan(200);
+        Ok(se.b - se.a + 1 == DailyBoards.SeasonDays, "a season is the wrong length");
+
+        // and a month is a real calendar month, leap years included
+        int feb2024 = Singularity.Core.Daily.MonthOf(Singularity.Core.Daily.DayIndexAt(
+            new DateTimeOffset(new DateTime(2024, 2, 15, 12, 0, 0, DateTimeKind.Utc)).ToUnixTimeMilliseconds()));
+        var febSpan = Singularity.Core.Daily.MonthSpan(feb2024);
+        Ok(febSpan.b - febSpan.a + 1 == 29, "February 2024 is not 29 days: " + (febSpan.b - febSpan.a + 1));
+
+        // an empty window scores -1: a fresh install must not open by posting a
+        // wall of penalties for a month it was not installed for
+        Ok(DailyBoards.SpanTotal((900000, 900006)) == -1, "an empty window scored");
+
+        // the period rides ABOVE the score, so the newest completed window
+        // outranks every older one however good the older one was
+        Ok(DailyBoards.Packed(101, 9999) > DailyBoards.Packed(100, 0), "an old perfect period outranks a new one");
+        // and within one period, lower total ranks higher
+        Ok(DailyBoards.Packed(100, 5) > DailyBoards.Packed(100, 6), "a worse total outranked a better one");
     }
 
     public static void Main() => Environment.ExitCode = Run();
