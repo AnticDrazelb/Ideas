@@ -383,6 +383,8 @@ namespace Singularity.Game
                 // different play — one by a better route, one by a faster hand — and
                 // a single "best run" column would make beating one cost the other.
                 if (!Store.TryBest(S.levelNo, out int b) || folds < b) Store.SetBest(S.levelNo, folds);
+                // and the par it was scored against, which the vault grid rates it by
+                Store.SetPar(S.levelNo, S.lv.par);
                 if (!Store.TryTimeBest(S.levelNo, out long tb) || ms < tb) Store.SetTimeBest(S.levelNo, ms);
                 if (S.levelNo + 1 > Store.Data.reached) { Store.Data.reached = S.levelNo + 1; Store.Save(); }
                 LevelSupply.Prebuild(S.levelNo + 1);

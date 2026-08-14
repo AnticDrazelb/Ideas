@@ -308,18 +308,23 @@ namespace Singularity.UI
 
             int start = Vaults.VaultStart(_viewBand);
             int size = Vaults.VaultSize(_viewBand);
-            int cols = 5;
-            int rows = Mathf.CeilToInt(size / (float)cols);
 
-            // A CUBE IS A SQUARE, NOT A SHARE OF THE SCREEN.
+            // THREE COLUMNS OF CARDS, NOT FIVE OF NUMBERS.
             //
-            // The rows used to divide the grid's whole height between them, so a
-            // ten-cube vault got two four-hundred-pixel-tall buttons and the screen
-            // read as a broken table rather than a rack of cubes. The cell is sized
-            // off the WIDTH — which is the axis that is actually constrained — and
-            // the block is pinned to the top of the space it was given.
-            float cellW = (_grid.rect.width - 12f) / cols;
-            float cellH = Mathf.Min(cellW, 96f);
+            // A rack of bare numbers is unreadable twice over: the number printed on
+            // a cleared cube was its BEST SCORE while the number on an unplayed one
+            // was its LEVEL, so the same glyph meant two different things and
+            // neither was labelled. And a cube in this game has a NAME — the vault
+            // list is the only place a player ever sees it, and a name is what makes
+            // "the one with the plates" a thing you can go back to.
+            //
+            // So each cube gets a card: its number, its name, and how well it went,
+            // and the cell is sized off the WIDTH because that is the axis that is
+            // actually constrained.
+            const int cols = 3;
+            int rows = Mathf.CeilToInt(size / (float)cols);
+            float cellW = _grid.rect.width / cols;
+            float cellH = Mathf.Min(cellW * 0.86f, 132f);
 
             // and the seed box follows the rack rather than the floor
             float below = 170f + rows * cellH + 26f;
@@ -338,15 +343,54 @@ namespace Singularity.UI
 
                 bool reached = level <= Store.Data.reached;
                 bool cleared = Store.TryBest(level, out int best);
-                // A cube visited by number is a cube seen, not a cube cleared — so a
-                // jump past `reached` is offered, and it records nothing.
-                string face = cleared ? best.ToString() : reached ? level.ToString() : "·";
+                bool ranked = Store.TryPar(level, out int par) && cleared;
+
+                // THREE PIPS, AND THEY ARE THE ONLY SCORE THIS SCREEN SHOWS.
+                // A raw fold count means nothing without the par beside it; "how
+                // close to perfect" is the thing a player actually wants off a
+                // grid, and it survives being three pixels tall.
+                // A cube cleared before this build recorded pars has a best and no
+                // par to judge it by. It gets one pip — cleared — rather than a
+                // guess, because inventing a rating is worse than showing less.
+                int pips = !cleared ? 0
+                         : !ranked ? 1
+                         : best <= par ? 3
+                         : best <= par + 2 ? 2
+                         : 1;
+
+                Color edge = !reached ? Palette.Dim2
+                           : pips == 3 ? Palette.Arc
+                           : Palette.Trace;
 
                 int lv = level;
-                var btn = UiKit.Bracketed(slot, "b", face,
-                    () => { Show(null); _dir.Play(lv, reached ? LoadKind.Vault : LoadKind.Practice); }, 24);
-                if (cleared) btn.GetComponentInChildren<Text>().color = Palette.Lock;
-                else if (!reached) btn.GetComponentInChildren<Text>().color = Palette.Dim2;
+                var btn = UiKit.Bracketed(slot, "b", "", () =>
+                {
+                    Show(null);
+                    _dir.Play(lv, reached ? LoadKind.Vault : LoadKind.Practice);
+                }, 1);
+
+                // Bracketed gives every control the same plate and edge; a card that
+                // is ABOUT its state overrides both, and drops the empty label.
+                Object.Destroy(btn.transform.Find("label").gameObject);
+                btn.GetComponent<Image>().color = pips == 3
+                    ? new Color(Palette.Arc.r, Palette.Arc.g, Palette.Arc.b, 0.16f)
+                    : Palette.Panel;
+                btn.transform.Find("edge").GetComponent<Image>().color = edge;
+
+                var card = (RectTransform)btn.transform;
+                UiKit.Label(card, "n", level.ToString(), 30,
+                            reached ? Palette.Ink : Palette.Dim2, TextAnchor.LowerCenter,
+                            new Vector2(0, 0.42f), new Vector2(1, 0.86f), Vector2.zero, Vector2.zero);
+
+                if (reached)
+                    UiKit.Label(card, "name", Vaults.LevelName(level), 12, Palette.Dim,
+                                TextAnchor.UpperCenter,
+                                new Vector2(0, 0.24f), new Vector2(1, 0.44f), Vector2.zero, Vector2.zero);
+
+                for (int p = 0; p < 3; p++)
+                    UiKit.Icon(card, p < pips ? "sqfill" : "sq",
+                               p < pips ? Palette.Arc : Palette.Dim2, 9f,
+                               new Vector2(0.5f, 0.16f), new Vector2((p - 1) * 13f, 0f));
             }
         }
 
@@ -482,6 +526,11 @@ namespace Singularity.UI
         static void BuildPause()
         {
             RectTransform L = Layer("pause");
+            // Dark enough that the board is a memory rather than a distraction. The
+            // pause card is still the one screen that lets the puzzle through — you
+            // are in the middle of it — but at 0.72 the cube was legible straight
+            // through the words, which is not "letting it through", it is clutter.
+            L.GetComponent<Image>().color = new Color(0, 0, 0, 0.90f);
 
             // THE CARD IS ABOUT THE CUBE YOU ARE IN, NOT ABOUT BEING PAUSED.
             //
@@ -491,22 +540,22 @@ namespace Singularity.UI
             // into a place; RESUME takes the only plate, the three ways to a
             // different board share a row, and the two settings screens are text.
             _pauseName = UiKit.Label(L, "h", "", 40, Palette.Ink, TextAnchor.LowerCenter,
-                                     new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -252), new Vector2(-40, -196));
+                                     new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(40, 150), new Vector2(-40, 206));
             _pauseWhere = UiKit.Label(L, "where", "", 17, Palette.Rust, TextAnchor.UpperCenter,
-                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -290), new Vector2(-40, -260));
+                                      new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(40, 112), new Vector2(-40, 142));
 
-            RectTransform go = UiKit.Rect(L, "resume", new Vector2(0, 1), new Vector2(1, 1),
-                                          new Vector2(72, -428), new Vector2(-72, -348));
+            RectTransform go = UiKit.Rect(L, "resume", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
+                                          new Vector2(72, -6), new Vector2(-72, 74));
             UiKit.Bracketed(go, "resume", "RESUME", () => Show(null), 28, true);
 
-            RectTransform three = UiKit.Rect(L, "three", new Vector2(0, 1), new Vector2(1, 1),
-                                             new Vector2(72, -520), new Vector2(-72, -448));
+            RectTransform three = UiKit.Rect(L, "three", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
+                                             new Vector2(72, -98), new Vector2(-72, -26));
             Third(three, 0, "RESET", () => { Show(null); _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey); });
             Third(three, 1, "VAULTS", OpenVaults);
             Third(three, 2, "MENU", ShowTitle);
 
-            RectTransform links = UiKit.Rect(L, "links", new Vector2(0, 1), new Vector2(1, 1),
-                                             new Vector2(72, -598), new Vector2(-72, -548));
+            RectTransform links = UiKit.Rect(L, "links", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
+                                             new Vector2(72, -176), new Vector2(-72, -126));
             RectTransform bSlot = UiKit.Rect(links, "b", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
             UiKit.Link(bSlot, "boards", "BOARDS", ShowBoards, 20);
             RectTransform cSlot = UiKit.Rect(links, "c", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);

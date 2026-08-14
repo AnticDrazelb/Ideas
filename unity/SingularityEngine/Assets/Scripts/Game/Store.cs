@@ -26,6 +26,12 @@ namespace Singularity.Game
         // is what makes "is this vault finished" a lookup rather than a guess.
         public List<int> bestK = new List<int>();
         public List<int> bestV = new List<int>();
+        // A BEST IS MEANINGLESS WITHOUT THE PAR IT WAS SCORED AGAINST. Par for a
+        // generated cube costs a couple of hundred milliseconds to mint, so a grid
+        // of ten cannot ask for it — but it is free at the moment the cube is
+        // cleared, which is the only moment anything needs it. Recorded then.
+        public List<int> parK = new List<int>();
+        public List<int> parV = new List<int>();
         public List<int> tbestK = new List<int>();
         public List<long> tbestV = new List<long>();
         public List<int> vbestK = new List<int>();
@@ -64,6 +70,7 @@ namespace Singularity.Game
         public static SaveData Data { get; private set; } = new SaveData();
 
         static readonly Dictionary<int, int> Best = new Dictionary<int, int>();
+        static readonly Dictionary<int, int> Pars = new Dictionary<int, int>();
         static readonly Dictionary<int, long> TBest = new Dictionary<int, long>();
         static readonly Dictionary<int, long> VBest = new Dictionary<int, long>();
         static readonly Dictionary<int, int> DHist = new Dictionary<int, int>();
@@ -89,6 +96,7 @@ namespace Singularity.Game
             if (!PlayerPrefs.HasKey(Key)) Data.fx = SystemInfo.deviceType == DeviceType.Handheld ? 1 : 1;
 
             Rehydrate(Data.bestK, Data.bestV, Best);
+            Rehydrate(Data.parK, Data.parV, Pars);
             Rehydrate(Data.tbestK, Data.tbestV, TBest);
             Rehydrate(Data.vbestK, Data.vbestV, VBest);
             Rehydrate(Data.dhistDay, Data.dhistFolds, DHist);
@@ -124,6 +132,7 @@ namespace Singularity.Game
             try
             {
                 Dehydrate(Best, Data.bestK, Data.bestV);
+                Dehydrate(Pars, Data.parK, Data.parV);
                 Dehydrate(TBest, Data.tbestK, Data.tbestV);
                 Dehydrate(VBest, Data.vbestK, Data.vbestV);
                 Dehydrate(DHist, Data.dhistDay, Data.dhistFolds);
@@ -137,6 +146,10 @@ namespace Singularity.Game
 
         public static bool TryBest(int level, out int folds) => Best.TryGetValue(level, out folds);
         public static void SetBest(int level, int folds) { Best[level] = folds; Save(); }
+
+        /// <summary>The par this level was proved to have, remembered from the run that cleared it.</summary>
+        public static bool TryPar(int level, out int par) => Pars.TryGetValue(level, out par);
+        public static void SetPar(int level, int par) { Pars[level] = par; Save(); }
 
         public static bool TryTimeBest(int level, out long ms) => TBest.TryGetValue(level, out ms);
         public static void SetTimeBest(int level, long ms) { TBest[level] = ms; Save(); }
