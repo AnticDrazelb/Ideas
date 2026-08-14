@@ -83,7 +83,7 @@ namespace Singularity.UI
 
         // ---- title ----------------------------------------------------------
 
-        static Text _playLabel, _resumeName;
+        static Text _playLabel, _resumeName, _resumeVault;
 
         static void BuildTitle()
         {
@@ -95,8 +95,14 @@ namespace Singularity.UI
             UiKit.Label(L, "wordmark2", "ENGINE", 66, Palette.Rust, TextAnchor.UpperCenter,
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -252), new Vector2(0, -172));
 
-            _resumeName = UiKit.Label(L, "resume", "", 22, Palette.Dim, TextAnchor.UpperCenter,
-                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -300), new Vector2(0, -262));
+            // WHERE YOU LEFT OFF, ON THE SCREEN THAT OFFERS TO TAKE YOU BACK.
+            // The play button used to be a promise with no subject: it did not say
+            // which cube, which vault, or what it would cost. Naming the thing a
+            // button is about is the cheapest confidence a menu can buy.
+            _resumeVault = UiKit.Label(L, "resumeVault", "", 19, Palette.Dim, TextAnchor.UpperCenter,
+                                       new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -290), new Vector2(0, -262));
+            _resumeName = UiKit.Label(L, "resume", "", 24, Palette.Ink, TextAnchor.UpperCenter,
+                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -322), new Vector2(0, -292));
 
             UiKit.Label(L, "sub",
                 "You are a black hole inside a broken machine.\nFold the engine until its circuits align,\nthen collapse into the core.",
@@ -112,17 +118,25 @@ namespace Singularity.UI
             Row(col, 4, 5, "CALIBRATE", ShowCalibrate);
 
             _playLabel = col.Find("CONTINUE").GetComponentInChildren<Text>();
+
+            UiKit.Label(L, "foot", "DIAGNOSTIC BUILD · NO DEAD PIXELS", 15, Palette.Dim2, TextAnchor.LowerCenter,
+                        new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 40), new Vector2(0, 76));
         }
 
         public static void ShowTitle()
         {
             int r = Mathf.Max(1, Store.Data.reached);
-            if (_playLabel != null) _playLabel.text = r <= 1 ? "[ BEGIN ]" : "[ CONTINUE ]";
+            // A machine that has never been started is INITIALISED, not continued.
+            if (_playLabel != null) _playLabel.text = r <= 1 ? "[ INITIALISE ]" : "[ CONTINUE ]";
+
+            int band = Vaults.VaultOf(r);
+            if (_resumeVault != null)
+                _resumeVault.text = "VAULT " + Vaults.RomanOf(band) + ": " + Vaults.VaultName(band);
             if (_resumeName != null)
             {
-                int band = Vaults.VaultOf(r);
-                _resumeName.text = r <= 1 ? "" :
-                    "VAULT " + Vaults.RomanOf(band) + " · " + Vaults.VaultName(band) + "   ·   " + Vaults.LevelName(r);
+                // the cube's own name and what it costs, so the button has a subject
+                int par = r <= Baked.Levels.Length ? Baked.Levels[r - 1].par : -1;
+                _resumeName.text = Vaults.LevelName(r) + (par >= 0 ? "  /  PAR " + par : "");
             }
             Stack.Clear();
             Show("title");

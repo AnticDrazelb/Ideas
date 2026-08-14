@@ -396,6 +396,7 @@ namespace UnityEngine
     public static class Application
     {
         public static int targetFrameRate { get; set; }
+        public static bool isBatchMode => false;
     }
 
     public static class QualitySettings { public static int vSyncCount { get; set; } }

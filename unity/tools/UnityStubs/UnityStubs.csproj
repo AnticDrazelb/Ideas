@@ -11,8 +11,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="UnityStubs.cs" />
+    <Compile Include="UnityEditorStubs.cs" />
     <Compile Include="ForgeChecks.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Game/**/*.cs" />
+    <Compile Include="../../SingularityEngine/Assets/Scripts/Editor/**/*.cs" />
   </ItemGroup>
 </Project>

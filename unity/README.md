@@ -13,12 +13,44 @@ numbers — verified, not assumed.
 Open `unity/SingularityEngine` with **Unity 6 LTS** (pinned to `6000.0.23f1` in
 `ProjectSettings/ProjectVersion.txt`; any 6000.x will offer to upgrade it, and
 nothing here depends on the patch version). The render pipeline is **Built-in** —
-there is no URP asset to go missing, and the two shaders are hand-written
-ShaderLab.
+there is no URP asset to go missing, and the shaders are hand-written ShaderLab.
 
 Then press play. The scene is empty on purpose: everything is built in code from
 `Bootstrap`, so there is no serialised reference anywhere that can come unhooked,
 and the whole project is reviewable in a diff.
+
+On first open the project applies its own settings (`Singularity → Apply Project
+Settings` re-runs it). There is no hand-written `ProjectSettings.asset` in the
+repository and that is deliberate: it is a seven-hundred-line serialised blob
+whose diffs are unreadable and whose merges are unresolvable, so the settings
+that matter to this game live in `Assets/Scripts/Editor/ProjectSetup.cs` as a
+list with the reasons attached. Unity writes its own defaults for the rest.
+
+The one to know about is **colour space: Gamma, not Linear.** The palette is nine
+hex values picked by eye and the board is read off one property — a trace is
+brighter than the lattice at every depth. Linear re-maps all of them and the two
+depth ramps stop being the distances they were authored to be.
+
+## Building an APK
+
+```sh
+./build-android.sh              # development build
+./build-android.sh -release
+UNITY=/path/to/Unity ./build-android.sh
+```
+
+or in the editor: **Singularity → Build Android APK** (⌘⇧B / Ctrl+Shift+B).
+Output lands in `unity/SingularityEngine/Builds/SingularityEngine.apk`; install
+it with `adb install -r`.
+
+You need Unity's **Android Build Support** module including OpenJDK and the
+SDK/NDK sub-options. The NDK is not optional: the player is IL2CPP so that it
+can be ARM64, and IL2CPP compiles through the NDK. It signs with the debug
+keystore, so a build needs no secrets to exist.
+
+Both routes apply the project settings first, so a fresh clone on a machine that
+has never opened this project builds the same thing as one that has. A build
+that depends on somebody having clicked through the editor once is not a build.
 
 > **This has not been run in an editor.** It was written and verified in an
 > environment with no Unity install: the rules are proved identical to the
@@ -243,7 +275,7 @@ current-period standings on its own, with no reset and no server-side job.
 
 ## What is not here yet
 
-Only the ranking itself, which is a backend rather than a port — see above.
+Three things, none of them rules.
 
 Everything else is here: the rules, the three verbs, the vault ladder, the daily
 and its streak, the Forge with its verify pass and share codes, the seed box,
