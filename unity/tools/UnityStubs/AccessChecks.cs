@@ -1,4 +1,5 @@
 using System;
+using Singularity.Core;
 using Singularity.Game;
 
 /// THE ACCESS AUDIT, RUN WITHOUT UNITY.
@@ -113,24 +114,42 @@ public static class AccessChecks
 
             Ok(Palette.BandGap() > 0f, mode + ": the palette's own luminance band has inverted");
 
+            // EVERY VAULT, NOT THE ONE THE PALETTE WAS WRITTEN AGAINST.
+            //
+            // The lattice ages down the ladder now — the machine corroding as you
+            // go deeper — and an ageing lattice is a lattice walking toward the
+            // trace. The band guarantee is the one property the whole board is
+            // read off, so it is proved at every vault, at every depth, under
+            // every dichromacy. A mood that ate a tenth of the band would look
+            // like the game getting hard rather than like a bug, which is exactly
+            // the failure this file exists to make impossible.
+            float worst = 99f;
+            string worstAt = "";
+
             foreach (var eye in Access.AllSight)
-            {
-                // every depth, not just the ends: the ramps are linear, so the
-                // ends bound it — but the ends are checked as CELLS, through the
-                // same Tile() the shader mirrors, so a change to the ramp maths
-                // is caught as well as a change to the four colours.
-                for (int n = 2; n <= 9; n++)
-                    for (int d = 0; d < n; d++)
-                    {
-                        var trace = Access.Simulate(Palette.Tile('+', d, n), eye);
-                        // the brightest lattice anywhere on the board is the
-                        // nearest one, and it is what a far trace has to beat
-                        var lattice = Access.Simulate(Palette.Tile('#', n - 1, n), eye);
-                        Ok(Access.Relative(trace) > Access.Relative(lattice),
-                           mode + "/" + eye + ": a trace at depth " + d + " of " + n
-                           + " is not brighter than the nearest lattice");
-                    }
-            }
+                for (int band = 0; band < Vaults.RankedVaults; band++)
+                {
+                    // every depth, not just the ends: the ramps are linear, so the
+                    // ends bound it — but the ends are checked as CELLS, through the
+                    // same Tile() the shader mirrors, so a change to the ramp maths
+                    // is caught as well as a change to the four colours.
+                    for (int n = 2; n <= 9; n++)
+                        for (int d = 0; d < n; d++)
+                        {
+                            var trace = Access.Simulate(Palette.Tile('+', d, n, band), eye);
+                            // the brightest lattice anywhere on the board is the
+                            // nearest one, and it is what a far trace has to beat
+                            var lattice = Access.Simulate(Palette.Tile('#', n - 1, n, band), eye);
+                            float gap = Access.Relative(trace) - Access.Relative(lattice);
+                            if (gap < worst) { worst = gap; worstAt = mode + "/" + eye + "/vault " + (band + 1); }
+                            Ok(gap > 0f,
+                               mode + "/" + eye + ": in vault " + (band + 1) + ", a trace at depth " + d
+                               + " of " + n + " is not brighter than the nearest lattice");
+                        }
+                }
+
+            Console.WriteLine("access: " + mode + " palette, narrowest trace-over-lattice margin "
+                              + worst.ToString("0.0000") + " at " + worstAt);
         }
     }
 

@@ -79,6 +79,10 @@ namespace Singularity.Game
             Wire();
             Screens.Build(this);
             Screens.ShowTitle();   // which starts the attract cube
+
+            // and the panel comes up: one band down the glass, once, because a
+            // machine that is switched on does something and a picture does not
+            Scanlines.WarmUp();
         }
 
         /// <summary>
@@ -303,8 +307,15 @@ namespace Singularity.Game
             // The daily and a forged cube borrow vault V's difficulty, so they
             // borrow its room as well.
             _sfx.ResetNodes();
-            _sfx.Ambience(Vaults.VaultOf(how == LoadKind.Vault || how == LoadKind.Practice
-                                         ? level : Daily.SpecLevel));
+            int band = Vaults.VaultOf(how == LoadKind.Vault || how == LoadKind.Practice
+                                      ? level : Daily.SpecLevel);
+            _sfx.Ambience(band);
+
+            // and the board wears the same vault the room is pitched to. The
+            // lattice corrodes as the ladder climbs — see Palette — so a cube
+            // that borrows vault five's difficulty borrows its metal too, which
+            // is the same rule the ambience above is already following.
+            View.PushPalette(band);
 
             S.Load(src, level, how, madeKey);
             View.attract = false;

@@ -285,13 +285,17 @@ namespace Singularity.Game
         /// after it has already been built. These are the only colours the cube
         /// has: everything else about a cell is arithmetic in the shader.
         /// </summary>
-        public void PushPalette()
+        /// <summary>Which vault's weathering the lattice is wearing. See Palette.</summary>
+        int _band;
+
+        public void PushPalette(int band = -1)
         {
+            if (band >= 0) _band = band;
             if (_matTrace == null) return;
             _matTrace.SetColor("_ColFar", Palette.TraceFar);
             _matTrace.SetColor("_ColNear", Palette.TraceNear);
-            _matLattice.SetColor("_ColFar", Palette.LatticeFar);
-            _matLattice.SetColor("_ColNear", Palette.LatticeNear);
+            _matLattice.SetColor("_ColFar", Palette.LatticeFarOf(_band));
+            _matLattice.SetColor("_ColNear", Palette.LatticeNearOf(_band));
 
             // A plate is the one thing that is the same in every world, so it does
             // not take the depth ramp: it is rust at full strength wherever it is.

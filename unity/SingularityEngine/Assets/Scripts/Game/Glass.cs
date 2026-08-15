@@ -116,9 +116,11 @@ namespace Singularity.Game
         /// cover. Its own note explains why the blend modes are properties: two
         /// materials, one shader, and the sprite pipeline stays a single batch.
         /// A separate material from the glyphs' so that changing one cannot
-        /// silently change the other.
+        /// silently change the other — and shared with the panel's roll, because
+        /// those two are the same statement: light landing on the front of the
+        /// glass, which can only ever add.
         /// </summary>
-        static Material Additive
+        public static Material Additive
         {
             get
             {

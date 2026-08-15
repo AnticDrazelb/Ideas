@@ -32,6 +32,7 @@ Shader "Singularity/Cell"
         _WaveDir  ("Transition direction", Float) = 1
         _WaveSoft ("Transition softness", Float) = 1.6
         _Unlit    ("Unreachable dimming", Range(0,1)) = 0.46
+        _UnlitSat ("Unreachable colour left", Range(0,1)) = 0.30
 
         // Plates set this to Always. A plate is cut clean through the lattice and
         // is legible from every face in every world — that is the rule the whole
@@ -77,7 +78,7 @@ Shader "Singularity/Cell"
             };
 
             fixed4 _ColFar, _ColNear;
-            float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim, _Reveal, _Unlit, _Gutter, _Round, _Peek;
+            float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim, _Reveal, _Unlit, _UnlitSat, _Gutter, _Round, _Peek;
             float _Wave, _WaveDir, _WaveSoft;
 
             v2f vert(appdata v)
@@ -203,6 +204,27 @@ Shader "Singularity/Cell"
                 float dist = i.reach.g * 255.0;
                 float arrived = step(dist, _Reveal);
                 float lit = i.reach.r * arrived;
+
+                // TWO READS WERE SHARING ONE CHANNEL.
+                //
+                // Depth is brightness. Material is brightness. And "can I stand
+                // there" — the question the player asks after every single fold,
+                // and the only one that changes what they do next — was ALSO
+                // brightness: a flat dim to 46%. Three answers in one number, on a
+                // board whose whole argument is that the number means distance.
+                //
+                // So unreachable now DRAINS as well as darkens. Value keeps saying
+                // how far away a cell is; saturation says whether you can get to
+                // it. They are independent channels and the eye reads them
+                // independently, which is the entire point.
+                //
+                // It costs nothing that matters. The dim is unchanged, so every
+                // contrast pair the audit measures is exactly where it was — the
+                // grey a drained cell moves toward is its OWN luminance, which is
+                // what makes this free. And it degrades the right way for a
+                // colourblind player: the dim is still there underneath.
+                float lum = dot(c, float3(0.2126, 0.7152, 0.0722));
+                c = lerp(lerp(lum.xxx, c, _UnlitSat), c, lit);
                 c *= lerp(_Unlit, 1.0, lit);
 
                 return fixed4(c * _Dim, 1);

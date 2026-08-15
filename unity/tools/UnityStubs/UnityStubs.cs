@@ -192,7 +192,12 @@ namespace UnityEngine
 
     public class Behaviour : Component { public bool enabled; }
 
-    public static class Random { public static float value => 0.5f; }
+    public static class Random
+    {
+        public static float value => 0.5f;
+        public static float Range(float a, float b) => (a + b) * 0.5f;
+        public static int Range(int a, int b) => a;
+    }
 
     public class GameObject : Object
     {

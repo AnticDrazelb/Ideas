@@ -53,6 +53,41 @@ namespace Singularity.Game
         public const float Strength = 0.34f;
 
         static GameObject _pane;
+        static Fit _fit;
+
+        // ---- the panel is alive ----------------------------------------------
+        //
+        // A case, a pane of dirty glass and a line pitch, and the whole thing
+        // perfectly still. Everything in this machine was drawn by somebody and
+        // nothing in it is POWERED, which is a difference the eye reads
+        // immediately even when it cannot say what it is looking at.
+        //
+        // Three behaviours, and they are deliberately almost nothing:
+        //
+        //   THE BREATHE. The rows brighten and fade by a tenth of their own
+        //   strength, on two slow waves that do not share a period so it never
+        //   settles into a pulse. It is under the threshold at which you would
+        //   call it an animation; it is over the one at which a display looks
+        //   switched on.
+        //
+        //   THE ROLL. Once every half a minute or so, a soft band travels down
+        //   the glass — the frame sync of something that has not been serviced in
+        //   thirty years. Rare enough that it reads as the machine's fault rather
+        //   than as a screensaver.
+        //
+        //   THE WARM-UP. The same band, once, faster and brighter, when the thing
+        //   is switched on.
+        //
+        // ADDITIVE, LIKE THE GRIME. It can only put light on the glass, never
+        // take it away, so nothing that was legible stops being — and the whole
+        // lot stops dead when motion is set to STILL, which is what that setting
+        // is for.
+
+        /// <summary>Light on the glass when the machine is switched on.</summary>
+        public static void WarmUp()
+        {
+            if (_fit != null) _fit.Sweep(1.05f, 0.55f);
+        }
 
         /// <summary>The rows, on their own canvas under the glass.</summary>
         public static Canvas Build()
@@ -74,8 +109,8 @@ namespace Singularity.Game
             img.color = Color.white;          // the texture carries the whole effect
             img.raycastTarget = false;        // it is in front of every button on the screen
 
-            var fit = rt.gameObject.AddComponent<Fit>();
-            fit.Init(c, img);
+            _fit = rt.gameObject.AddComponent<Fit>();
+            _fit.Init(c, img);
 
             Refresh();
             return c;
@@ -102,7 +137,85 @@ namespace Singularity.Game
             Texture2D _tex;
             int _rows;
 
+            RectTransform _band;      // the roll, parked off-screen until it runs
+            Image _bandImg;
+            float _t = -1f, _dur, _peak, _next = 24f;
+
             public void Init(Canvas c, Image img) { _canvas = c; _img = img; }
+
+            /// <summary>Send the band down the glass once.</summary>
+            public void Sweep(float dur, float peak)
+            {
+                if (Access.MotionAmount <= 0f) return;
+                _t = 0f; _dur = Mathf.Max(0.2f, dur); _peak = peak;
+            }
+
+            void Update()
+            {
+                float motion = Access.MotionAmount;
+
+                // THE BREATHE. Two waves that do not share a period, so it never
+                // lands on a beat you could count.
+                float lift = motion <= 0f ? 0f
+                    : (Mathf.Sin(Time.unscaledTime * 0.61f) * 0.6f
+                     + Mathf.Sin(Time.unscaledTime * 0.23f) * 0.4f) * 0.10f * motion;
+                _img.color = new Color(1f, 1f, 1f, Mathf.Clamp01(Strength * (1f + lift)));
+
+                if (motion <= 0f) { if (_band != null && _band.gameObject.activeSelf) _band.gameObject.SetActive(false); return; }
+
+                if (_t < 0f)
+                {
+                    _next -= Time.unscaledDeltaTime;
+                    if (_next <= 0f) { Sweep(1.7f, 0.30f); _next = Random.Range(26f, 44f); }
+                    return;
+                }
+
+                _t += Time.unscaledDeltaTime;
+                float k = _t / _dur;
+                if (k >= 1f) { _t = -1f; if (_band != null) _band.gameObject.SetActive(false); return; }
+
+                if (_band == null) BuildBand();
+                if (!_band.gameObject.activeSelf) _band.gameObject.SetActive(true);
+
+                // down the glass, and fading out as it goes
+                _band.anchorMin = new Vector2(0f, 1f - k);
+                _band.anchorMax = new Vector2(1f, 1f - k);
+                float fade = Mathf.Sin(k * Mathf.PI);   // in and out, no hard ends
+                _bandImg.color = new Color(1f, 1f, 1f, _peak * fade * motion);
+            }
+
+            void BuildBand()
+            {
+                _band = Singularity.UI.UiKit.Rect((RectTransform)transform, "roll",
+                                                  new Vector2(0f, 1f), new Vector2(1f, 1f),
+                                                  Vector2.zero, Vector2.zero);
+                _band.pivot = new Vector2(0.5f, 0.5f);
+                _band.sizeDelta = new Vector2(0f, 120f);
+
+                // a soft bar: no edges to catch on, because a hard-edged band
+                // travelling down a screen is a wipe and this is a fault
+                const int H = 64;
+                var tex = new Texture2D(1, H, TextureFormat.RGBA32, false)
+                {
+                    filterMode = FilterMode.Bilinear,
+                    wrapMode = TextureWrapMode.Clamp,
+                    name = "roll"
+                };
+                var px = new Color32[H];
+                for (int y = 0; y < H; y++)
+                {
+                    float u = y / (float)(H - 1);
+                    float a = Mathf.Sin(u * Mathf.PI);
+                    px[y] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(a * a * 255f));
+                }
+                tex.SetPixels32(px);
+                tex.Apply(false, true);
+
+                _bandImg = _band.gameObject.AddComponent<Image>();
+                _bandImg.sprite = Sprite.Create(tex, new UnityEngine.Rect(0, 0, 1, H), new Vector2(0.5f, 0.5f), 1f);
+                _bandImg.material = Glass.Additive;
+                _bandImg.raycastTarget = false;
+            }
 
             void LateUpdate()
             {

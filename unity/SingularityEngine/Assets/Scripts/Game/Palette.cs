@@ -1,4 +1,5 @@
 using UnityEngine;
+using Singularity.Core;
 
 namespace Singularity.Game
 {
@@ -212,12 +213,44 @@ namespace Singularity.Game
         /// </summary>
         public static float BandGap() => Luminance(TraceFar) - Luminance(LatticeNear);
 
+        // ---- the machine corrodes as you go deeper ---------------------------
+        //
+        // Eight vaults, each with a name, a difficulty and its own room, and the
+        // board was the same four numbers from cube one to cube a hundred and
+        // twenty. Progression was a number in the corner and nothing else.
+        //
+        // THE TRACE DOES NOT MOVE, AND THAT IS THE RULE THIS OBEYS. It is the
+        // signal — the one colour that means "you can stand here" — and every
+        // contrast assertion in the audit is anchored to it. What ages is the
+        // LATTICE: the inert body of the machine, which has no job except to be
+        // darker than the trace. So the circuit stays exactly as legible as it
+        // was at cube one and the metal it is printed on goes over to rust,
+        // which is also the same thing that happened to the case.
+        //
+        // The two ends are luminance-matched to within a hundredth, so the band
+        // guarantee is not being spent on a mood. AccessChecks proves it for
+        // every vault rather than for the one this file was written against.
+
+        static readonly Color LatticeFarDeep  = new Color32(43, 37, 35, 255);
+        static readonly Color LatticeNearDeep = new Color32(90, 75, 66, 255);
+
+        /// <summary>
+        /// How far through the ladder a vault sits, 0 at the first and 1 at the
+        /// last. Thirty vaults, so a step is a thirtieth — the drift is meant to
+        /// be something you notice having happened, not something you watch.
+        /// </summary>
+        public static float VaultAge(int band)
+            => Mathf.Clamp01(band / (float)Mathf.Max(1, Vaults.RankedVaults - 1));
+
+        public static Color LatticeFarOf(int band) => Color.Lerp(LatticeFar, LatticeFarDeep, VaultAge(band));
+        public static Color LatticeNearOf(int band) => Color.Lerp(LatticeNear, LatticeNearDeep, VaultAge(band));
+
         /// <summary>The flat-board colour of a cell — the same arithmetic the shader does per pixel.</summary>
-        public static Color Tile(char t, int d, int n)
+        public static Color Tile(char t, int d, int n, int band = 0)
         {
             float near = Mathf.Clamp01(d / (float)Mathf.Max(1, n - 1));
-            Color a = t == '+' ? TraceFar : LatticeFar;
-            Color b = t == '+' ? TraceNear : LatticeNear;
+            Color a = t == '+' ? TraceFar : LatticeFarOf(band);
+            Color b = t == '+' ? TraceNear : LatticeNearOf(band);
             return Color.Lerp(a, b, near);
         }
     }

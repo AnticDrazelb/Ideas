@@ -361,10 +361,24 @@ Two things came out of writing it down:
 - **The band guarantee is true.** "A trace is brighter than the lattice at every
   depth, so the board survives a colour-blind eye" is now simulated rather than
   believed — Viénot/Brettel/Mollon, all three dichromacies, every depth of every
-  cube size. It holds, with the narrowest margin under deuteranopia. What it did
-  *not* hold was 1.4.11: the worst pair is 2.56:1, so legibility sinks the near
-  lattice fifteen per cent and takes it to 3.03:1, widening the game's own band
-  from 48 to 59 out of 255.
+  cube size, **and every vault**. It holds, with the narrowest margin under
+  deuteranopia. What it did *not* hold was 1.4.11: the worst pair is 2.56:1, so
+  legibility sinks the near lattice fifteen per cent and takes it to 3.03:1,
+  widening the game's own band from 48 to 59 out of 255.
+
+  Every vault, because the lattice now ages down the ladder — the machine
+  corroding as you go deeper, which is the same thing that happened to the case.
+  The trace does not move: it is the signal, and every assertion is anchored to
+  it. Ageing the lattice walks it toward the trace, so the audit prints the
+  narrowest margin it found and where: **0.1537 at vault 1, 0.1362 at vault 30**,
+  which is eleven per cent of the band spent on thirty vaults of weathering.
+- **Two reads were sharing one channel.** Depth is brightness and material is
+  brightness, and *reachability* — the question the player asks after every fold —
+  was a flat dim to 46% on top of both. It drains as well as darkening now:
+  value still says how far away a cell is, saturation says whether you can get to
+  it. The dim is unchanged, so every measured pair is exactly where it was — the
+  grey a drained cell moves toward is its own luminance, which is what makes it
+  free — and a colourblind player still has the dim underneath.
 - **One switch was answering two people.** `EFFECTS` bundled camera shake and the
   bent clock (vestibular) with sparks, bloom and the flash (photosensitive) —
   two different criteria with two different answers — and it bottomed out at 40%,
