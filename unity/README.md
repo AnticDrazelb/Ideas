@@ -82,6 +82,31 @@ Both routes apply the project settings first, so a fresh clone on a machine that
 has never opened this project builds the same thing as one that has. A build
 that depends on somebody having clicked through the editor once is not a build.
 
+### If the APK boots to a black screen
+
+It was this, and the fix is in — but the shape is worth knowing, because it is
+the one failure this project's architecture invites and the editor cannot show
+you.
+
+Every material here is `new Material(Shader.Find("Singularity/…"))` at runtime,
+and the scene is empty on purpose. **`Shader.Find` searches the whole asset
+database in the editor and only the built-in set in a player.** Nothing in a
+built scene or under `Resources` references these five shaders, so nothing told
+the build to keep them: in the editor all five resolve and the game is perfect,
+on the device all five come back null. The cage material is constructed from one
+without a guard, `GameDirector.Awake` throws at its fourth line, nothing after
+that line is ever built, and the camera clears an empty scene to `Palette.Void`.
+Black, from a project that runs.
+
+`ProjectSetup.Shaders` now names all five and `EnsureShadersInBuild` puts them
+in Graphics Settings → Always Included Shaders. That list lives in
+`ProjectSettings/GraphicsSettings.asset`, which this repository does not carry,
+so it is applied on every editor open and again at build time — and a build
+whose shaders are missing from the *project* now stops rather than shipping.
+
+So: **if you add a shader, add its name to `ProjectSetup.Shaders`.** Nothing
+else will notice, until a phone does.
+
 > **This has not been run in an editor.** It was written and verified in an
 > environment with no Unity install: the rules are proved identical to the
 > original by running both engines and diffing, and the whole of `Assets/Scripts`

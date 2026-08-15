@@ -41,6 +41,18 @@ namespace Singularity.EditorTools
         public static bool Run(bool development, bool bundle)
         {
             ProjectSetup.Apply();
+
+            // Apply already registered these. Asking again is the cheap half of a
+            // trade: a shader that is missing here is a shader the player will get
+            // null for, and null for a shader is not a worse-looking build, it is a
+            // black screen that installs and launches and shows nothing. Better the
+            // build machine stops than the phone does.
+            if (!ProjectSetup.EnsureShadersInBuild())
+            {
+                Debug.LogError("[Singularity] refusing to build without every shader — see above");
+                return false;
+            }
+
             AppIcon.Ensure();
 
             ApplyVersion();

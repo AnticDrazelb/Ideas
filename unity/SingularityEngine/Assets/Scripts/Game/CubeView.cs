@@ -140,6 +140,7 @@ namespace Singularity.Game
             _cageR.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
 
             Shader sh = Shader.Find("Singularity/Fx");
+            if (sh == null) { Debug.LogError("Singularity/Fx shader missing"); sh = Shader.Find("Sprites/Default"); }
             _cageR.sharedMaterial = new Material(sh) { name = "cage" };
             mf.sharedMesh = new Mesh { name = "cage" };
             _cageR.enabled = false;

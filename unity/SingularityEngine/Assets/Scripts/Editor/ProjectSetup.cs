@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEditor.Build;
@@ -34,7 +35,13 @@ namespace Singularity.EditorTools
             // opens correctly the second time.
             EditorApplication.delayCall += () =>
             {
-                if (EditorPrefs.GetBool(DoneKey, false)) { EnsureScene(); return; }
+                // EditorPrefs is per EDITOR INSTALL, not per project, so a second
+                // clone on the same machine arrives with the flag already set and
+                // skips the whole of Apply. Both of these are idempotent and cheap,
+                // and both describe state that lives in files this repository does
+                // not carry — the scene list and GraphicsSettings.asset — so they
+                // run on every open rather than trusting the flag.
+                if (EditorPrefs.GetBool(DoneKey, false)) { EnsureScene(); EnsureShadersInBuild(); return; }
                 Apply();
                 EditorPrefs.SetBool(DoneKey, true);
             };
@@ -97,8 +104,80 @@ namespace Singularity.EditorTools
             TrySilenceSplash();
 
             EnsureScene();
+            EnsureShadersInBuild();
             AssetDatabase.SaveAssets();
             Debug.Log("[Singularity] project settings applied");
+        }
+
+        /// <summary>
+        /// EVERY SHADER THIS GAME USES, NAMED, BECAUSE NOTHING ELSE NAMES THEM.
+        ///
+        /// Unity puts a shader in a player build if a material in a built scene
+        /// references it, if something under Resources references it, or if it is
+        /// listed here. This project does none of the first two ON PURPOSE — the
+        /// scene is empty and every material is <c>new Material(Shader.Find(...))</c>
+        /// at runtime — so without this list all five are stripped.
+        ///
+        /// That failure is invisible in the editor and total on the device.
+        /// <c>Shader.Find</c> searches the whole asset database in the editor and
+        /// only the built-in set in a player, so the editor looks perfect and the
+        /// phone gets null for all five, the cage material throws on construction,
+        /// <c>GameDirector.Awake</c> dies at the fourth line, nothing after it is
+        /// ever built, and the camera clears an empty scene to <c>Palette.Void</c>.
+        /// A black screen, from a project that runs.
+        /// </summary>
+        public static readonly string[] Shaders =
+        {
+            "Singularity/Cell",     // the board — every cell, at every depth
+            "Singularity/Fx",       // the cage, and the effects quads
+            "Singularity/Glyph",    // the glyph atlas, and the glass
+            "Singularity/Bloom",    // the rim on the picture
+            "Singularity/Filter",   // brightness and contrast
+        };
+
+        /// <summary>
+        /// Adds anything in <see cref="Shaders"/> that is not already in Graphics
+        /// Settings → Always Included Shaders. Returns false if a shader named
+        /// above is not in the project at all, which is a build worth stopping.
+        /// </summary>
+        public static bool EnsureShadersInBuild()
+        {
+            var so = new SerializedObject(UnityEngine.Rendering.GraphicsSettings.GetGraphicsSettings());
+            SerializedProperty list = so.FindProperty("m_AlwaysIncludedShaders");
+            if (list == null)
+            {
+                Debug.LogError("[Singularity] no m_AlwaysIncludedShaders on GraphicsSettings");
+                return false;
+            }
+
+            var have = new HashSet<Shader>();
+            for (int i = 0; i < list.arraySize; i++)
+                if (list.GetArrayElementAtIndex(i).objectReferenceValue is Shader s && s != null)
+                    have.Add(s);
+
+            bool ok = true, changed = false;
+            foreach (string name in Shaders)
+            {
+                Shader sh = Shader.Find(name);
+                if (sh == null)
+                {
+                    // Not "will be stripped" — not in the project. A rename, or a
+                    // compile error in the .shader, and both need a human.
+                    Debug.LogError("[Singularity] shader missing from the project: " + name);
+                    ok = false;
+                    continue;
+                }
+
+                if (!have.Add(sh)) continue;
+
+                list.InsertArrayElementAtIndex(list.arraySize);
+                list.GetArrayElementAtIndex(list.arraySize - 1).objectReferenceValue = sh;
+                changed = true;
+                Debug.Log("[Singularity] always-included: " + name);
+            }
+
+            if (changed) so.ApplyModifiedProperties();
+            return ok;
         }
 
         static void TrySilenceSplash()

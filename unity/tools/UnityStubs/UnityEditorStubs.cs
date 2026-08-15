@@ -20,10 +20,45 @@ namespace UnityEngine
     {
         public struct Scene { public string path => null; public bool IsValid() => true; }
     }
+
+    namespace Rendering
+    {
+        /// <summary>
+        /// GetGraphicsSettings is the editor-only accessor for the settings OBJECT
+        /// — the thing a SerializedObject can be opened on. It is how Always
+        /// Included Shaders is reached, because that list has no typed property on
+        /// the class and never has.
+        /// </summary>
+        public static class GraphicsSettings
+        {
+            public static Object GetGraphicsSettings() => null;
+        }
+    }
 }
 
 namespace UnityEditor
 {
+    /// <summary>
+    /// The serialised-property surface, which this project needs for exactly one
+    /// thing: the always-included shader list. Only the members that list uses are
+    /// declared — see the note at the top of tools/README.md about stubs proving
+    /// shape rather than existence.
+    /// </summary>
+    public class SerializedObject
+    {
+        public SerializedObject(Object obj) { }
+        public SerializedProperty FindProperty(string propertyPath) => null;
+        public bool ApplyModifiedProperties() => true;
+    }
+
+    public class SerializedProperty
+    {
+        public int arraySize { get; set; }
+        public Object objectReferenceValue { get; set; }
+        public SerializedProperty GetArrayElementAtIndex(int index) => null;
+        public void InsertArrayElementAtIndex(int index) { }
+    }
+
     [AttributeUsage(AttributeTargets.Class)]
     public class InitializeOnLoadAttribute : Attribute { }
 
