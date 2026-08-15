@@ -77,6 +77,20 @@ namespace Singularity.UI
             bg.sprite = UiKit.RoundFill;
             bg.type = Image.Type.Sliced;
             bg.color = Palette.Scrim;
+
+            // THE GLASS IS A BOUNDARY, NOT A SUGGESTION.
+            //
+            // "No type ever sits on the metal" is the first rule of the chassis
+            // and until now it was a thing every screen had to remember. It is a
+            // clip now. A sentence that outgrows its box, a name longer than the
+            // gap left for it, a control somebody anchors past the edge later —
+            // none of them can reach the bezel, whatever anyone does upstream.
+            //
+            // It is a floor and not a fix: a word cut off at the edge of the glass
+            // is still a bug, and this only guarantees that it is a bug INSIDE the
+            // screen. Text that has to fit wraps or shrinks — see UiKit.Label and
+            // UiKit.Fit.
+            plate.gameObject.AddComponent<RectMask2D>();
             return plate;
         }
 
@@ -205,7 +219,8 @@ namespace Singularity.UI
             UiKit.Label(L, "sub",
                 "You are a black hole inside a broken machine.\nFold the engine until its circuits align,\nthen collapse into the core.",
                 17, Palette.Dim, TextAnchor.UpperCenter,
-                new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -460), new Vector2(0, -370));
+                new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -460), new Vector2(0, -370),
+                wrap: true);
 
             // ONE PRIMARY, THEN A GRID OF FOUR.
             //
@@ -267,8 +282,12 @@ namespace Singularity.UI
             RectTransform L = Layer("vaults");
             Solid(L);
 
-            _vaultName = UiKit.Label(L, "vaultName", "VAULT I", 32, Palette.Ink, TextAnchor.MiddleCenter,
-                                     new Vector2(0, 1), new Vector2(1, 1), new Vector2(120, -140), new Vector2(-120, -80));
+            // It says "VAULT I" here and "VAULT VIII · SINGULARITY" by the end, in
+            // a gap fixed by the two arrows either side of it — so it shrinks to
+            // fit rather than sliding underneath them. See UiKit.Fit.
+            _vaultName = UiKit.Fit(
+                UiKit.Label(L, "vaultName", "VAULT I", 32, Palette.Ink, TextAnchor.MiddleCenter,
+                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(120, -140), new Vector2(-120, -80)), 18);
 
             RectTransform prev = UiKit.Rect(L, "prev", new Vector2(0, 1), new Vector2(0, 1), new Vector2(40, -154), new Vector2(140, -66));
             UiKit.Bracketed(prev, "prev", "<", () => { _viewBand = Mathf.Max(0, _viewBand - 1); PaintVaults(); }, 26);
@@ -488,8 +507,15 @@ namespace Singularity.UI
             {
                 UiKit.Label(M, head, head, 23, Palette.Ink, TextAnchor.UpperLeft,
                             new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + 30)), new Vector2(-190, -y));
+                // WRAPPED, because it is a sentence. The line breaks in these
+                // strings were authored against a plate that was thirty-nine units
+                // wider than the one the case leaves, and every one of them that
+                // no longer fits used to run out over the bezel and lose its last
+                // word. The authored breaks stay — they are where the sense
+                // breaks — and wrapping only catches the lines that overrun.
                 UiKit.Label(M, head + "_d", body, 17, Palette.Dim, TextAnchor.UpperLeft,
-                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + h)), new Vector2(-190, -(y + 32)));
+                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(44, -(y + h)), new Vector2(-190, -(y + 32)),
+                            wrap: true);
 
                 // the diagram lives in a fixed gutter on the right, so every picture
                 // on the page shares one optical column
@@ -652,7 +678,8 @@ namespace Singularity.UI
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -190), new Vector2(0, -140));
             UiKit.Label(L, "sub", "Everything you know how to do is about to be worth less.",
                         20, Palette.Dim, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -230), new Vector2(0, -200));
+                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -230), new Vector2(0, -200),
+                        wrap: true);
 
             string[] rows =
             {
@@ -669,7 +696,8 @@ namespace Singularity.UI
                 UiKit.Label(L, p[0], p[0], 23, Palette.Ink, TextAnchor.UpperLeft,
                             new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 30), new Vector2(-48, y));
                 UiKit.Label(L, p[0] + "_d", p[1], 19, Palette.Dim, TextAnchor.UpperLeft,
-                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 92), new Vector2(-48, y - 32));
+                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 92), new Vector2(-48, y - 32),
+                            wrap: true);
                 y -= 118;
             }
 

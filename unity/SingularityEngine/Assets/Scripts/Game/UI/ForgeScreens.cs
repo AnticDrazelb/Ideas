@@ -104,7 +104,7 @@ namespace Singularity.UI
                 UiKit.Label(_shelfGrid, "empty",
                             "NOTHING BUILT YET.\n\nA cube is edited one deck at a time.\nThe solver proves it before you can save it.",
                             20, Palette.Dim, TextAnchor.MiddleCenter,
-                            Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                            Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, wrap: true);
                 return;
             }
 
@@ -180,8 +180,13 @@ namespace Singularity.UI
             UiKit.Framed(_coach, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.6f));
             _coachN = UiKit.Label(_coach, "n", "1", 17, Palette.Rust, TextAnchor.MiddleCenter,
                                   new Vector2(0, 0), new Vector2(0, 1), new Vector2(8, 0), new Vector2(42, 0));
+            // A SENTENCE, SO IT WRAPS. "TRACE IS WHAT YOU STAND ON. TAP CELLS TO
+            // LAY 8 MORE." is fifty-one characters and this band has never been
+            // wide enough for it on a phone — it ran off the right of the plate
+            // and the player was told to lay eight mor.
             _coachText = UiKit.Label(_coach, "t", "", 19, Palette.Ink, TextAnchor.MiddleLeft,
-                                     new Vector2(0, 0), new Vector2(1, 1), new Vector2(46, 0), new Vector2(-12, 0));
+                                     new Vector2(0, 0), new Vector2(1, 1), new Vector2(46, 0), new Vector2(-12, 0),
+                                     wrap: true);
 
             // The deck is the one band that should take what is spare, because it is
             // the thing being edited — so it is measured from what the fixed bands
@@ -189,7 +194,14 @@ namespace Singularity.UI
             // the seven fixed bands under it, their gaps, this band's own wider gap,
             // and a margin off the bottom edge
             const float Below = 118 + 62 + 58 + 30 + 62 + 58 + 56 + 12 * 7 + 16 + 28;
-            _slice = Band("slice", Mathf.Max(240f, 1280f - y - Below), 16f);
+
+            // THE PLATE'S HEIGHT, NOT THE CANVAS'S. This was the literal 1280,
+            // which was the display and never what this screen gets — every layer
+            // is inset into the chassis opening, and the housing takes a hundred
+            // and fifty of those units. The deck was sized as though it had them,
+            // so the whole column ran that much past the bottom of the glass and
+            // the delete row went off the end of it.
+            _slice = Band("slice", Mathf.Max(240f, Layout.PlateHeight - y - Below), 16f);
 
             _toolRow = Band("tools", 118);
 

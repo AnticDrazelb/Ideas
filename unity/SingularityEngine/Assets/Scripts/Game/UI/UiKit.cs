@@ -141,6 +141,20 @@ namespace Singularity.UI
         ///
         /// Applied to the canvas root rather than to each control, so every screen
         /// inherits it and no layout has to think about it.
+        ///
+        /// THE CONTRACT, WHICH IS EASY TO BREAK AND WAS: A DIRECT CHILD OF A
+        /// CANVAS MAY NOT CARRY OFFSETS OF ITS OWN. This drives the safe area
+        /// through each child's anchors and then ZEROES its offsets, every time
+        /// the measurement changes — including the first frame, when it changes
+        /// from nothing to the real one. So a child built with an inset on it
+        /// keeps that inset for exactly as long as it takes this to run once,
+        /// and then silently loses it.
+        ///
+        /// That is not hypothetical. The HUD was inset into the chassis opening
+        /// by giving its root the four bezel offsets; it read correctly in the
+        /// code, it was wiped before the first frame was drawn, and the readout
+        /// came out over the metal and off the side of the case. Anything that
+        /// wants an inset puts a full-bleed child here and insets INSIDE it.
         /// </summary>
         class SafeArea : MonoBehaviour
         {
@@ -208,9 +222,24 @@ namespace Singularity.UI
             return img;
         }
 
+        /// <summary>
+        /// A label.
+        ///
+        /// OVERFLOW IS THE DEFAULT AND IT IS THE RIGHT ONE for what most of this
+        /// interface is: a number in a chip, a word on a button, a caption under
+        /// an icon. Those are laid out by their centre and are routinely wider
+        /// than the rect they are centred in, deliberately.
+        ///
+        /// It is exactly wrong for a SENTENCE, and that difference is what
+        /// <paramref name="wrap"/> is for. A sentence in a fixed box with overflow
+        /// on does not get smaller or break — it keeps going, out of the plate,
+        /// over the bezel and off the machine, and the reader loses the end of
+        /// every line. Anything written as prose asks to wrap.
+        /// </summary>
         public static Text Label(Transform parent, string name, string text, int size,
                                  Color col, TextAnchor anchor,
-                                 Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax)
+                                 Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax,
+                                 bool wrap = false)
         {
             RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
             var t = rt.gameObject.AddComponent<Text>();
@@ -219,9 +248,34 @@ namespace Singularity.UI
             t.text = text;
             t.color = col;
             t.alignment = anchor;
-            t.horizontalOverflow = HorizontalWrapMode.Overflow;
+            t.horizontalOverflow = wrap ? HorizontalWrapMode.Wrap : HorizontalWrapMode.Overflow;
             t.verticalOverflow = VerticalWrapMode.Overflow;
             t.raycastTarget = false;
+            return t;
+        }
+
+        /// <summary>
+        /// MAKE THIS ONE FIT, WHATEVER IT SAYS.
+        ///
+        /// For the labels whose text is DATA rather than authored copy — a vault's
+        /// name, a cube's name, whatever somebody typed into the Forge — where the
+        /// box is fixed by the layout around it and the string is not known when
+        /// the screen is written. "VAULT I · CALIBRATION" at thirty-two between
+        /// two arrows is four characters wider than the gap, so it slid under both
+        /// of them and lost its first and last letter.
+        ///
+        /// Shrinking is the honest answer there and truncation is not: a name with
+        /// its end cut off is a different name, and this game has cubes whose
+        /// names differ in the last word. Best fit is bounded below so it can
+        /// never shrink to something nobody can read — if it would have to, the
+        /// layout is wrong and should be seen to be wrong.
+        /// </summary>
+        public static Text Fit(Text t, int min)
+        {
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
+            t.resizeTextForBestFit = true;
+            t.resizeTextMinSize = min;
+            t.resizeTextMaxSize = t.fontSize;
             return t;
         }
 

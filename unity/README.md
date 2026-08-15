@@ -422,8 +422,11 @@ Two rules keep it honest, and both are load-bearing:
 - **No type ever sits on the metal.** The whole access audit is contrast measured
   against four dark grounds, and a rusted steel ground would invalidate every
   pair in it. This is now true by construction rather than by care: the HUD's
-  root and every screen's plate are inset to the opening, so there is nowhere on
-  the metal that a word *can* go.
+  root and every screen's plate are inset to the opening *and clipped to it*, so
+  there is nowhere on the metal that a word can go however long it turns out to
+  be. The clip is a floor and not a fix — a word cut off at the edge of the glass
+  is still a bug, and text that has to fit wraps (`UiKit.Label(wrap: true)`) or
+  shrinks (`UiKit.Fit`).
 - **It is never behind the board.** The canvases are screen-space overlays and
   draw after the camera, so anything painted across the middle paints over the
   cube. The case is twelve pieces — eight corner arms and four sides — and the

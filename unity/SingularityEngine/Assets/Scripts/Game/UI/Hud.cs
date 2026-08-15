@@ -56,22 +56,34 @@ namespace Singularity.UI
             // which would spend the whole flash budget before anything happened
             for (int i = 0; i < _flashAt.Length; i++) _flashAt[i] = -9f;
 
-            // THE READOUT IS ON THE GLASS, AND THIS ONE LINE IS WHAT PUTS IT
-            // THERE.
+            // THE READOUT IS ON THE GLASS.
             //
             // The root used to be the whole display, which was survivable while
             // the housing was a twenty-eight unit border and wrong the whole time:
             // the chips are anchored to the top of this rect, so their upper edge
             // was under the bezel and the fold arrows were hard against it. With a
-            // real case in front of them they would have been half swallowed.
+            // real case in front of them they were half swallowed, and the vault
+            // name ran off the side of the machine altogether.
             //
             // Insetting HERE rather than in each control is also what keeps rule
             // one of the chassis true by construction — there is no longer
             // anywhere in this file that a word CAN be put on the metal, so it
             // cannot be done by accident later.
-            _root = UiKit.Rect(_canvas.transform, "root", Vector2.zero, Vector2.one,
+            //
+            // TWO RECTS AND NOT ONE, and the reason is in UiKit.SafeArea: a direct
+            // child of a canvas has its offsets zeroed the first time the safe
+            // area is measured. The inset went on the direct child the first time
+            // and lasted until frame one.
+            RectTransform safe = UiKit.Rect(_canvas.transform, "safe",
+                                            Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            _root = UiKit.Rect(safe, "root", Vector2.zero, Vector2.one,
                                new Vector2(Layout.ChassisLeft, Layout.ChassisBottom),
                                new Vector2(-Layout.ChassisRight, -Layout.ChassisTop));
+
+            // and clipped to it, so the readout cannot reach the metal however
+            // long a vault is named or however narrow the display gets — the same
+            // boundary every screen gets in Screens.Layer, for the same reason
+            _root.gameObject.AddComponent<RectMask2D>();
 
             // ---- the flash and the vignette sit under everything -------------
             _flash = UiKit.Panel(_root, "flash", new Color(0, 0, 0, 0), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);

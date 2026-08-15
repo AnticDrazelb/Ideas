@@ -70,8 +70,13 @@ namespace Singularity.Game
                 return c;
             }
 
-            // exactly the opening, because that is where the glass is
-            RectTransform rt = Singularity.UI.UiKit.Rect(c.transform, "pane",
+            // Exactly the opening, because that is where the glass is — and under
+            // a full-bleed child rather than directly under the canvas, because
+            // UiKit.SafeArea zeroes the offsets of anything parented straight to
+            // one. Put the inset there and the pane covers the metal as well.
+            RectTransform safe = Singularity.UI.UiKit.Rect(c.transform, "safe",
+                                                           Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            RectTransform rt = Singularity.UI.UiKit.Rect(safe, "pane",
                                                          Vector2.zero, Vector2.one,
                                                          new Vector2(Chassis.InsetLeft, Chassis.InsetBottom),
                                                          new Vector2(-Chassis.InsetRight, -Chassis.InsetTop));

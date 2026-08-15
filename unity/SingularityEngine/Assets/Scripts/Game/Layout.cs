@@ -80,6 +80,24 @@ namespace Singularity.Game
         public static float ChassisBottom => Chassis.InsetBottom;
 
         /// <summary>
+        /// THE GLASS, IN THE UNITS EVERY SCREEN IS AUTHORED IN.
+        ///
+        /// A screen that has to do arithmetic about its own height — the Forge is
+        /// the one, because its deck takes whatever the fixed bands below it do
+        /// not — used to do it against the literal 1280. That was the canvas, and
+        /// the canvas is not what a screen gets: it is inset into the opening, and
+        /// the housing takes a hundred and fifty units of height. So the Forge
+        /// sized its deck as though it had the whole display, and the bottom row
+        /// of the column went off the bottom of the plate.
+        ///
+        /// The reference numbers rather than the live rect, deliberately: these
+        /// are read while the screen is being BUILT, before any canvas has been
+        /// laid out and while every rect in the game still measures zero.
+        /// </summary>
+        public static float PlateWidth => RefWidth - ChassisLeft - ChassisRight;
+        public static float PlateHeight => RefHeight - ChassisTop - ChassisBottom;
+
+        /// <summary>
         /// The rectangle left for the board, in pixels, after the safe area, the
         /// overscan, the housing and the two HUD bands.
         ///
