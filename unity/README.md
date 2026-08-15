@@ -475,6 +475,24 @@ the board rect and every screen's plate are inset by them individually. A single
 averaged number put the metal over the plate on two edges and left a band of it
 showing on the other two.
 
+**The rows** — `Assets/Scripts/Game/Scanlines.cs`. Black at a third alpha over
+one device row in three, across the opening, under the glass and over everything
+else: the board, the readout, and any menu that has come forward. An image with
+rows in it is a readout; the same image without them is a screenshot.
+
+It can only darken, and only every third row — eleven percent averaged over the
+eye, and nothing at all on a ground that is already black, which is what keeps
+it clear of the audit. A layer that *lifted* the ground would flatten every pair
+in it; dimming the foreground by a ninth moves Ink on Void from 16.8:1 to
+15.0:1, still more than twice the AAA floor.
+
+The one detail worth care is that it is built in **device pixels**, not canvas
+units. A three-unit pitch stretched by a scaler that is not an integer gives
+lines two pixels wide in one band of the screen and one in the next, and the
+beat between them crawls when anything moves. So the texture is one texel wide
+by exactly as many rows as the opening has device pixels, point-filtered, drawn
+one to one, and rebuilt only when the display changes shape.
+
 **The glass in front of it** — `Assets/Scripts/Game/Glass.cs`. The same
 photographed machine, from the front: fingerprints, dust, hairline scratches, a
 sleeve-wipe smear and the ghost of the pixel lattice, over the whole opening and

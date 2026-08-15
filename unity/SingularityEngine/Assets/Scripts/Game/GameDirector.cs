@@ -57,10 +57,12 @@ namespace Singularity.Game
 
             Hud = Hud.Build(this);
 
-            // AND THE PANE ACROSS THE FRONT OF IT, at 25, which is in front of
-            // the menus as well — see Glass. Built after the HUD only because it
-            // is easier to read in the order the light arrives; the sorting order
-            // is what actually decides, not this line's position.
+            // THE PANEL'S OWN ROWS AT 24 AND THE PANE ACROSS THE FRONT AT 25,
+            // both in front of the menus as well — see Scanlines and Glass. Built
+            // after the HUD only because it is easier to read in the order the
+            // light arrives; the sorting order is what actually decides, not
+            // where these two lines sit.
+            Scanlines.Build();
             Glass.Build();
 
             // The sound's words go to the readout. Sfx does not know what a Hud

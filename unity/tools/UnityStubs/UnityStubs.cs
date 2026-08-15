@@ -389,7 +389,7 @@ namespace UnityEngine
     }
 
     public enum TextureFormat { RGBA32 }
-    public enum FilterMode { Bilinear }
+    public enum FilterMode { Point, Bilinear, Trilinear }
     public enum TextureWrapMode { Clamp, Repeat, Mirror, MirrorOnce }
 
     public class AudioClip : Object
@@ -715,6 +715,7 @@ namespace UnityEngine
     {
         public RenderMode renderMode { get; set; }
         public int sortingOrder { get; set; }
+        public float scaleFactor { get; }
     }
 
     public enum RenderMode { ScreenSpaceOverlay, ScreenSpaceCamera, WorldSpace }
