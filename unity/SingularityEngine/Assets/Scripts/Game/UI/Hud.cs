@@ -85,8 +85,8 @@ namespace Singularity.UI
             // still unrendered space, which is the one thing this game will not
             // decorate.
             _aperture = UiKit.Rect(_root, "aperture", new Vector2(0, 0), new Vector2(1, 1),
-                                   new Vector2(16, Layout.BottomBand + 10),
-                                   new Vector2(-16, -(Layout.TopBand + 10)));
+                                   new Vector2(Layout.ChassisEdge + 16f, Layout.BottomBand + 10f),
+                                   new Vector2(-(Layout.ChassisEdge + 16f), -(Layout.TopBand + 10f)));
             var apEdge = _aperture.gameObject.AddComponent<Image>();
             apEdge.sprite = UiKit.RoundLine;
             apEdge.type = Image.Type.Sliced;

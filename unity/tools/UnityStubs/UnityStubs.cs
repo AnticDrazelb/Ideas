@@ -106,6 +106,18 @@ namespace UnityEngine
     {
         public byte r, g, b, a;
         public Color32(byte r, byte g, byte b, byte a) { this.r = r; this.g = g; this.b = b; this.a = a; }
+
+        // Unity converts BOTH ways implicitly. Only one direction was declared
+        // here, so `Color32[] px; px[i] = someColor;` — which is how every
+        // generated texture in this project is filled — did not compile against
+        // the stub while compiling perfectly against the engine. That is the
+        // harness being WRONGLY strict, which wastes exactly as much time as it
+        // being wrongly lax, and is a good deal harder to believe.
+        public static implicit operator Color32(Color c)
+            => new Color32((byte)Math.Round(Mathf.Clamp01(c.r) * 255f),
+                           (byte)Math.Round(Mathf.Clamp01(c.g) * 255f),
+                           (byte)Math.Round(Mathf.Clamp01(c.b) * 255f),
+                           (byte)Math.Round(Mathf.Clamp01(c.a) * 255f));
     }
 
     public struct Rect
@@ -372,7 +384,7 @@ namespace UnityEngine
 
     public enum TextureFormat { RGBA32 }
     public enum FilterMode { Bilinear }
-    public enum TextureWrapMode { Clamp }
+    public enum TextureWrapMode { Clamp, Repeat, Mirror, MirrorOnce }
 
     public class AudioClip : Object
     {

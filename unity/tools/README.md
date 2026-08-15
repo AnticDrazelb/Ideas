@@ -107,6 +107,27 @@ It found a second thing on its first run, and that one is the older lesson
 again: `ColorUtility.ToHtmlStringRGB` was missing from the stub, because until
 something called it nobody had had to declare it.
 
+## Looking at a texture
+
+```sh
+dotnet run --project unity/tools/UnityStubs -- preview .
+```
+
+writes `chassis.png` — the panel's 128px tile, repeated three by three so a seam
+has somewhere to show.
+
+Everything else here can be judged by reading it. A generated texture cannot:
+"worn gunmetal" is a claim about how a few noise weights LOOK, and no amount of
+care in choosing them substitutes for seeing the result. The chassis went through
+three passes that a guess would have shipped — one too dark to read as metal, one
+whose scratches ran across the grain and looked like a CRT, and one with a tonal
+step at every tile boundary because its noise layers only wrapped on one axis.
+
+It calls the game's own `Chassis.Texel`, not a copy of it, which is why the pixel
+maths is a separate method from the `Texture2D` that fills with it. A preview
+that reimplements what it previews is a second source of truth, and this file has
+a long note further down about what those cost.
+
 ## Parity against the original
 
 `Singularity.Core` has no engine references at all — that is what its

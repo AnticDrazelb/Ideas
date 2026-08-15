@@ -63,6 +63,18 @@ namespace Singularity.Game
         public const float TopBand = 162f, BottomBand = 128f;
 
         /// <summary>
+        /// How much of every edge the housing takes. See <see cref="Chassis"/>.
+        ///
+        /// It is a border rather than a background, so this is the entire cost of
+        /// it: everything the player reads is inset by this much, and the board
+        /// gets whatever is left after the bands as it always did. Twenty-eight
+        /// units is fourteen CSS pixels at this canvas's two-to-one — enough to
+        /// carry a rivet and read as a rail, small enough that no screen had to
+        /// be re-laid out around it.
+        /// </summary>
+        public const float ChassisEdge = 28f;
+
+        /// <summary>
         /// The rectangle left for the board, in pixels, after the safe area, the
         /// overscan and the two HUD bands.
         /// </summary>

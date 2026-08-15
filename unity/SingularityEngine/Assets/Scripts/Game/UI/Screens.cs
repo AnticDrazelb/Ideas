@@ -41,16 +41,38 @@ namespace Singularity.UI
 
         // ---- plumbing -------------------------------------------------------
 
+        /// <summary>
+        /// A LAYER IS NOW TWO THINGS, AND EVERY SCREEN GOT THE SECOND ONE FREE.
+        ///
+        /// The full-bleed rect stays, because something has to cover the whole
+        /// display so nothing behind a screen can be pressed through it. What it
+        /// no longer does is CARRY the background: that has moved to a rounded
+        /// plate inset by the chassis, so the interface reads as a screen
+        /// recessed into a panel rather than as paint on the glass.
+        ///
+        /// The plate is what gets returned, so every screen in this file builds
+        /// itself inside the housing without one of them having to know that the
+        /// housing exists. Their anchors are all relative and they were already
+        /// inset by twenty-eight or more; nothing had to be re-laid out.
+        /// </summary>
         internal static RectTransform Layer(string id)
         {
             RectTransform rt = UiKit.Rect(_canvas.transform, id, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            var bg = rt.gameObject.AddComponent<Image>();
-            bg.color = Palette.Scrim;
+            var catcher = rt.gameObject.AddComponent<Image>();
+            catcher.color = new Color(0, 0, 0, 0);
             // Every layer fades in, so the group it fades with is part of what a
             // layer is rather than something the transition goes looking for.
             rt.gameObject.AddComponent<CanvasGroup>();
             Layers[id] = rt.gameObject;
-            return rt;
+
+            float e = Layout.ChassisEdge;
+            RectTransform plate = UiKit.Rect(rt, "plate", Vector2.zero, Vector2.one,
+                                             new Vector2(e, e), new Vector2(-e, -e));
+            var bg = plate.gameObject.AddComponent<Image>();
+            bg.sprite = UiKit.RoundFill;
+            bg.type = Image.Type.Sliced;
+            bg.color = Palette.Scrim;
+            return plate;
         }
 
         /// <summary>

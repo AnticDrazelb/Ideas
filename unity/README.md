@@ -407,9 +407,35 @@ heights, the Calibrate row rhythm, and the manual's gutters.
 
 ### Where it deliberately does not match
 
-One element is here that is not in the shipped build, and it is listed rather
-than smuggled: **the aperture** — a rounded stroke around the rectangle `Layout`
-reserves for the board, in the same `--edge` rust as every control.
+Two elements are here that are not in the shipped build. They are listed rather
+than smuggled.
+
+**The chassis.** A worn gunmetal panel with the screen recessed into it, rails
+down both sides and rivets holding it together — `Assets/Scripts/Game/Chassis.cs`.
+The fiction is that you are inside a broken machine reading its diagnostics, and
+every screen already looked like an instrument panel; it was just an instrument
+panel floating on nothing. Chrome with no chassis is a costume.
+
+Three rules keep it honest, and all three are load-bearing:
+
+- **No type ever sits on the metal.** The whole access audit is contrast measured
+  against four dark grounds, and a light grey ground would invalidate every pair
+  in it. The metal is a border and a rail; the words stay on the screen.
+- **It is never behind the board.** The canvases are screen-space overlays and
+  draw after the camera, so anything painted across the middle paints over the
+  cube. It is four strips around the edge and the centre is untouched.
+- **The greys live in `Chassis`, not `Palette`.** That file opens by forbidding a
+  tenth colour and it is right to — every value in it is a claim about what a
+  thing IS. These are a claim about what the panel is MADE OF, which is a
+  different kind of statement.
+
+Generated, like every other texture here: one 128px tile, seamless by
+construction, repeated. The pixel maths is a separate method from the texture it
+fills so the harness can render it — `dotnet run --project unity/tools/UnityStubs
+-- preview .` writes it three-by-three, which is the only way a seam shows.
+
+**The aperture** — a rounded stroke around the rectangle `Layout` reserves for
+the board, in the same `--edge` rust as every control.
 
 The reason is a shape the web build never had to answer. A square cube fitted to
 a portrait *width* cannot fill a portrait *height*, so there is always leftover
