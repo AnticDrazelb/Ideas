@@ -919,11 +919,11 @@ namespace Singularity.UI
             _accRow = 0;
 
             // ---- sight -------------------------------------------------------
-            Steps(panel, "i.fx", "MOTION", "SHAKE · ZOOM · THE BENT CLOCK",
+            Steps(panel, "i.fx", "MOTION", "SHAKE · ZOOM · CLOCK",
                   new[] { "FULL", "LESS", "STILL" },
                   () => Store.Data.motion, v => Store.Data.motion = v);
 
-            Steps(panel, "i.fx", "LIGHT", "SPARKS · BLOOM · THE FLASH",
+            Steps(panel, "i.fx", "LIGHT", "SPARKS · BLOOM · FLASH",
                   new[] { "FULL", "LESS", "NONE" },
                   () => Store.Data.light, v => { Store.Data.light = v; _dir.Glow.Refresh(); });
 
@@ -965,7 +965,18 @@ namespace Singularity.UI
 
         public static void ShowAccess() => Show("access");
 
-        static RectTransform AccRow(RectTransform panel, string icon, string label, string hint)
+        /// <summary>
+        /// A row of the access panel.
+        ///
+        /// <paramref name="hintTo"/> IS NOT A TASTE, IT IS THE CONTROL'S SHADOW.
+        /// A switch is ninety units of the right-hand end and a hint can run most
+        /// of the way to it; three named stops are a third of the row, and a hint
+        /// written for the switch rows walked straight under the first of them —
+        /// MOTION and LIGHT both had their last term printed behind [FULL]. The
+        /// row that owns the widest control is the row that has to say so.
+        /// </summary>
+        static RectTransform AccRow(RectTransform panel, string icon, string label, string hint,
+                                    float hintTo = 0.72f)
         {
             float h = 1f / AccRows;
             int slot = _accRow++;
@@ -978,7 +989,7 @@ namespace Singularity.UI
                         new Vector2(58, 0), Vector2.zero);
             if (!string.IsNullOrEmpty(hint))
                 UiKit.Label(r, "h", hint, 17, Palette.Dim, TextAnchor.MiddleLeft,
-                            new Vector2(0, 0), new Vector2(0.72f, 0.40f), new Vector2(58, 0), Vector2.zero);
+                            new Vector2(0, 0), new Vector2(hintTo, 0.40f), new Vector2(58, 0), Vector2.zero);
 
             if (slot < AccRows - 1)
                 UiKit.Panel(r, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.20f),
@@ -1027,7 +1038,7 @@ namespace Singularity.UI
         static void Steps(RectTransform panel, string icon, string label, string hint, string[] names,
                           System.Func<int> get, System.Action<int> set)
         {
-            RectTransform r = AccRow(panel, icon, label, hint);
+            RectTransform r = AccRow(panel, icon, label, hint, 0.50f);
             RectTransform row = UiKit.Rect(r, "steps", new Vector2(0.52f, 0.5f), new Vector2(1, 0.5f),
                                            new Vector2(0, -Access.TapTarget * 0.5f),
                                            new Vector2(-18, Access.TapTarget * 0.5f));
