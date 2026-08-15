@@ -139,115 +139,36 @@ affine it replaces at every setting both sliders can reach and every input level
 — **worst deviation 0.0017**, under one eight-bit step, and exactly zero at
 100/100, where every quad switches off and the whole feature costs nothing.
 
-### The camera cutout, and why there is no device list
+### Full screen, and the notch is not thought about
 
-A notched phone costs an app a band the **full width of the display**, because
-`Screen.safeArea` is a rectangle and no rectangle can describe "a four
-millimetre dot in the middle of the top edge". A punch-hole is exactly as
-expensive as a bathtub notch. Held inside that rectangle, the whole machine sat
-in the middle of the screen with a dead black strip above it — the one
-arrangement that makes a phone's camera look like a fault.
+**No canvas insets to the safe area, and `Layout.BoardRect` measures the whole
+display.** `renderOutsideSafeArea` is on, so the app owns every pixel including
+the cutout band.
 
-The fix needs to know nothing about which phone it is, and deliberately so. A
-lookup table keyed on device ID would need maintaining forever, would be wrong
-on the day the next phone ships, and is already wrong for a foldable whose two
-displays differ. Android reports the geometry at runtime instead.
+The safe area is a **rectangle**, and no rectangle can describe a four millimetre
+dot in the middle of the top edge — the only one that excludes a punch-hole is
+missing the entire full-width band it sits in, which makes a punch-hole exactly
+as expensive as a bathtub notch. Honouring it cost that strip on top of the bezel
+the case already spends there, and bought nothing: **the case's own metal is
+deeper than any cutout that ships.**
 
-So the **housing alone** opts out of the safe area (`UiKit.Canvas(…, safe:
-false)`) and takes the whole display. Its bezel then grows on each edge by
-exactly the inset it escaped, which puts the opening back **to the pixel** —
-verified: the metal-to-glass overlap stays at its authored 7.5 units on all four
-edges for any cutout, and every seam between the twelve pieces stays continuous.
-Glass, Scanlines, the HUD, the screens and the board all still measure from the
-safe area and none of them changed or needs to know.
+| phone | real bezel | cutout |
+|---|---|---|
+| 1080×2400 | 126px | ~100 |
+| 1440×3200 | 168px | ~132 |
+| 720×1600 | 84px | ~70 |
 
-What changes is that the metal is deeper on the edge the camera is on, and the
-camera becomes a hole in a steel panel that already has eight bolts in it.
+The camera is behind the panel either way, so the case is drawn at its authored
+proportions at the edge of the display, out of the photograph and nothing else.
+No stretching to reach a cutout, no invented metal, no shape recognition, no
+second copy of the art.
 
-**And growing a band is not the same as stretching one**, which is what the first
-attempt got wrong and a phone showed immediately. Every edge of the art has a
-dead margin of black before the metal starts — measured off the asset, and they
-are not alike: **top 21px, bottom 4, left 8, right 10.** The top is the case's own
-notch, a dip between the corners spanning the whole width of the band. Scaling a
-band to reach the display edge scales that black too, so a deeper top band meant
-a deeper *notch*: the case looked stretched and the camera sat in the hole rather
-than in the metal.
-
-So the dead rows are cut out of each band's **source rectangle**, and the depth
-they used to occupy is covered by a `fill` — a thin slice of pure metal taken
-from just inside where the metal starts, stretched over everything between the
-display edge and the band. The band itself then only ever MOVES: it keeps the
-art's own scale exactly, verified at `1.0000` for any inset on any edge, with the
-glass overlap holding at its authored 7.5. The case's top edge comes out flat
-rather than notched, which is the price of putting steel where the camera is.
-
-**And the camera gets a port, drawn per form.** Metal around it stops it sitting
-in a hole, but flat metal with a black dot punched through is still a phone with
-a phone's camera in it. The dot is the one thing on the display the game cannot
-draw, so the only way it reads as part of the machine is if the metal AROUND it
-says so.
-
-There are four, in `unity/tools/chassis/ports.py`, because one collar round
-whatever rectangle turns up is the lowest common denominator of all of them and
-looks like it — a bathtub notch wants a slot that runs off the edge of the panel,
-a punch-hole wants a tight port with a lip all the way round:
-
-| form | what it is |
-|---|---|
-| `hole` | a round island — centred or in a corner, the common case |
-| `pill` | two lenses under one racetrack opening |
-| `tear` | a waterdrop, joined to the edge, collar open along it |
-| `notch` | the wide notch — a slot cut into the edge of the panel |
-
-**The form is recognised, not looked up.** `safeArea` is a rectangle and can only
-say "something is in the way along this edge"; `Screen.cutouts` gives the actual
-shapes, and `Chassis.Classify` reads the form off three numbers — extent along
-its edge, how much longer than deep, and whether it touches the edge at all,
-which is the whole difference between a waterdrop and a punch-hole. Checked
-against real geometry: Pixel 7 → `hole`, Galaxy S10 → `hole`, S10+ → `pill`,
-waterdrop → `tear`, Pixel 3 XL → `notch`. A dual-hole layout reports two cutouts
-and gets two ports. Adding a fifth form is one call in the script and one row in
-the classifier — no device list, which would be wrong the day a phone ships and
-is already wrong for a foldable whose two displays disagree.
-
-**Placement is measured off the two things that survive either convention.** A
-cutout rect is either tight around the opening or anchored to the display edge,
-and which one you were handed is stated nowhere — anchored, the rect is deeper
-than the hole, so its centre sits outboard of the real camera and its size
-overstates it. Getting the form right and then drawing it in the wrong place is
-not better than getting the form wrong. So nothing is measured from the outer
-edge: the extent ALONG the edge is the opening's width either way, the INNER edge
-is the real boundary of the obstruction either way, the depth is taken as the
-smaller dimension, and the centre is stepped in from the inner edge by half of
-it. A 100px punch-hole at (540, 2330) lands on (540, 2330) at 100x100 whether the
-phone reports a 100px-tall rect or a 120px one; centring on the rect would put it
-10px out and 20px oversized.
-
-Each sheet is **exactly twice its hole, hole centred**. That is the entire
-contract with the runtime: measure the cutout, double it, centre the sheet on it,
-and the port lines up at any diameter — which matters because position and size
-vary *within* a form, and art with the opening baked at a canonical spot lands
-15px off the real one and looks worse than no port at all.
-
-The sheets carry **shading, not metal**. The first attempt sampled a patch of
-bezel and pasted it round the camera; the band is rusted through in places and
-clean in others, so the patch never matched what it landed on and every port read
-as a sticker with a tile seam through it. They are a tint with a strength instead
-— black where the steel is machined away, white along the shoulder that catches
-the light, over ordinary alpha blending — so a port takes the colour of the bezel
-it lands on and there is nothing to match.
-
-The corner arms do still stretch, by the same few percent, on whichever edge has
-an inset — an arm is a fixed window onto the art, so the rounded silhouette and
-its bolt stretch with it, and they cannot keep their depth without leaving a step
-in the bezel where they meet the band. No camera lives in a display corner.
-
-> **This has not been run in an editor.** It was written and verified in an
-> environment with no Unity install: the rules are proved identical to the
-> original by running both engines and diffing, and the whole of `Assets/Scripts`
-> type-checks against a stub of the engine API (see `tools/README.md`). What
-> that cannot tell you is whether a material reads well or a layout fits a
-> phone. Expect first-open notes on presentation, not on rules.
+That is the end of a wrong turn worth recording. Pinning the opening to the safe
+area opened a gap between the case and the display edge, and every attempt to
+close it made things worse: growing the bands scaled the case's own notch up with
+the metal so the camera sat in a hole, and filling the gap smeared a six pixel
+slice of bezel over a hundred and forty-four, which reads as streaking rather
+than steel. The gap was self-inflicted. Removing it removed all of them.
 
 ---
 

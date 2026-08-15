@@ -70,12 +70,15 @@ namespace Singularity.UI
             = new System.Collections.Generic.List<Canvas>();
 
         /// <summary>
-        /// <paramref name="safe"/> false leaves the canvas at the FULL DISPLAY,
-        /// cutout band and all. Exactly one thing may ask for that and it is the
-        /// housing: metal is the only thing in this game that is improved by
-        /// having a camera in it. Everything readable keeps the inset — see
-        /// <see cref="SafeArea"/>, and see Chassis for how the bezel grows to put
-        /// the opening back exactly where the safe area would have put it.
+        /// EVERY CANVAS IS THE WHOLE DISPLAY. The <paramref name="safe"/> flag is
+        /// kept so existing call sites compile and it does nothing.
+        ///
+        /// The safe area is a RECTANGLE, and no rectangle can describe a four
+        /// millimetre dot in the middle of the top edge — the only one that
+        /// excludes it is missing the whole band it sits in. Honouring it cost a
+        /// full-width strip of display to dodge a camera that the case's own metal
+        /// is already deeper than, on top of the bezel spent there anyway. So the
+        /// strip is not spent, and the notch is not thought about.
         /// </summary>
         public static Canvas Canvas(string name, int order, bool safe = true)
         {
@@ -89,31 +92,10 @@ namespace Singularity.UI
             s.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             s.matchWidthOrHeight = 0.5f;
             Object.DontDestroyOnLoad(go);
-            if (safe) go.AddComponent<SafeArea>();
             Canvases.Add(c);
             return c;
         }
 
-        /// <summary>
-        /// The safe area's four insets in CANVAS units, which is what a layout
-        /// measured against the 720x1280 reference can actually use. Zero on a
-        /// display with nothing in the way.
-        /// </summary>
-        public static void SafeInsets(Canvas c, out float left, out float right,
-                                      out float top, out float bottom)
-        {
-            left = right = top = bottom = 0f;
-            if (c == null || Screen.width == 0 || Screen.height == 0) return;
-
-            float k = c.scaleFactor;
-            if (k <= 0f) return;
-
-            Rect safe = Screen.safeArea;
-            left = safe.xMin / k;
-            bottom = safe.yMin / k;
-            right = (Screen.width - safe.xMax) / k;
-            top = (Screen.height - safe.yMax) / k;
-        }
 
         /// <summary>
         /// Swap the interface between the shipped palette and the legible one,
@@ -157,75 +139,6 @@ namespace Singularity.UI
         /// <summary>Equal to the byte a colour was authored as. Ignores alpha.</summary>
         static bool Same(Color a, Color b)
             => Mathf.Abs(a.r - b.r) < 0.002f && Mathf.Abs(a.g - b.g) < 0.002f && Mathf.Abs(a.b - b.b) < 0.002f;
-
-        /// <summary>
-        /// A NOTCH IS NOT A SUGGESTION.
-        ///
-        /// The web original has a long note about this: env(safe-area-inset-*) reads
-        /// zero inside an Android WebView however correctly the host sets
-        /// viewport-fit, because a WebView is a View inside somebody else's
-        /// Activity. Unity does not have that problem — Screen.safeArea is the real
-        /// measurement — but it does have the same requirement, and a HUD band
-        /// under a camera cutout is just as unreadable either way.
-        ///
-        /// Applied to the canvas root rather than to each control, so every screen
-        /// inherits it and no layout has to think about it.
-        ///
-        /// THE CONTRACT, WHICH IS EASY TO BREAK AND WAS: A DIRECT CHILD OF A
-        /// CANVAS MAY NOT CARRY OFFSETS OF ITS OWN. This drives the safe area
-        /// through each child's anchors and then ZEROES its offsets, every time
-        /// the measurement changes — including the first frame, when it changes
-        /// from nothing to the real one. So a child built with an inset on it
-        /// keeps that inset for exactly as long as it takes this to run once,
-        /// and then silently loses it.
-        ///
-        /// That is not hypothetical. The HUD was inset into the chassis opening
-        /// by giving its root the four bezel offsets; it read correctly in the
-        /// code, it was wiped before the first frame was drawn, and the readout
-        /// came out over the metal and off the side of the case. Anything that
-        /// wants an inset puts a full-bleed child here and insets INSIDE it.
-        /// </summary>
-        class SafeArea : MonoBehaviour
-        {
-            RectTransform _rt;
-            Rect _last;
-
-            void Awake()
-            {
-                // the canvas's own rect is the whole screen; everything else is
-                // parented under a child that is inset to the safe area
-                _rt = (RectTransform)transform;
-            }
-
-            void Update()
-            {
-                Rect safe = Screen.safeArea;
-                if (Screen.width == 0 || Screen.height == 0) return;
-
-                // A TELEVISION THROWS AWAY THE OUTER FEW PERCENT OF THE PICTURE, so
-                // nothing that has to be read may live there. This is a platform
-                // rule rather than a taste, and it applies only where the display is
-                // actually wide enough to be one.
-                int ov = Layout.OverscanPixels;
-                if (ov > 0)
-                    safe = new Rect(safe.xMin + ov, safe.yMin + ov,
-                                    Mathf.Max(1f, safe.width - ov * 2f),
-                                    Mathf.Max(1f, safe.height - ov * 2f));
-
-                if (safe == _last) return;
-                _last = safe;
-
-                for (int i = 0; i < _rt.childCount; i++)
-                {
-                    var child = _rt.GetChild(i) as RectTransform;
-                    if (child == null) continue;
-                    child.anchorMin = new Vector2(safe.xMin / Screen.width, safe.yMin / Screen.height);
-                    child.anchorMax = new Vector2(safe.xMax / Screen.width, safe.yMax / Screen.height);
-                    child.offsetMin = Vector2.zero;
-                    child.offsetMax = Vector2.zero;
-                }
-            }
-        }
 
         public static RectTransform Rect(Transform parent, string name,
                                          Vector2 anchorMin, Vector2 anchorMax,

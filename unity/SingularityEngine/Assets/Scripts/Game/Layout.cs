@@ -133,7 +133,16 @@ namespace Singularity.Game
         /// </summary>
         public static Rect BoardRect()
         {
-            Rect safe = Screen.safeArea;
+            // THE WHOLE DISPLAY, CUTOUT AND ALL.
+            //
+            // This was Screen.safeArea, and the safe area is a rectangle: it
+            // cannot describe a four millimetre dot in the middle of the top edge,
+            // so it gives up a band the FULL WIDTH of the display to avoid one —
+            // and the game then lost that band on every edge at once, on top of
+            // the bezel it was already spending. The camera is behind the case's
+            // own metal, which is deeper than any cutout that ships, so there is
+            // nothing here that needed avoiding.
+            Rect safe = new Rect(0f, 0f, Screen.width, Screen.height);
             int ov = OverscanPixels;
 
             // the bands are authored against the reference height and scale with

@@ -79,32 +79,6 @@ namespace Singularity.Game
         // because the metal reaches further in where the glass turns the corner.
         const float ArmW = 58f, ArmH = 80f, SideW = 44f, BandH = 66f;
 
-        // ---- the dead margin, and why the case had a hole in the top of it ----
-        //
-        // HOW MUCH BLACK IS IN FRONT OF THE METAL ON EACH EDGE, measured off the
-        // asset: the first row or column of the band that is lit ALL THE WAY
-        // ACROSS. They are not the same and the top is not close — the case's top
-        // edge DIPS between the corners, twenty-one pixels of notch spanning the
-        // entire width of the band, and the other three are just the silhouette's
-        // own outer edge.
-        //
-        // This is what made the first attempt at the cutout wrong. Growing a band
-        // to reach the display edge scales everything in it, black included, so a
-        // deeper top band meant a deeper NOTCH — the twenty-one rows stretched
-        // with the metal and the camera ended up sitting in them. The case looked
-        // stretched and the phone's camera was visibly not part of it, which is
-        // exactly what it was: it was in the hole.
-        //
-        // So the dead rows are cut out of the band's source instead, and the depth
-        // they used to occupy is filled with metal — see Fill.
-        const float DeadT = 21f, DeadB = 4f, DeadL = 8f, DeadR = 10f;
-
-        /// <summary>
-        /// How deep a slice of pure metal to stretch across the fill. Thin on
-        /// purpose: it is a stretch of featureless bezel, and the less of the
-        /// picture it carries the less there is to smear.
-        /// </summary>
-        const float Strip = 6f;
 
         /// <summary>
         /// Art pixels to canvas units.
@@ -129,94 +103,36 @@ namespace Singularity.Game
 
         const float Corner = ArtCorner * K;
 
-        // ---- the cutouts that exist ------------------------------------------
-
-        /// <summary>
-        /// EVERY CAMERA CUTOUT ANDROID PHONES ACTUALLY HAVE, which is a short list
-        /// and has been for years.
-        ///
-        /// The generic answer — one ring around whatever rectangle turns up — is
-        /// the lowest common denominator of all of these, and it looks like it. A
-        /// bathtub notch wants a machined slot that runs off the edge of the
-        /// panel; a punch-hole wants a tight port with a lip all the way round.
-        /// Giving both the same collar gives neither the right one.
-        ///
-        /// So this is a catalogue, and adding to it is the intended way to handle a
-        /// shape that turns up later: one entry in <see cref="Ports"/>, one row of
-        /// numbers. The forms have not moved in years and a new one only matters
-        /// once enough people are holding it.
-        /// </summary>
-        public enum Cut
-        {
-            None,
-            /// <summary>A round or near-round island. The common case, centred or in a corner.</summary>
-            Hole,
-            /// <summary>Two lenses under one opening — a racetrack, still an island.</summary>
-            Pill,
-            /// <summary>A waterdrop: small, centred, and joined to the edge of the display.</summary>
-            Tear,
-            /// <summary>The wide notch. A quarter of the edge or more, and part of the edge.</summary>
-            Notch,
-        }
-
-        /// <summary>
-        /// WHICH ONE IS THIS, FROM THE SHAPE ALONE.
-        ///
-        /// Measured, not looked up. The catalogue is of FORMS, and a form can be
-        /// recognised — where a device list has to be told, has to be maintained,
-        /// is wrong the day a phone ships, and is already wrong for a foldable
-        /// whose two displays disagree. The same four numbers name the form on a
-        /// handset nobody here has ever held.
-        ///
-        /// <paramref name="along"/> is the cutout's extent ALONG the edge it sits
-        /// on as a fraction of that edge, <paramref name="ratio"/> is how much
-        /// longer it is than it is deep, and <paramref name="attached"/> is whether
-        /// it touches the display's edge or floats clear of it — which is the whole
-        /// of the difference between a waterdrop and a punch-hole.
-        /// </summary>
-        public static Cut Classify(float along, float ratio, bool attached)
-        {
-            if (along <= 0.001f) return Cut.None;
-            if (along >= 0.25f) return Cut.Notch;
-            if (attached) return Cut.Tear;
-            return ratio >= 1.8f ? Cut.Pill : Cut.Hole;
-        }
-
         // ---- the panel -------------------------------------------------------
 
         /// <summary>
-        /// The housing, on its own canvas behind everything — and THE CASE REACHES
-        /// THE EDGE OF THE DISPLAY, WHICH IS THE ONLY THING THAT DOES.
+        /// The housing, on its own canvas behind everything, AND IT IS THE WHOLE
+        /// DISPLAY.
         ///
-        /// A notched phone costs you a band the FULL WIDTH of the screen, because
-        /// Screen.safeArea is a rectangle and no rectangle can describe "a four
-        /// millimetre dot in the middle of the top edge". A punch-hole is as
-        /// expensive as a bathtub notch. Held inside that rectangle the whole
-        /// machine sat in the middle of the display with a dead black strip above
-        /// it, which is the one arrangement that makes a phone's camera look like
-        /// a fault.
+        /// Nothing here insets to the safe area any more — no canvas does. The
+        /// safe area is a rectangle, and no rectangle can describe a four
+        /// millimetre dot in the middle of the top edge: the only one that
+        /// excludes a camera is missing the entire band it sits in. Honouring it
+        /// spent a full-width strip of display on top of the bezel already spent
+        /// there, and bought nothing, because the case's own metal is deeper than
+        /// any cutout that ships — 126 device pixels of bezel against about a
+        /// hundred of punch-hole on a common phone, and further ahead on every
+        /// other size. The camera is behind the panel either way.
         ///
-        /// So the housing alone opts out and takes the whole display. The bezel
-        /// then grows on each edge by exactly the inset it just escaped, which
-        /// PUTS THE OPENING BACK WHERE IT WAS TO THE PIXEL — Glass, Scanlines, the
-        /// HUD, the screens and the board all still measure from the safe area and
-        /// none of them had to change or even know. What changes is that the metal
-        /// is deeper on the edge the camera is on, and the camera is now a hole in
-        /// a steel panel that already has eight bolts in it.
-        ///
-        /// This needs to know nothing about which phone it is. A device whose
-        /// cutout is bottom-left, or which has two of them, or none, gets the same
-        /// four numbers from the same measurement.
+        /// So the case is drawn at its authored proportions, at the edge of the
+        /// display, out of the photograph and nothing else. No stretching to reach
+        /// a cutout, no invented metal to fill a gap, no shape recognition, no
+        /// second copy of the art. The one version of this that tried to
+        /// manufacture bezel smeared a six pixel slice over a hundred and
+        /// forty-four, which reads as streaking rather than steel, and the reason
+        /// it had to was a gap this file opened for itself.
         /// </summary>
         public static Canvas Build()
         {
-            Canvas c = Singularity.UI.UiKit.Canvas("Chassis", 5, safe: false);
+            Canvas c = Singularity.UI.UiKit.Canvas("Chassis", 5);
             var root = Singularity.UI.UiKit.Rect(c.transform, "panel",
                                                  Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            // handed the canvas rather than looking for one: it is right here, and
-            // the scale factor is the only way to turn a measurement in pixels into
-            // the units this layout is authored in
-            root.gameObject.AddComponent<Fit>().Owner = c;
+            root.gameObject.AddComponent<Fit>();
             return c;
         }
 
@@ -232,22 +148,11 @@ namespace Singularity.Game
         /// </summary>
         class Fit : MonoBehaviour
         {
-            public Canvas Owner;
-
             Texture2D _tex;
             bool _built;
             Vector2 _fitted = Vector2.zero;
-            float _padL = -1f, _padR = -1f, _padT = -1f, _padB = -1f;
-            readonly RectTransform[] _piece = new RectTransform[16];
+            readonly RectTransform[] _piece = new RectTransform[12];
 
-            /// <summary>
-            /// Two is the most any shipping phone has — a pill for two lenses is
-            /// ONE cutout, and the dual-hole layouts report two. Four is headroom.
-            /// </summary>
-            const int MaxPorts = 4;
-
-            readonly RectTransform[] _port = new RectTransform[MaxPorts];
-            readonly Sprite[] _art = new Sprite[8];
 
             void LateUpdate()
             {
@@ -255,176 +160,11 @@ namespace Singularity.Game
                 float w = rt.rect.width, h = rt.rect.height;
                 if (w < Corner * 2f + 8f || h < Corner * 2f + 8f) return;
 
-                Singularity.UI.UiKit.SafeInsets(Owner, out float pl, out float pr,
-                                                out float pt, out float pb);
-
-                // THE SAFE AREA IS A SECOND REASON TO RE-FIT, and it is not implied
-                // by the first. This panel is the whole display now, so its size no
-                // longer changes when the inset does — a rotation that moves the
-                // cutout from the top edge to the side leaves w and h identical and
-                // would have been missed entirely.
-                bool sized = Mathf.Abs(w - _fitted.x) >= 1f || Mathf.Abs(h - _fitted.y) >= 1f;
-                bool inset = Mathf.Abs(pl - _padL) >= 0.5f || Mathf.Abs(pr - _padR) >= 0.5f
-                          || Mathf.Abs(pt - _padT) >= 0.5f || Mathf.Abs(pb - _padB) >= 0.5f;
-                if (!sized && !inset) return;
-
+                if (Mathf.Abs(w - _fitted.x) < 1f && Mathf.Abs(h - _fitted.y) < 1f) return;
                 _fitted = new Vector2(w, h);
-                _padL = pl; _padR = pr; _padT = pt; _padB = pb;
 
                 if (!_built) { Compose(rt); _built = true; }
-                Stretch(pl, pr, pt, pb);
-                Ports(rt);
-            }
-
-            /// <summary>
-            /// THE CAMERA IS A FITTING IN THE PANEL, NOT A GAP IN IT.
-            ///
-            /// Filling the band with metal stopped the camera sitting in a hole,
-            /// but flat metal with a black dot punched through it is still a phone
-            /// with a phone's camera in it — the dot is the one thing on this
-            /// display the game cannot draw, so the only way it reads as part of
-            /// the machine is if the metal AROUND it says so. A machined shoulder
-            /// and a lit lip, and the black becomes the port something looks out
-            /// of, next to a panel that already has eight bolts in it.
-            ///
-            /// Screen.cutouts is the whole reason this needs no device list and no
-            /// second copy of the art. safeArea is a rectangle and can only say
-            /// "something is in the way along this edge"; cutouts gives the actual
-            /// shapes, so a centre punch-hole, a corner one, a teardrop, a wide
-            /// notch and a pill for two lenses are all just rects — and each gets a
-            /// port cut to its own size, in its own place, on a phone nobody here
-            /// has ever seen. Two of them get two ports.
-            /// </summary>
-            void Ports(RectTransform root)
-            {
-                float k = Owner != null ? Owner.scaleFactor : 1f;
-                if (k <= 0f) k = 1f;
-                float sw = Screen.width, sh = Screen.height;
-                if (sw <= 0f || sh <= 0f) return;
-
-                Rect[] cut = Screen.cutouts;
-                int n = 0;
-                for (int i = 0; i < cut.Length && n < MaxPorts; i++)
-                {
-                    float w = cut[i].width, h = cut[i].height;
-                    if (w <= 1f || h <= 1f) continue;
-
-                    // Which edge it belongs to, then the three numbers the
-                    // catalogue is indexed by. A cutout on a long edge measures
-                    // itself against that edge, which is what keeps a landscape
-                    // phone from calling its punch-hole a notch.
-                    float gapT = sh - cut[i].yMax, gapB = cut[i].yMin;
-                    float gapL = cut[i].xMin, gapR = sw - cut[i].xMax;
-                    bool onSide = Mathf.Min(gapL, gapR) < Mathf.Min(gapT, gapB);
-
-                    // THE PORT IS PLACED OFF THE TWO MEASUREMENTS THAT ARE TRUE
-                    // WHATEVER THE PHONE MEANT BY THE RECT.
-                    //
-                    // A cutout rect is either tight around the opening or anchored
-                    // to the edge of the display, and which one you were handed is
-                    // not stated anywhere. Anchored, the rect is DEEPER than the
-                    // hole — so its centre sits outboard of the real camera and its
-                    // size overstates it, and a port placed on that centre is drawn
-                    // both too far out and too large. Getting the form right and
-                    // then drawing it in the wrong place is not better than getting
-                    // the form wrong.
-                    //
-                    // Two things survive both conventions. The extent ALONG the
-                    // edge is the opening's own width either way, and the INNER
-                    // edge — the side facing into the display — is the real
-                    // boundary of the obstruction either way. Only the outer edge
-                    // is ambiguous, so nothing is measured from it: the depth is
-                    // taken as the smaller dimension, which is the diameter for a
-                    // round hole under either convention and the true depth for
-                    // every form that is wider than it is deep, and the centre is
-                    // stepped in from the inner edge by half of that.
-                    float span = onSide ? h : w;
-                    float deep = Mathf.Min(w, h);
-
-                    float cx, cy;
-                    if (onSide)
-                    {
-                        cx = gapL <= gapR ? cut[i].xMax - deep * 0.5f : cut[i].xMin + deep * 0.5f;
-                        cy = cut[i].yMin + h * 0.5f;
-                    }
-                    else
-                    {
-                        cx = cut[i].xMin + w * 0.5f;
-                        cy = gapT <= gapB ? cut[i].yMin + deep * 0.5f : cut[i].yMax - deep * 0.5f;
-                    }
-
-                    float along = span / (onSide ? sh : sw);
-                    float ratio = span / Mathf.Max(deep, 1f);
-                    bool attached = Mathf.Min(Mathf.Min(gapT, gapB), Mathf.Min(gapL, gapR))
-                                    <= Mathf.Max(2f, sh * 0.004f);
-
-                    Cut style = Classify(along, ratio, attached);
-
-                    // WHAT THE PHONE ACTUALLY SAID, ONCE PER CUTOUT PER LAYOUT.
-                    //
-                    // The forms are certain; which one a given handset reports is
-                    // not, and one number decides it. Android's cutout rects are
-                    // sometimes tight around the opening and sometimes anchored to
-                    // the edge of the display, and if it is the second then every
-                    // punch-hole in the world reads as `attached` and gets a
-                    // waterdrop's open collar instead of its own closed one.
-                    //
-                    // Nothing here can see a phone, so it asks one. This line is
-                    // the difference between a threshold somebody guessed and a
-                    // threshold somebody measured:
-                    //
-                    //   adb logcat -s Unity:V | grep cutout
-                    Debug.Log(string.Format(
-                        "[Singularity] cutout {0}: reported {1}x{2} at ({3},{4}) on {5}x{6} | " +
-                        "hole {7}x{8} centred ({9:0},{10:0}) | along {11:0.000} ratio {12:0.00} " +
-                        "gap {13:0.0} attached {14} -> {15}",
-                        i, w, h, cut[i].xMin, cut[i].yMin, sw, sh,
-                        onSide ? deep : span, onSide ? span : deep, cx, cy,
-                        along, ratio,
-                        Mathf.Min(Mathf.Min(gapT, gapB), Mathf.Min(gapL, gapR)), attached, style));
-
-                    if (style == Cut.None) continue;
-
-                    Sprite art = Art(style);
-                    if (art == null) continue;
-
-                    if (_port[n] == null) _port[n] = BuildPort(root, n);
-                    RectTransform rt = _port[n];
-                    rt.GetComponent<Image>().sprite = art;
-
-                    // THE CONTRACT WITH ports.py: every sheet is exactly twice its
-                    // hole, hole centred. So the port lines up on any phone at any
-                    // diameter without either side knowing the other's numbers.
-                    rt.sizeDelta = new Vector2((onSide ? deep : span) / k * 2f,
-                                               (onSide ? span : deep) / k * 2f);
-                    rt.anchoredPosition = new Vector2(cx / k, cy / k);
-                    rt.gameObject.SetActive(true);
-                    n++;
-                }
-
-                for (int i = n; i < MaxPorts; i++)
-                    if (_port[i] != null) _port[i].gameObject.SetActive(false);
-            }
-
-            /// <summary>
-            /// The sheet for one form, loaded once. A form with no art is not an
-            /// error worth stopping for — the fill already put metal where the
-            /// camera is, and a missing port only costs the shoulder around it.
-            /// </summary>
-            Sprite Art(Cut style)
-            {
-                int i = (int)style;
-                if (_art[i] != null) return _art[i];
-
-                var tex = Resources.Load<Texture2D>("port-" + style.ToString().ToLower());
-                if (tex == null)
-                {
-                    Debug.LogWarning("Chassis: no port art for " + style);
-                    return null;
-                }
-                _art[i] = Sprite.Create(tex, new UnityEngine.Rect(0, 0, tex.width, tex.height),
-                                        new Vector2(0.5f, 0.5f), 1f);
-                return _art[i];
+                Stretch();
             }
 
             /// <summary>
@@ -433,20 +173,6 @@ namespace Singularity.Game
             /// port belongs to the bezel it lands on without this file needing an
             /// opinion about what rusted steel looks like.
             /// </summary>
-            RectTransform BuildPort(RectTransform root, int i)
-            {
-                RectTransform rt = Singularity.UI.UiKit.Rect(root, "port" + i,
-                                                             Vector2.zero, Vector2.zero,
-                                                             Vector2.zero, Vector2.zero);
-                rt.pivot = new Vector2(0.5f, 0.5f);
-
-                var img = rt.gameObject.AddComponent<Image>();
-                img.type = Image.Type.Simple;
-                img.color = Color.white;      // the sheet carries the whole port
-                img.raycastTarget = false;
-                return rt;
-            }
-
             /// <summary>
             /// The twelve windows onto the case, once.
             ///
@@ -481,24 +207,11 @@ namespace Singularity.Game
                 Piece(root, 6, "br_v", W - Aw, H - C, Aw, C, 1, 0, 0f);
                 Piece(root, 7, "br_h", W - C, H - Ah, C - Aw, Ah, 1, 0, -Aw * K);
 
-                // The four sides, with the dead rows CUT OUT OF THE SOURCE rather
-                // than drawn and stretched. Each one keeps the art's own scale
-                // exactly — it is moved inward by the margin it no longer draws,
-                // not stretched over it — so the metal in these four is never
-                // distorted however deep the display's inset turns out to be.
-                Piece(root, 8, "bandT", C, DeadT, W - C * 2f, Bh - DeadT, 0, 1, 0f);
-                Piece(root, 9, "bandB", C, H - Bh, W - C * 2f, Bh - DeadB, 0, 0, 0f);
-                Piece(root, 10, "railL", DeadL, C, Sw - DeadL, H - C * 2f, 0, 0, 0f);
-                Piece(root, 11, "railR", W - Sw, C, Sw - DeadR, H - C * 2f, 1, 0, 0f);
-
-                // and the fills: a thin slice of PURE METAL per edge, taken from
-                // just inside where the metal starts and stretched over everything
-                // between the display edge and the band. This is the metal the
-                // camera sits in.
-                Piece(root, 12, "fillT", C, DeadT + 2f, W - C * 2f, Strip, 0, 1, 0f);
-                Piece(root, 13, "fillB", C, H - DeadB - 2f - Strip, W - C * 2f, Strip, 0, 0, 0f);
-                Piece(root, 14, "fillL", DeadL + 2f, C, Strip, H - C * 2f, 0, 0, 0f);
-                Piece(root, 15, "fillR", W - DeadR - 2f - Strip, C, Strip, H - C * 2f, 1, 0, 0f);
+                // and the four sides, which are the only pieces that stretch
+                Piece(root, 8, "bandT", C, 0f, W - C * 2f, Bh, 0, 1, 0f);
+                Piece(root, 9, "bandB", C, H - Bh, W - C * 2f, Bh, 0, 0, 0f);
+                Piece(root, 10, "railL", 0f, C, Sw, H - C * 2f, 0, 0, 0f);
+                Piece(root, 11, "railR", W - Sw, C, Sw, H - C * 2f, 1, 0, 0f);
             }
 
             /// <summary>
@@ -531,109 +244,31 @@ namespace Singularity.Game
             }
 
             /// <summary>
-            /// The four sides take whatever the corners left, and EVERY PIECE IS
-            /// DEEPER ON AN EDGE THE DISPLAY IS HIDING SOMETHING BEHIND.
-            ///
-            /// The four pads are the safe area's insets. Adding each one to the
-            /// depth of the pieces on its edge is what lets the case reach the
-            /// physical edge of the display while its OPENING stays exactly where
-            /// the safe area would have put it — so nothing downstream moves, and
-            /// the extra metal all goes on the side the camera is on.
-            ///
-            /// The corners grow with it, which is the one thing here that is not
-            /// free: a corner arm is a fixed window onto the art and stretching it
-            /// stretches the rounded silhouette and the bolt inside it. It is a
-            /// vertical stretch of a few percent on the one edge that has an inset
-            /// at all, against the alternative of a black band the full width of
-            /// the phone, and that trade is not close.
+            /// The four sides take whatever the corners left. Nothing else moves:
+            /// the eight arms are anchored to their own corner at a fixed size, so
+            /// a resize is four numbers — and every piece is at the scale it was
+            /// authored at, on every phone, because nothing is being stretched to
+            /// meet a cutout any more.
             /// </summary>
-            void Stretch(float pl, float pr, float pt, float pb)
+            void Stretch()
             {
                 if (_piece[8] == null) return;
 
-                float cornerL = Corner + pl, cornerR = Corner + pr;
-                float cornerT = Corner + pt, cornerB = Corner + pb;
-
-                // the eight arms: index says which corner it hangs off and whether
-                // it is the vertical or the horizontal half of the L — see Compose
-                for (int i = 0; i <= 7; i++)
-                {
-                    if (_piece[i] == null) continue;
-                    int ax = (i / 2) % 2, ay = i < 4 ? 1 : 0;
-                    float padX = ax == 0 ? pl : pr;
-                    float padY = ay == 1 ? pt : pb;
-
-                    if (i % 2 == 0)
-                    {
-                        _piece[i].anchoredPosition = Vector2.zero;
-                        _piece[i].sizeDelta = new Vector2(ArmW * K + padX, Corner + padY);
-                    }
-                    else
-                    {
-                        float along = ArmW * K + padX;
-                        _piece[i].anchoredPosition = new Vector2(ax == 0 ? along : -along, 0f);
-                        _piece[i].sizeDelta = new Vector2((ArtCorner - ArmW) * K, ArmH * K + padY);
-                    }
-                }
-
-                // THE BAND KEEPS ITS OWN SCALE AND MOVES; THE FILL DOES THE GROWING.
-                //
-                // `off` is how far in from the display edge the band's metal now
-                // starts: the display's own inset, plus the dead margin the band no
-                // longer draws. The band sits at exactly its authored depth below
-                // that — so its inner edge lands on pad + BandH*K, which is where it
-                // was before any of this, and the opening does not move. The fill
-                // covers everything outside it, and the fill is the only thing that
-                // stretches.
                 for (int i = 8; i <= 9; i++)
                 {
-                    bool top = i == 8;
-                    float pad = top ? pt : pb, dead = (top ? DeadT : DeadB) * K;
-                    float off = pad + dead;
-                    Span(_piece[i], true, cornerL, cornerR);
-                    _piece[i].anchoredPosition = new Vector2((cornerL - cornerR) * 0.5f, top ? -off : off);
-                    _piece[i].sizeDelta = new Vector2(-(cornerL + cornerR), BandH * K - dead);
-
-                    Span(_piece[i + 4], true, cornerL, cornerR);
-                    _piece[i + 4].anchoredPosition = new Vector2((cornerL - cornerR) * 0.5f, 0f);
-                    _piece[i + 4].sizeDelta = new Vector2(-(cornerL + cornerR), off);
-                    _piece[i + 4].gameObject.SetActive(off > 0.5f);
+                    _piece[i].anchorMin = new Vector2(0f, _piece[i].anchorMin.y);
+                    _piece[i].anchorMax = new Vector2(1f, _piece[i].anchorMax.y);
+                    _piece[i].pivot = new Vector2(0.5f, _piece[i].pivot.y);
+                    _piece[i].anchoredPosition = new Vector2(0f, 0f);
+                    _piece[i].sizeDelta = new Vector2(-Corner * 2f, BandH * K);
                 }
                 for (int i = 10; i <= 11; i++)
                 {
-                    bool left = i == 10;
-                    float pad = left ? pl : pr, dead = (left ? DeadL : DeadR) * K;
-                    float off = pad + dead;
-                    Span(_piece[i], false, cornerT, cornerB);
-                    _piece[i].anchoredPosition = new Vector2(left ? off : -off, (cornerB - cornerT) * 0.5f);
-                    _piece[i].sizeDelta = new Vector2(SideW * K - dead, -(cornerT + cornerB));
-
-                    Span(_piece[i + 4], false, cornerT, cornerB);
-                    _piece[i + 4].anchoredPosition = new Vector2(0f, (cornerB - cornerT) * 0.5f);
-                    _piece[i + 4].sizeDelta = new Vector2(off, -(cornerT + cornerB));
-                    _piece[i + 4].gameObject.SetActive(off > 0.5f);
-                }
-            }
-
-            /// <summary>
-            /// Stretch a piece along the edge it belongs to, between the two
-            /// corners at that edge's ends. Horizontal for the two bands, vertical
-            /// for the two rails; the other axis is left to the caller, because
-            /// that is the axis that says how deep the metal is.
-            /// </summary>
-            static void Span(RectTransform rt, bool horizontal, float a, float b)
-            {
-                if (horizontal)
-                {
-                    rt.anchorMin = new Vector2(0f, rt.anchorMin.y);
-                    rt.anchorMax = new Vector2(1f, rt.anchorMax.y);
-                    rt.pivot = new Vector2(0.5f, rt.pivot.y);
-                }
-                else
-                {
-                    rt.anchorMin = new Vector2(rt.anchorMin.x, 0f);
-                    rt.anchorMax = new Vector2(rt.anchorMax.x, 1f);
-                    rt.pivot = new Vector2(rt.pivot.x, 0.5f);
+                    _piece[i].anchorMin = new Vector2(_piece[i].anchorMin.x, 0f);
+                    _piece[i].anchorMax = new Vector2(_piece[i].anchorMax.x, 1f);
+                    _piece[i].pivot = new Vector2(_piece[i].pivot.x, 0.5f);
+                    _piece[i].anchoredPosition = new Vector2(0f, 0f);
+                    _piece[i].sizeDelta = new Vector2(SideW * K, -Corner * 2f);
                 }
             }
         }

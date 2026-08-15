@@ -460,8 +460,6 @@ namespace UnityEngine
         public static int height => 0;
         public static SleepTimeout sleepTimeout { get; set; }
         public static Rect safeArea => default;
-        /// <summary>The ACTUAL cutout rects, which safeArea's rectangle cannot describe.</summary>
-        public static Rect[] cutouts => new Rect[0];
         public static bool fullScreen => true;
         public static void SetResolution(int w, int h, bool fs) { }
     }
