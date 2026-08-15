@@ -297,9 +297,18 @@ honest attempt, because if it were free then skipping a hard cube would be the
 optimal play. Turning up and playing badly always beats not turning up, and that
 is the ordering a habit board has to have.
 
-Week, month and season totals are computed and shown locally; a window with
+Week, month and season totals are computed and kept locally; a window with
 nothing at all in it scores −1 rather than a wall of penalties, so a fresh
 install does not open by charging you for a month it was not installed for.
+
+**Nothing shows them.** There was a BOARDS screen — every row a local record,
+saying LOCAL ONLY out loud so it could not be mistaken for a leaderboard — and
+it is gone, along with the link to it on the pause card. A screen of the
+player's own numbers, with no ranking to be in and nobody to be ranked against,
+is a page about the game rather than a part of it. The model stays exactly as it
+is: `DailyBoards` still records, prunes and packs on every solve, `Submit` is
+still the hook a ranking service wires into, and the day the boards mean
+something there is a screen's worth of data waiting for them.
 
 The one thing that needs a host is the last step. `DailyBoards.Submit` is a
 hook, deliberately not a stub of somebody's SDK: wire a ranking service to it

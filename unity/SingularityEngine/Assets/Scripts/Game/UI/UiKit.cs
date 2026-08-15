@@ -645,8 +645,8 @@ namespace Singularity.UI
             // over a puzzle somebody is in the middle of and should let it through —
             // but that is the CARD's job, not its buttons'. A translucent plate put
             // the board inside the controls, so the cube was visibly running through
-            // the middle of the words VAULTS and BOARDS. A control is a solid thing
-            // you press; whatever is behind the screen stops at its edge.
+            // the middle of the words on them. A control is a solid thing you
+            // press; whatever is behind the screen stops at its edge.
             // THE GLOW GOES BEHIND, WHICH MEANS BESIDE. UGUI draws a parent's own
             // graphic before its children, so a child can never be behind its
             // parent's plate — the glow has to be a sibling, ordered first.

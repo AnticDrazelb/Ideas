@@ -33,7 +33,6 @@ namespace Singularity.UI
             BuildPause();
             BuildCalibrate();
             BuildAccess();
-            BuildBoards();
             BuildWin();
             ForgeScreens.Build(dir);
             HideAll();
@@ -640,12 +639,12 @@ namespace Singularity.UI
             Third(three, 1, "VAULTS", OpenVaults);
             Third(three, 2, "MENU", ShowTitle);
 
+            // ONE LINK, CENTRED. It was a pair — BOARDS beside CALIBRATE — and
+            // the boards screen is gone, so the survivor takes the whole row
+            // rather than sitting in the left half of a row built for two.
             RectTransform links = UiKit.Rect(L, "links", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
                                              new Vector2(72, -(128 + Access.TapTarget)), new Vector2(-72, -128));
-            RectTransform bSlot = UiKit.Rect(links, "b", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
-            UiKit.Link(bSlot, "boards", "BOARDS", ShowBoards, 20);
-            RectTransform cSlot = UiKit.Rect(links, "c", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);
-            UiKit.Link(cSlot, "calibrate", "CALIBRATE", ShowCalibrate, 20);
+            UiKit.Link(links, "calibrate", "CALIBRATE", ShowCalibrate, 20);
         }
 
         public static void ShowPause(GameDirector dir)
@@ -741,7 +740,13 @@ namespace Singularity.UI
             _calRow = 0;
             Toggle(panel, "i.sound", "SOUND", "", () => Store.Data.sound,
                    v => { Store.Data.sound = v; if (v == 0) Sfx.I.StopAmbience(); else Sfx.I.Ambience(Vaults.VaultOf(_dir.S.levelNo)); });
-            Toggle(panel, "i.haptic", "HAPTICS", "", () => Store.Data.haptic, v => Store.Data.haptic = v);
+            // THE ON SWITCH IS THE BOTTOM OF THE SLIDER, and there is no reason
+            // for both. This panel carried a HAPTICS toggle and a HAPTIC FEEDBACK
+            // strength slider two rows apart, which is two controls for one
+            // setting — and Haptics has always read them as one anyway: it returns
+            // early on `haptic == 0 || buzz <= 0`, so zero on the slider was
+            // already off. One row, named for the thing rather than for the
+            // measurement, and a row of the panel's height back for the rest.
             // THE EFFECTS SWITCH WAS TWO SETTINGS WEARING ONE COAT, and both of
             // them belong on the screen that is about being able to play at all
             // rather than on the one about taste. What is left here is a door to
@@ -752,7 +757,13 @@ namespace Singularity.UI
                    () => Store.Data.togo, v => Store.Data.togo = v);
             Toggle(panel, "i.depth", "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL",
                    () => Store.Data.depth, v => Store.Data.depth = v);
-            Bar(panel, "i.buzz", "HAPTIC FEEDBACK", "", 0, 150, () => Store.Data.buzz, v => Store.Data.buzz = v);
+            // Reading through the old flag rather than migrating the save: anybody
+            // who had haptics switched off has haptic 0 and a strength they set
+            // before that, and the slider must show them OFF rather than the
+            // number it would buzz at if they turned it back on.
+            Bar(panel, "i.haptic", "HAPTICS", "0 IS OFF", 0, 150,
+                () => Store.Data.haptic == 0 ? 0 : Store.Data.buzz,
+                v => { Store.Data.buzz = v; Store.Data.haptic = v > 0 ? 1 : 0; });
             // Both default to 100, and at 100 no filter is applied at all — the
             // cost of these two is zero for anyone who leaves them alone.
             Bar(panel, "i.bright", "BRIGHTNESS", "", 60, 160, () => Store.Data.bright, v => Store.Data.bright = v);
@@ -766,7 +777,12 @@ namespace Singularity.UI
         }
 
         static int _calRow;
-        const int CalRows = 8;
+        /// <summary>
+        /// Seven, since haptics stopped being two rows. It is the divisor for the
+        /// row height, so it is not a comment about the list — it IS the list, and
+        /// a row added below without changing it draws on top of the last one.
+        /// </summary>
+        const int CalRows = 7;
 
         static void Third(RectTransform parent, int i, string label, System.Action act)
         {
@@ -840,14 +856,25 @@ namespace Singularity.UI
                 new Vector2(0, -Access.TapTarget * 0.5f), new Vector2(-18, Access.TapTarget * 0.5f));
         }
 
-        /// <summary>A calibrate row whose control is a way somewhere else.</summary>
+        /// <summary>
+        /// A calibrate row whose control is a way somewhere else.
+        ///
+        /// A BRACKETED LABEL, NOT A PLATE. This was a full framed button a
+        /// hundred and forty units wide and a tap target tall, which made the one
+        /// row on the panel that goes nowhere by itself the heaviest thing on the
+        /// screen — and it sat on top of its own hint, so the row that says what
+        /// is behind the door was the row you could not read. The kit's own note
+        /// on Link says why the brackets are enough: they are what says
+        /// "pressable", and a plate on top of that is weight this row has not
+        /// earned. Narrower too, so the hint has somewhere to be.
+        /// </summary>
         static void Link(RectTransform panel, string icon, string label, string hint, System.Action act)
         {
             RectTransform r = CalRow(panel, icon, label, hint, true);
             RectTransform slot = UiKit.Rect(r, "go", new Vector2(1, 0.5f), new Vector2(1, 0.5f),
-                                            new Vector2(-158, -Access.TapTarget * 0.5f),
+                                            new Vector2(-124, -Access.TapTarget * 0.5f),
                                             new Vector2(-18, Access.TapTarget * 0.5f));
-            UiKit.Bracketed(slot, "open", "OPEN", act, 20);
+            UiKit.Link(slot, "open", "OPEN", act, 20, Palette.Ink);
         }
 
         public static void ShowCalibrate() => Show("calibrate");
@@ -1029,119 +1056,6 @@ namespace Singularity.UI
                 labels[i] = b.GetComponentInChildren<Text>();
             }
             Paint();
-        }
-
-        // ---- boards ----------------------------------------------------------
-        //
-        // Every row reads its own local record, so the screen is worth opening on
-        // a plane — the RANKING is the part that needs a host, not the number.
-
-        static RectTransform _boardList;
-
-        static void BuildBoards()
-        {
-            RectTransform L = Layer("boards");
-            Solid(L);
-            // LOCAL ONLY, SAID OUT LOUD. Every row here is this device's own
-            // record, and a screen called BOARDS that does not say so is quietly
-            // implying a leaderboard it does not have.
-            UiKit.Label(L, "h", "BOARDS — LOCAL ONLY", 26, Palette.Ink, TextAnchor.LowerCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -158), new Vector2(-40, -118));
-            UiKit.Panel(L, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.5f),
-                        new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(-70, -104), new Vector2(70, -102));
-
-            // The rows go in a plate for the same reason the win card's do: a name
-            // on the left and a number six hundred pixels away on the right are not
-            // visibly about each other.
-            _boardList = UiKit.Rect(L, "list", new Vector2(0, 1), new Vector2(1, 1),
-                                    new Vector2(56, -770), new Vector2(-56, -186));
-            UiKit.Framed(_boardList, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.55f));
-
-            // SEVENTEEN, AND DIM RATHER THAN DIM2. This line was thirteen units of
-            // Dim2 on black: 2.03:1, the worst pair in the interface, and four units
-            // under --t-micro, which this project's own README says nothing may go
-            // below. It was invisible on a phone, and the one thing it says — that
-            // there is no host and these are local records — is the whole reason the
-            // screen is honest.
-            UiKit.Label(L, "foot", "NO HOST ATTACHED — THESE ARE THIS DEVICE'S OWN RECORDS.",
-                        Access.SmallestType, Palette.Dim, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -812), new Vector2(-40, -786));
-
-            RectTransform outs = UiKit.Rect(L, "outs", new Vector2(0, 1), new Vector2(1, 1),
-                                            new Vector2(80, -(820 + Access.TapTarget)), new Vector2(-80, -820));
-            RectTransform bk = UiKit.Rect(outs, "b", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
-            UiKit.Link(bk, "back", "BACK", Back, 21, Palette.Ink);
-            RectTransform mn = UiKit.Rect(outs, "m", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);
-            UiKit.Link(mn, "menu", "MENU", ShowTitle, 21);
-        }
-
-        public static void ShowBoards()
-        {
-            for (int i = _boardList.childCount - 1; i >= 0; i--) Object.Destroy(_boardList.GetChild(i).gameObject);
-
-            var rows = new List<(string k, string why, string v)>();
-
-            // The daily first, because it is the one number shared with anybody else.
-            int today = Daily.DayIndex();
-            rows.Add(("TODAY", "FEWEST FOLDS ON " + Daily.DayLabel(),
-                      Store.Data.dailySolved != 0 && Store.Data.dailyDay == today
-                          ? Store.Data.dailyBest + " FOLDS" : "—"));
-
-            // THE WINDOWS. A missed day is not a zero, it is a MISS, and it costs
-            // more than the worst honest attempt — otherwise skipping a hard cube
-            // would be the optimal play. So these read as "lower is better", and
-            // turning up and playing badly always beats not turning up.
-            //
-            // Only the days that have HAPPENED are counted: a running total that
-            // charged for tomorrow would be all penalty and would tell you nothing.
-            foreach (DailyBoards.Period p in DailyBoards.Periods)
-            {
-                var (total, played, of) = DailyBoards.Running(p, today);
-                rows.Add((p.label, p.why, played == 0 ? "0 / " + of + " DAYS"
-                                                       : total + " · " + played + " / " + of + " DAYS"));
-            }
-
-            // Then one row per vault: a vault is the unit a board ranks, scored on
-            // the time to clear every cube in it, so a vault with a cube missing has
-            // no total at all rather than a flattering partial one.
-            for (int band = 0; band < Vaults.RankedVaults; band++)
-            {
-                int start = Vaults.VaultStart(band), size = Vaults.VaultSize(band);
-                if (start > Store.Data.reached) break;
-
-                long total = 0;
-                int have = 0;
-                for (int i = 0; i < size; i++)
-                    if (Store.TryTimeBest(start + i, out long ms)) { total += ms; have++; }
-
-                string v = have == size
-                    ? (total / 1000f).ToString("0.0") + "s"
-                    : have + "/" + size;
-                rows.Add(("VAULT " + Vaults.RomanOf(band),
-                          Vaults.VaultName(band).ToUpperInvariant() + " — TIME TO CLEAR", v));
-            }
-
-            rows.Add(("STREAK", "CONSECUTIVE DAYS SOLVED", Store.Data.streakCur + " DAYS"));
-
-            float h = 1f / Mathf.Max(1, rows.Count);
-            for (int i = 0; i < rows.Count; i++)
-            {
-                RectTransform r = UiKit.Rect(_boardList, "r" + i,
-                    new Vector2(0, 1 - (i + 1) * h), new Vector2(1, 1 - i * h), Vector2.zero, Vector2.zero);
-
-                UiKit.Label(r, "k", rows[i].k, 19, Palette.Ink, TextAnchor.LowerLeft,
-                            new Vector2(0, 0.44f), new Vector2(0.66f, 1), new Vector2(26, 0), new Vector2(0, -8));
-                UiKit.Label(r, "w", rows[i].why, 17, Palette.Dim, TextAnchor.UpperLeft,
-                            new Vector2(0, 0), new Vector2(0.72f, 0.46f), new Vector2(26, 6), Vector2.zero);
-                UiKit.Label(r, "v", rows[i].v, 17, Palette.Rust, TextAnchor.MiddleRight,
-                            new Vector2(0.66f, 0), Vector2.one, Vector2.zero, new Vector2(-26, 0));
-
-                if (i < rows.Count - 1)
-                    UiKit.Panel(r, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.22f),
-                                new Vector2(0, 0), new Vector2(1, 0), new Vector2(20, 0), new Vector2(-20, 1));
-            }
-
-            Show("boards");
         }
 
         // ---- the win card ---------------------------------------------------

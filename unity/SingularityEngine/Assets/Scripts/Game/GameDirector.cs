@@ -374,7 +374,7 @@ namespace Singularity.Game
                 Store.Data.dailySolved = 1;
 
                 // and everything about windows, streaks and pruning lives in one
-                // place rather than being half here and half in the boards screen
+                // place rather than being half here and half in whatever reads it
                 DailyBoards.Record(folds);
             }
             else if (S.IsMade)
