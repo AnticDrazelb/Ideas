@@ -528,8 +528,14 @@ namespace Singularity.UI
                 => UiKit.Icon(art, role, c, size, new Vector2(0.5f, 0.5f), new Vector2(x, v));
 
             Kicker("THE RULE");
+            // NO AUTHORED BREAKS IN A BODY ANY MORE. They were put in against a
+            // wider plate and against a label that could not wrap, and now that it
+            // can they only force a short line in the middle of a good one — this
+            // one broke after "connected," and left the word alone on a line. The
+            // heights below are what a body of three or four wrapped lines needs;
+            // the page scrolls, so the cost of the taller ones is nothing.
             RectTransform a1 = Entry("ONE FACE AT A TIME",
-                "Two traces that line up when you fold are connected,\nhowever far apart they look.");
+                "Two traces that line up when you fold are connected, however far apart they look.", 104f);
             // two decks, and the fold that brings them together
             Mark(a1, "sq", Palette.Trace, 34, -22, 28);
             Mark(a1, "sq", Palette.Trace, 34, -22, -28);
@@ -574,13 +580,13 @@ namespace Singularity.UI
             Mark(a5, "sqfill", Palette.Trace, 14, -14, -12);
 
             RectTransform a6 = Entry("PLATES INVERT",
-                "Every trace goes dead and every dead cell lights up, for five\nseconds. A plate is always footing, so every fold is legal on one.");
+                "Every trace goes dead and every dead cell lights up, for five seconds. A plate is always footing, so every fold is legal on one.", 124f);
             Mark(a6, "sqfill", Palette.Trace, 26, -16, 14);
             Mark(a6, "sq", Palette.Dim2, 26, 14, 14);
             Mark(a6, "sq", Palette.Dim2, 26, -16, -16);
             Mark(a6, "sqfill", Palette.Trace, 26, 14, -16);
 
-            RectTransform a7 = Entry("TO GO", "The fewest folds still possible from where you stand.", 62f);
+            RectTransform a7 = Entry("TO GO", "The fewest folds still possible from where you stand.", 82f);
             Mark(a7, "i.togo", Palette.Arc, 44, 0, 0);
 
             UiKit.EndScroll(M, y + 24f);
