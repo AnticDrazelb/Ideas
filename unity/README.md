@@ -455,6 +455,22 @@ the board rect and every screen's plate are inset by them individually. A single
 averaged number put the metal over the plate on two edges and left a band of it
 showing on the other two.
 
+**The glass in front of it** — `Assets/Scripts/Game/Glass.cs`. The same
+photographed machine, from the front: fingerprints, dust, hairline scratches, a
+sleeve-wipe smear and the ghost of the pixel lattice, over the whole opening and
+in front of everything including the menus, because that is where glass is.
+
+It only ever ADDS light, and that is the whole design rather than a detail of it.
+Alpha-blending a near-black photograph over this interface would darken it
+everywhere the dirt is dark — which is most of it — and take the access audit's
+four dark grounds down with it. Additive cannot: dust catches light, it does not
+remove it, so nothing that was legible before the layer stops being. The picture
+has its pedestal subtracted before it ships, so half the glass contributes
+exactly zero and the worst single speck of dust adds 0.29 of full white across a
+few units. And it turns off under legibility, because that setting is a promise
+that the interface will stop performing and a layer of grease is the most
+performing thing in the game.
+
 **The aperture** — a rounded stroke around the rectangle `Layout` reserves for
 the board, in the same `--edge` rust as every control.
 

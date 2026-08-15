@@ -371,7 +371,13 @@ namespace UnityEngine
 
     [Flags] public enum HideFlags { None = 0, HideAndDontSave = 61 }
 
-    public class Texture : Object { public FilterMode filterMode { get; set; } public TextureWrapMode wrapMode { get; set; } }
+    public class Texture : Object
+    {
+        public FilterMode filterMode { get; set; }
+        public TextureWrapMode wrapMode { get; set; }
+        public int width { get; }
+        public int height { get; }
+    }
 
     public class Texture2D : Texture
     {
@@ -605,6 +611,7 @@ namespace UnityEngine
         {
             public Color color { get; set; }
             public bool raycastTarget { get; set; }
+            public Material material { get; set; }
             public RectTransform rectTransform => null;
         }
 

@@ -1,11 +1,12 @@
 # the chassis
 
-`Assets/Resources/chassis.png` is the only imported asset in the game. This is
-where it comes from and how to make it again.
+The two imported assets in the game — the case and the pane across the front of
+it. This is where they come from and how to make them again.
 
 ```sh
 pip install pillow numpy
-python3 cut.py            # mockup.png -> chassis-art.png
+python3 cut.py            # mockup.png       -> chassis-art.png   (the case)
+python3 glass.py          # glass-source.jpeg -> glass-art.jpg    (the dirt)
 ```
 
 ## what it does
@@ -50,3 +51,38 @@ The bezel is deeper at the top and bottom than at the sides, and deeper at the
 bottom than at the top. That is the real object being slightly asymmetric, and
 it is carried through rather than averaged away — see the four `Inset` constants
 in `Chassis.cs` and the four in `Layout`.
+
+## `glass.py` — the dirt
+
+`glass-source.jpeg` is a photograph of a filthy screen: fingerprints, dust,
+hairline scratches, a sleeve-wipe smear, and the ghost of the pixel lattice
+under it. `Glass.cs` composites it over the whole interface, ADDITIVELY, and two
+things are done to it here so that it can be.
+
+**The lit rim comes off.** Twenty-two pixels from the left, top and right — the
+photographed phone's own chamfer catching the light, which is not dirt and would
+draw a bright band just inside the bezel. There is none at the bottom; the photo
+is already cut there.
+
+**The pedestal comes off.** This is the one that matters. The picture's median
+is about 20 of 255, so composited additively it would lift the entire display
+off black before a single speck of dust was visible — and every contrast ratio
+in the access audit is measured against grounds that are meant to *be* black.
+Subtracting a flat floor and clamping at zero leaves the dirt and throws away
+the glass, which is the only part of the picture anybody wanted.
+
+What it prints is the honest accounting of what the layer can do, before
+`Glass.Strength` scales it down further:
+
+```
+adds, as a fraction of full white, before the layer opacity:
+   p50    0.000      half the glass is clean and contributes nothing
+   p90    0.059
+   p99    0.172
+   max    0.867      one grain of dust, a few pixels across
+```
+
+Additive is not a stylistic choice. Alpha-blending a near-black photograph over
+this interface would darken it everywhere the dirt is dark, which is most of it,
+and would take the audit's four dark grounds down with it. Light that only adds
+cannot make anything less legible than it was.

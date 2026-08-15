@@ -878,6 +878,7 @@ namespace Singularity.UI
                           UiKit.Repaint();
                           _dir.View.PushPalette();
                           _dir.Filter.Refresh();
+                          Glass.Refresh();      // the grease on the screen goes too
                       });
 
             // ---- sound -------------------------------------------------------

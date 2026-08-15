@@ -30,29 +30,38 @@ namespace Singularity.EditorTools
     /// </summary>
     public class ChassisImport : AssetPostprocessor
     {
-        const string Path = "Assets/Resources/chassis.png";
+        const string Case = "Assets/Resources/chassis.png";
+        const string Pane = "Assets/Resources/glass.jpg";
 
         void OnPreprocessTexture()
         {
-            if (assetPath != Path) return;
+            if (assetPath != Case && assetPath != Pane) return;
 
             var t = (TextureImporter)assetImporter;
             t.textureType = TextureImporterType.Default;
             t.npotScale = TextureImporterNPOTScale.None;
-            t.mipmapEnabled = false;
             t.wrapMode = TextureWrapMode.Clamp;
             t.filterMode = FilterMode.Bilinear;
             t.alphaIsTransparency = true;
 
-            // A rusted plate is the worst case for a block compressor and this is
-            // the only texture in the game, so it gets the good one. Two megabytes
-            // uncompressed, and the alternative is banding across every corner.
+            // A rusted plate is the worst case for a block compressor and these
+            // are the only two textures in the game, so they get the good one.
+            // The alternative is banding across every corner.
             t.textureCompression = TextureImporterCompression.CompressedHQ;
             t.maxTextureSize = 2048;
 
-            // nothing reads it back on the CPU — Sprite.Create does not need it —
+            // nothing reads them back on the CPU — Sprite.Create does not need it —
             // and a readable texture keeps a second copy in system memory forever
             t.isReadable = false;
+
+            // MIPS ON THE PANE AND NOT ON THE CASE, which looks inconsistent and
+            // is not. The case is nine-sliced: every piece is drawn at about the
+            // size it was authored and never minified, so a mip chain would cost a
+            // third more memory to make it softer. The pane is ONE quad stretched
+            // over the whole opening, so a small desktop window minifies it — and
+            // the picture has a pixel lattice in it, which is the exact content
+            // that shimmers when a minified texture has nowhere to fall back to.
+            t.mipmapEnabled = assetPath == Pane;
         }
     }
 }

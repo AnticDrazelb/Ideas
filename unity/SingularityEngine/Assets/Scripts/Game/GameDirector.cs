@@ -57,6 +57,12 @@ namespace Singularity.Game
 
             Hud = Hud.Build(this);
 
+            // AND THE PANE ACROSS THE FRONT OF IT, at 25, which is in front of
+            // the menus as well — see Glass. Built after the HUD only because it
+            // is easier to read in the order the light arrives; the sorting order
+            // is what actually decides, not this line's position.
+            Glass.Build();
+
             // The sound's words go to the readout. Sfx does not know what a Hud
             // is and must not: it raises the caption and something else decides
             // where words go, exactly as Session raises events and this decides
