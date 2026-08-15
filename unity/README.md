@@ -162,10 +162,29 @@ Glass, Scanlines, the HUD, the screens and the board all still measure from the
 safe area and none of them changed or needs to know.
 
 What changes is that the metal is deeper on the edge the camera is on, and the
-camera becomes a hole in a steel panel that already has eight bolts in it. The
-cost is that the corner arms stretch by the same few percent on that one edge —
-a fixed window onto the art, so the rounded silhouette and its bolt stretch with
-it. Against a black band the full width of the phone, that trade is not close.
+camera becomes a hole in a steel panel that already has eight bolts in it.
+
+**And growing a band is not the same as stretching one**, which is what the first
+attempt got wrong and a phone showed immediately. Every edge of the art has a
+dead margin of black before the metal starts — measured off the asset, and they
+are not alike: **top 21px, bottom 4, left 8, right 10.** The top is the case's own
+notch, a dip between the corners spanning the whole width of the band. Scaling a
+band to reach the display edge scales that black too, so a deeper top band meant
+a deeper *notch*: the case looked stretched and the camera sat in the hole rather
+than in the metal.
+
+So the dead rows are cut out of each band's **source rectangle**, and the depth
+they used to occupy is covered by a `fill` — a thin slice of pure metal taken
+from just inside where the metal starts, stretched over everything between the
+display edge and the band. The band itself then only ever MOVES: it keeps the
+art's own scale exactly, verified at `1.0000` for any inset on any edge, with the
+glass overlap holding at its authored 7.5. The case's top edge comes out flat
+rather than notched, which is the price of putting steel where the camera is.
+
+The corner arms do still stretch, by the same few percent, on whichever edge has
+an inset — an arm is a fixed window onto the art, so the rounded silhouette and
+its bolt stretch with it, and they cannot keep their depth without leaving a step
+in the bezel where they meet the band. No camera lives in a display corner.
 
 > **This has not been run in an editor.** It was written and verified in an
 > environment with no Unity install: the rules are proved identical to the

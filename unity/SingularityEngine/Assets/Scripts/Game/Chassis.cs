@@ -79,6 +79,33 @@ namespace Singularity.Game
         // because the metal reaches further in where the glass turns the corner.
         const float ArmW = 58f, ArmH = 80f, SideW = 44f, BandH = 66f;
 
+        // ---- the dead margin, and why the case had a hole in the top of it ----
+        //
+        // HOW MUCH BLACK IS IN FRONT OF THE METAL ON EACH EDGE, measured off the
+        // asset: the first row or column of the band that is lit ALL THE WAY
+        // ACROSS. They are not the same and the top is not close — the case's top
+        // edge DIPS between the corners, twenty-one pixels of notch spanning the
+        // entire width of the band, and the other three are just the silhouette's
+        // own outer edge.
+        //
+        // This is what made the first attempt at the cutout wrong. Growing a band
+        // to reach the display edge scales everything in it, black included, so a
+        // deeper top band meant a deeper NOTCH — the twenty-one rows stretched
+        // with the metal and the camera ended up sitting in them. The case looked
+        // stretched and the phone's camera was visibly not part of it, which is
+        // exactly what it was: it was in the hole.
+        //
+        // So the dead rows are cut out of the band's source instead, and the depth
+        // they used to occupy is filled with metal — see Fill.
+        const float DeadT = 21f, DeadB = 4f, DeadL = 8f, DeadR = 10f;
+
+        /// <summary>
+        /// How deep a slice of pure metal to stretch across the fill. Thin on
+        /// purpose: it is a stretch of featureless bezel, and the less of the
+        /// picture it carries the less there is to smear.
+        /// </summary>
+        const float Strip = 6f;
+
         /// <summary>
         /// Art pixels to canvas units.
         ///
@@ -105,11 +132,8 @@ namespace Singularity.Game
         // ---- the panel -------------------------------------------------------
 
         /// <summary>
-        /// The housing, on its own canvas behind everything.
-        /// </summary>
-        /// <summary>
-        /// THE CASE REACHES THE EDGE OF THE DISPLAY, AND IT IS THE ONLY THING THAT
-        /// DOES.
+        /// The housing, on its own canvas behind everything — and THE CASE REACHES
+        /// THE EDGE OF THE DISPLAY, WHICH IS THE ONLY THING THAT DOES.
         ///
         /// A notched phone costs you a band the FULL WIDTH of the screen, because
         /// Screen.safeArea is a rectangle and no rectangle can describe "a four
@@ -161,7 +185,7 @@ namespace Singularity.Game
             bool _built;
             Vector2 _fitted = Vector2.zero;
             float _padL = -1f, _padR = -1f, _padT = -1f, _padB = -1f;
-            readonly RectTransform[] _piece = new RectTransform[12];
+            readonly RectTransform[] _piece = new RectTransform[16];
 
             void LateUpdate()
             {
@@ -223,11 +247,24 @@ namespace Singularity.Game
                 Piece(root, 6, "br_v", W - Aw, H - C, Aw, C, 1, 0, 0f);
                 Piece(root, 7, "br_h", W - C, H - Ah, C - Aw, Ah, 1, 0, -Aw * K);
 
-                // and the four sides, which are the only pieces that stretch
-                Piece(root, 8, "bandT", C, 0f, W - C * 2f, Bh, 0, 1, 0f);
-                Piece(root, 9, "bandB", C, H - Bh, W - C * 2f, Bh, 0, 0, 0f);
-                Piece(root, 10, "railL", 0f, C, Sw, H - C * 2f, 0, 0, 0f);
-                Piece(root, 11, "railR", W - Sw, C, Sw, H - C * 2f, 1, 0, 0f);
+                // The four sides, with the dead rows CUT OUT OF THE SOURCE rather
+                // than drawn and stretched. Each one keeps the art's own scale
+                // exactly — it is moved inward by the margin it no longer draws,
+                // not stretched over it — so the metal in these four is never
+                // distorted however deep the display's inset turns out to be.
+                Piece(root, 8, "bandT", C, DeadT, W - C * 2f, Bh - DeadT, 0, 1, 0f);
+                Piece(root, 9, "bandB", C, H - Bh, W - C * 2f, Bh - DeadB, 0, 0, 0f);
+                Piece(root, 10, "railL", DeadL, C, Sw - DeadL, H - C * 2f, 0, 0, 0f);
+                Piece(root, 11, "railR", W - Sw, C, Sw - DeadR, H - C * 2f, 1, 0, 0f);
+
+                // and the fills: a thin slice of PURE METAL per edge, taken from
+                // just inside where the metal starts and stretched over everything
+                // between the display edge and the band. This is the metal the
+                // camera sits in.
+                Piece(root, 12, "fillT", C, DeadT + 2f, W - C * 2f, Strip, 0, 1, 0f);
+                Piece(root, 13, "fillB", C, H - DeadB - 2f - Strip, W - C * 2f, Strip, 0, 0, 0f);
+                Piece(root, 14, "fillL", DeadL + 2f, C, Strip, H - C * 2f, 0, 0, 0f);
+                Piece(root, 15, "fillR", W - DeadR - 2f - Strip, C, Strip, H - C * 2f, 1, 0, 0f);
             }
 
             /// <summary>
@@ -305,23 +342,64 @@ namespace Singularity.Game
                     }
                 }
 
+                // THE BAND KEEPS ITS OWN SCALE AND MOVES; THE FILL DOES THE GROWING.
+                //
+                // `off` is how far in from the display edge the band's metal now
+                // starts: the display's own inset, plus the dead margin the band no
+                // longer draws. The band sits at exactly its authored depth below
+                // that — so its inner edge lands on pad + BandH*K, which is where it
+                // was before any of this, and the opening does not move. The fill
+                // covers everything outside it, and the fill is the only thing that
+                // stretches.
                 for (int i = 8; i <= 9; i++)
                 {
-                    _piece[i].anchorMin = new Vector2(0f, _piece[i].anchorMin.y);
-                    _piece[i].anchorMax = new Vector2(1f, _piece[i].anchorMax.y);
-                    _piece[i].pivot = new Vector2(0.5f, _piece[i].pivot.y);
-                    _piece[i].anchoredPosition = new Vector2((cornerL - cornerR) * 0.5f, 0f);
-                    _piece[i].sizeDelta = new Vector2(-(cornerL + cornerR),
-                                                      BandH * K + (i == 8 ? pt : pb));
+                    bool top = i == 8;
+                    float pad = top ? pt : pb, dead = (top ? DeadT : DeadB) * K;
+                    float off = pad + dead;
+                    Span(_piece[i], true, cornerL, cornerR);
+                    _piece[i].anchoredPosition = new Vector2((cornerL - cornerR) * 0.5f, top ? -off : off);
+                    _piece[i].sizeDelta = new Vector2(-(cornerL + cornerR), BandH * K - dead);
+
+                    Span(_piece[i + 4], true, cornerL, cornerR);
+                    _piece[i + 4].anchoredPosition = new Vector2((cornerL - cornerR) * 0.5f, 0f);
+                    _piece[i + 4].sizeDelta = new Vector2(-(cornerL + cornerR), off);
+                    _piece[i + 4].gameObject.SetActive(off > 0.5f);
                 }
                 for (int i = 10; i <= 11; i++)
                 {
-                    _piece[i].anchorMin = new Vector2(_piece[i].anchorMin.x, 0f);
-                    _piece[i].anchorMax = new Vector2(_piece[i].anchorMax.x, 1f);
-                    _piece[i].pivot = new Vector2(_piece[i].pivot.x, 0.5f);
-                    _piece[i].anchoredPosition = new Vector2(0f, (cornerB - cornerT) * 0.5f);
-                    _piece[i].sizeDelta = new Vector2(SideW * K + (i == 10 ? pl : pr),
-                                                      -(cornerT + cornerB));
+                    bool left = i == 10;
+                    float pad = left ? pl : pr, dead = (left ? DeadL : DeadR) * K;
+                    float off = pad + dead;
+                    Span(_piece[i], false, cornerT, cornerB);
+                    _piece[i].anchoredPosition = new Vector2(left ? off : -off, (cornerB - cornerT) * 0.5f);
+                    _piece[i].sizeDelta = new Vector2(SideW * K - dead, -(cornerT + cornerB));
+
+                    Span(_piece[i + 4], false, cornerT, cornerB);
+                    _piece[i + 4].anchoredPosition = new Vector2(0f, (cornerB - cornerT) * 0.5f);
+                    _piece[i + 4].sizeDelta = new Vector2(off, -(cornerT + cornerB));
+                    _piece[i + 4].gameObject.SetActive(off > 0.5f);
+                }
+            }
+
+            /// <summary>
+            /// Stretch a piece along the edge it belongs to, between the two
+            /// corners at that edge's ends. Horizontal for the two bands, vertical
+            /// for the two rails; the other axis is left to the caller, because
+            /// that is the axis that says how deep the metal is.
+            /// </summary>
+            static void Span(RectTransform rt, bool horizontal, float a, float b)
+            {
+                if (horizontal)
+                {
+                    rt.anchorMin = new Vector2(0f, rt.anchorMin.y);
+                    rt.anchorMax = new Vector2(1f, rt.anchorMax.y);
+                    rt.pivot = new Vector2(0.5f, rt.pivot.y);
+                }
+                else
+                {
+                    rt.anchorMin = new Vector2(rt.anchorMin.x, 0f);
+                    rt.anchorMax = new Vector2(rt.anchorMax.x, 1f);
+                    rt.pivot = new Vector2(rt.pivot.x, 0.5f);
                 }
             }
         }
