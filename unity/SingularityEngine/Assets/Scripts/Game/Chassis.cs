@@ -323,6 +323,27 @@ namespace Singularity.Game
                                     <= Mathf.Max(2f, sh * 0.004f);
 
                     Cut style = Classify(along, ratio, attached);
+
+                    // WHAT THE PHONE ACTUALLY SAID, ONCE PER CUTOUT PER LAYOUT.
+                    //
+                    // The forms are certain; which one a given handset reports is
+                    // not, and one number decides it. Android's cutout rects are
+                    // sometimes tight around the opening and sometimes anchored to
+                    // the edge of the display, and if it is the second then every
+                    // punch-hole in the world reads as `attached` and gets a
+                    // waterdrop's open collar instead of its own closed one.
+                    //
+                    // Nothing here can see a phone, so it asks one. This line is
+                    // the difference between a threshold somebody guessed and a
+                    // threshold somebody measured:
+                    //
+                    //   adb logcat -s Unity:V | grep cutout
+                    Debug.Log(string.Format(
+                        "[Singularity] cutout {0}: {1}x{2} at ({3},{4}) on {5}x{6} — " +
+                        "along {7:0.000} ratio {8:0.00} gap {9:0.0} attached {10} -> {11}",
+                        i, w, h, cut[i].xMin, cut[i].yMin, sw, sh, along, ratio,
+                        Mathf.Min(Mathf.Min(gapT, gapB), Mathf.Min(gapL, gapR)), attached, style));
+
                     if (style == Cut.None) continue;
 
                     Sprite art = Art(style);
