@@ -7,8 +7,8 @@ namespace Singularity.Game
     /// THE MACHINE YOU ARE HOLDING.
     ///
     /// Everything else in this interface is a reading. This is the thing the
-    /// readings are mounted in: a worn gunmetal panel with the screen recessed
-    /// into it, rails down both sides and rivets holding it together.
+    /// readings are mounted in: a salvaged steel case, rusted through at the
+    /// corners, bolted at four points, with the glass sunk into a machined recess.
     ///
     /// It is not decoration, and the argument for it is the same one the aperture
     /// made. The fiction is that you are inside a broken machine looking at its
@@ -17,270 +17,230 @@ namespace Singularity.Game
     /// then that panel was floating on nothing. Chrome with no chassis is a
     /// costume; give it a housing and the same pixels become a device.
     ///
-    /// THREE RULES, AND THEY ARE WHAT KEEP IT HONEST.
+    /// THE ONE IMPORTED ASSET IN THE PROJECT, AND IT IS WORTH SAYING WHY.
+    ///
+    /// Everything else here is generated: the glyphs, the frames, the glow, the
+    /// icon, the sound. That is a real principle and it has paid for itself — a
+    /// game with no assets has nothing to load, nothing to unhook, and nothing in
+    /// a diff that a person cannot read. This is the exception, and the exception
+    /// is honest: the housing went through four generated passes — flat grey,
+    /// corrugated grey, pillowy grey, and a fairly good milled bezel — and not one
+    /// of them was the object in the reference. Rust does not come out of value
+    /// noise. Neither does forty years of somebody else's handling.
+    ///
+    /// So the case is a photograph of the thing it is meant to be, cut to its own
+    /// silhouette, with the glass taken out of the middle. The script that cut it
+    /// and the mock-up it was cut from are both in the repository — see
+    /// unity/tools/chassis — because an asset nobody can regenerate is exactly the
+    /// unreviewable blob this project spent its whole life avoiding.
+    ///
+    /// TWO RULES SURVIVE FROM THE GENERATED VERSION, AND THEY STILL BIND.
     ///
     /// 1. NO TYPE EVER SITS ON THE METAL. The whole access audit is a set of
-    ///    contrast measurements against four dark grounds, and a light grey
-    ///    ground would invalidate every one of them. The metal is a border and a
-    ///    rail; the words live on the screen, which is as dark as it ever was.
+    ///    contrast measurements against four dark grounds, and a rusted steel
+    ///    ground would invalidate every one of them. The metal is a border; the
+    ///    words live on the glass, which is as dark as it ever was. This is now
+    ///    enforced by construction rather than by care: the HUD and every screen
+    ///    are inset to the opening, so there is nowhere on the metal to put a word.
     ///
-    /// 2. IT IS NEVER BEHIND THE BOARD. The canvases are screen-space overlays
-    ///    and draw after the camera, so anything painted across the middle would
-    ///    paint over the cube. The chassis is four strips around the edge and the
-    ///    centre is untouched — a void column is still unrendered space.
-    ///
-    /// 3. THE GREYS ARE MATERIAL, NOT DATA, which is why they are here and not in
-    ///    Palette. That file opens by forbidding a tenth colour, and it is right
-    ///    to: every value in it is a claim about what a thing IS. These are a
-    ///    claim about what the panel is MADE OF, which is a different kind of
-    ///    statement and does not get to sit in the same list.
-    ///
-    /// Generated rather than imported, like every other texture here — the glyphs,
-    /// the frames, the glow, the icon. One 128px tile, seamless by construction,
-    /// and the whole panel is that tile repeated.
+    /// 2. IT IS NEVER BEHIND THE BOARD. The canvases are screen-space overlays and
+    ///    draw after the camera, so anything painted across the middle would paint
+    ///    over the cube. The case is twelve pieces around the edge — eight corner
+    ///    arms and four sides — and the reason it is twelve rather than eight is
+    ///    exactly this rule: a square piece at each corner would be simpler and
+    ///    would hang a transparent quad over four corners of the board. There is
+    ///    no quad over the middle at all, not even a clear one.
     /// </summary>
     public static class Chassis
     {
-        // ---- the material ----------------------------------------------------
-
-        /// <summary>Gunmetal, and the range wear moves it through.</summary>
-        static readonly Color Base = Palette.Hex("#4b515a");
-        static readonly Color Deep = Palette.Hex("#31363d");   // grime, and the shadow in a groove
-        static readonly Color Worn = Palette.Hex("#6f7883");   // rubbed back toward bare metal
-        static readonly Color Lip  = Palette.Hex("#939ba6");   // a scratch, catching the light
-
-        const int Tile = 128;
-
-        static Sprite _metal;
-
-        public static Sprite Metal { get { if (_metal == null) _metal = BuildMetal(); return _metal; } }
-
-        // ---- noise -----------------------------------------------------------
+        // ---- what is in the picture ------------------------------------------
         //
-        // TILEABLE BY CONSTRUCTION, which is the only reason the panel can be one
-        // 128px texture repeated instead of a screen-sized one. The lattice
-        // coordinates are taken modulo the period before they are hashed, so the
-        // value at x = period is the value at x = 0 and the seam has nowhere to
-        // appear. Perlin would not do this: Mathf.PerlinNoise has no period.
+        // Every number below was MEASURED off the asset by the script that made
+        // it, not eyeballed here: unity/tools/chassis/cut.py prints them. They are
+        // in the art's own pixels, and nothing but this file may care about them.
 
-        static float Hash(int x, int y)
-        {
-            uint h = (uint)(x * 374761393 + y * 668265263);
-            h = (h ^ (h >> 13)) * 1274126177u;
-            h ^= h >> 16;
-            return (h & 0xFFFFFFu) / (float)0xFFFFFF;
-        }
+        const float ArtW = 461f, ArtH = 1018f;          // the case, cropped to itself
 
-        static int Wrap(int v, int period) => ((v % period) + period) % period;
+        // display edge to the glass, per side. The case is not symmetrical — the
+        // top and bottom bezels are half again as deep as the sides, and the
+        // bottom is deeper than the top — and pretending otherwise is what would
+        // put a screen's own background over the metal on one edge.
+        const float ArtLeft = 38f, ArtRight = 38f, ArtTop = 60f, ArtBottom = 62f;
 
-        /// <summary>
-        /// A PERIOD PER AXIS, and the reason is a seam.
-        ///
-        /// Brushed metal is noise stretched hard along one axis — a hundred and
-        /// ten across, two along — and a single period cannot describe that. With
-        /// one, the layer wraps on the axis whose scale happens to match it and
-        /// runs off the end of the other, which puts a faint tonal step across
-        /// every tile boundary. It is invisible in a 128px swatch and a row of
-        /// stripes once the panel repeats it five times.
-        /// </summary>
-        static float Value(float x, float y, int px, int py)
-        {
-            int x0 = Mathf.FloorToInt(x), y0 = Mathf.FloorToInt(y);
-            float fx = x - x0, fy = y - y0;
-            fx = fx * fx * (3f - 2f * fx);                  // smoothstep, so the lattice does not show
-            fy = fy * fy * (3f - 2f * fy);
+        // How much of the art a corner piece takes. Both cuts land in a stretch of
+        // edge whose PROFILE IS CONSTANT — past the notch on the top edge, above
+        // the waist on the side — which is the whole trick to a nine-slice that
+        // does not shear: what stretches has to be featureless along the direction
+        // it stretches in.
+        const float ArtCorner = 160f;
 
-            float a = Hash(Wrap(x0, px), Wrap(y0, py));
-            float b = Hash(Wrap(x0 + 1, px), Wrap(y0, py));
-            float c = Hash(Wrap(x0, px), Wrap(y0 + 1, py));
-            float d = Hash(Wrap(x0 + 1, px), Wrap(y0 + 1, py));
-
-            return Mathf.Lerp(Mathf.Lerp(a, b, fx), Mathf.Lerp(c, d, fx), fy);
-        }
-
-        /// <summary>Octaves, each at twice the frequency and half the weight.</summary>
-        static float Fbm(float u, float v, int lowest, int octaves)
-        {
-            float sum = 0f, amp = 1f, norm = 0f;
-            int period = lowest;
-            for (int i = 0; i < octaves; i++)
-            {
-                sum += Value(u * period, v * period, period, period) * amp;
-                norm += amp;
-                amp *= 0.5f;
-                period *= 2;
-            }
-            return sum / norm;
-        }
+        // and how deep each piece has to be to hold all the metal in its stretch.
+        // The arms are wider than the bezel by the opening's corner radius,
+        // because the metal reaches further in where the glass turns the corner.
+        const float ArmW = 58f, ArmH = 80f, SideW = 44f, BandH = 66f;
 
         /// <summary>
-        /// One texel of the panel, and it is PUBLIC so it can be looked at.
+        /// Art pixels to canvas units.
         ///
-        /// The pixel maths is separated from the Texture2D it fills for one
-        /// reason: a texture is the one thing in this project that cannot be
-        /// judged by reading it. So the stub harness calls this — the real
-        /// function, not a copy of it — and writes a PNG, which is how the brush
-        /// frequency and the wear weight were chosen rather than guessed.
-        ///
-        /// It was very nearly a second implementation in another language, which
-        /// is exactly the "two code paths, one truth" the README complains about
-        /// in the web build's two renderers. One path. The preview cannot drift
-        /// from the game because it IS the game.
+        /// FIXED, RATHER THAN "WHATEVER MAKES THE CASE FIT". Scaling the art to
+        /// the display would make the bezel thicker on a tall phone than on a
+        /// short one and the layout underneath it would move, which is a bad trade
+        /// for a housing whose whole job is to be the one thing that never moves.
+        /// At five to four the bezel is the same forty-eight units everywhere and
+        /// the corners are never distorted; the sides absorb the difference, which
+        /// is what sides are for.
         /// </summary>
-        public static Color Texel(int x, int y)
-        {
-            float u = x / (float)Tile, v = y / (float)Tile;
+        const float K = 1.25f;
 
-            // BRUSHED, AND THAT IS THE WHOLE LOOK. A hundred and ten
-            // across against two along: noise stretched that hard stops
-            // being noise and becomes a machined surface. It carries most
-            // of the weight here, and the first two attempts at this file
-            // failed because it did not.
-            float brush = Value(u * 110f, v * 2f, 110, 2) - 0.5f;
+        // ---- what the rest of the interface is allowed to know ----------------
 
-            // a second, coarser pass so the grain is not one frequency
-            float fine = Value(u * 42f, v * 3f, 42, 3) - 0.5f;
+        /// <summary>Display edge to glass, in canvas units. Everything readable lives inside these.</summary>
+        public const float InsetLeft = ArtLeft * K;
+        public const float InsetRight = ArtRight * K;
+        public const float InsetTop = ArtTop * K;
+        public const float InsetBottom = ArtBottom * K;
 
-            // WORN IN PATCHES, BUT QUIETLY. Soft blotches say where the
-            // panel has been handled. Kept low: the tile repeats about
-            // five times across a band, and a strong blotch is the one
-            // feature big enough to make that repeat visible.
-            float wear = Fbm(u, v, 4, 4);
-
-            // and the per-pixel grain that stops any of it looking like a gradient
-            float grain = Hash(x, y) - 0.5f;
-
-            float k = Mathf.Clamp01(0.47f + (wear - 0.5f) * 0.26f
-                                    + brush * 0.38f + fine * 0.14f + grain * 0.06f);
-
-            // Below the midpoint it darkens toward grime; above it, it
-            // rubs back toward bare metal. Two ramps rather than one keeps
-            // the middle — which is most of the panel — near the base
-            // colour instead of washing the whole thing out.
-            Color c = k < 0.5f
-                ? Color.Lerp(Deep, Base, k * 2f)
-                : Color.Lerp(Base, Worn, (k - 0.5f) * 2f);
-
-            // SCRATCHES, RUNNING WITH THE GRAIN. Where another stretched
-            // band crosses a high threshold, lift it toward bare metal.
-            // No line drawing and no bookkeeping, and they wrap because
-            // the noise under them wraps. Across the grain they read as
-            // scanlines, which is worth knowing: the first pass had them
-            // that way round and the panel looked like a CRT.
-            float streak = Value(u * 72f, v * 2f, 72, 2);
-            if (streak > 0.90f) c = Color.Lerp(c, Lip, (streak - 0.90f) / 0.10f * 0.40f);
-
-            return c;
-        }
-
-        /// <summary>The tile, one call to <see cref="Texel"/> per pixel.</summary>
-        public const int TileSize = Tile;
-
-        static Sprite BuildMetal()
-        {
-            var tex = new Texture2D(Tile, Tile, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Repeat,
-                name = "chassis"
-            };
-
-            var px = new Color32[Tile * Tile];
-            for (int y = 0; y < Tile; y++)
-                for (int x = 0; x < Tile; x++)
-                    px[y * Tile + x] = Texel(x, y);
-
-            tex.SetPixels32(px);
-            tex.Apply(false, true);
-
-            // ONE PIXEL PER UNIT, so a tiled Image repeats every 128 canvas units
-            // and the grain is the same size on every panel it is stretched over.
-            return Sprite.Create(tex, new UnityEngine.Rect(0, 0, Tile, Tile), new Vector2(0.5f, 0.5f), 1f);
-        }
+        const float Corner = ArtCorner * K;
 
         // ---- the panel -------------------------------------------------------
 
         /// <summary>
         /// The housing, on its own canvas behind everything.
-        ///
-        /// Four strips and not one plate with a hole in it: the middle has to stay
-        /// genuinely untouched, because the board is drawn by the camera and every
-        /// canvas here is an overlay on top of it. The two rails run the full
-        /// height and the two bands run between them, so the corners are covered
-        /// once and there is no seam to line up.
         /// </summary>
         public static Canvas Build()
         {
             Canvas c = Singularity.UI.UiKit.Canvas("Chassis", 5);
             var root = Singularity.UI.UiKit.Rect(c.transform, "panel",
                                                  Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-
-            float e = Layout.ChassisEdge;
-
-            Strip(root, "railL", new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0), new Vector2(e, 0));
-            Strip(root, "railR", new Vector2(1, 0), new Vector2(1, 1), new Vector2(-e, 0), new Vector2(0, 0));
-            Strip(root, "bandT", new Vector2(0, 1), new Vector2(1, 1), new Vector2(e, -e), new Vector2(-e, 0));
-            Strip(root, "bandB", new Vector2(0, 0), new Vector2(1, 0), new Vector2(e, 0), new Vector2(-e, e));
-
-            // THE RECESS. One dark line all the way round the opening, which is
-            // the shadow the screen sits down into. Without it the metal and the
-            // screen are two flat shapes that happen to be adjacent; with it the
-            // screen is BELOW the metal, and that is the whole illusion.
-            Singularity.UI.UiKit.Panel(root, "recess", new Color(0f, 0f, 0f, 0.85f),
-                                       Vector2.zero, Vector2.one,
-                                       new Vector2(e - 3f, e - 3f), new Vector2(-(e - 3f), -(e - 3f)));
-
-            Rivets(root, e);
+            root.gameObject.AddComponent<Fit>();
             return c;
         }
 
-        static void Strip(RectTransform under, string name,
-                          Vector2 aMin, Vector2 aMax, Vector2 oMin, Vector2 oMax)
-        {
-            RectTransform rt = Singularity.UI.UiKit.Rect(under, name, aMin, aMax, oMin, oMax);
-            var img = rt.gameObject.AddComponent<Image>();
-            img.sprite = Metal;
-            // TILED, NOT STRETCHED. A 128px grain stretched down a 28-unit rail is
-            // a smear; repeated, it is the same metal at the same scale everywhere,
-            // which is what makes the four strips read as one panel.
-            img.type = Image.Type.Tiled;
-            img.color = Color.white;
-            img.raycastTarget = false;
-        }
-
         /// <summary>
-        /// Rivets down both rails. Two quads each — a dark seat and a lit head
-        /// pushed up-left — because a rivet is only ever read as "round thing with
-        /// the light on one side of it", and at this size that is two circles.
+        /// FITTED WHEN THE PANEL'S SIZE IS KNOWN, WHICH IS NEVER IN Awake.
+        ///
+        /// The corners are placed at a fixed size and the four sides take up
+        /// whatever is left, so the pieces have to be laid out against a real
+        /// rect — and they have to be laid out again when it changes: a rotation,
+        /// a fold, a desktop window dragged wider. The anchors do most of the work
+        /// on their own; this exists for the sizes that anchors cannot express and
+        /// to hold the guard for a panel too small to take the corners at all.
         /// </summary>
-        static void Rivets(RectTransform under, float e)
+        class Fit : MonoBehaviour
         {
-            const int Count = 7;
-            float d = Mathf.Min(e * 0.46f, 13f);
+            Texture2D _tex;
+            bool _built;
+            Vector2 _fitted = Vector2.zero;
+            readonly RectTransform[] _piece = new RectTransform[12];
 
-            for (int i = 0; i < Count; i++)
+            void LateUpdate()
             {
-                float t = (i + 0.5f) / Count;
-                Rivet(under, "rvL" + i, new Vector2(0, t), e * 0.5f, d);
-                Rivet(under, "rvR" + i, new Vector2(1, t), -e * 0.5f, d);
+                var rt = (RectTransform)transform;
+                float w = rt.rect.width, h = rt.rect.height;
+                if (w < Corner * 2f + 8f || h < Corner * 2f + 8f) return;
+                if (Mathf.Abs(w - _fitted.x) < 1f && Mathf.Abs(h - _fitted.y) < 1f) return;
+                _fitted = new Vector2(w, h);
+
+                if (!_built) { Compose(rt); _built = true; }
+                Stretch();
             }
-        }
 
-        static void Rivet(RectTransform under, string name, Vector2 anchor, float x, float d)
-        {
-            void Disc(string n, Color col, float dx, float dy, float size)
+            /// <summary>
+            /// The twelve windows onto the case, once.
+            ///
+            /// Each is a sub-rectangle of the ONE texture, which is why the seams
+            /// between them cannot show: a sprite cut from the middle of a texture
+            /// still filters against its neighbours' texels, so two pieces that are
+            /// adjacent in the art and adjacent on the screen are continuous
+            /// without a single pixel of overlap to hide the join.
+            /// </summary>
+            void Compose(RectTransform root)
             {
-                RectTransform rt = Singularity.UI.UiKit.Rect(under, n, anchor, anchor, Vector2.zero, Vector2.zero);
-                rt.sizeDelta = new Vector2(size, size);
-                rt.anchoredPosition = new Vector2(x + dx, dy);
+                _tex = Resources.Load<Texture2D>("chassis");
+                if (_tex == null)
+                {
+                    Debug.LogWarning("Chassis: Resources/chassis.png is missing; the case will not be drawn.");
+                    return;
+                }
+
+                const float Aw = ArmW, Ah = ArmH, Sw = SideW, Bh = BandH, C = ArtCorner;
+                const float W = ArtW, H = ArtH;
+
+                // top left, and then the same L three more times. The vertical arm
+                // runs the full depth of the corner; the horizontal arm takes the
+                // rest of the top, so between them they cover every lit texel of
+                // the corner and none of the board.
+                Piece(root, 0, "tl_v", 0f, 0f, Aw, C, 0, 1, 0f);
+                Piece(root, 1, "tl_h", Aw, 0f, C - Aw, Ah, 0, 1, Aw * K);
+                Piece(root, 2, "tr_v", W - Aw, 0f, Aw, C, 1, 1, 0f);
+                Piece(root, 3, "tr_h", W - C, 0f, C - Aw, Ah, 1, 1, -Aw * K);
+                Piece(root, 4, "bl_v", 0f, H - C, Aw, C, 0, 0, 0f);
+                Piece(root, 5, "bl_h", Aw, H - Ah, C - Aw, Ah, 0, 0, Aw * K);
+                Piece(root, 6, "br_v", W - Aw, H - C, Aw, C, 1, 0, 0f);
+                Piece(root, 7, "br_h", W - C, H - Ah, C - Aw, Ah, 1, 0, -Aw * K);
+
+                // and the four sides, which are the only pieces that stretch
+                Piece(root, 8, "bandT", C, 0f, W - C * 2f, Bh, 0, 1, 0f);
+                Piece(root, 9, "bandB", C, H - Bh, W - C * 2f, Bh, 0, 0, 0f);
+                Piece(root, 10, "railL", 0f, C, Sw, H - C * 2f, 0, 0, 0f);
+                Piece(root, 11, "railR", W - Sw, C, Sw, H - C * 2f, 1, 0, 0f);
+            }
+
+            /// <summary>
+            /// One window. <paramref name="ax"/> and <paramref name="ay"/> say
+            /// which corner of the panel it hangs off, and the piece is pivoted on
+            /// that same corner so <paramref name="ox"/> is simply how far along
+            /// that edge it starts. The source rectangle is in the art's pixels
+            /// with y measured DOWN from the top, because that is how the picture
+            /// was measured and Sprite.Create is the only place that has to know
+            /// Unity counts the other way.
+            /// </summary>
+            void Piece(RectTransform root, int i, string name,
+                       float sx, float sy, float sw, float sh,
+                       int ax, int ay, float ox)
+            {
+                var rect = new UnityEngine.Rect(sx, ArtH - sy - sh, sw, sh);
+                RectTransform rt = Singularity.UI.UiKit.Rect(root, name,
+                                                             new Vector2(ax, ay), new Vector2(ax, ay),
+                                                             Vector2.zero, Vector2.zero);
+                rt.pivot = new Vector2(ax, ay);
+                rt.anchoredPosition = new Vector2(ox, 0f);
+                rt.sizeDelta = new Vector2(sw * K, sh * K);
+
                 var img = rt.gameObject.AddComponent<Image>();
-                img.sprite = Singularity.UI.UiKit.Disc;
-                img.color = col;
+                img.sprite = Sprite.Create(_tex, rect, new Vector2(0.5f, 0.5f), 1f);
+                img.type = Image.Type.Simple;
+                img.color = Color.white;
                 img.raycastTarget = false;
+                _piece[i] = rt;
             }
 
-            Disc(name + "s", new Color(0f, 0f, 0f, 0.62f), 0f, -1f, d);
-            Disc(name + "h", new Color(Lip.r, Lip.g, Lip.b, 0.85f), 0f, 0.5f, d * 0.72f);
+            /// <summary>
+            /// The four sides take whatever the corners left. Nothing else moves:
+            /// the eight arms are anchored to their own corner at a fixed size, so
+            /// a resize is four numbers.
+            /// </summary>
+            void Stretch()
+            {
+                if (_piece[8] == null) return;
+
+                for (int i = 8; i <= 9; i++)
+                {
+                    _piece[i].anchorMin = new Vector2(0f, _piece[i].anchorMin.y);
+                    _piece[i].anchorMax = new Vector2(1f, _piece[i].anchorMax.y);
+                    _piece[i].pivot = new Vector2(0.5f, _piece[i].pivot.y);
+                    _piece[i].anchoredPosition = new Vector2(0f, _piece[i].anchoredPosition.y);
+                    _piece[i].sizeDelta = new Vector2(-Corner * 2f, _piece[i].sizeDelta.y);
+                }
+                for (int i = 10; i <= 11; i++)
+                {
+                    _piece[i].anchorMin = new Vector2(_piece[i].anchorMin.x, 0f);
+                    _piece[i].anchorMax = new Vector2(_piece[i].anchorMax.x, 1f);
+                    _piece[i].pivot = new Vector2(_piece[i].pivot.x, 0.5f);
+                    _piece[i].anchoredPosition = new Vector2(_piece[i].anchoredPosition.x, 0f);
+                    _piece[i].sizeDelta = new Vector2(_piece[i].sizeDelta.x, -Corner * 2f);
+                }
+            }
         }
     }
 }

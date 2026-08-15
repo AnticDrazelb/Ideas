@@ -115,11 +115,28 @@ namespace UnityEditor
         public void SaveAndReimport() { }
     }
 
+    public enum TextureImporterNPOTScale { None, ToNearest, ToLarger, ToSmaller }
+
+    public enum TextureImporterCompression { Uncompressed, Compressed, CompressedHQ, CompressedLQ }
+
     public class TextureImporter : AssetImporter
     {
         public TextureImporterType textureType { get; set; }
+        public TextureImporterNPOTScale npotScale { get; set; }
+        public TextureImporterCompression textureCompression { get; set; }
         public bool mipmapEnabled { get; set; }
         public bool alphaIsTransparency { get; set; }
+        public bool isReadable { get; set; }
+        public int maxTextureSize { get; set; }
+        public UnityEngine.TextureWrapMode wrapMode { get; set; }
+        public UnityEngine.FilterMode filterMode { get; set; }
+    }
+
+    /// <summary>The import hook itself. Only the two members Chassis's importer uses.</summary>
+    public class AssetPostprocessor
+    {
+        public string assetPath { get; }
+        public AssetImporter assetImporter { get; }
     }
 
     [Flags] public enum ImportAssetOptions { Default = 0, ForceUpdate = 1, ForceSynchronousImport = 8 }

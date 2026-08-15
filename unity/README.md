@@ -410,29 +410,50 @@ heights, the Calibrate row rhythm, and the manual's gutters.
 Two elements are here that are not in the shipped build. They are listed rather
 than smuggled.
 
-**The chassis.** A worn gunmetal panel with the screen recessed into it, rails
-down both sides and rivets holding it together — `Assets/Scripts/Game/Chassis.cs`.
-The fiction is that you are inside a broken machine reading its diagnostics, and
-every screen already looked like an instrument panel; it was just an instrument
-panel floating on nothing. Chrome with no chassis is a costume.
+**The chassis.** A salvaged steel case, rusted through at the corners and bolted
+at four points, with the glass sunk into a machined recess —
+`Assets/Scripts/Game/Chassis.cs`. The fiction is that you are inside a broken
+machine reading its diagnostics, and every screen already looked like an
+instrument panel; it was just an instrument panel floating on nothing. Chrome
+with no chassis is a costume.
 
-Three rules keep it honest, and all three are load-bearing:
+Two rules keep it honest, and both are load-bearing:
 
 - **No type ever sits on the metal.** The whole access audit is contrast measured
-  against four dark grounds, and a light grey ground would invalidate every pair
-  in it. The metal is a border and a rail; the words stay on the screen.
+  against four dark grounds, and a rusted steel ground would invalidate every
+  pair in it. This is now true by construction rather than by care: the HUD's
+  root and every screen's plate are inset to the opening, so there is nowhere on
+  the metal that a word *can* go.
 - **It is never behind the board.** The canvases are screen-space overlays and
   draw after the camera, so anything painted across the middle paints over the
-  cube. It is four strips around the edge and the centre is untouched.
-- **The greys live in `Chassis`, not `Palette`.** That file opens by forbidding a
-  tenth colour and it is right to — every value in it is a claim about what a
-  thing IS. These are a claim about what the panel is MADE OF, which is a
-  different kind of statement.
+  cube. The case is twelve pieces — eight corner arms and four sides — and the
+  reason it is twelve rather than eight is exactly this: a square piece at each
+  corner would be simpler and would hang a clear quad over four corners of the
+  board. There is no quad over the middle at all.
 
-Generated, like every other texture here: one 128px tile, seamless by
-construction, repeated. The pixel maths is a separate method from the texture it
-fills so the harness can render it — `dotnet run --project unity/tools/UnityStubs
--- preview .` writes it three-by-three, which is the only way a seam shows.
+**It is the one imported asset in the project, and that is a real exception to a
+real principle.** Everything else here is generated — glyphs, frames, glow, icon,
+sound — and that has paid for itself many times over. The housing went through
+four generated passes: flat grey, corrugated grey, pillowy grey, and a genuinely
+decent milled bezel. None of them was the object in the reference, and the reason
+is not effort. Rust does not come out of value noise, and neither does forty
+years of somebody else's handling.
+
+So the case is a photograph, cut to its own silhouette with the glass taken out
+of the middle. The script that cut it and the render it was cut from are both in
+`unity/tools/chassis`, because an asset nobody can regenerate is exactly the
+unreviewable blob this project has spent its life avoiding. Its import settings
+are code too — `Assets/Scripts/Editor/ChassisImport.cs` — for the same reason
+there is no `ProjectSettings.asset`, and because Unity's default for a texture
+this shape is to resample it to the nearest power of two, which would move every
+measurement the layout is built on.
+
+**The bezel is four numbers, not one.** The real object is deeper at the top and
+bottom than at the sides, and deeper at the bottom than at the top. `Chassis`
+publishes the four insets, `Layout` forwards them, and the HUD, the aperture,
+the board rect and every screen's plate are inset by them individually. A single
+averaged number put the metal over the plate on two edges and left a band of it
+showing on the other two.
 
 **The aperture** — a rounded stroke around the rectangle `Layout` reserves for
 the board, in the same `--edge` rust as every control.

@@ -51,8 +51,8 @@ namespace Singularity.Game
             _input = new InputRouter(S, View, Rig.cam) { Sfx = _sfx };
 
             // THE HOUSING FIRST, so everything after it is mounted IN something.
-            // Order 5, behind the HUD's 10 and the screens' 20, and it is four
-            // strips around the edge rather than a plate — see Chassis.
+            // Order 5, behind the HUD's 10 and the screens' 20, and it is twelve
+            // pieces around the edge rather than a plate — see Chassis.
             Chassis.Build();
 
             Hud = Hud.Build(this);

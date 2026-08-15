@@ -56,7 +56,22 @@ namespace Singularity.UI
             // which would spend the whole flash budget before anything happened
             for (int i = 0; i < _flashAt.Length; i++) _flashAt[i] = -9f;
 
-            _root = UiKit.Rect(_canvas.transform, "root", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            // THE READOUT IS ON THE GLASS, AND THIS ONE LINE IS WHAT PUTS IT
+            // THERE.
+            //
+            // The root used to be the whole display, which was survivable while
+            // the housing was a twenty-eight unit border and wrong the whole time:
+            // the chips are anchored to the top of this rect, so their upper edge
+            // was under the bezel and the fold arrows were hard against it. With a
+            // real case in front of them they would have been half swallowed.
+            //
+            // Insetting HERE rather than in each control is also what keeps rule
+            // one of the chassis true by construction — there is no longer
+            // anywhere in this file that a word CAN be put on the metal, so it
+            // cannot be done by accident later.
+            _root = UiKit.Rect(_canvas.transform, "root", Vector2.zero, Vector2.one,
+                               new Vector2(Layout.ChassisLeft, Layout.ChassisBottom),
+                               new Vector2(-Layout.ChassisRight, -Layout.ChassisTop));
 
             // ---- the flash and the vignette sit under everything -------------
             _flash = UiKit.Panel(_root, "flash", new Color(0, 0, 0, 0), Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -84,9 +99,12 @@ namespace Singularity.UI
             // cube. And the void inside it stays void: a cell that is not there is
             // still unrendered space, which is the one thing this game will not
             // decorate.
+            // sixteen units in from the glass, and the bands are already measured
+            // from it — this rect is a child of a root that is inset by the case,
+            // so nothing here counts the bezel a second time
             _aperture = UiKit.Rect(_root, "aperture", new Vector2(0, 0), new Vector2(1, 1),
-                                   new Vector2(Layout.ChassisEdge + 16f, Layout.BottomBand + 10f),
-                                   new Vector2(-(Layout.ChassisEdge + 16f), -(Layout.TopBand + 10f)));
+                                   new Vector2(16f, Layout.BottomBand + 10f),
+                                   new Vector2(-16f, -(Layout.TopBand + 10f)));
             var apEdge = _aperture.gameObject.AddComponent<Image>();
             apEdge.sprite = UiKit.RoundLine;
             apEdge.type = Image.Type.Sliced;

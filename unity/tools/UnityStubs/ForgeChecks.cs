@@ -174,15 +174,12 @@ public static class ForgeChecks
 
     public static void Main(string[] args)
     {
-        // `preview` writes a PNG of a generated texture instead of running the
-        // checks — see Preview. It is a separate verb rather than an extra
-        // output because the checks are what CI runs, and CI has no use for a
-        // picture nobody is going to look at.
-        if (args.Length > 0 && args[0] == "preview")
-        {
-            Preview.Run(args.Length > 1 ? args[1] : ".");
-            return;
-        }
+        // There was a `preview` verb here that rendered the chassis texture to a
+        // PNG, because a generated texture is the one thing in this project that
+        // cannot be judged by reading it. The chassis is a photograph now — see
+        // unity/tools/chassis — so there is nothing left to render and the honest
+        // move is to delete the harness rather than leave it printing a picture
+        // of something the game no longer draws.
         Environment.ExitCode = Run();
     }
 }

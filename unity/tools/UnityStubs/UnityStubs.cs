@@ -432,6 +432,7 @@ namespace UnityEngine
     public static class Resources
     {
         public static T GetBuiltinResource<T>(string path) where T : Object => null;
+        public static T Load<T>(string path) where T : Object => null;
     }
 
     public static class Time

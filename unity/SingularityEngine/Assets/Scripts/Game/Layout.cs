@@ -63,20 +63,31 @@ namespace Singularity.Game
         public const float TopBand = 162f, BottomBand = 128f;
 
         /// <summary>
-        /// How much of every edge the housing takes. See <see cref="Chassis"/>.
+        /// THE HOUSING IS NOT ONE NUMBER ANY MORE.
         ///
-        /// It is a border rather than a background, so this is the entire cost of
-        /// it: everything the player reads is inset by this much, and the board
-        /// gets whatever is left after the bands as it always did. Twenty-eight
-        /// units is fourteen CSS pixels at this canvas's two-to-one — enough to
-        /// carry a rivet and read as a rail, small enough that no screen had to
-        /// be re-laid out around it.
+        /// It was, while it was drawn: a border you could make as thick as you
+        /// liked and the same on all four sides. The case is a photograph of a
+        /// real object now, and that object's bezel is half again as deep at the
+        /// top and bottom as it is at the sides — so there are four numbers, and
+        /// they live in <see cref="Chassis"/> because they are measurements OF THE
+        /// ART. This is only the seam: it is where the rest of the interface asks
+        /// "how much of the edge is not mine", and nothing outside these two files
+        /// needs to know that the answer came out of a picture.
         /// </summary>
-        public const float ChassisEdge = 28f;
+        public static float ChassisLeft => Chassis.InsetLeft;
+        public static float ChassisRight => Chassis.InsetRight;
+        public static float ChassisTop => Chassis.InsetTop;
+        public static float ChassisBottom => Chassis.InsetBottom;
 
         /// <summary>
         /// The rectangle left for the board, in pixels, after the safe area, the
-        /// overscan and the two HUD bands.
+        /// overscan, the housing and the two HUD bands.
+        ///
+        /// THE BANDS ARE MEASURED FROM THE GLASS, not from the display. They are
+        /// the space the HUD occupies, the HUD is inset into the opening, and a
+        /// band measured from the display edge would have counted the bezel twice
+        /// — which is how the cube ends up sitting a bezel's width higher than the
+        /// aperture drawn around it.
         /// </summary>
         public static Rect BoardRect()
         {
@@ -88,13 +99,15 @@ namespace Singularity.Game
             float scale = Mathf.Min(Screen.width / RefWidth, Screen.height / RefHeight);
             if (scale <= 0f) scale = 1f;
 
-            float top = TopBand * scale + ov;
-            float bottom = BottomBand * scale + ov;
+            float top = (TopBand + ChassisTop) * scale + ov;
+            float bottom = (BottomBand + ChassisBottom) * scale + ov;
+            float left = ChassisLeft * scale + ov;
+            float right = ChassisRight * scale + ov;
 
             return new Rect(
-                safe.xMin + ov,
+                safe.xMin + left,
                 safe.yMin + bottom,
-                Mathf.Max(1f, safe.width - ov * 2f),
+                Mathf.Max(1f, safe.width - left - right),
                 Mathf.Max(1f, safe.height - top - bottom));
         }
     }

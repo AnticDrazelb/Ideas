@@ -54,6 +54,11 @@ namespace Singularity.UI
         /// itself inside the housing without one of them having to know that the
         /// housing exists. Their anchors are all relative and they were already
         /// inset by twenty-eight or more; nothing had to be re-laid out.
+        ///
+        /// FOUR INSETS RATHER THAN ONE, because the case is a real object and its
+        /// bezel is deeper at the top and bottom than at the sides. A single
+        /// number here put the plate's own corner radius over the metal on two
+        /// edges and left a band of it showing on the other two.
         /// </summary>
         internal static RectTransform Layer(string id)
         {
@@ -65,9 +70,9 @@ namespace Singularity.UI
             rt.gameObject.AddComponent<CanvasGroup>();
             Layers[id] = rt.gameObject;
 
-            float e = Layout.ChassisEdge;
             RectTransform plate = UiKit.Rect(rt, "plate", Vector2.zero, Vector2.one,
-                                             new Vector2(e, e), new Vector2(-e, -e));
+                                             new Vector2(Layout.ChassisLeft, Layout.ChassisBottom),
+                                             new Vector2(-Layout.ChassisRight, -Layout.ChassisTop));
             var bg = plate.gameObject.AddComponent<Image>();
             bg.sprite = UiKit.RoundFill;
             bg.type = Image.Type.Sliced;

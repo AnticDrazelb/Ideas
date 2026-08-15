@@ -15,7 +15,6 @@
     <Compile Include="UnityEditorStubs.cs" />
     <Compile Include="ForgeChecks.cs" />
     <Compile Include="AccessChecks.cs" />
-    <Compile Include="Preview.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Game/**/*.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Editor/**/*.cs" />
