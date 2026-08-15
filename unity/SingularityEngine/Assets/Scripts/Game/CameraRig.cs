@@ -24,6 +24,11 @@ namespace Singularity.Game
         float _baseSize = 4f;
         Vector2 _baseOffset;
 
+        // how far out the camera has had to pull to keep the solid in its window,
+        // and how big the solid is when it is square to us
+        float _room = 1f;
+        int _boardN;
+
         /// <summary>
         /// EVERY IMPULSE IN THIS FILE GOES THROUGH ONE NUMBER, and at STILL that
         /// number is zero — not forty per cent, which is what it used to bottom
@@ -80,6 +85,16 @@ namespace Singularity.Game
 
             // the cube needs this many world units across, allowing for the fact
             // that a cube mid-fold is wider than its face
+            _boardN = n;
+
+            // THE MARGIN'S JOB CHANGED. It was here to leave room for a cube
+            // mid-fold, and it never had enough — a fold is root two wide and this
+            // is 1.28, so the solid left the aperture on every horizontal swipe.
+            // Room() contains it exactly now, which means this number no longer
+            // decides whether the cube CLIPS. What it decides is how often the
+            // camera has to move: at 1.28 a forty-five degree fold costs a twenty
+            // per cent pull-out and everything else costs nothing. Tighter is a
+            // bigger board and a busier camera; that is the whole trade.
             float need = n * margin;
             float shorter = Mathf.Max(1f, Mathf.Min(board.width, board.height));
 
@@ -112,7 +127,66 @@ namespace Singularity.Game
             _sqT = 0f;
         }
 
-        public void Tick(float dt, Transform cube)
+        /// <summary>
+        /// KEEP THE SOLID INSIDE ITS OWN WINDOW.
+        ///
+        /// A cube square to the camera is n across. The same cube turned forty-five
+        /// degrees is n times root two, and corner-on it is n times root three — so
+        /// a board fitted to the aperture at rest is half again too big for it the
+        /// moment a fold starts, and the thing runs out through the frame that is
+        /// supposed to be the edge of the window. It did.
+        ///
+        /// The fix is not a bigger margin. Reserving the worst case permanently
+        /// costs thirty per cent of the board at rest, every second of play, to
+        /// pay for a shape that exists for half of one animation — and it would
+        /// still be wrong for the matrix, which the player can hold at any angle
+        /// they like.
+        ///
+        /// So the camera measures. The cube's whole transform rotates, so its
+        /// on-screen extent is the rotated axis-aligned box of a known solid: three
+        /// dot products, exact, no bounds query and no guessing. The size needed to
+        /// contain that inside the aperture is arithmetic, and the camera takes
+        /// whichever is larger, that or the resting fit.
+        ///
+        /// OUT AT ONCE AND BACK SLOWLY. Easing outward would let the corner clip
+        /// for the two frames the ease takes, which is the whole bug; the extent it
+        /// is tracking is already a smooth function of the fold, so snapping to it
+        /// IS smooth. Coming back is eased, because a camera that returns as fast
+        /// as it left reads as a bounce.
+        ///
+        /// It is not gated on the motion setting, and that is deliberate. This is
+        /// not an impulse on top of the picture, it is the framing of the picture:
+        /// STILL turns off shake, kick, punch and the bent clock, and a player who
+        /// asked for those to stop did not ask for the cube to leave the screen.
+        /// </summary>
+        float Room(float dt, Transform cube, bool contain)
+        {
+            float want = 1f;
+
+            if (contain && cube != null && _boardN > 1 && _baseSize > 0.0001f)
+            {
+                Quaternion r = cube.rotation;
+                Vector3 rx = r * Vector3.right, ry = r * Vector3.up, rz = r * Vector3.forward;
+
+                // half the solid, plus a hair so it never sits ON the stroke
+                float e = _boardN * 0.5f * 1.04f;
+                float ex = e * (Mathf.Abs(rx.x) + Mathf.Abs(ry.x) + Mathf.Abs(rz.x));
+                float ey = e * (Mathf.Abs(rx.y) + Mathf.Abs(ry.y) + Mathf.Abs(rz.y));
+
+                Rect ap = Layout.ApertureRect();
+                float screenH = Mathf.Max(1f, Screen.height);
+
+                // orthographicSize is half the world height of the WHOLE screen, so
+                // the aperture only sees the fraction of it that it covers
+                float need = Mathf.Max(ex * screenH / ap.width, ey * screenH / ap.height);
+                want = Mathf.Max(1f, need / _baseSize);
+            }
+
+            _room = want > _room ? want : Mathf.MoveTowards(_room, want, dt * 1.1f);
+            return _room;
+        }
+
+        public void Tick(float dt, Transform cube, bool contain = true)
         {
             _trauma = Mathf.Max(0f, _trauma - dt * 2.4f);
             _punch = Mathf.MoveTowards(_punch, 0f, dt * 0.42f);
@@ -129,7 +203,7 @@ namespace Singularity.Game
                 _baseOffset.x + sx + _kickX * _kickDecay,
                 _baseOffset.y + sy + _kickY * _kickDecay,
                 -40f);
-            cam.orthographicSize = _baseSize * (1f - _punch);
+            cam.orthographicSize = _baseSize * Room(dt, cube, contain) * (1f - _punch);
 
             if (cube != null)
             {

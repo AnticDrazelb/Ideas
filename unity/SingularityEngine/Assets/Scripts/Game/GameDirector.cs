@@ -539,7 +539,9 @@ namespace Singularity.Game
                 _fx.Tick(ms / 1000f);
             }
 
-            Rig.Tick(dt, View.cube);
+            // the attract cube spins free behind the title and has no window to
+            // stay inside, so it is the one board the camera does not frame
+            Rig.Tick(dt, View.cube, !View.attract);
             Filter.Refresh();
             Glow.Refresh();
 

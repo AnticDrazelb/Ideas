@@ -115,8 +115,8 @@ namespace Singularity.UI
             // from it — this rect is a child of a root that is inset by the case,
             // so nothing here counts the bezel a second time
             _aperture = UiKit.Rect(_root, "aperture", new Vector2(0, 0), new Vector2(1, 1),
-                                   new Vector2(16f, Layout.BottomBand + 10f),
-                                   new Vector2(-16f, -(Layout.TopBand + 10f)));
+                                   new Vector2(Layout.ApertureX, Layout.BottomBand + Layout.ApertureY),
+                                   new Vector2(-Layout.ApertureX, -(Layout.TopBand + Layout.ApertureY)));
             var apEdge = _aperture.gameObject.AddComponent<Image>();
             apEdge.sprite = UiKit.RoundLine;
             apEdge.type = Image.Type.Sliced;

@@ -98,6 +98,30 @@ namespace Singularity.Game
         public static float PlateHeight => RefHeight - ChassisTop - ChassisBottom;
 
         /// <summary>
+        /// THE APERTURE — the window the board is framed in, and now the rect the
+        /// board has to stay INSIDE.
+        ///
+        /// These two numbers were literals in Hud, where they drew a stroke, and
+        /// the camera had never heard of them: it fitted the cube to the whole
+        /// board rect, so the moment a fold turned the solid past square it grew
+        /// wider than its own frame and crossed the line that is supposed to be
+        /// the edge of the window. One definition, two consumers — the stroke and
+        /// the camera cannot disagree about where the window is.
+        /// </summary>
+        public const float ApertureX = 16f, ApertureY = 10f;
+
+        public static Rect ApertureRect()
+        {
+            Rect b = BoardRect();
+            float s = Mathf.Min(Screen.width / RefWidth, Screen.height / RefHeight);
+            if (s <= 0f) s = 1f;
+            float ix = ApertureX * s, iy = ApertureY * s;
+            return new Rect(b.xMin + ix, b.yMin + iy,
+                            Mathf.Max(1f, b.width - ix * 2f),
+                            Mathf.Max(1f, b.height - iy * 2f));
+        }
+
+        /// <summary>
         /// The rectangle left for the board, in pixels, after the safe area, the
         /// overscan, the housing and the two HUD bands.
         ///
