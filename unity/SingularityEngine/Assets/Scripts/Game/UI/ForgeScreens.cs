@@ -32,6 +32,9 @@ namespace Singularity.UI
         static InputField _nameField;
         static Button _sizeBtn, _deleteBtn, _verifyBtn, _saveBtn;
 
+        /// <summary>Which cube DELETE is currently armed for. Cleared by leaving the screen.</summary>
+        static string _armedDelete;
+
         public static void Build(GameDirector dir)
         {
             _dir = dir;
@@ -81,7 +84,11 @@ namespace Singularity.UI
                                            new Vector2(50, 96), new Vector2(-50, 178));
             RectTransform mk = UiKit.Rect(bot, "mk", new Vector2(0, 0), new Vector2(0.5f, 1),
                                           Vector2.zero, new Vector2(-7, 0));
-            UiKit.Bracketed(mk, "NEW CUBE", "NEW CUBE", () => OpenEditor(Forge.New()), 24, true);
+            // RESUME, NOT NEW. The editor mirrors itself into a draft after every
+            // change, so the cube somebody was halfway through when Android
+            // reclaimed the app is still there. A button that says NEW CUBE and
+            // silently bins twenty minutes of work is the worst kind.
+            UiKit.Bracketed(mk, "NEW CUBE", "NEW CUBE", () => OpenEditor(Forge.Resume()), 24, true);
             RectTransform bk = UiKit.Rect(bot, "bk", new Vector2(0.5f, 0), Vector2.one,
                                           new Vector2(7, 0), Vector2.zero);
             UiKit.Bracketed(bk, "BACK", "BACK", Screens.Back, 24);
@@ -89,6 +96,7 @@ namespace Singularity.UI
 
         public static void OpenShelf()
         {
+            _armedDelete = null;
             PaintShelf();
             Screens.Show("forge");
         }
@@ -209,6 +217,13 @@ namespace Singularity.UI
             _nameField = UiKit.Field(nameRow, "name", "NAME THIS CUBE",
                                      new Vector2(0, 0), new Vector2(0.72f, 1), Vector2.zero, new Vector2(-8, 0));
             _nameField.characterLimit = 18;
+            _nameField.onEndEdit.AddListener(v =>
+            {
+                if (_ed == null) return;
+                _ed.name = Forge.CleanName(v);
+                _nameField.text = _ed.name;
+                _ed.SaveDraft();
+            });
             RectTransform sizeSlot = UiKit.Rect(nameRow, "sizeSlot", new Vector2(0.72f, 0), Vector2.one, Vector2.zero, Vector2.zero);
             _sizeBtn = UiKit.Bracketed(sizeSlot, "size", "5", CycleSize, 24);
 
@@ -244,11 +259,30 @@ namespace Singularity.UI
             Third(three, 2, "MENU", Screens.ShowTitle);
 
             RectTransform del = Band("del", 56);
+            // DELETING IS THE ONE THING IN THE FORGE THAT CANNOT BE UNDONE.
+            //
+            // There is no bin and no undo: once the cube is gone the only copy
+            // left is whatever share code somebody happened to keep. It went in
+            // one tap, on a button a thumb passes on the way to BACK. So it takes
+            // two, it names what it is about to destroy, and leaving the screen
+            // disarms it.
             _deleteBtn = UiKit.Bracketed(del, "delete", "DELETE THIS CUBE", () =>
             {
+                if (_ed == null || _ed.from == null) return;
+                if (_armedDelete != _ed.from)
+                {
+                    _armedDelete = _ed.from;
+                    MadeCube rec = Store.Made(_ed.from);
+                    Status("TAP AGAIN TO DELETE " + (rec != null && !string.IsNullOrEmpty(rec.name)
+                                                     ? rec.name : "UNTITLED") + ". THIS CANNOT BE UNDONE.", true);
+                    return;
+                }
+                _armedDelete = null;
                 _ed.Delete();
-                Status("DELETED", false);
+                _ed = null;
                 OpenShelf();
+                _shelfMsg.text = "DELETED";
+                _shelfMsg.color = Palette.Dim;
             }, 22);
         }
 
@@ -261,6 +295,7 @@ namespace Singularity.UI
 
         public static void OpenEditor(Forge f)
         {
+            _armedDelete = null;
             _ed = f;
             _nameField.text = f.name ?? "";
             UiKit.SetLabel(_sizeBtn, f.n.ToString());
@@ -347,24 +382,70 @@ namespace Singularity.UI
                     char c = _ed.vox[Level.Vidx(n, x, _ed.layer, z)];
                     char mark = _ed.MarkAt(new Int3(x, _ed.layer, z));
 
-                    Color col = c == '+' ? Palette.TraceLo
-                              : c == '#' ? Palette.Grid
-                              : Level.IsGlyph(c) ? Palette.Rust * 0.5f
-                              : Palette.Void3;
+                    // A CELL CARRIES ITS MATERIAL AS A FILL AND ITS EDGE AS A RING,
+                    // and the ring is not decoration — it is the whole reason you
+                    // can see what you just did.
+                    //
+                    // These were flat fills with no edge at all, and the step from
+                    // an empty cell to a laid trace was Void3 to TraceLo: a
+                    // contrast ratio of 2.03, on a phone, under a bezel. Tapping a
+                    // cell looked like it had done nothing, which is exactly what
+                    // a player reports as "the editor is broken". With the ring the
+                    // same tap is a 8.96 step, because the ring is the bright
+                    // colour and the fill stays dark.
+                    //
+                    // The two plates were also the same colour as each other, so
+                    // the one pair of tools whose whole point is that they are
+                    // OPPOSITES drew identical cells.
+                    Color fill = c == '#' ? Palette.Grid
+                               : Level.IsWalkType(c) ? Palette.TraceLo
+                               : Palette.Void2;
+                    Color ring = c == '#' ? Palette.GridHi
+                               : c == 'A' ? Palette.Arc
+                               : c == 'B' ? Palette.Rust
+                               : c == '+' ? Palette.Trace
+                               : Palette.Inert;
 
-                    var img = slot.gameObject.AddComponent<Image>();
-                    img.color = col;
+                    // AND THE RING IS THE FACE.
+                    //
+                    // The cube is viewed along z, so the frontmost solid in each
+                    // column is the only one the cube actually shows — and the
+                    // cell that hides another is not on the deck above, it is the
+                    // one further up THIS grid, in plain sight. Nothing said so,
+                    // which is why START IS BURIED was the commonest refusal in
+                    // the editor by a distance: more than half of four hundred
+                    // plausible cubes, on a rule the player had no way to see.
+                    //
+                    // A cell behind another keeps its material and loses its ring.
+                    // The lit rings are the faces, and a start goes on a face.
+                    if (!_ed.OnFace(x, z)) ring = Palette.Dim2;
+
+                    Image img = UiKit.Framed(slot, fill, ring);
                     var btn = slot.gameObject.AddComponent<Button>();
                     btn.targetGraphic = img;
 
+                    // A MARK IS A CHIP WITH A LETTER IN IT, and it is a different
+                    // SHAPE for each role. Colour still carries what it carries
+                    // everywhere else in this game, but it is no longer the only
+                    // thing carrying it — which is the same reason the board prints
+                    // depth on request, and it is what makes the deck readable
+                    // without colour vision.
                     if (mark != '\0')
-                        UiKit.Label(slot, "m", mark.ToString(), 22,
-                                    mark == 'S' ? Palette.Arc : mark == 'E' ? Palette.Core
-                                    : mark == 'N' ? Palette.Node : Palette.Lock,
-                                    TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-                    else if (Level.IsGlyph(c))
-                        UiKit.Label(slot, "g", c.ToString(), 20, Palette.RustHi, TextAnchor.MiddleCenter,
+                    {
+                        RectTransform chip = UiKit.Rect(slot, "m", new Vector2(0.23f, 0.23f),
+                                                        new Vector2(0.77f, 0.77f), Vector2.zero, Vector2.zero);
+                        var ci = chip.gameObject.AddComponent<Image>();
+                        ci.raycastTarget = false;
+                        ci.color = mark == 'S' ? Palette.Rust : mark == 'E' ? Palette.Core
+                                 : mark == 'N' ? Palette.Node : Palette.Lock;
+                        // round for the start, softened for the exit, square for a
+                        // node and a lock — the shapes the board already uses
+                        if (mark == 'S') ci.sprite = UiKit.Disc;
+                        else if (mark == 'E') { ci.sprite = UiKit.RoundFill; ci.type = Image.Type.Sliced; }
+
+                        UiKit.Label(chip, "l", mark.ToString(), 18, Palette.Void, TextAnchor.MiddleCenter,
                                     Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                    }
 
                     int cx2 = x, cz2 = z;
                     btn.onClick.AddListener(() =>

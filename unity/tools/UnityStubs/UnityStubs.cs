@@ -693,6 +693,8 @@ namespace UnityEngine
             public ContentType contentType { get; set; }
             public enum ContentType { Standard, IntegerNumber, Alphanumeric }
             public enum LineType { SingleLine, MultiLineSubmit, MultiLineNewline }
+            public SubmitEvent onEndEdit => null;
+            public class SubmitEvent { public void AddListener(Action<string> a) { } }
         }
 
         public class Button : Selectable { public ButtonClickedEvent onClick => null; }

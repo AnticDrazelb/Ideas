@@ -146,30 +146,93 @@ public static class ForgeChecks
 
         // ---- the Forge coach ---------------------------------------------
         //
-        // It has to name ONE next thing, and it has to be the RIGHT one at each
-        // stage — a coach that says "verify it" before there is a start is worse
-        // than silence, because it sends you to a button that cannot work.
+        // It has to name ONE next thing, it has to be the RIGHT one at each
+        // stage, and — the part this did not check and should have — FOLLOWING
+        // IT TO THE END HAS TO PRODUCE A CUBE THE VALIDATOR ACCEPTS.
+        //
+        // It did not. The coach went straight from "lay some trace" to "place a
+        // start", so a player who did exactly what it said built one flat deck
+        // and got NO FOLD NEEDED — THAT IS A CORRIDOR, NOT A CUBE. These
+        // assertions were written against that flow and passed the whole time,
+        // which is what a test that checks the steps and never checks the
+        // OUTCOME buys you.
         var fg = Forge.New(5);
         Ok(fg.Advice().step == 1, "an empty cube was not asked for trace");
 
-        // lay the eight it asks for
+        // lay the eight it asks for, on the deck it opens on
         fg.tool = '+';
         for (int i = 0; i < 8; i++) fg.Apply(i % 5, i / 5);
-        Ok(fg.Advice().step == 2, "eight traces did not advance to START, got " + fg.Advice().step);
+        Ok(fg.Advice().step == 2, "eight traces did not advance to DECKS, got " + fg.Advice().step);
+        Ok(fg.Advice().say.Contains("DECK"), "the second step does not mention a deck");
 
-        fg.tool = 'S'; fg.Apply(0, 0);
-        Ok(fg.Advice().step == 3, "a placed start did not advance to EXIT");
+        // step up, and it should ask for trace up here rather than for a start
+        fg.layer = 1;
+        Ok(fg.Advice().step == 3, "stepping up did not advance to LAY TRACE UP HERE");
 
-        fg.tool = 'G'; fg.Apply(1, 0);
-        Ok(fg.Advice().step == 4, "a placed exit did not advance to VERIFY");
+        for (int i = 0; i < 8; i++) fg.Apply(i % 5, i / 5);
+        Ok(fg.Advice().step == 4, "a second deck did not advance to START, got " + fg.Advice().step);
+        Ok(fg.Decks() == 2, "two decks of trace did not count as two decks");
+
+        // THE DECK GRID IS A CROSS-SECTION, so the cell that hides another is the
+        // one further up the same grid — not the deck above. A start behind one
+        // has to be caught HERE, while the player is still looking at the cell,
+        // because it is the commonest refusal the validator issues and the least
+        // guessable: over half of four hundred plausible cubes died on it.
+        fg.layer = 0; fg.tool = 'S'; fg.Apply(0, 0);          // (0,0,1) is in front of this
+        Ok(!fg.OnFace(0, 0), "a cell with trace in front of it counted as a face");
+        Ok(fg.Advice().step == 4 && fg.Advice().say.Contains("BEHIND"),
+           "a buried start was not caught before verify, got: " + fg.Advice().say);
+
+        fg.tool = 'S'; fg.Apply(4, 0);                        // nothing in front of this one
+        Ok(fg.OnFace(4, 0), "the frontmost cell of a column was not a face");
+        Ok(fg.Advice().step == 5, "a placed start did not advance to EXIT");
+
+        fg.layer = 1; fg.tool = 'G'; fg.Apply(4, 0);
+        Ok(fg.Advice().step == 6, "a placed exit did not advance to VERIFY");
+
+        // a verify that failed must not repeat itself at somebody who just did it
+        Forge.VerifyResult bad = fg.Verify();
+        if (!bad.ok)
+        {
+            Ok(fg.missed, "a failed verify did not record that it failed");
+            Ok(fg.Advice().say.Contains("UNSOLVABLE"), "a failed verify did not change what the step says");
+        }
 
         // and a verified cube must not stay at VERIFY, nor keep saying so after
         // the cube it was proved about has changed underneath it
         fg.proven = true;
-        Ok(fg.Advice().step == 5, "a proven cube still asked to be verified");
+        Ok(fg.Advice().step == 7, "a proven cube still asked to be verified");
         fg.tool = '#'; fg.Apply(4, 4);
         Ok(!fg.proven, "an edit left a stale VERIFIED behind it");
-        Ok(fg.Advice().step == 4, "an edited cube did not go back to VERIFY");
+        Ok(fg.Advice().step == 6, "an edited cube did not go back to VERIFY");
+
+        // ---- the draft ----------------------------------------------------
+        //
+        // Store has carried a `draft` field since the port was written and
+        // nothing ever wrote it, so an editor full of work did not survive
+        // Android reclaiming the app. It is not a save — it is the editor's own
+        // memory of where it was, and it has to hold a cube that is NOT
+        // saveable: no start, no exit, no name, which is exactly the state a
+        // share code cannot represent and the state most worth not losing.
+        var dr = Forge.New(6);
+        dr.tool = '+';
+        dr.Apply(2, 3);
+        dr.layer = 2;
+        dr.Apply(1, 1);
+        dr.tool = 'K'; dr.Apply(4, 4);
+        dr.name = "HALF BUILT";
+        dr.SaveDraft();
+
+        Forge back = Forge.Resume();
+        Ok(back.n == 6, "the draft lost the cube's size");
+        Ok(back.layer == 2, "the draft lost which deck was open");
+        Ok(back.name == "HALF BUILT", "the draft lost the name");
+        Ok(!back.start.HasValue && !back.goal.HasValue, "the draft invented a start or an exit");
+        Ok(back.keys.Count == 1 && back.keys[0] == new Int3(4, 2, 4), "the draft lost a node");
+        Ok(new string(back.vox) == new string(dr.vox), "the draft lost the voxels");
+
+        Forge.DropDraft();
+        Ok(Forge.Resume().n == 5, "a dropped draft still came back");
     }
 
     public static void Main(string[] args)

@@ -46,7 +46,10 @@ half, and these are the ones most likely to be real:
 5. **Is the glyph set legible at phone size** — node, lock, core, and you?
 6. **Does the audio arrive on the beat** — the footstep's ping eighty
    milliseconds behind the thud, the fold's knock at the detent?
-7. **The Forge**: build a five-cube, verify, save, play it back.
+7. **The Forge**: build a five-cube, verify, save, play it back. Follow the coach
+   from an empty grid to a saved cube without reading anything else — that is the
+   one path it exists for, and it was broken: the coach never mentioned decks, so
+   doing exactly what it said produced a flat cube the validator refused.
 
 When something is wrong, the thing that helps most is:
 

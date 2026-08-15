@@ -115,6 +115,7 @@ namespace Singularity.Game
             if (!Fits(start)) start = null;
             if (!Fits(goal)) goal = null;
             if (layer >= to) layer = to - 1;
+            SaveDraft();
         }
 
         // ---- marks -----------------------------------------------------------
@@ -183,6 +184,8 @@ namespace Singularity.Game
                 vox[i] = tool;
                 if (!Level.IsWalkType(tool)) Unmark(w);
             }
+
+            SaveDraft();
         }
 
         public void ClearDeck()
@@ -194,6 +197,110 @@ namespace Singularity.Game
                     vox[Level.Vidx(n, x, layer, z)] = '.';
                     Unmark(new Int3(x, layer, z));
                 }
+            SaveDraft();
+        }
+
+
+        // ---- the draft -------------------------------------------------------
+        //
+        // AN UNSAVED CUBE SURVIVES THE APP BEING KILLED.
+        //
+        // Android reclaims a backgrounded Activity whenever it likes, and half an
+        // hour of placing voxels is exactly the kind of work a player does not get
+        // to do twice. The draft mirrors the editor after every change; it is not
+        // a save, it is the editor's own memory of where it was — an unverified,
+        // unnamed, half-built cube is not a thing the shelf can hold, and it is
+        // the thing most worth not losing.
+        //
+        // Store already had the field. Nothing ever wrote it, which is the worst
+        // of both: the save file carried a promise the editor never kept.
+        //
+        // Its own format rather than a share code, because a share code needs a
+        // start and an exit and the whole point of a draft is the cube that does
+        // not have them yet. Every field is either a number, a base64url id or a
+        // name already folded to capitals, digits, spaces and dashes — so no
+        // separator can ever appear inside a value.
+
+        const char DField = '|', DList = ',', DAxis = '.';
+
+        static string Pt(Int3? w) => w.HasValue ? w.Value.x + "" + DAxis + w.Value.y + DAxis + w.Value.z : "";
+
+        static Int3? UnPt(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return null;
+            string[] a = s.Split(DAxis);
+            if (a.Length != 3) return null;
+            if (!int.TryParse(a[0], out int x) || !int.TryParse(a[1], out int y) || !int.TryParse(a[2], out int z))
+                return null;
+            return new Int3(x, y, z);
+        }
+
+        static string PtList(List<Int3> l)
+        {
+            var sb = new StringBuilder();
+            for (int i = 0; i < l.Count; i++) { if (i > 0) sb.Append(DList); sb.Append(Pt(l[i])); }
+            return sb.ToString();
+        }
+
+        static List<Int3> UnPtList(string s)
+        {
+            var l = new List<Int3>();
+            if (string.IsNullOrEmpty(s)) return l;
+            foreach (string part in s.Split(DList))
+            {
+                Int3? w = UnPt(part);
+                if (w.HasValue) l.Add(w.Value);
+            }
+            return l;
+        }
+
+        public void SaveDraft()
+        {
+            var sb = new StringBuilder();
+            sb.Append('1').Append(DField).Append(n).Append(DField).Append(layer).Append(DField)
+              .Append(from ?? "").Append(DField).Append(name ?? "").Append(DField)
+              .Append(new string(vox)).Append(DField)
+              .Append(Pt(start)).Append(DField).Append(Pt(goal)).Append(DField)
+              .Append(PtList(keys)).Append(DField).Append(PtList(doors));
+            Store.Data.draft = sb.ToString();
+            Store.Save();
+        }
+
+        public static void DropDraft()
+        {
+            Store.Data.draft = "";
+            Store.Save();
+        }
+
+        /// <summary>
+        /// The editor the player left, or a fresh one. A draft that does not parse
+        /// is a draft from an older build or a corrupted save, and the answer to
+        /// both is the same as the answer to no draft at all.
+        /// </summary>
+        public static Forge Resume()
+        {
+            string d = Store.Data.draft;
+            if (string.IsNullOrEmpty(d)) return New();
+
+            string[] f = d.Split(DField);
+            if (f.Length < 10 || f[0] != "1") return New();
+            if (!int.TryParse(f[1], out int n) || n < 2 || n > 9) return New();
+            if (f[5].Length != n * n * n) return New();
+
+            int.TryParse(f[2], out int layer);
+            var fg = new Forge
+            {
+                n = n,
+                vox = f[5].ToCharArray(),
+                from = string.IsNullOrEmpty(f[3]) ? null : f[3],
+                name = f[4],
+                start = UnPt(f[6]),
+                goal = UnPt(f[7]),
+                keys = UnPtList(f[8]),
+                doors = UnPtList(f[9])
+            };
+            fg.layer = layer < 0 || layer >= n ? 0 : layer;
+            return fg;
         }
 
         // ---- what comes out --------------------------------------------------
@@ -265,7 +372,7 @@ namespace Singularity.Game
         public (int step, string say) Advice()
         {
             int trace = 0;
-            foreach (char c in vox) if (c == '+' || c == 'A' || c == 'B') trace++;
+            foreach (char c in vox) if (Level.IsWalkType(c)) trace++;
 
             // enough to be a route rather than a spot — the smallest cube the
             // generator will cut has eight, so the editor asks for eight
@@ -274,16 +381,118 @@ namespace Singularity.Game
                 return (1, "TRACE IS WHAT YOU STAND ON. TAP CELLS TO LAY "
                          + (Floor - trace) + " MORE OF IT.");
 
-            if (!start.HasValue) return (2, "PLACE A START. IT IS WHERE YOU BEGIN.");
-            if (!goal.HasValue) return (3, "PLACE AN EXIT. IT IS THE CORE YOU COLLAPSE INTO.");
+            // THE TWO STEPS THAT WERE MISSING, AND WHY THE EDITOR LOOKED BROKEN.
+            //
+            // This went straight from "lay some trace" to "place a start", and a
+            // player who did exactly what it said built one flat deck — which the
+            // validator then refused, correctly, with NO FOLD NEEDED. Following
+            // the coach to the letter produced a cube that could not be saved,
+            // and nothing anywhere said the word DECK.
+            //
+            // A cube that folds needs height and it needs the exit somewhere a
+            // walk will not reach. Those are the two ideas this whole editor is
+            // about, so they are steps rather than something to find out from a
+            // refusal.
+            if (layer == 0 && Decks() < 2)
+                return (2, "A CUBE HAS DECKS. STEP UP ONE WITH THE ARROW ABOVE.");
+
+            if (Decks() < 2 || trace < 12)
+                return (3, "LAY TRACE UP HERE TOO. A FLAT CUBE FOLDS INTO NOTHING.");
+
+            if (!start.HasValue) return (4, "PICK START, THEN TAP THE CELL YOU BEGIN ON.");
+
+            // THE COMMONEST REFUSAL IN THE EDITOR, SAID BEFORE YOU PRESS VERIFY.
+            //
+            // Across four hundred plausible cubes, more than half came back with
+            // START IS BURIED — and it is a rule the deck grid cannot show you,
+            // because the deck grid is one horizontal slice and burying is
+            // vertical. You are looking at the start; the thing that makes it
+            // illegal is on the deck above, which is not on screen.
+            //
+            // It got worse the moment the coach started doing its job: the step
+            // before this one asks for a second deck, and a second deck is
+            // exactly what buries a start. So the same test the validator runs is
+            // run here, on the same projection, and the answer arrives while the
+            // player is still looking at the cell rather than three taps later.
+            if (!StartShows())
+                return (4, "THAT CELL IS BEHIND ANOTHER ONE. THE START HAS TO BE A FACE THE CUBE SHOWS — THE RINGED CELLS.");
+
+            if (!goal.HasValue)
+                return (5, "NOW EXIT — AND PUT IT WHERE A WALK WILL NOT REACH, SO GETTING THERE TAKES A FOLD.");
 
             if (!proven)
-                return (4, "VERIFY IT. THE SOLVER PROVES A CUBE — AND ITS PAR — BEFORE YOU CAN SAVE IT.");
+                return (6, missed
+                    ? "AN UNSOLVABLE CUBE IS NOT A HARD ONE, IT IS A BROKEN ONE. GIVE THE EXIT A ROUTE AND VERIFY AGAIN."
+                    : "HIT VERIFY. THE SOLVER HAS TO PROVE THIS CAN BE DONE BEFORE IT COUNTS.");
 
-            return (5, string.IsNullOrEmpty(name)
+            return (7, string.IsNullOrEmpty(name)
                 ? "PROVEN. GIVE IT A NAME AND SAVE IT."
-                : "PROVEN. SAVE IT.");
+                : "PROVEN. SAVE IT — AND YOU GET A CODE, WHICH IS HOW SOMEBODY ELSE PLAYS IT.");
         }
+
+
+        /// <summary>
+        /// Is the start on a face of the unfolded cube? The validator's own test,
+        /// on the validator's own projection — a second opinion here would be a
+        /// second answer, and the player would get whichever one they asked last.
+        /// </summary>
+        public bool StartShows()
+        {
+            if (!start.HasValue) return true;
+            if (!Level.IsWalkType(vox[Level.Vidx(n, start.Value)])) return false;
+
+            Level lv = ToLevel();
+            lv.ClearEff();
+            Surf[] s0 = Projection.Project(n, lv.Eff(0), Ori.Id);
+            return Projection.SurfaceAt(n, s0, Ori.Id, start.Value);
+        }
+
+        /// <summary>
+        /// Is this cell one of the faces the cube shows, or is it behind another?
+        ///
+        /// THE DECK GRID IS A CROSS-SECTION, NOT A FLOOR PLAN, and that single
+        /// misreading is behind most of what goes wrong in this editor. The cube
+        /// is viewed along z, so the cell that hides another is not on the deck
+        /// above — it is the one further up THIS deck, in plain sight, on the
+        /// same screen. Anything solid in front of a cell hides it, gap or no
+        /// gap, lattice as much as trace.
+        ///
+        /// The grid can therefore say so, which is the whole reason this is here:
+        /// the frontmost solid of every column gets a lit ring and everything
+        /// behind it does not. A player who can see which cells are faces stops
+        /// putting starts on the ones that are not.
+        /// </summary>
+        public bool OnFace(int x, int z)
+        {
+            for (int zz = n - 1; zz > z; zz--)
+                if (vox[Level.Vidx(n, x, layer, zz)] != '.') return false;
+            return true;
+        }
+
+        /// <summary>How many decks have anything to stand on. A flat cube cannot fold.</summary>
+        public int Decks()
+        {
+            int d = 0;
+            for (int y = 0; y < n; y++)
+            {
+                bool any = false;
+                for (int z = 0; z < n && !any; z++)
+                    for (int x = 0; x < n && !any; x++)
+                        if (Level.IsWalkType(vox[Level.Vidx(n, x, y, z)])) any = true;
+                if (any) d++;
+            }
+            return d;
+        }
+
+        /// <summary>
+        /// A VERIFY THAT FAILED, so the coach can say the other thing.
+        ///
+        /// The step that asks for a verify has to survive being wrong: a first
+        /// cube very often will not solve, and "hit verify" repeated at somebody
+        /// who just did is the least useful sentence available. Failure is part of
+        /// the lesson, so the step stays open and changes what it says.
+        /// </summary>
+        public bool missed;
 
         /// <summary>Set by a passing Verify and cleared by any edit — see Mark/Unmark.</summary>
         public bool proven;
@@ -299,11 +508,11 @@ namespace Singularity.Game
         public VerifyResult Verify()
         {
             if (!start.HasValue || !goal.HasValue)
-                return new VerifyResult { ok = false, message = "NEEDS A START AND AN EXIT" };
+            { missed = true; return new VerifyResult { ok = false, message = "NEEDS A START AND AN EXIT" }; }
 
             Level lv = ToLevel();
             Verdict v = Validation.Validate(lv);
-            if (!v.ok) return new VerifyResult { ok = false, message = v.why };
+            if (!v.ok) { missed = true; return new VerifyResult { ok = false, message = v.why }; }
 
             lv.par = v.par;
             lv.steps = v.steps;
@@ -316,6 +525,7 @@ namespace Singularity.Game
                 return new VerifyResult { ok = false, message = "THIS CUBE ALREADY EXISTS — " + Describe(col.Value) };
 
             proven = true;
+            missed = false;
             return new VerifyResult
             {
                 ok = true,
@@ -389,6 +599,9 @@ namespace Singularity.Game
             MadeCube m = Store.Made(from);
             if (m != null) Store.Data.made.Remove(m);
             from = null;
+            // the draft is the editor's memory of THIS cube; leaving it behind
+            // would resurrect what was just deleted on the next visit
+            Store.Data.draft = "";
             Store.Save();
         }
 
