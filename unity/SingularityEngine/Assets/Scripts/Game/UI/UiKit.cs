@@ -69,7 +69,15 @@ namespace Singularity.UI
         public static readonly System.Collections.Generic.List<Canvas> Canvases
             = new System.Collections.Generic.List<Canvas>();
 
-        public static Canvas Canvas(string name, int order)
+        /// <summary>
+        /// <paramref name="safe"/> false leaves the canvas at the FULL DISPLAY,
+        /// cutout band and all. Exactly one thing may ask for that and it is the
+        /// housing: metal is the only thing in this game that is improved by
+        /// having a camera in it. Everything readable keeps the inset — see
+        /// <see cref="SafeArea"/>, and see Chassis for how the bezel grows to put
+        /// the opening back exactly where the safe area would have put it.
+        /// </summary>
+        public static Canvas Canvas(string name, int order, bool safe = true)
         {
             var go = new GameObject(name, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             var c = go.GetComponent<Canvas>();
@@ -81,9 +89,30 @@ namespace Singularity.UI
             s.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             s.matchWidthOrHeight = 0.5f;
             Object.DontDestroyOnLoad(go);
-            go.AddComponent<SafeArea>();
+            if (safe) go.AddComponent<SafeArea>();
             Canvases.Add(c);
             return c;
+        }
+
+        /// <summary>
+        /// The safe area's four insets in CANVAS units, which is what a layout
+        /// measured against the 720x1280 reference can actually use. Zero on a
+        /// display with nothing in the way.
+        /// </summary>
+        public static void SafeInsets(Canvas c, out float left, out float right,
+                                      out float top, out float bottom)
+        {
+            left = right = top = bottom = 0f;
+            if (c == null || Screen.width == 0 || Screen.height == 0) return;
+
+            float k = c.scaleFactor;
+            if (k <= 0f) return;
+
+            Rect safe = Screen.safeArea;
+            left = safe.xMin / k;
+            bottom = safe.yMin / k;
+            right = (Screen.width - safe.xMax) / k;
+            top = (Screen.height - safe.yMax) / k;
         }
 
         /// <summary>

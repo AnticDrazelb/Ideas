@@ -75,6 +75,17 @@ namespace Singularity.EditorTools
             PlayerSettings.allowedAutorotateToLandscapeLeft = true;
             PlayerSettings.allowedAutorotateToLandscapeRight = true;
 
+            // THE APP TAKES THE WHOLE DISPLAY, CUTOUT INCLUDED.
+            //
+            // Left alone, Android keeps a notched phone's app clear of the cutout
+            // by letterboxing the entire band it sits in — you lose a strip the
+            // full width of the display to hold one camera. Asking for the pixels
+            // is the only way to get them; what is DRAWN out there is then this
+            // game's problem, and it already has the measurement it needs, because
+            // Screen.safeArea is honoured by Layout.BoardRect and by UiKit's
+            // SafeArea on every canvas.
+            PlayerSettings.Android.renderOutsideSafeArea = true;
+
             // A puzzle game has nothing to gain from a hot phone, and the frame
             // rate is set again at runtime in Bootstrap for platforms that ignore
             // this.

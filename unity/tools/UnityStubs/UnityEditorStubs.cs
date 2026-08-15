@@ -216,6 +216,7 @@ namespace UnityEditor
             public static AndroidSdkVersions minSdkVersion { get; set; }
             public static AndroidSdkVersions targetSdkVersion { get; set; }
             public static bool forceInternetPermission { get; set; }
+            public static bool renderOutsideSafeArea { get; set; }
             public static bool useCustomKeystore { get; set; }
             public static string keystoreName { get; set; }
             public static string keystorePass { get; set; }

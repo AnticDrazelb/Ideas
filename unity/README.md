@@ -107,6 +107,34 @@ whose shaders are missing from the *project* now stops rather than shipping.
 So: **if you add a shader, add its name to `ProjectSetup.Shaders`.** Nothing
 else will notice, until a phone does.
 
+### The camera cutout, and why there is no device list
+
+A notched phone costs an app a band the **full width of the display**, because
+`Screen.safeArea` is a rectangle and no rectangle can describe "a four
+millimetre dot in the middle of the top edge". A punch-hole is exactly as
+expensive as a bathtub notch. Held inside that rectangle, the whole machine sat
+in the middle of the screen with a dead black strip above it — the one
+arrangement that makes a phone's camera look like a fault.
+
+The fix needs to know nothing about which phone it is, and deliberately so. A
+lookup table keyed on device ID would need maintaining forever, would be wrong
+on the day the next phone ships, and is already wrong for a foldable whose two
+displays differ. Android reports the geometry at runtime instead.
+
+So the **housing alone** opts out of the safe area (`UiKit.Canvas(…, safe:
+false)`) and takes the whole display. Its bezel then grows on each edge by
+exactly the inset it escaped, which puts the opening back **to the pixel** —
+verified: the metal-to-glass overlap stays at its authored 7.5 units on all four
+edges for any cutout, and every seam between the twelve pieces stays continuous.
+Glass, Scanlines, the HUD, the screens and the board all still measure from the
+safe area and none of them changed or needs to know.
+
+What changes is that the metal is deeper on the edge the camera is on, and the
+camera becomes a hole in a steel panel that already has eight bolts in it. The
+cost is that the corner arms stretch by the same few percent on that one edge —
+a fixed window onto the art, so the rounded silhouette and its bolt stretch with
+it. Against a black band the full width of the phone, that trade is not close.
+
 > **This has not been run in an editor.** It was written and verified in an
 > environment with no Unity install: the rules are proved identical to the
 > original by running both engines and diffing, and the whole of `Assets/Scripts`
