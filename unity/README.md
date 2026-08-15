@@ -181,6 +181,24 @@ art's own scale exactly, verified at `1.0000` for any inset on any edge, with th
 glass overlap holding at its authored 7.5. The case's top edge comes out flat
 rather than notched, which is the price of putting steel where the camera is.
 
+**And the camera gets a port.** Metal around it stops it sitting in a hole, but
+flat metal with a black dot punched through is still a phone with a phone's
+camera in it — the dot is the one thing on the display the game cannot draw, so
+the only way it reads as part of the machine is if the metal AROUND it says so.
+Each cutout gets a machined shoulder and a lit lip, and the black becomes a port
+something looks out of, on a panel that already has eight bolts in it.
+
+This is where `Screen.cutouts` earns its place over `safeArea`. The rectangle can
+only say "something is in the way along this edge"; `cutouts` gives the actual
+shapes. So a centre punch-hole, a corner one, a teardrop, a wide notch and a pill
+for two lenses are all just rects, each getting a port cut to its own size in its
+own place — including on phones that do not exist yet. A dual-hole layout reports
+two and gets two. There is no second copy of the art and no list of devices,
+which is the same outcome a per-style chassis would give with none of the
+upkeep — and the shoulder is a darkening and the lip a lightening of whatever is
+underneath, so both belong to the bezel they land on without this file having an
+opinion about what rusted steel looks like.
+
 The corner arms do still stretch, by the same few percent, on whichever edge has
 an inset — an arm is a fixed window onto the art, so the rounded silhouette and
 its bolt stretch with it, and they cannot keep their depth without leaving a step

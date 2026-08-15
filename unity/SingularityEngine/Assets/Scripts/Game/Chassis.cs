@@ -187,6 +187,17 @@ namespace Singularity.Game
             float _padL = -1f, _padR = -1f, _padT = -1f, _padB = -1f;
             readonly RectTransform[] _piece = new RectTransform[16];
 
+            /// <summary>
+            /// Two is the most any shipping phone has — a pill for two lenses is
+            /// ONE cutout, and the dual-hole layouts report two. Four is headroom.
+            /// </summary>
+            const int MaxPorts = 4;
+
+            /// <summary>Canvas units of machined shoulder around the camera's own glass.</summary>
+            const float Lip = 9f;
+
+            readonly RectTransform[] _port = new RectTransform[MaxPorts];
+
             void LateUpdate()
             {
                 var rt = (RectTransform)transform;
@@ -211,6 +222,81 @@ namespace Singularity.Game
 
                 if (!_built) { Compose(rt); _built = true; }
                 Stretch(pl, pr, pt, pb);
+                Ports(rt);
+            }
+
+            /// <summary>
+            /// THE CAMERA IS A FITTING IN THE PANEL, NOT A GAP IN IT.
+            ///
+            /// Filling the band with metal stopped the camera sitting in a hole,
+            /// but flat metal with a black dot punched through it is still a phone
+            /// with a phone's camera in it — the dot is the one thing on this
+            /// display the game cannot draw, so the only way it reads as part of
+            /// the machine is if the metal AROUND it says so. A machined shoulder
+            /// and a lit lip, and the black becomes the port something looks out
+            /// of, next to a panel that already has eight bolts in it.
+            ///
+            /// Screen.cutouts is the whole reason this needs no device list and no
+            /// second copy of the art. safeArea is a rectangle and can only say
+            /// "something is in the way along this edge"; cutouts gives the actual
+            /// shapes, so a centre punch-hole, a corner one, a teardrop, a wide
+            /// notch and a pill for two lenses are all just rects — and each gets a
+            /// port cut to its own size, in its own place, on a phone nobody here
+            /// has ever seen. Two of them get two ports.
+            /// </summary>
+            void Ports(RectTransform root)
+            {
+                float k = Owner != null ? Owner.scaleFactor : 1f;
+                if (k <= 0f) k = 1f;
+
+                Rect[] cut = Screen.cutouts;
+                int n = 0;
+                for (int i = 0; i < cut.Length && n < MaxPorts; i++)
+                {
+                    float w = cut[i].width, h = cut[i].height;
+                    if (w <= 1f || h <= 1f) continue;
+
+                    if (_port[n] == null) _port[n] = BuildPort(root, n);
+                    RectTransform rt = _port[n];
+                    rt.sizeDelta = new Vector2(w / k + Lip * 2f, h / k + Lip * 2f);
+                    rt.anchoredPosition = new Vector2((cut[i].xMin + w * 0.5f) / k,
+                                                      (cut[i].yMin + h * 0.5f) / k);
+                    rt.gameObject.SetActive(true);
+                    n++;
+                }
+
+                for (int i = n; i < MaxPorts; i++)
+                    if (_port[i] != null) _port[i].gameObject.SetActive(false);
+            }
+
+            /// <summary>
+            /// The shoulder and the lip. Both are tones rather than colours — a
+            /// darkening and a lightening of whatever metal is underneath — so the
+            /// port belongs to the bezel it lands on without this file needing an
+            /// opinion about what rusted steel looks like.
+            /// </summary>
+            RectTransform BuildPort(RectTransform root, int i)
+            {
+                RectTransform rt = Singularity.UI.UiKit.Rect(root, "port" + i,
+                                                             Vector2.zero, Vector2.zero,
+                                                             Vector2.zero, Vector2.zero);
+                rt.pivot = new Vector2(0.5f, 0.5f);
+
+                var recess = rt.gameObject.AddComponent<Image>();
+                recess.sprite = Singularity.UI.UiKit.RoundFill;
+                recess.type = Image.Type.Sliced;
+                recess.color = new Color(0f, 0f, 0f, 0.62f);
+                recess.raycastTarget = false;
+
+                RectTransform lip = Singularity.UI.UiKit.Rect(rt, "lip",
+                                                              Vector2.zero, Vector2.one,
+                                                              Vector2.zero, Vector2.zero);
+                var edge = lip.gameObject.AddComponent<Image>();
+                edge.sprite = Singularity.UI.UiKit.RoundLine;
+                edge.type = Image.Type.Sliced;
+                edge.color = new Color(1f, 1f, 1f, 0.20f);
+                edge.raycastTarget = false;
+                return rt;
             }
 
             /// <summary>
