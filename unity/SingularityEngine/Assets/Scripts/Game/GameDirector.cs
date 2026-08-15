@@ -74,7 +74,10 @@ namespace Singularity.Game
             // ORDER MATTERS: bloom first, so the brightness control raises the
             // finished picture rather than the picture the glow was computed from.
             Glow = Bloom.Attach(Rig.cam);
-            Filter = ScreenFilter.Attach(Rig.cam);
+            // No camera: the grade is a layer above every canvas, because an
+            // overlay canvas is composited after the camera and a blit on it can
+            // only ever reach the board. See ScreenFilter.
+            Filter = ScreenFilter.Attach();
 
             Wire();
             Screens.Build(this);

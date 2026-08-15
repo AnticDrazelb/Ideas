@@ -265,10 +265,32 @@ namespace Singularity.UI
         /// over the bezel and off the machine, and the reader loses the end of
         /// every line. Anything written as prose asks to wrap.
         /// </summary>
+        /// <summary>
+        /// WRAPPING IS THE DEFAULT, AND OVERFLOW IS THE THING YOU HAVE TO ASK FOR.
+        ///
+        /// It was the other way round, and the other way round is a layout bug
+        /// waiting on a long word. A label set to Overflow does not stop at its own
+        /// box — it keeps drawing straight across whatever is beside it, and the
+        /// two labels do not blend or clip, they INTERLEAVE. CALIBRATE printed
+        /// "BRIGHTNESS125%" for exactly this reason: the name's box ran to 62% of
+        /// the row and the reading's box started at 30%, so the two overlapped by a
+        /// third of the row and the only thing hiding it was that most labels
+        /// happened to be short enough.
+        ///
+        /// Wrapping cannot do that. The worst it can do is take a second line,
+        /// which is visible, honest and fixable — where an overflow is invisible
+        /// until the one string that is too long, in the one language nobody
+        /// tested, on the one phone that is narrower than the reference.
+        ///
+        /// Vertical overflow stays ON: text may take the room it needs, because a
+        /// clipped line is text the player cannot read and this game would rather
+        /// look wrong than go quiet. Where the box genuinely cannot grow, the
+        /// answer is <see cref="Fit"/> — shrink to fit, with a floor.
+        /// </summary>
         public static Text Label(Transform parent, string name, string text, int size,
                                  Color col, TextAnchor anchor,
                                  Vector2 anchorMin, Vector2 anchorMax, Vector2 offMin, Vector2 offMax,
-                                 bool wrap = false)
+                                 bool wrap = true)
         {
             RectTransform rt = Rect(parent, name, anchorMin, anchorMax, offMin, offMax);
             var t = rt.gameObject.AddComponent<Text>();

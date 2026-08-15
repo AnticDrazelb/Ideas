@@ -107,6 +107,38 @@ whose shaders are missing from the *project* now stops rather than shipping.
 So: **if you add a shader, add its name to `ProjectSetup.Shaders`.** Nothing
 else will notice, until a phone does.
 
+### Why brightness and contrast are a layer and not a blit
+
+They were a blit, on the camera, and they graded the **cube and nothing else**.
+Every canvas in this game is a `ScreenSpaceOverlay`; an overlay canvas is
+composited after every camera has finished, so `OnRenderImage` never sees it.
+The housing, the glass, the HUD and every screen came through ungraded — and on
+CALIBRATE itself, which is all interface and no board, both sliders moved a
+number and changed nothing you could see. They read as broken because they were.
+
+An overlay can only be graded by something drawn on top of it, and a UI quad
+cannot read what is under it without a `GrabPass` — a full framebuffer resolve
+every frame on a tiled mobile GPU. It does not need to. Brightness and contrast
+together are one affine transform:
+
+```
+out = (in * b - 0.5) * c + 0.5  =  in * (b*c) + 0.5 * (1 - c)
+```
+
+a multiply and an add, which is exactly what the blender does against the
+destination for free. So `Singularity/Grade` carries no texture and does no
+arithmetic — it emits a flat colour and its blend mode is a **property**, and
+`ScreenFilter` drives up to three of them on a full-bleed canvas above
+everything.
+
+The one subtlety is order. Each quad lands in an eight-bit buffer, so the
+previous one's result was clamped before this one reads it: multiplying up first
+and subtracting after loses everything pushed past white, and the mirror is true
+at the other end. The sign of the offset picks the order. Verified against the
+affine it replaces at every setting both sliders can reach and every input level
+— **worst deviation 0.0017**, under one eight-bit step, and exactly zero at
+100/100, where every quad switches off and the whole feature costs nothing.
+
 ### The camera cutout, and why there is no device list
 
 A notched phone costs an app a band the **full width of the display**, because

@@ -798,7 +798,19 @@ namespace Singularity.UI
         }
 
         /// <summary>A row of the calibrate panel: mark, name, what it does, and the control.</summary>
-        static RectTransform CalRow(RectTransform panel, string icon, string label, string hint, bool wideHint)
+        /// <summary>
+        /// <paramref name="labelRight"/> IS WHERE THE NAME HAS TO STOP, and it is a
+        /// parameter because it is not the same on every row.
+        ///
+        /// It was 0.62 for all of them while the reading on a slider row starts at
+        /// 0.30 — the two boxes overlapped by a third of the row, and the only
+        /// thing hiding it was that most of these names are short. BRIGHTNESS is
+        /// not: it printed straight through its own percentage. A row has to hand
+        /// its name a column that ENDS WHERE THE NEXT COLUMN STARTS, and the name
+        /// is then shrunk to fit rather than allowed out of it.
+        /// </summary>
+        static RectTransform CalRow(RectTransform panel, string icon, string label, string hint,
+                                    bool wideHint, float labelRight = 0.62f)
         {
             float h = 1f / CalRows;
             int slot = _calRow++;
@@ -806,13 +818,13 @@ namespace Singularity.UI
                                          new Vector2(0, 2), new Vector2(0, -2));
 
             UiKit.Icon(r, icon, Palette.Rust, 26, new Vector2(0, 0.5f), new Vector2(34, 0));
-            UiKit.Label(r, "l", label, 21, Palette.Ink, TextAnchor.MiddleLeft,
-                        new Vector2(0, string.IsNullOrEmpty(hint) ? 0 : 0.40f), new Vector2(0.62f, 1),
-                        new Vector2(58, 0), Vector2.zero);
+            UiKit.Fit(UiKit.Label(r, "l", label, 21, Palette.Ink, TextAnchor.MiddleLeft,
+                                  new Vector2(0, string.IsNullOrEmpty(hint) ? 0 : 0.40f), new Vector2(labelRight, 1),
+                                  new Vector2(58, 0), new Vector2(-8, 0)), 14);
             if (!string.IsNullOrEmpty(hint))
-                UiKit.Label(r, "h", hint, 17, Palette.Dim, TextAnchor.MiddleLeft,
-                            new Vector2(0, 0), new Vector2(wideHint ? 0.72f : 0.30f, 0.40f),
-                            new Vector2(58, 0), Vector2.zero);
+                UiKit.Fit(UiKit.Label(r, "h", hint, 17, Palette.Dim, TextAnchor.MiddleLeft,
+                                      new Vector2(0, 0), new Vector2(wideHint ? 0.72f : labelRight, 0.40f),
+                                      new Vector2(58, 0), new Vector2(-8, 0)), 12);
 
             // a hairline under every row but the last, so eight rows read as one
             // instrument rather than eight unrelated controls
@@ -850,7 +862,8 @@ namespace Singularity.UI
             // only row that also had a second word under its name. It now sits in
             // its own column, right-aligned hard against the track, so the three
             // readings line up with each other whatever the row above them says.
-            RectTransform r = CalRow(panel, icon, label, hint, false);
+            // The name stops at 0.30, which is where this reading starts. See CalRow.
+            RectTransform r = CalRow(panel, icon, label, hint, false, 0.30f);
             Text val = UiKit.Label(r, "v", get() + "%", 21, Palette.Rust, TextAnchor.MiddleRight,
                                    new Vector2(0.30f, 0), new Vector2(0.50f, 1f), Vector2.zero, new Vector2(-10, 0));
             UiKit.Bar(r, "bar", lo, hi, get(), v =>
@@ -858,6 +871,11 @@ namespace Singularity.UI
                 set(v);
                 Store.Save();
                 val.text = v + "%";
+                // THE PICTURE CHANGES WHILE THE SLIDER IS UNDER YOUR THUMB.
+                // Brightness and contrast are the two settings whose whole point is
+                // that you judge them by looking, and a control you have to leave
+                // the screen to evaluate is one the player reports as broken.
+                if (_dir != null && _dir.Filter != null) _dir.Filter.Refresh();
             }, new Vector2(0.52f, 0.5f), new Vector2(1, 0.5f),
                 new Vector2(0, -Access.TapTarget * 0.5f), new Vector2(-18, Access.TapTarget * 0.5f));
         }
@@ -976,7 +994,7 @@ namespace Singularity.UI
         /// row that owns the widest control is the row that has to say so.
         /// </summary>
         static RectTransform AccRow(RectTransform panel, string icon, string label, string hint,
-                                    float hintTo = 0.72f)
+                                    float hintTo = 0.72f, float labelRight = 0.55f)
         {
             float h = 1f / AccRows;
             int slot = _accRow++;
@@ -984,12 +1002,15 @@ namespace Singularity.UI
                                          new Vector2(0, 2), new Vector2(0, -2));
 
             UiKit.Icon(r, icon, Palette.Rust, 26, new Vector2(0, 0.5f), new Vector2(34, 0));
-            UiKit.Label(r, "l", label, 21, Palette.Ink, TextAnchor.MiddleLeft,
-                        new Vector2(0, string.IsNullOrEmpty(hint) ? 0 : 0.40f), new Vector2(0.55f, 1),
-                        new Vector2(58, 0), Vector2.zero);
+            // Shrunk into its column rather than let out of it — same reason as
+            // CalRow, and this screen has INSTRUMENT and LEGIBILITY on it.
+            UiKit.Fit(UiKit.Label(r, "l", label, 21, Palette.Ink, TextAnchor.MiddleLeft,
+                                  new Vector2(0, string.IsNullOrEmpty(hint) ? 0 : 0.40f), new Vector2(labelRight, 1),
+                                  new Vector2(58, 0), new Vector2(-8, 0)), 14);
             if (!string.IsNullOrEmpty(hint))
-                UiKit.Label(r, "h", hint, 17, Palette.Dim, TextAnchor.MiddleLeft,
-                            new Vector2(0, 0), new Vector2(hintTo, 0.40f), new Vector2(58, 0), Vector2.zero);
+                UiKit.Fit(UiKit.Label(r, "h", hint, 17, Palette.Dim, TextAnchor.MiddleLeft,
+                                      new Vector2(0, 0), new Vector2(hintTo, 0.40f),
+                                      new Vector2(58, 0), new Vector2(-8, 0)), 12);
 
             if (slot < AccRows - 1)
                 UiKit.Panel(r, "rule", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.20f),
@@ -1014,7 +1035,8 @@ namespace Singularity.UI
         static void AccBar(RectTransform panel, string icon, string label, string hint,
                            int lo, int hi, System.Func<int> get, System.Action<int> set)
         {
-            RectTransform r = AccRow(panel, icon, label, hint);
+            // hint and name both stop at 0.30, which is where the reading starts
+            RectTransform r = AccRow(panel, icon, label, hint, 0.30f, 0.30f);
             Text val = UiKit.Label(r, "v", get() + "%", 21, Palette.Rust, TextAnchor.MiddleRight,
                                    new Vector2(0.30f, 0), new Vector2(0.50f, 1f), Vector2.zero, new Vector2(-10, 0));
             UiKit.Bar(r, "bar", lo, hi, get(), v =>

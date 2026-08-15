@@ -143,7 +143,7 @@ namespace Singularity.EditorTools
             "Singularity/Fx",       // the cage, and the effects quads
             "Singularity/Glyph",    // the glyph atlas, and the glass
             "Singularity/Bloom",    // the rim on the picture
-            "Singularity/Filter",   // brightness and contrast
+            "Singularity/Grade",    // brightness and contrast, over everything
         };
 
         /// <summary>
