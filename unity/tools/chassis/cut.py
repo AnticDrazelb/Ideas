@@ -47,10 +47,29 @@ d = (np.sqrt(np.maximum(qx, 0) ** 2 + np.maximum(qy, 0) ** 2)
      + np.minimum(np.maximum(qx, qy), 0) - GLASS_R)
 glass = np.clip(0.5 - d, 0, 1)
 
-alpha = np.clip(case * (1 - glass), 0, 1)
+# ---- the case is a MATTE, and the surround is opaque -------------------------
+#
+# THE ONLY TRANSPARENT PART OF THIS ASSET IS THE GLASS, and that is not a
+# shortcut — it is the fix for a bug that looked like a rendering fault.
+#
+# The board is drawn by the CAMERA, across the whole display, and the case is the
+# only thing in front of it. So every pixel the case's silhouette cuts away — the
+# notch in the middle of the top edge, the four corner chamfers, the waist, the
+# foot — is a hole straight through the machine. At rest nothing shows through
+# it, because the cube is fitted well inside the aperture. Mid-fold and under a
+# held matrix the cube is half again as wide as its own face, and the cage came
+# out through the notch and ran off the top of the case into the editor's
+# background.
+#
+# The camera clears to Palette.Void, which is #000000, so painting the surround
+# black is pixel-for-pixel what was already there and closes the hole. The
+# silhouette survives as a MATTE on the colour instead of as alpha: the metal
+# fades to black exactly where it used to fade to nothing, feathered edge and
+# all, and the case still reads as a shape rather than a rectangle.
+rgb = im * case[..., None]
+alpha = np.clip(1 - glass, 0, 1)
 
 # ---- bleed the colour outward, so filtering never fetches a black neighbour --
-rgb = im.copy()
 solid = alpha > 0.02
 for _ in range(4):
     known = solid.astype(np.float64)

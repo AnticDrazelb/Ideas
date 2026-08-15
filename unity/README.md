@@ -433,6 +433,14 @@ Two rules keep it honest, and both are load-bearing:
   reason it is twelve rather than eight is exactly this: a square piece at each
   corner would be simpler and would hang a clear quad over four corners of the
   board. There is no quad over the middle at all.
+- **And nothing is behind the case either.** The silhouette is a matte on the
+  colour, not a hole in the alpha, so the surround ships opaque black — the same
+  `#000000` the camera already clears to. The board is drawn by the camera across
+  the whole display, so every pixel the silhouette cut away used to be a hole
+  straight through the machine: mid-fold the cube is half again as wide as its
+  own face, and the matrix cage came out through the notch in the top edge and
+  ran off the case into the desktop behind it. The glass is the only transparent
+  part of the asset.
 
 **It is the one imported asset in the project, and that is a real exception to a
 real principle.** Everything else here is generated — glyphs, frames, glow, icon,

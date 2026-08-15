@@ -15,12 +15,25 @@ python3 glass.py          # glass-source.jpeg -> glass-art.jpg    (the dirt)
 its screen, on a black background. Three things have to happen to it before it
 can be a housing rather than a picture of one.
 
-**The background comes off.** A flood fill from the border over everything below
-nine in luminance, which finds the black around the case and cannot leak inside
-it — the case's own darkest pixels are twice that. What is left is the
-silhouette, and it is not a rectangle: there is a notch in the middle of the top
-edge, a waist where both sides step in, a foot at the bottom, and eight bolts.
-Keeping that shape is most of why the housing reads as an object.
+**The background comes off — as a MATTE, not as alpha.** A flood fill from the
+border over everything below nine in luminance, which finds the black around the
+case and cannot leak inside it: the case's own darkest pixels are twice that.
+What is left is the silhouette, and it is not a rectangle — there is a notch in
+the middle of the top edge, a waist where both sides step in, a foot at the
+bottom, and eight bolts. Keeping that shape is most of why the housing reads as
+an object.
+
+The silhouette multiplies the colour rather than cutting the alpha, and the
+surround ships opaque black. That looks like a mistake and is the fix for one.
+The board is drawn by the CAMERA, across the whole display, and the case is the
+only thing in front of it — so every pixel the silhouette cuts away is a hole
+straight through the machine. At rest nothing shows through: the cube is fitted
+well inside the aperture. Mid-fold and under a held matrix it is half again as
+wide as its own face, and the cage came out through the notch in the top edge
+and ran off the case entirely. The camera clears to `Palette.Void`, which is
+`#000000`, so painting the surround black is pixel-for-pixel what was already
+there and closes the hole. **The glass is the only transparent part of this
+asset.**
 
 **The glass comes out.** A rounded rectangle, `GLASS` in the script, measured to
 the darkest point of the recess on each of the four sides — so the machined wall
