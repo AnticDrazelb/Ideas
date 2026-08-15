@@ -317,8 +317,44 @@ namespace Singularity.Game
                     float gapL = cut[i].xMin, gapR = sw - cut[i].xMax;
                     bool onSide = Mathf.Min(gapL, gapR) < Mathf.Min(gapT, gapB);
 
-                    float along = onSide ? h / sh : w / sw;
-                    float ratio = onSide ? h / Mathf.Max(w, 1f) : w / Mathf.Max(h, 1f);
+                    // THE PORT IS PLACED OFF THE TWO MEASUREMENTS THAT ARE TRUE
+                    // WHATEVER THE PHONE MEANT BY THE RECT.
+                    //
+                    // A cutout rect is either tight around the opening or anchored
+                    // to the edge of the display, and which one you were handed is
+                    // not stated anywhere. Anchored, the rect is DEEPER than the
+                    // hole — so its centre sits outboard of the real camera and its
+                    // size overstates it, and a port placed on that centre is drawn
+                    // both too far out and too large. Getting the form right and
+                    // then drawing it in the wrong place is not better than getting
+                    // the form wrong.
+                    //
+                    // Two things survive both conventions. The extent ALONG the
+                    // edge is the opening's own width either way, and the INNER
+                    // edge — the side facing into the display — is the real
+                    // boundary of the obstruction either way. Only the outer edge
+                    // is ambiguous, so nothing is measured from it: the depth is
+                    // taken as the smaller dimension, which is the diameter for a
+                    // round hole under either convention and the true depth for
+                    // every form that is wider than it is deep, and the centre is
+                    // stepped in from the inner edge by half of that.
+                    float span = onSide ? h : w;
+                    float deep = Mathf.Min(w, h);
+
+                    float cx, cy;
+                    if (onSide)
+                    {
+                        cx = gapL <= gapR ? cut[i].xMax - deep * 0.5f : cut[i].xMin + deep * 0.5f;
+                        cy = cut[i].yMin + h * 0.5f;
+                    }
+                    else
+                    {
+                        cx = cut[i].xMin + w * 0.5f;
+                        cy = gapT <= gapB ? cut[i].yMin + deep * 0.5f : cut[i].yMax - deep * 0.5f;
+                    }
+
+                    float along = span / (onSide ? sh : sw);
+                    float ratio = span / Mathf.Max(deep, 1f);
                     bool attached = Mathf.Min(Mathf.Min(gapT, gapB), Mathf.Min(gapL, gapR))
                                     <= Mathf.Max(2f, sh * 0.004f);
 
@@ -339,9 +375,12 @@ namespace Singularity.Game
                     //
                     //   adb logcat -s Unity:V | grep cutout
                     Debug.Log(string.Format(
-                        "[Singularity] cutout {0}: {1}x{2} at ({3},{4}) on {5}x{6} — " +
-                        "along {7:0.000} ratio {8:0.00} gap {9:0.0} attached {10} -> {11}",
-                        i, w, h, cut[i].xMin, cut[i].yMin, sw, sh, along, ratio,
+                        "[Singularity] cutout {0}: reported {1}x{2} at ({3},{4}) on {5}x{6} | " +
+                        "hole {7}x{8} centred ({9:0},{10:0}) | along {11:0.000} ratio {12:0.00} " +
+                        "gap {13:0.0} attached {14} -> {15}",
+                        i, w, h, cut[i].xMin, cut[i].yMin, sw, sh,
+                        onSide ? deep : span, onSide ? span : deep, cx, cy,
+                        along, ratio,
                         Mathf.Min(Mathf.Min(gapT, gapB), Mathf.Min(gapL, gapR)), attached, style));
 
                     if (style == Cut.None) continue;
@@ -356,9 +395,9 @@ namespace Singularity.Game
                     // THE CONTRACT WITH ports.py: every sheet is exactly twice its
                     // hole, hole centred. So the port lines up on any phone at any
                     // diameter without either side knowing the other's numbers.
-                    rt.sizeDelta = new Vector2(w / k * 2f, h / k * 2f);
-                    rt.anchoredPosition = new Vector2((cut[i].xMin + w * 0.5f) / k,
-                                                      (cut[i].yMin + h * 0.5f) / k);
+                    rt.sizeDelta = new Vector2((onSide ? deep : span) / k * 2f,
+                                               (onSide ? span : deep) / k * 2f);
+                    rt.anchoredPosition = new Vector2(cx / k, cy / k);
                     rt.gameObject.SetActive(true);
                     n++;
                 }

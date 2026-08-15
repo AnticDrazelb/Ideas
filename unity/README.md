@@ -210,6 +210,19 @@ and gets two ports. Adding a fifth form is one call in the script and one row in
 the classifier — no device list, which would be wrong the day a phone ships and
 is already wrong for a foldable whose two displays disagree.
 
+**Placement is measured off the two things that survive either convention.** A
+cutout rect is either tight around the opening or anchored to the display edge,
+and which one you were handed is stated nowhere — anchored, the rect is deeper
+than the hole, so its centre sits outboard of the real camera and its size
+overstates it. Getting the form right and then drawing it in the wrong place is
+not better than getting the form wrong. So nothing is measured from the outer
+edge: the extent ALONG the edge is the opening's width either way, the INNER edge
+is the real boundary of the obstruction either way, the depth is taken as the
+smaller dimension, and the centre is stepped in from the inner edge by half of
+it. A 100px punch-hole at (540, 2330) lands on (540, 2330) at 100x100 whether the
+phone reports a 100px-tall rect or a 120px one; centring on the rect would put it
+10px out and 20px oversized.
+
 Each sheet is **exactly twice its hole, hole centred**. That is the entire
 contract with the runtime: measure the cutout, double it, centre the sheet on it,
 and the port lines up at any diameter — which matters because position and size
