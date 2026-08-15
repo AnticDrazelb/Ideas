@@ -181,23 +181,48 @@ art's own scale exactly, verified at `1.0000` for any inset on any edge, with th
 glass overlap holding at its authored 7.5. The case's top edge comes out flat
 rather than notched, which is the price of putting steel where the camera is.
 
-**And the camera gets a port.** Metal around it stops it sitting in a hole, but
-flat metal with a black dot punched through is still a phone with a phone's
-camera in it — the dot is the one thing on the display the game cannot draw, so
-the only way it reads as part of the machine is if the metal AROUND it says so.
-Each cutout gets a machined shoulder and a lit lip, and the black becomes a port
-something looks out of, on a panel that already has eight bolts in it.
+**And the camera gets a port, drawn per form.** Metal around it stops it sitting
+in a hole, but flat metal with a black dot punched through is still a phone with
+a phone's camera in it. The dot is the one thing on the display the game cannot
+draw, so the only way it reads as part of the machine is if the metal AROUND it
+says so.
 
-This is where `Screen.cutouts` earns its place over `safeArea`. The rectangle can
-only say "something is in the way along this edge"; `cutouts` gives the actual
-shapes. So a centre punch-hole, a corner one, a teardrop, a wide notch and a pill
-for two lenses are all just rects, each getting a port cut to its own size in its
-own place — including on phones that do not exist yet. A dual-hole layout reports
-two and gets two. There is no second copy of the art and no list of devices,
-which is the same outcome a per-style chassis would give with none of the
-upkeep — and the shoulder is a darkening and the lip a lightening of whatever is
-underneath, so both belong to the bezel they land on without this file having an
-opinion about what rusted steel looks like.
+There are four, in `unity/tools/chassis/ports.py`, because one collar round
+whatever rectangle turns up is the lowest common denominator of all of them and
+looks like it — a bathtub notch wants a slot that runs off the edge of the panel,
+a punch-hole wants a tight port with a lip all the way round:
+
+| form | what it is |
+|---|---|
+| `hole` | a round island — centred or in a corner, the common case |
+| `pill` | two lenses under one racetrack opening |
+| `tear` | a waterdrop, joined to the edge, collar open along it |
+| `notch` | the wide notch — a slot cut into the edge of the panel |
+
+**The form is recognised, not looked up.** `safeArea` is a rectangle and can only
+say "something is in the way along this edge"; `Screen.cutouts` gives the actual
+shapes, and `Chassis.Classify` reads the form off three numbers — extent along
+its edge, how much longer than deep, and whether it touches the edge at all,
+which is the whole difference between a waterdrop and a punch-hole. Checked
+against real geometry: Pixel 7 → `hole`, Galaxy S10 → `hole`, S10+ → `pill`,
+waterdrop → `tear`, Pixel 3 XL → `notch`. A dual-hole layout reports two cutouts
+and gets two ports. Adding a fifth form is one call in the script and one row in
+the classifier — no device list, which would be wrong the day a phone ships and
+is already wrong for a foldable whose two displays disagree.
+
+Each sheet is **exactly twice its hole, hole centred**. That is the entire
+contract with the runtime: measure the cutout, double it, centre the sheet on it,
+and the port lines up at any diameter — which matters because position and size
+vary *within* a form, and art with the opening baked at a canonical spot lands
+15px off the real one and looks worse than no port at all.
+
+The sheets carry **shading, not metal**. The first attempt sampled a patch of
+bezel and pasted it round the camera; the band is rusted through in places and
+clean in others, so the patch never matched what it landed on and every port read
+as a sticker with a tile seam through it. They are a tint with a strength instead
+— black where the steel is machined away, white along the shoulder that catches
+the light, over ordinary alpha blending — so a port takes the colour of the bezel
+it lands on and there is nothing to match.
 
 The corner arms do still stretch, by the same few percent, on whichever edge has
 an inset — an arm is a fixed window onto the art, so the rounded silhouette and

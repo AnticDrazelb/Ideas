@@ -99,3 +99,26 @@ Additive is not a stylistic choice. Alpha-blending a near-black photograph over
 this interface would darken it everywhere the dirt is dark, which is most of it,
 and would take the audit's four dark grounds down with it. Light that only adds
 cannot make anything less legible than it was.
+
+## the camera ports
+
+```sh
+python3 ports.py          # chassis.png -> port-hole/pill/tear/notch.png
+```
+
+Four sheets, one per cutout form Android phones actually have: a round island, a
+racetrack for two lenses, a waterdrop joined to the edge, and the wide notch.
+`Chassis.Classify` recognises which one a phone has from `Screen.cutouts` — the
+shape, not a device name — and loads the matching sheet.
+
+**Each sheet is exactly twice its hole, hole centred.** That is the whole
+interface with the runtime, and it is why one sheet fits every phone in its form:
+position and diameter vary between handsets, so the art carries the treatment and
+the measured rect places it.
+
+They carry **shading rather than metal** — a tint with a strength, black where the
+steel is machined away and white along the lit shoulder, over ordinary alpha
+blending. The first version sampled real bezel and pasted it round the opening,
+and it could not work: the band is rusted through in places and clean in others,
+so the patch never matched its surroundings and every port read as a sticker.
+Shading takes the colour of whatever it lands on, so there is nothing to match.

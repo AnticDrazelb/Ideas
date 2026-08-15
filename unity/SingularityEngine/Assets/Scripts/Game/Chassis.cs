@@ -129,6 +129,59 @@ namespace Singularity.Game
 
         const float Corner = ArtCorner * K;
 
+        // ---- the cutouts that exist ------------------------------------------
+
+        /// <summary>
+        /// EVERY CAMERA CUTOUT ANDROID PHONES ACTUALLY HAVE, which is a short list
+        /// and has been for years.
+        ///
+        /// The generic answer — one ring around whatever rectangle turns up — is
+        /// the lowest common denominator of all of these, and it looks like it. A
+        /// bathtub notch wants a machined slot that runs off the edge of the
+        /// panel; a punch-hole wants a tight port with a lip all the way round.
+        /// Giving both the same collar gives neither the right one.
+        ///
+        /// So this is a catalogue, and adding to it is the intended way to handle a
+        /// shape that turns up later: one entry in <see cref="Ports"/>, one row of
+        /// numbers. The forms have not moved in years and a new one only matters
+        /// once enough people are holding it.
+        /// </summary>
+        public enum Cut
+        {
+            None,
+            /// <summary>A round or near-round island. The common case, centred or in a corner.</summary>
+            Hole,
+            /// <summary>Two lenses under one opening — a racetrack, still an island.</summary>
+            Pill,
+            /// <summary>A waterdrop: small, centred, and joined to the edge of the display.</summary>
+            Tear,
+            /// <summary>The wide notch. A quarter of the edge or more, and part of the edge.</summary>
+            Notch,
+        }
+
+        /// <summary>
+        /// WHICH ONE IS THIS, FROM THE SHAPE ALONE.
+        ///
+        /// Measured, not looked up. The catalogue is of FORMS, and a form can be
+        /// recognised — where a device list has to be told, has to be maintained,
+        /// is wrong the day a phone ships, and is already wrong for a foldable
+        /// whose two displays disagree. The same four numbers name the form on a
+        /// handset nobody here has ever held.
+        ///
+        /// <paramref name="along"/> is the cutout's extent ALONG the edge it sits
+        /// on as a fraction of that edge, <paramref name="ratio"/> is how much
+        /// longer it is than it is deep, and <paramref name="attached"/> is whether
+        /// it touches the display's edge or floats clear of it — which is the whole
+        /// of the difference between a waterdrop and a punch-hole.
+        /// </summary>
+        public static Cut Classify(float along, float ratio, bool attached)
+        {
+            if (along <= 0.001f) return Cut.None;
+            if (along >= 0.25f) return Cut.Notch;
+            if (attached) return Cut.Tear;
+            return ratio >= 1.8f ? Cut.Pill : Cut.Hole;
+        }
+
         // ---- the panel -------------------------------------------------------
 
         /// <summary>
@@ -193,10 +246,8 @@ namespace Singularity.Game
             /// </summary>
             const int MaxPorts = 4;
 
-            /// <summary>Canvas units of machined shoulder around the camera's own glass.</summary>
-            const float Lip = 9f;
-
             readonly RectTransform[] _port = new RectTransform[MaxPorts];
+            readonly Sprite[] _art = new Sprite[8];
 
             void LateUpdate()
             {
@@ -248,6 +299,8 @@ namespace Singularity.Game
             {
                 float k = Owner != null ? Owner.scaleFactor : 1f;
                 if (k <= 0f) k = 1f;
+                float sw = Screen.width, sh = Screen.height;
+                if (sw <= 0f || sh <= 0f) return;
 
                 Rect[] cut = Screen.cutouts;
                 int n = 0;
@@ -256,9 +309,33 @@ namespace Singularity.Game
                     float w = cut[i].width, h = cut[i].height;
                     if (w <= 1f || h <= 1f) continue;
 
+                    // Which edge it belongs to, then the three numbers the
+                    // catalogue is indexed by. A cutout on a long edge measures
+                    // itself against that edge, which is what keeps a landscape
+                    // phone from calling its punch-hole a notch.
+                    float gapT = sh - cut[i].yMax, gapB = cut[i].yMin;
+                    float gapL = cut[i].xMin, gapR = sw - cut[i].xMax;
+                    bool onSide = Mathf.Min(gapL, gapR) < Mathf.Min(gapT, gapB);
+
+                    float along = onSide ? h / sh : w / sw;
+                    float ratio = onSide ? h / Mathf.Max(w, 1f) : w / Mathf.Max(h, 1f);
+                    bool attached = Mathf.Min(Mathf.Min(gapT, gapB), Mathf.Min(gapL, gapR))
+                                    <= Mathf.Max(2f, sh * 0.004f);
+
+                    Cut style = Classify(along, ratio, attached);
+                    if (style == Cut.None) continue;
+
+                    Sprite art = Art(style);
+                    if (art == null) continue;
+
                     if (_port[n] == null) _port[n] = BuildPort(root, n);
                     RectTransform rt = _port[n];
-                    rt.sizeDelta = new Vector2(w / k + Lip * 2f, h / k + Lip * 2f);
+                    rt.GetComponent<Image>().sprite = art;
+
+                    // THE CONTRACT WITH ports.py: every sheet is exactly twice its
+                    // hole, hole centred. So the port lines up on any phone at any
+                    // diameter without either side knowing the other's numbers.
+                    rt.sizeDelta = new Vector2(w / k * 2f, h / k * 2f);
                     rt.anchoredPosition = new Vector2((cut[i].xMin + w * 0.5f) / k,
                                                       (cut[i].yMin + h * 0.5f) / k);
                     rt.gameObject.SetActive(true);
@@ -267,6 +344,27 @@ namespace Singularity.Game
 
                 for (int i = n; i < MaxPorts; i++)
                     if (_port[i] != null) _port[i].gameObject.SetActive(false);
+            }
+
+            /// <summary>
+            /// The sheet for one form, loaded once. A form with no art is not an
+            /// error worth stopping for — the fill already put metal where the
+            /// camera is, and a missing port only costs the shoulder around it.
+            /// </summary>
+            Sprite Art(Cut style)
+            {
+                int i = (int)style;
+                if (_art[i] != null) return _art[i];
+
+                var tex = Resources.Load<Texture2D>("port-" + style.ToString().ToLower());
+                if (tex == null)
+                {
+                    Debug.LogWarning("Chassis: no port art for " + style);
+                    return null;
+                }
+                _art[i] = Sprite.Create(tex, new UnityEngine.Rect(0, 0, tex.width, tex.height),
+                                        new Vector2(0.5f, 0.5f), 1f);
+                return _art[i];
             }
 
             /// <summary>
@@ -282,20 +380,10 @@ namespace Singularity.Game
                                                              Vector2.zero, Vector2.zero);
                 rt.pivot = new Vector2(0.5f, 0.5f);
 
-                var recess = rt.gameObject.AddComponent<Image>();
-                recess.sprite = Singularity.UI.UiKit.RoundFill;
-                recess.type = Image.Type.Sliced;
-                recess.color = new Color(0f, 0f, 0f, 0.62f);
-                recess.raycastTarget = false;
-
-                RectTransform lip = Singularity.UI.UiKit.Rect(rt, "lip",
-                                                              Vector2.zero, Vector2.one,
-                                                              Vector2.zero, Vector2.zero);
-                var edge = lip.gameObject.AddComponent<Image>();
-                edge.sprite = Singularity.UI.UiKit.RoundLine;
-                edge.type = Image.Type.Sliced;
-                edge.color = new Color(1f, 1f, 1f, 0.20f);
-                edge.raycastTarget = false;
+                var img = rt.gameObject.AddComponent<Image>();
+                img.type = Image.Type.Simple;
+                img.color = Color.white;      // the sheet carries the whole port
+                img.raycastTarget = false;
                 return rt;
             }
 
