@@ -18,6 +18,7 @@
     <Compile Include="ChassisChecks.cs" />
     <Compile Include="SoundChecks.cs" />
     <Compile Include="SaveChecks.cs" />
+    <Compile Include="CodeChecks.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Game/**/*.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Editor/**/*.cs" />

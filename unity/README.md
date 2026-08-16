@@ -289,6 +289,27 @@ launch crash, removing the quarantine guard fails the second-bad-launch case.
 A check that passes whether or not the guard exists is not a check, and the
 first version of the quarantine test was exactly that.
 
+### A share code is the save format, not a share feature
+
+`Forge` stores a made cube as its **code** and decodes it again every time the
+cube is opened. So a round trip that loses anything does not cost a player a
+message they sent to a friend — it costs them the cube they built, out of their
+own shelf, silently, the next time they press it.
+
+The existing test covered four generated cubes and five fields. The harness now
+mints **120**, checks every field, and asserts the code **re-encodes to itself**
+— and prints the voxel census, because a round-trip test proves nothing about a
+state its sample never contains. It turns out to be fine: 101 of the 120 carry a
+plate, so `A` and `B` were covered. All 120 are byte-identical.
+
+`Decode` is solid — checksum, version, bounds on `n`, on the pair count, and on
+every read. `Encode` was not: it wrote `keys.Count` and then indexed `doors[i]`
+underneath it, so a level with one more node than lock threw an
+`ArgumentOutOfRangeException` **out of a share button**. Not reachable through
+the Forge, which places and removes them in pairs — reachable by the next thing
+that builds a `Level`. It writes the minimum of the two now, which is lossless
+for every valid level, so **every code already in the wild is unchanged**.
+
 ### Measuring
 
 None of this was eyeballed. `unity/tools/type/reflow.py` wraps every prose box

@@ -53,8 +53,26 @@ namespace Singularity.Core
 
             Put(lv.start);
             Put(lv.goal);
-            bytes.Add(lv.keys.Count);
-            for (int i = 0; i < lv.keys.Count; i++) { Put(lv.keys[i]); Put(lv.doors[i]); }
+
+            // PAIRS, AND THE MINIMUM OF THE TWO LISTS RATHER THAN THE LENGTH OF
+            // ONE OF THEM.
+            //
+            // A node and its lock are one record here: the count is written once
+            // and the two points follow it, which is right, because a lock with
+            // no node is not a puzzle. This walked keys.Count and indexed
+            // doors[i] underneath it, so a level with one more node than lock
+            // threw an ArgumentOutOfRangeException — out of Encode, which is
+            // called from a share button and from every save of a made cube.
+            //
+            // Nothing in the Forge can produce that today: nodes and locks are
+            // placed and removed as pairs, and Validation refuses a level where
+            // they disagree. So this is not a bug being fixed, it is a crash
+            // being taken off the table for the next thing that builds a Level —
+            // and since every VALID level has equal counts, the minimum is
+            // lossless for all of them.
+            int pairs = Math.Min(lv.keys.Count, lv.doors.Count);
+            bytes.Add(pairs);
+            for (int i = 0; i < pairs; i++) { Put(lv.keys[i]); Put(lv.doors[i]); }
 
             int sum = 0;
             for (int i = 0; i < bytes.Count; i++) sum = (sum * 31 + bytes[i]) & 255;
