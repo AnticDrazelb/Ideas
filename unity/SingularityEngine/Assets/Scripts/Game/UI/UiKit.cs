@@ -47,6 +47,23 @@ namespace Singularity.UI
             return c;
         }
 
+        /// <summary>
+        /// THE FACE THIS INTERFACE CLAIMS TO SPEAK IN, AND DOES NOT.
+        ///
+        /// It is called Mono, the design notes call it monospace, and the shipped
+        /// CSS it was ported from used a real one. What it actually returns is
+        /// `LegacyRuntime.ttf` — Unity's built-in **Arial**. The Courier New
+        /// fallback under it fires only if that builtin is missing, which it is
+        /// not, so it has never once run.
+        ///
+        /// That was not a taste decision. It was the only font obtainable without
+        /// importing an asset, back when importing an asset was against the rules.
+        /// It no longer is, so this should become a real face — and it is worth
+        /// knowing what changes when it does: numbers in the HUD chips will
+        /// tabular-align for the first time, and every width estimate behind the
+        /// wrapping and best-fit work in this file was made against Arial's
+        /// metrics, not a monospace's.
+        /// </summary>
         public static Font Mono
         {
             get

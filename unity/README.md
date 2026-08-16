@@ -91,6 +91,44 @@ that depends on somebody having clicked through the editor once is not a build.
 
 ---
 
+## Assets, prefabs and scenes are allowed
+
+This project was written under a rule it inherited from the web build: **no
+files.** One HTML page, offline, nothing to download — so every texture, every
+sound and every glyph is generated at runtime, the scene is empty, and there is
+not a prefab in the repository. Most of what follows in this file argues for
+that, at length, and it was right when the deliverable was a single page.
+
+**It is not the rule any more.** Assets, prefabs and scenes are permitted, and
+where they produce a better result they are preferred. The bar is the result,
+not the purity.
+
+Two things survive the change, because they were never really arguments about
+files:
+
+- **A diff has to stay readable.** A seven-hundred-line YAML blob whose merge
+  conflicts cannot be resolved is a bad artifact whatever it contains. Where a
+  thing can be expressed as code with the reasons next to the values, it usually
+  still should be — that is a preference now rather than a law, and it loses to
+  a materially better result.
+- **An asset nobody can regenerate is a liability.** The chassis is imported and
+  the script that cut it and the render it came from are both in the repository,
+  which is what makes it reviewable. That standard holds for anything that gets
+  added.
+
+**And the first thing it buys is a typeface, which turns out to be a bug report.**
+Every screen in this game is described as speaking in a monospace face —
+`UiKit.Mono`, `--mono`, "the same monospace the rest of the interface speaks".
+It does not. `Mono` returns `LegacyRuntime.ttf`, which is Unity's built-in
+**Arial**; the Courier New fallback beneath it only fires if that is missing,
+and it never is. So ninety-four labels, every chip, every bracketed button and
+every number in the HUD render in a proportional face, and the design language
+has been describing something the game does not do since the port was written.
+That was not a decision, it was the only font available without an asset. There
+is now no reason it should stay that way.
+
+---
+
 ## The one idea
 
 The engine is a solid cube of cells. The camera looks down one axis, and **every
@@ -171,7 +209,7 @@ Assets/Scripts/Game/     everything that draws, listens or remembers
   Synth, Sfx             every sound in the game, made from two primitives
   Forge                  the editor's model, with no UnityEngine in it
   CameraRig, InputRouter, RemainSolver, LevelSupply, Store, ...
-  UI/                    built in code; no prefabs anywhere
+  UI/                    built in code (a preference now, not a rule)
 
 Assets/Tests/EditMode/   the port's contract with the original
 Assets/Shaders/          Cell (the solid + the reveal), Glyph (the four
