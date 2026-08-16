@@ -130,6 +130,7 @@ namespace Singularity.Game
         /// reason: this cannot be drawn until something has a size, and the size
         /// is not known in Awake.
         /// </summary>
+        [ExecuteAlways]
         class Fit : MonoBehaviour
         {
             Canvas _canvas;

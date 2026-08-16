@@ -219,6 +219,8 @@ namespace UnityEngine
         public void SetActive(bool b) { }
         public T AddComponent<T>() where T : Component => default;
         public T GetComponent<T>() => default;
+        public T[] GetComponentsInChildren<T>(bool includeInactive) => new T[0];
+        public static GameObject Find(string name) => null;
     }
 
     public class Transform : Component, IEnumerable
@@ -389,6 +391,14 @@ namespace UnityEngine
     [AttributeUsage(AttributeTargets.Field)]
     public class SerializeField : Attribute { }
 
+    /// <summary>
+    /// Runs its Awake/Update/LateUpdate in EDIT MODE as well as in play mode.
+    /// Two components carry it — the chassis's Fit and the scanlines' — so that
+    /// the editor preview lays itself out live when the Game view is resized.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class)]
+    public class ExecuteAlwaysAttribute : Attribute { }
+
     [AttributeUsage(AttributeTargets.Class)]
     public class CreateAssetMenuAttribute : Attribute
     {
@@ -419,7 +429,7 @@ namespace UnityEngine
     [AttributeUsage(AttributeTargets.Class)]
     public class RequireComponent : Attribute { public RequireComponent(Type t) { } }
 
-    [Flags] public enum HideFlags { None = 0, HideAndDontSave = 61 }
+    [Flags] public enum HideFlags { None = 0, HideInHierarchy = 1, DontSaveInEditor = 4, NotEditable = 8, DontSaveInBuild = 16, DontUnloadUnusedAsset = 32, DontSave = 52, HideAndDontSave = 61 }
 
     public class Texture : Object
     {
@@ -610,6 +620,7 @@ namespace UnityEngine
     {
         public static int targetFrameRate { get; set; }
         public static bool isBatchMode => false;
+        public static bool isPlaying => false;
     }
 
     public static class QualitySettings { public static int vSyncCount { get; set; } }

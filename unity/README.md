@@ -172,6 +172,36 @@ against this one found a chamfer groove or the foot. So that stays yours, seeded
 from the current proportions, with the case drawn assembled underneath so a bad
 corner or a shallow band is visible before anything is written.
 
+### The scene stays empty, and you can still see it
+
+`Main.unity` has no GameObjects in it. Everything is built in code at
+`RuntimeInitializeOnLoadMethod`, so there is no serialised reference anywhere
+that can come unhooked, and that is worth more than anything a hand-authored
+scene would buy. **This did not change, and it should not.** A `.unity` full of
+GameObjects is a file nobody can review in a diff, two people cannot merge, and
+which drifts out of agreement with the code that expects it — and the specific
+version of that failure this project would hit is a camera or a canvas
+serialised with settings that no longer match the ones `GameDirector` sets.
+
+What the empty scene actually costs is the thing people mean when they ask for a
+real one: **you cannot see any of it in the editor.** Does the case fit this
+aspect, does the glass line up with the bezel, do the scanlines land inside the
+opening — every one of those needs a play session, and the Game view sits there
+showing nothing.
+
+So **Singularity → Housing → Show** populates the scene on demand, from the same
+code the game runs: chassis, scanlines and glass, built by their own `Build`
+methods, under one root. Drag the Game view to any aspect and the housing
+re-fits live. Everything it creates is `HideFlags.DontSave`, so it cannot be
+serialised into `Main.unity` by somebody pressing Ctrl-S with the preview up —
+the empty scene stays empty by construction rather than by care.
+
+The runtime needed exactly one change for this: `[ExecuteAlways]` on the two
+`Fit` components, so they lay out when the panel's size changes in edit mode as
+well as in play mode. Nothing in the preview reimplements any of the layout,
+which is the point — a preview that is a second implementation is a preview that
+can be right while the game is wrong.
+
 ### Sound: a recording, if there is one
 
 Every cue in the game is synthesised — two primitives in `Synth`, layered at

@@ -143,6 +143,7 @@ namespace Singularity.Game
         /// on their own; this exists for the sizes that anchors cannot express and
         /// to hold the guard for a panel too small to take the corners at all.
         /// </summary>
+        [ExecuteAlways]
         class Fit : MonoBehaviour
         {
             Texture2D _tex;

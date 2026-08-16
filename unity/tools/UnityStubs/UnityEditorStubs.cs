@@ -77,6 +77,16 @@ namespace UnityEditor
 
     public class GUIStyle { }
 
+    public static class Selection
+    {
+        public static UnityEngine.GameObject activeGameObject { get; set; }
+    }
+
+    public class SceneView : EditorWindow
+    {
+        public static void RepaintAll() { }
+    }
+
     public static class EditorStyles
     {
         public static GUIStyle boldLabel => null;

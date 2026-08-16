@@ -114,7 +114,12 @@ namespace Singularity.UI
             s.referenceResolution = new Vector2(720, 1280);
             s.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             s.matchWidthOrHeight = 0.5f;
-            Object.DontDestroyOnLoad(go);
+            // ONLY WHILE THE GAME IS RUNNING. DontDestroyOnLoad is meaningless
+            // outside play mode — there is no load to survive — and Unity says so
+            // with a warning every time. The edit-mode preview builds these same
+            // canvases, so without the guard opening it prints one line per
+            // canvas about a call that could not have done anything.
+            if (Application.isPlaying) Object.DontDestroyOnLoad(go);
             go.AddComponent<SafeArea>();
             Canvases.Add(c);
             return c;
