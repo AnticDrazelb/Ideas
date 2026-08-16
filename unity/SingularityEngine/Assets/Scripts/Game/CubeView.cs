@@ -93,6 +93,18 @@ namespace Singularity.Game
         public const float EvertSeconds = 0.55f;
 
         /// <summary>
+        /// How far out of step the cells are, as a fraction of the whole turn.
+        ///
+        /// Zero and every cell flips together, which is a slab turning over.
+        /// One and the last cell only starts as the first one lands, which is a
+        /// slow ripple and loses the sense of a single event. Three quarters is a
+        /// wave with a clear front that still reads as one motion — and it is
+        /// keyed on DEPTH, so the turn sweeps from the face you are looking at to
+        /// the face you are about to be looking at.
+        /// </summary>
+        public const float EvertStagger = 0.75f;
+
+        /// <summary>
         /// THE ATTRACT CUBE. The title screen is a composition with a cube in the
         /// middle of it, and a still one reads as a screenshot. It turns slowly on
         /// two axes at rates that do not divide into each other, so it never
@@ -501,8 +513,12 @@ namespace Singularity.Game
             _evertTarget = _s != null && _s.Everted ? 1f : 0f;
             evertAmt = Mathf.MoveTowards(evertAmt, _evertTarget,
                                          Time.unscaledDeltaTime / Mathf.Max(0.01f, EvertSeconds));
-            float ev = evertAmt * evertAmt * (3f - 2f * evertAmt);
-            transform.localScale = new Vector3(1f, 1f, Mathf.Lerp(1f, -1f, ev));
+            // NO GLOBAL FLIP. The mirror is done per cell in the vertex shader,
+            // which is both the better picture and the simpler seam: the mesh
+            // never changes for an eversion — a polarity changes no cell's TYPE,
+            // only which one wins its column — so the whole effect is three
+            // uniforms and nothing on the CPU moves at all.
+            float ev = evertAmt;
 
             // one at the middle of the turn, zero at either end — how much of the
             // transition we are IN, as opposed to which side of it we are on
@@ -536,6 +552,16 @@ namespace Singularity.Game
                 m.SetFloat("_Peek", e);
                 m.SetFloat("_Wave", _wave);
                 m.SetFloat("_WaveDir", _waveDir);
+
+                // THE TWO AXES ARE TAKEN FROM THE CUBE'S OWN ROTATION, every
+                // frame, because the solid is folded and the shader works in
+                // object space. Forward is what gets mirrored; right is what the
+                // cells spin about, so they all turn the same way on screen
+                // whichever face happens to be pointing at the camera.
+                m.SetFloat("_Evert", ev);
+                m.SetVector("_EvertAxis", cube.InverseTransformDirection(Vector3.forward));
+                m.SetVector("_EvertSpin", cube.InverseTransformDirection(Vector3.right));
+                m.SetFloat("_EvertSpread", EvertStagger);
             }
 
             _reveal += Time.unscaledDeltaTime * RevealPerSecond;

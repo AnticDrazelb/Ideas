@@ -31,6 +31,10 @@ Shader "Singularity/Cell"
         _Wave     ("Transition front", Float) = 99
         _WaveDir  ("Transition direction", Float) = 1
         _WaveSoft ("Transition softness", Float) = 1.6
+        _Evert     ("Eversion", Range(0,1)) = 0
+        _EvertAxis ("Eversion axis, object space", Vector) = (0,0,1,0)
+        _EvertSpin ("Eversion spin axis, object space", Vector) = (1,0,0,0)
+        _EvertSpread ("Eversion stagger", Range(0,1)) = 0.75
         _Unlit    ("Unreachable dimming", Range(0,1)) = 0.46
         _UnlitSat ("Unreachable colour left", Range(0,1)) = 0.30
 
@@ -80,6 +84,8 @@ Shader "Singularity/Cell"
             fixed4 _ColFar, _ColNear;
             float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim, _Reveal, _Unlit, _UnlitSat, _Gutter, _Round, _Peek;
             float _Wave, _WaveDir, _WaveSoft;
+            float _Evert, _EvertSpread;
+            float4 _EvertAxis, _EvertSpin;
 
             v2f vert(appdata v)
             {
@@ -100,6 +106,59 @@ Shader "Singularity/Cell"
                     : saturate((waveD - _Wave) / _WaveSoft);
                 float3 local = lerp(v.centre, v.vertex.xyz, w * w * (3.0 - 2.0 * w));
 
+                // ---- EVERSION, ONE CELL AT A TIME ---------------------------
+                //
+                // The rule is that each column shows its FAR cell instead of its
+                // near one, so the honest end state is every cell mirrored along
+                // the camera axis. Doing that to the whole solid at once is one
+                // line and reads as the object being squashed through a plane.
+                //
+                // Doing it PER CELL reads as what it is. Each cell travels to its
+                // own mirror position and turns a half-circle about its own centre
+                // on the way, and the cells do not leave together: the stagger is
+                // keyed on depth, so the turn sweeps through the machine from the
+                // face you are looking at to the one you are about to be looking
+                // at. Every square on screen is a card flipping over, and what is
+                // on the back of it is the cell that was hiding behind it — which
+                // is not a metaphor for the rule, it is the rule.
+                //
+                // A half-circle about a face axis maps a cube onto itself, so the
+                // settled board is exactly the mirrored board and nothing needs
+                // to be undone at the end.
+                float3 eCentre = v.centre;
+                if (_Evert > 1e-5)
+                {
+                    float3 ax = normalize(_EvertAxis.xyz);
+                    float along = dot(v.centre, ax);
+
+                    // where this cell sits along the view axis, 0 far .. 1 near —
+                    // and therefore when its turn starts
+                    // 2 * _HalfSpan is the full span of cell centres — the same
+                    // divisor the depth ramp below uses. Four would squeeze every
+                    // cell into the middle quarter of the sweep and the stagger
+                    // would be invisible.
+                    float t = saturate(along / (2.0 * _HalfSpan) + 0.5);
+
+                    // the whole sweep still finishes at _Evert = 1 however wide the
+                    // stagger is: the front is scaled up by the spread and each
+                    // cell subtracts its own share
+                    float k = saturate(_Evert * (1.0 + _EvertSpread) - t * _EvertSpread);
+                    float e = k * k * (3.0 - 2.0 * k);
+
+                    eCentre = v.centre - 2.0 * along * ax * e;
+
+                    // Rodrigues, about the cell's own centre. The spin axis is the
+                    // camera's right in object space, so every cell turns the same
+                    // way on screen no matter which way the engine is folded.
+                    float3 sp = normalize(_EvertSpin.xyz);
+                    float3 rel = local - v.centre;
+                    float ang = 3.14159265 * e;
+                    float cs = cos(ang), sn = sin(ang);
+                    rel = rel * cs + cross(sp, rel) * sn + sp * dot(sp, rel) * (1.0 - cs);
+
+                    local = eCentre + rel;
+                }
+
                 o.pos = UnityObjectToClipPos(float4(local, 1));
 
                 // Depth is measured from the CELL CENTRE, not the vertex, so that
@@ -107,7 +166,10 @@ Shader "Singularity/Cell"
                 // flat 2D original prints — rather than half a step brighter.
                 // Measured against the cube's own centre so it is independent of
                 // how far away the camera happens to sit.
-                float centreZ = UnityObjectToViewPos(float4(v.centre, 1)).z;
+                // the ANIMATED centre, not the authored one — depth is drawn as
+                // brightness, so a cell reading its old depth while it travels
+                // would keep the near ramp all the way to the far side
+                float centreZ = UnityObjectToViewPos(float4(eCentre, 1)).z;
                 float originZ = UnityObjectToViewPos(float4(0, 0, 0, 1)).z;
                 // Unity view space looks down -Z, so a LARGER z is nearer.
                 o.depth01 = saturate((centreZ - originZ) / (2.0 * _HalfSpan) + 0.5);

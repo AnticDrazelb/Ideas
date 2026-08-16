@@ -326,9 +326,24 @@ at the camera. `Cull Off` was already set — the solid is closed and the peek p
 draws back faces — so the inverted winding a negative scale produces costs
 nothing.
 
-The **turn** is the drama. Scale passes through zero, where the solid is edge-on
-and momentarily a line, and that instant is not hidden but *used*: the cube goes
-to glass on the way in and hardens on the way out, quoting the MATRIX look the
+**The turn happens one cell at a time, and that is the whole picture.** Mirroring
+the solid in one move reads as an object being squashed through a plane. Doing it
+per cell reads as what it is: every cell travels to its own mirror position and
+turns a half-circle about its own centre on the way, staggered by depth, so the
+turn sweeps from the face you are looking at to the face you are about to be
+looking at. Every square on screen is a card flipping over, and on the back of it
+is the cell that was hiding behind it — which is not a metaphor for the rule, it
+*is* the rule.
+
+A half-circle about a face axis maps a cube onto itself, so the settled board is
+exactly the mirrored board with nothing to undo. The mesh never changes for an
+eversion — a polarity changes no cell's *type*, only which one wins its column —
+so the entire effect is three shader uniforms and nothing on the CPU moves at
+all. The stagger is 0.75: at zero every cell flips together and it is a slab
+turning over; at one the last cell starts as the first lands and it stops reading
+as a single event.
+
+Under it, the cube goes to glass and hardens again, quoting the MATRIX look the
 player already knows. Matrix says "there is something behind this." Eversion is
 that sentence finished. Violet is pushed into every material's near-colour across
 the turn, there is a hitstop and a slow-mo timed to land at the crossing, and the
