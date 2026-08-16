@@ -145,6 +145,115 @@ namespace Singularity.Game
             mesh.RecalculateBounds();
         }
 
+        // ---- the schematic ---------------------------------------------------
+
+        /// <summary>Which cell each WIRE vertex belongs to, in emission order.</summary>
+        public static int[] LastWireCellOfVertex = System.Array.Empty<int>();
+
+        /// <summary>
+        /// What each wire cell IS: 0 empty, 128 lattice, 255 something you can
+        /// stand on. Kept because the reach pass rewrites the other three colour
+        /// channels every settle and must not lose this one.
+        /// </summary>
+        public static byte[] LastWireClass = System.Array.Empty<byte>();
+
+        /// <summary>
+        /// Half a cell, less the gutter — the SAME inset the surface shader uses
+        /// for its plate, so a wire box and the rim of the face in front of it are
+        /// the same line rather than two lines a hair apart.
+        /// </summary>
+        const float WireHalf = 0.5f - 0.055f;
+
+        /// <summary>
+        /// THE MACHINE AS A DRAWING: one wire box per cell, for EVERY cell in the
+        /// volume, including the empty ones.
+        ///
+        /// This is the geometry the surface mesh cannot supply and never could.
+        /// Build above meshes away every face with something next to it, which is
+        /// right — the inside of a solid is not visible from anywhere — and it
+        /// means a cell buried in the lattice has no vertices at all, and a VOID
+        /// has none by definition. So a schematic drawn from face borders can only
+        /// ever outline the walls that already happened to exist. What it cannot
+        /// draw is a complete cell, and what it cannot draw at all is the space.
+        ///
+        /// THE SPACE IS THE POINT. A void is not absence in this game, it is the
+        /// route: the corridors are what you fold to line up. Drawing the whole
+        /// n-cubed volume as a faint lattice and the material as brighter boxes on
+        /// top says where the matter ISN'T, which is the question somebody holding
+        /// MATRIX is actually asking and the one thing the board has never been
+        /// able to answer — a void and the outside of the cube looked identical.
+        ///
+        /// Eight vertices and twelve edges a cell, as lines. A full eight-cube is
+        /// four thousand vertices, which is nothing, and it carries the same
+        /// attributes as the surface so it runs through the same vertex stage —
+        /// the arrival wave, the eversion, the exit burst. A wire that did not
+        /// travel with the cell it belongs to would come off it the moment
+        /// anything moved.
+        /// </summary>
+        public static void BuildWire(Mesh mesh, Level lv, int world)
+        {
+            int n = lv.n;
+            char[] eff = lv.Eff(world);
+            float c = (n - 1) * 0.5f;
+
+            int cells = n * n * n;
+            var verts = new List<Vector3>(cells * 8);
+            var norms = new List<Vector3>(cells * 8);
+            var uv1 = new List<Vector3>(cells * 8);
+            var cols = new List<Color32>(cells * 8);
+            var cellOf = new List<int>(cells * 8);
+            var idx = new List<int>(cells * 24);
+            var cls = new List<byte>(cells * 8);
+
+            for (int y = 0; y < n; y++)
+                for (int z = 0; z < n; z++)
+                    for (int x = 0; x < n; x++)
+                    {
+                        int cell = Level.Vidx(n, x, y, z);
+                        char t = eff[cell];
+                        byte k = t == '.' ? (byte)0 : Level.IsWalkType(t) ? (byte)255 : (byte)128;
+
+                        Vector3 centre = ToObject(x - c, y - c, z - c);
+                        int b = verts.Count;
+                        for (int i = 0; i < 8; i++)
+                        {
+                            verts.Add(centre + new Vector3((i & 1) == 0 ? -WireHalf : WireHalf,
+                                                           (i & 2) == 0 ? -WireHalf : WireHalf,
+                                                           (i & 4) == 0 ? -WireHalf : WireHalf));
+                            // The wire frag never reads it, but the shared vertex
+                            // stage normalises the normal and a zero one is a NaN
+                            // in an interpolator. One constant is cheaper than
+                            // finding out which driver minds.
+                            norms.Add(Vector3.forward);
+                            uv1.Add(centre);
+                            cols.Add(new Color32(0, 0, 0, k));
+                            cellOf.Add(cell);
+                            cls.Add(k);
+                        }
+
+                        // the twelve edges: every pair of corners differing in
+                        // exactly one bit
+                        for (int i = 0; i < 8; i++)
+                            for (int bit = 1; bit <= 4; bit <<= 1)
+                                if ((i & bit) == 0) { idx.Add(b + i); idx.Add(b + i + bit); }
+                    }
+
+            mesh.Clear();
+            mesh.indexFormat = verts.Count > 65000
+                ? UnityEngine.Rendering.IndexFormat.UInt32
+                : UnityEngine.Rendering.IndexFormat.UInt16;
+            mesh.SetVertices(verts);
+            mesh.SetNormals(norms);
+            mesh.SetUVs(1, uv1);
+            mesh.SetColors(cols);
+            mesh.subMeshCount = 1;
+            mesh.SetIndices(idx, MeshTopology.Lines, 0, false);
+            mesh.RecalculateBounds();
+
+            LastWireCellOfVertex = cellOf.ToArray();
+            LastWireClass = cls.ToArray();
+        }
+
         /// <summary>
         /// The rotation that puts the cube in the orientation <paramref name="m"/>
         /// describes.

@@ -47,8 +47,8 @@ depth ramps stop being the distances they were authored to be.
 **This is almost certainly the shaders, and it is the empty scene's one real
 cost.** Every shader here is reached by `Shader.Find` and *nothing in the project
 references any of them* — no scene objects, no materials, no prefabs. Unity
-decides what to include in a player by reference, so five shaders with zero
-references are five shaders that do not ship. In the editor every asset is
+decides what to include in a player by reference, so a shader with zero
+references is a shader that does not ship. In the editor every asset is
 loaded, so `Shader.Find` works and there is no symptom at all; in a player it
 returns null, every material is built on nothing, and the game runs perfectly
 while drawing nothing.
@@ -59,8 +59,8 @@ adb logcat -c && adb logcat -s Unity:V | grep Singularity
 
 You want the line `shaders missing from this build: …`. Then:
 
-1. **Singularity → Apply Project Settings** — `EnsureShaders` adds all five to
-   Always Included Shaders.
+1. **Singularity → Apply Project Settings** — `EnsureShaders` adds every one of
+   them to Always Included Shaders.
 2. Rebuild.
 
 `build-android.sh` and the editor build item both apply project settings first,
@@ -624,16 +624,36 @@ you what was **behind** — the depth buffer performs the projection, so every c
 in a column but the nearest was already gone before the fragment shader had an
 opinion. "The lattice goes to glass" was a promise the renderer could not keep.
 
-It keeps it now, in a second pass. Additive, `ZWrite Off`, `ZTest Always`, so
-every face of every cell at every depth draws its outline over whatever is in
-front of it: the far wall of the solid, the walls of the corridors carved through
-it, the shape of the thing you are standing inside.
+It keeps it now, and not by relaxing the surface pass — by drawing a **second
+piece of geometry**. `CubeMesh.BuildWire` emits one twelve-edge wire box per cell
+for **every cell in the volume, the empty ones included**, and `Singularity/Wire`
+draws them additively with no depth test at all.
 
-**The first pass never stops obeying the projection**, and that is the whole
-licence for this. The x-ray draws nothing but lines, and a line is not a surface
-— the surface pass still decides what the board *is*; this one only says where
-the machine has material. That is the question a held MATRIX is asking, and the
-only one it can answer without lying about the rule.
+It has to be its own mesh, and that is the interesting part. `CubeMesh.Build`
+meshes away every face with something next to it — right, because the inside of a
+solid is not visible from anywhere — so a cell buried in the lattice has *no
+vertices*, and a void has none by definition. A schematic drawn from face borders
+can only ever outline the walls that already happened to exist. It cannot draw a
+complete cell, and it cannot draw the space at all.
+
+**The space is the point.** A void is not absence in this game, it is the route:
+the corridors are what you fold to line up. Drawing the whole n³ volume as a faint
+lattice and the material as brighter boxes on top says where the matter *isn't* —
+which is the question somebody holding MATRIX is actually asking, and the one
+thing the board has never been able to answer, because a void and the outside of
+the cube looked identical.
+
+**The surface pass never stops obeying the projection**, and that is the whole
+licence for this. The wire draws nothing but lines, and a line is not a surface —
+`Singularity/Cell` still decides what the board *is* and still obeys the depth
+buffer to the letter. This only says where the machine has material.
+
+It shares the surface's vertex stage through `Cell.cginc`, and it has to: the
+arrival wave, the eversion and the exit burst all move cells individually, and a
+wire that did not travel with the cell it belongs to would come off it the moment
+anything moved. The class of each cell rides in on vertex **alpha**, because the
+other three channels are rewritten by the reach pass on every settle and this one
+is a property of the cube rather than of the moment.
 
 Four things come on together:
 
@@ -659,11 +679,26 @@ It also fires for half a second in the middle of an **eversion** — `_Peek` has
 always meant "the material is out of the way", and the flip already used it. The
 machine turning through itself, seen as wire.
 
-*Unverified on device.* The dials are `_WireGain` per material and `_WireFar` in
-`CubeView.PushPalette`, and `_WireWidth` in `Cell.shader`. Shipped strengths at
-full hold, additive on the void: trace wire 0.34 near / 0.10 far, lattice 0.12 /
-0.02, plate 0.21 / 0.06. Two coincident near trace wires clip to white, which is
-intended — that is the bright line where two trace cells meet.
+The three strengths are the whole balance and they are an order of magnitude
+apart on purpose. Every cell draws a box, so the empty ones are by far the most
+numerous thing on screen — that is the point — and they have to sum to a faint
+field rather than a wall.
+
+| per box, at full hold | near | far | stacked before white |
+|---|---|---|---|
+| empty | 0.027 | 0.007 | 37 |
+| lattice | 0.083 | 0.022 | 12 |
+| trace | 0.342 | 0.089 | 2 |
+
+Worst case is a solid 8-cube with a ray straight through it: 0.42, which just
+reaches the lifted bloom knee. Real cubes are about half void, and a ray only
+accumulates the edges it actually crosses rather than whole boxes, so those
+numbers are a bound and a loose one. Two coincident near trace wires clipping to
+white is intended — that is the bright line where two trace cells meet.
+
+*Unverified on device.* The dials are the three `_Gain*` values and `_WireFar` in
+`CubeView.PushPalette`, and `WireHalf` in `CubeMesh` for how far the boxes sit
+apart.
 
 ---
 

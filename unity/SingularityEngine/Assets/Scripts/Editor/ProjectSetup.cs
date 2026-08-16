@@ -145,6 +145,7 @@ namespace Singularity.EditorTools
             string[] want =
             {
                 "Singularity/Cell",     // the board. Without it there is no game on screen.
+                "Singularity/Wire",     // the schematic under a held MATRIX
                 "Singularity/Glyph",    // every icon, every additive UI surface, the glass
                 "Singularity/Fx",       // sparks and rings
             // "Singularity/Filter" is NOT here any more. Brightness and contrast

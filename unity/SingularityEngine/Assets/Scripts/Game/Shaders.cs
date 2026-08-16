@@ -33,6 +33,7 @@ namespace Singularity.Game
         public static readonly string[] Required =
         {
             "Singularity/Cell",
+            "Singularity/Wire",
             "Singularity/Glyph",
             "Singularity/Fx",
             // "Singularity/Filter" is NOT here any more. Brightness and contrast

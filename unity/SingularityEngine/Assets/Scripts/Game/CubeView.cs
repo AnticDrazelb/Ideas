@@ -22,6 +22,15 @@ namespace Singularity.Game
         Mesh _mesh;
         Material _matTrace, _matLattice, _matPlate;
 
+        // the schematic: its own geometry, its own material, off unless held
+        Transform _wire;
+        Mesh _wireMesh;
+        MeshRenderer _wireR;
+        Material _matWire;
+        int[] _wireCellOfVertex = System.Array.Empty<int>();
+        byte[] _wireClass = System.Array.Empty<byte>();
+        Color32[] _wireCols = System.Array.Empty<Color32>();
+
         Session _s;
         int _builtWorld = -1;
         int _builtCells = -1;
@@ -210,6 +219,27 @@ namespace Singularity.Game
             _matPlate.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
 
             renderer3d.sharedMaterials = new[] { _matTrace, _matLattice, _matPlate };
+
+            // THE SCHEMATIC IS ITS OWN OBJECT, on the same transform as the solid
+            // so it folds with it. It has to be separate geometry — see
+            // CubeMesh.BuildWire — and it is switched off entirely at rest, so a
+            // player who never holds MATRIX never pays a draw call for it.
+            _wire = new GameObject("Wire").transform;
+            _wire.SetParent(cube, false);
+            _wireMesh = new Mesh { name = "wire" };
+            _wire.gameObject.AddComponent<MeshFilter>().sharedMesh = _wireMesh;
+            _wireR = _wire.gameObject.AddComponent<MeshRenderer>();
+            _wireR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _wireR.receiveShadows = false;
+            _wireR.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+
+            Shader ws = Shader.Find("Singularity/Wire");
+            if (ws != null)
+            {
+                _matWire = new Material(ws) { name = "wire" };
+                _wireR.sharedMaterial = _matWire;
+            }
+            _wireR.enabled = false;
 
             _markerRoot = new GameObject("Markers").transform;
             _markerRoot.SetParent(transform, false);
@@ -413,13 +443,28 @@ namespace Singularity.Game
             _matLattice.SetColor("_WireCol", Palette.WireLattice);
             _matPlate.SetColor("_WireCol", Palette.RustHi);
 
-            // The lattice is most of the solid, so its x-ray is the one that can
-            // turn into a tangle — it draws at half the trace's strength and fades
-            // harder into the far side.
-            _matTrace.SetFloat("_WireGain", 0.40f);
-            _matLattice.SetFloat("_WireGain", 0.20f);
-            _matPlate.SetFloat("_WireGain", 0.34f);
-            _matLattice.SetFloat("_WireFar", 0.20f);
+            if (_matWire == null) return;
+            _matWire.SetColor("_ColTrace", Palette.WireTrace);
+            _matWire.SetColor("_ColLattice", Palette.WireLattice);
+            _matWire.SetColor("_ColGrid", Palette.WireLattice);
+
+            // THE THREE STRENGTHS ARE THE WHOLE BALANCE OF THE PICTURE, and they are
+            // an order of magnitude apart on purpose.
+            //
+            // Every cell in the volume draws a box, so the empty ones are the most
+            // numerous thing on screen by a long way — that is the point, they are
+            // the space the corridors are cut through — and they have to sum to a
+            // faint field rather than to a wall. At 0.045 it takes twenty-two of
+            // them stacked to reach full white, which is more than any ray through
+            // the cube crosses.
+            //
+            // The lattice is the material you cannot stand on and the trace is the
+            // material you can, and they keep the ratio the board keeps, so the one
+            // property the whole game is read off survives into the x-ray.
+            _matWire.SetFloat("_GainGrid", 0.045f);
+            _matWire.SetFloat("_GainLattice", 0.14f);
+            _matWire.SetFloat("_GainTrace", 0.40f);
+            _matWire.SetFloat("_WireFar", 0.26f);
         }
 
         public void Rebuild(bool force = false)
@@ -433,12 +478,19 @@ namespace Singularity.Game
             _cellOfVertex = CubeMesh.LastCellOfVertex;
             _vertexCols = new Color32[_cellOfVertex.Length];
 
+            // the same cube, drawn instead of built — see CubeMesh.BuildWire
+            CubeMesh.BuildWire(_wireMesh, _s.lv, _s.world);
+            _wireCellOfVertex = CubeMesh.LastWireCellOfVertex;
+            _wireClass = CubeMesh.LastWireClass;
+            _wireCols = new Color32[_wireCellOfVertex.Length];
+
             RebuildCage(_s.N * 0.5f);
 
             float halfSpan = (_s.N - 1) * 0.5f;
             _matTrace.SetFloat("_HalfSpan", halfSpan);
             _matLattice.SetFloat("_HalfSpan", halfSpan);
             _matPlate.SetFloat("_HalfSpan", halfSpan);
+            if (_matWire != null) _matWire.SetFloat("_HalfSpan", halfSpan);
 
             BuildMarkers();
             UpdateReach();
@@ -493,6 +545,18 @@ namespace Singularity.Game
             }
 
             _mesh.SetColors(_vertexCols);
+
+            // AND THE SCHEMATIC TAKES THE SAME THREE CHANNELS, so it arrives on the
+            // same wave as the board it is drawing. Alpha is the one it does not
+            // take: that is which class the cell is, it was written when the wire
+            // was built, and it is a property of the cube rather than of the moment.
+            if (_wireCellOfVertex.Length != _wireCols.Length) return;
+            for (int i = 0; i < _wireCellOfVertex.Length; i++)
+            {
+                int cell = _wireCellOfVertex[i];
+                _wireCols[i] = new Color32(lit[cell], dist[cell], wave[cell], _wireClass[i]);
+            }
+            _wireMesh.SetColors(_wireCols);
         }
 
         /// <summary>Send the front back to the player and let it run out again.</summary>
@@ -642,8 +706,17 @@ namespace Singularity.Game
             _matTrace.SetFloat("_Dim", Mathf.Lerp(1f, 0.85f, e));
 
             _wave += Time.unscaledDeltaTime * WavePerSecond;
-            foreach (Material m in new[] { _matTrace, _matLattice, _matPlate })
+            // THE SCHEMATIC RUNS THE SAME VERTEX STAGE, so it takes the same
+            // uniforms — every one of them, or a wire would sit still through a
+            // fold the cell it belongs to was travelling through. It is off
+            // entirely below the threshold its own fragment discards at, so a
+            // player who never holds MATRIX never pays a draw call.
+            bool wireOn = _matWire != null && e > 0.02f;
+            if (_wireR.enabled != wireOn) _wireR.enabled = wireOn;
+
+            foreach (Material m in new[] { _matTrace, _matLattice, _matPlate, _matWire })
             {
+                if (m == null) continue;
                 m.SetFloat("_Peek", e);
                 m.SetFloat("_Wave", _wave);
                 m.SetFloat("_WaveDir", _waveDir);

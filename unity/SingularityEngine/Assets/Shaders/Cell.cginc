@@ -41,7 +41,9 @@ float _Evert, _EvertSpread;
 float4 _EvertAxis, _EvertSpin;
 float _Burst, _BurstThrow, _BurstSpread, _BurstSpin;
 fixed4 _WireCol;
-float _WireGain, _WireWidth, _WireFar;
+
+// Wire.shader's, declared here because it shares this vertex stage
+float _WireFar;
 
 // Rodrigues. Both of the things that turn a cell about its own centre
 // want it, and both of them have to turn the NORMAL by the same amount

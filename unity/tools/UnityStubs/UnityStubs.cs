@@ -309,10 +309,25 @@ namespace UnityEngine
         public void SetColors(List<Color32> c) { }
         public void SetColors(Color32[] c) { }
         public void SetTriangles(List<int> t, int sub, bool calc) { }
+
+        // The schematic is a LINE mesh — twelve edges a cell, for every cell in
+        // the volume — and lines do not go through SetTriangles. Both of these
+        // are declared because UnityEngine.Mesh has them, on the same rule the
+        // note above BlendMode states: a number or a member that has to match
+        // something outside this program is READ from that thing, never invented
+        // because the game would like it to exist. SetIndices' List overload is
+        // the same family as SetTriangles' above.
+        public void SetIndices(List<int> idx, MeshTopology topology, int sub, bool calc) { }
         public void RecalculateBounds() { }
         public void MarkDynamic() { }
         public void SetColors(List<Color> c) { }
     }
+
+    /// <summary>
+    /// UnityEngine.MeshTopology. One is missing on purpose and is missing in
+    /// Unity too — the value was a deprecated triangle strip.
+    /// </summary>
+    public enum MeshTopology { Triangles = 0, Quads = 2, Lines = 3, LineStrip = 4, Points = 5 }
 
     public class Material : Object
     {

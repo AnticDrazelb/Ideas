@@ -25,9 +25,6 @@ Shader "Singularity/Cell"
         _EdgeLift ("Edge brightness", Range(0,2)) = 0.55
         _Peek     ("Matrix", Range(0,1)) = 0
         _WireCol  ("Wire colour, held matrix", Color) = (0.62, 0.91, 1, 1)
-        _WireGain ("X-ray strength", Range(0,2)) = 0.34
-        _WireWidth("X-ray line width, in cells", Range(0.002,0.1)) = 0.026
-        _WireFar  ("X-ray strength at the far side", Range(0,1)) = 0.30
         _Gutter   ("Gutter", Range(0,0.3)) = 0.055
         _Round    ("Corner radius", Range(0,0.5)) = 0.09
         _Dim      ("Dim", Range(0,2)) = 1
@@ -220,82 +217,6 @@ Shader "Singularity/Cell"
                 c *= 1.0 - smoothstep(0.55, 1.0, i.gone);
 
                 return fixed4(c * _Dim, 1);
-            }
-            ENDCG
-        }
-
-        // ---- THE X-RAY, WHICH IS THE WHOLE POINT OF HOLDING ------------------
-        //
-        // THE DEPTH BUFFER IS THE RULE, AND THIS IS THE ONE PLACE IT IS ALLOWED
-        // TO BE SET ASIDE.
-        //
-        // Every screen column shows its nearest solid cell and everything behind
-        // is discarded — that is the game, it is why the board is drawn as a solid
-        // at all, and the pass above must never stop obeying it. So MATRIX could
-        // only ever thin the material: the fill went translucent and the far side
-        // of each CELL came up as edges, but the cells BEHIND it were still gone,
-        // killed by the same depth test that performs the projection. Holding gave
-        // you a dimmer board rather than a look inside one, and "the lattice goes
-        // to glass" was a promise the renderer could not keep.
-        //
-        // This pass keeps it. Additive, no depth write, no depth test, so every
-        // face of every cell at every depth draws its outline over whatever is in
-        // front of it — the far wall of the solid, the walls of the corridors
-        // carved through it, the shape of the thing you are standing inside.
-        //
-        // It is honest about what it is: it draws NOTHING BUT LINES, and a line is
-        // not a surface. The pass above still decides what the board IS; this one
-        // only says where the machine has material, which is the question a held
-        // MATRIX is asking and the only question it can answer without lying about
-        // the projection.
-        //
-        // Two things keep it from being mud. It fades hard with depth, so the near
-        // structure reads in front of the far; and the trace wire is far brighter
-        // than the lattice wire, so the one property the whole board is read off
-        // survives into the x-ray. At _Peek = 0 the fragment is discarded on its
-        // first instruction and the pass costs a vertex shader on a mesh of a few
-        // hundred quads.
-        Pass
-        {
-            Blend One One
-            BlendOp Add
-            ZWrite Off
-            ZTest Always
-            Cull Off
-
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment fragWire
-            #include "Cell.cginc"
-
-            fixed4 fragWire(v2f i) : SV_Target
-            {
-                if (_Peek < 0.02) discard;
-
-                // a sharp square band on the face's own border. No rounding and no
-                // inset ramp — this is the drawing, not the tile.
-                float2 q = abs(i.uv - 0.5) - (0.5 - _Gutter);
-                float sd = max(q.x, q.y);
-                if (sd > _WireWidth) discard;
-                float wire = saturate(1.0 - abs(sd) / max(1e-4, _WireWidth));
-
-                // FAR IS FAINT. Without this every wire in the solid arrives at the
-                // same strength and the picture has no inside — the eye is given a
-                // flat tangle instead of a depth. It is the same ramp the surface
-                // uses, doing the same job with light instead of value.
-                float fade = lerp(_WireFar, 1.0, i.depth01);
-
-                // If the board is ever thrown while somebody is holding, the wire
-                // leaves with the cell it is drawn on. Nothing today can reach
-                // that state — input is off through the exit — and it is one
-                // instruction to not have to have proved it.
-                float leaving = 1.0 - smoothstep(0.55, 1.0, i.gone);
-
-                // NOT _Dim. That is the surface being taken away as the hold comes
-                // on — _matLattice goes to 0.55 of itself and the trace to 0.85 —
-                // and applying it here would dim the wire by exactly the amount
-                // the wire exists to replace.
-                return fixed4(_WireCol.rgb * (wire * fade * _Peek * _WireGain * leaving), 1);
             }
             ENDCG
         }
