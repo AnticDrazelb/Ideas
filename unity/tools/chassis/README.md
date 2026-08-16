@@ -53,17 +53,57 @@ art 461 x 1018
 insets from the case: left 38.0 right 38.0 top 60.0 bottom 62.0
 ```
 
-Those five numbers are the ones `Chassis.cs` is written against — the size of the
-art, and how far it is from each edge of the case to the glass. **If the source
-picture is ever replaced, the numbers change, and they have to be copied across.**
-They are not read at runtime: a housing that measures itself at startup is a
-housing whose layout can move when somebody re-exports a texture, and the whole
-rest of the interface is anchored to those four insets.
+Those five numbers are the size of the art and how far it is from each edge of
+the case to the glass. They are still not measured at runtime — a housing that
+measures itself at startup is a housing whose layout can move when somebody
+re-exports a texture — but they are no longer copied by hand into `Chassis.cs`
+either. They live in `Assets/Resources/chassis.asset`, a `ChassisSpec`, written
+by the editor tool below at the same moment the PNG is.
 
 The bezel is deeper at the top and bottom than at the sides, and deeper at the
 bottom than at the top. That is the real object being slightly asymmetric, and
 it is carried through rather than averaged away — see the four `Inset` constants
 in `Chassis.cs` and the four in `Layout`.
+
+## the same cut, in the editor
+
+`cut.py` is still here and still the reference, but it is no longer how you
+change the case. **Singularity → Chassis** does the whole job inside Unity:
+pick a picture, place the opening against a live overlay, press Cut, and it
+writes `Assets/Resources/chassis.png` and the measurements together.
+
+The C# is a straight port of this file — `Assets/Scripts/Editor/ChassisCut.cs`,
+no `UnityEngine` types in it at all — and the harness proves the two agree:
+
+```sh
+python3 dump.py /tmp/chassis          # raw RGBA, because UnityStubs decodes no PNGs
+CHASSIS_RAW=/tmp/chassis dotnet run --project ../UnityStubs
+# chassis: the port reproduces the shipped asset exactly, all 1877192 bytes
+```
+
+Byte for byte, all 1.87 MB, including the truncation `numpy`'s `astype(uint8)`
+does and this one had to be told to do. That check also asserts something the
+Python only ever had as a hand-typed literal: **the crop is the silhouette's own
+bounding box**, and the tool finds it — same four numbers as `CROP`, to the
+pixel, which is why it is not a field anybody types any more.
+
+What the tool cannot find is the opening. The obvious rule — the glass is the
+dark rectangle in the middle — is false for exactly the pictures anybody would
+use, because a mock-up of a machine has the machine's screen turned *on*. Half
+this reference's screen is brighter than the metal around it, and every
+automatic detector tried against it found a chamfer groove or the foot instead.
+So the four edges are yours, seeded from the current case's proportions, with an
+overlay to place them against.
+
+Under that is the preview worth having: **the twelve pieces, assembled the way
+the game will assemble them**, at a panel size you choose. A corner cut that
+lands on the notch, or a band too shallow to hold the metal in its stretch, is
+visible there and nowhere else short of a build.
+
+The mock-up does not need to be in the project — there is no reason to import
+two thirds of a megabyte of source art into a game that will never ship it. The
+spec takes a path as well as an asset reference; `../../tools/chassis/mockup.png`
+from the project folder is this one.
 
 ## `glass.py` — the dirt
 

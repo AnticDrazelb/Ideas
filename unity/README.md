@@ -148,6 +148,32 @@ had: delete the breaks — they were placed where a *proportional* face ran out 
 plate — and let it wrap. Three lines, a row pitch of 130 instead of 118, and the
 column still ends 180 units clear of the button.
 
+### Changing the case
+
+**Singularity → Chassis.** Pick a picture of a machine, place the opening
+against a live overlay, press Cut; it writes `Assets/Resources/chassis.png` and
+`chassis.asset` together. The twelve measurements the housing is built from used
+to be `const`s in `Chassis.cs` with a comment saying a Python script had printed
+them — true, and a trap, because the numbers and the picture they describe could
+drift apart with nothing to notice. They are measurements of an asset, so they
+live with the asset now, and `Chassis` falls back to the shipped case's numbers
+if the file is missing.
+
+The cut itself is a port of `tools/chassis/cut.py` into `ChassisCut.cs`, with no
+`UnityEngine` types in it, and the harness proves the two agree **byte for byte
+across all 1.87 MB** of the shipped asset. It also proves the crop is found
+rather than typed: the silhouette's own bounding box is the same four numbers
+`cut.py` carried as a hand-measured literal.
+
+What it will not pretend to do is find the opening. On a mock-up with the
+machine's screen turned *on* — which is every useful reference — the glass is
+not reliably darker than the metal around it, and each automatic detector tried
+against this one found a chamfer groove or the foot. So that stays yours, seeded
+from the current proportions, with the case drawn assembled underneath so a bad
+corner or a shallow band is visible before anything is written.
+
+### Measuring
+
 None of this was eyeballed. `unity/tools/type/reflow.py` wraps every prose box
 against the real `hmtx` advances of both faces and prints which ones overflow
 their measured height — it is how the five overflows were found and how the new

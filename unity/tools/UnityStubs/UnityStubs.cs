@@ -122,7 +122,8 @@ namespace UnityEngine
 
     public struct Rect
     {
-        public Rect(float x, float y, float w, float h) { }
+        public Rect(float x, float y, float w, float h) { this.x = 0; this.y = 0; }
+        public float x; public float y;
         public float width => 0; public float height => 0;
         public Vector2 center => default;
         public float xMin => 0; public float xMax => 0;
@@ -145,6 +146,14 @@ namespace UnityEngine
         public const float Rad2Deg = 57.29578f;
         public const float Deg2Rad = 0.0174532924f;
         public static float Abs(float f) => Math.Abs(f);
+
+        // Unity's own definition, which is a relative epsilon and not the
+        // absolute one everybody assumes: 1e-6 scaled by the larger magnitude,
+        // floored at eight times float.Epsilon.
+        public static bool Approximately(float a, float b)
+            => Math.Abs(b - a) < Math.Max(1e-6f * Math.Max(Math.Abs(a), Math.Abs(b)),
+                                          float.Epsilon * 8f);
+
         public static int Abs(int f) => Math.Abs(f);
         public static float Min(float a, float b) => Math.Min(a, b);
         public static int Min(int a, int b) => Math.Min(a, b);
@@ -352,6 +361,41 @@ namespace UnityEngine
         public Vector4(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; }
     }
 
+    /// <summary>
+    /// AN ASSET THAT IS DATA. ChassisSpec is the only one, and what the harness
+    /// has to prove about it is that Resources.Load&lt;T&gt; and CreateInstance&lt;T&gt;
+    /// are being asked for a type that could actually be either — a plain class
+    /// would compile against both calls and fail in the editor with "the script
+    /// does not derive from ScriptableObject", which is a message you get on
+    /// import rather than at any point a compiler is watching.
+    /// </summary>
+    public class ScriptableObject : Object
+    {
+        public static T CreateInstance<T>() where T : ScriptableObject
+            => (T)Activator.CreateInstance(typeof(T));
+    }
+
+    // THE INSPECTOR DECORATIONS. They draw nothing here and they are not meant
+    // to: what they catch is a field decorated with an attribute that does not
+    // exist under that name, which in the editor is a red console line at import
+    // and here is a compile error.
+    [AttributeUsage(AttributeTargets.Field)]
+    public class HeaderAttribute : Attribute { public HeaderAttribute(string h) { } }
+
+    [AttributeUsage(AttributeTargets.Field)]
+    public class TooltipAttribute : Attribute { public TooltipAttribute(string t) { } }
+
+    [AttributeUsage(AttributeTargets.Field)]
+    public class SerializeField : Attribute { }
+
+    [AttributeUsage(AttributeTargets.Class)]
+    public class CreateAssetMenuAttribute : Attribute
+    {
+        public string fileName { get; set; }
+        public string menuName { get; set; }
+        public int order { get; set; }
+    }
+
     public class RenderTexture : Texture
     {
         public int width { get; set; }
@@ -388,9 +432,55 @@ namespace UnityEngine
     {
         public Texture2D(int w, int h, TextureFormat f, bool mips) { }
         public void SetPixels32(Color32[] px) { }
+        public Color32[] GetPixels32() => null;
         public void Apply(bool mips, bool noLongerReadable) { }
         public void Apply() { }
         public byte[] EncodeToPNG() => null;
+    }
+
+    /// <summary>
+    /// PNG in and PNG out, and it is a STATIC CLASS rather than two methods on
+    /// Texture2D — which is the whole reason this is stubbed as its own type.
+    /// Texture2D.LoadImage reads like an instance method and is an extension on
+    /// ImageConversion; writing it the obvious way compiles against a stub that
+    /// declares it the obvious way and fails against the engine.
+    /// </summary>
+    public static class ImageConversion
+    {
+        public static bool LoadImage(Texture2D tex, byte[] data) => true;
+        public static byte[] EncodeToPNG(Texture2D tex) => null;
+    }
+
+    public enum ScaleMode { StretchToFill, ScaleAndCrop, ScaleToFit }
+
+    /// <summary>
+    /// The immediate-mode drawing the chassis window's two previews use, and
+    /// nothing else. Everything here draws in SCREEN space with y DOWN, while
+    /// DrawTextureWithTexCoords takes its uv rect with y UP from the bottom of
+    /// the texture — the one asymmetry in the API and the one the preview code
+    /// has a comment about.
+    /// </summary>
+    public static class GUI
+    {
+        public static void DrawTexture(Rect r, Texture t) { }
+        public static void DrawTexture(Rect r, Texture t, ScaleMode mode) { }
+        public static void DrawTextureWithTexCoords(Rect r, Texture t, Rect uv) { }
+    }
+
+    public static class GUILayoutUtility
+    {
+        public static Rect GetRect(float w, float h) => default;
+    }
+
+    public class GUILayoutOption { }
+
+    public static class GUILayout
+    {
+        public static bool Button(string label, params GUILayoutOption[] opts) => false;
+        public static void Label(string label, params GUILayoutOption[] opts) { }
+        public static void Space(float px) { }
+        public static GUILayoutOption Width(float w) => null;
+        public static GUILayoutOption Height(float h) => null;
     }
 
     public enum TextureFormat { RGBA32 }

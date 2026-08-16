@@ -29,10 +29,14 @@ namespace Singularity.Game
     /// noise. Neither does forty years of somebody else's handling.
     ///
     /// So the case is a photograph of the thing it is meant to be, cut to its own
-    /// silhouette, with the glass taken out of the middle. The script that cut it
-    /// and the mock-up it was cut from are both in the repository — see
-    /// unity/tools/chassis — because an asset nobody can regenerate is exactly the
-    /// unreviewable blob this project spent its whole life avoiding.
+    /// silhouette, with the glass taken out of the middle. Nothing about that is
+    /// a one-off: the cut lives in the editor as <c>Singularity → Chassis</c>,
+    /// which takes any picture of a machine, finds its silhouette, lets you place
+    /// the opening against a live overlay and writes both the PNG and the
+    /// measurements. The mock-up this one came from and the Python the cut was
+    /// ported from are also in the repository, under unity/tools/chassis, because
+    /// an asset nobody can regenerate is exactly the unreviewable blob this
+    /// project spent its whole life avoiding.
     ///
     /// TWO RULES SURVIVE FROM THE GENERATED VERSION, AND THEY STILL BIND.
     ///
@@ -55,52 +59,65 @@ namespace Singularity.Game
     {
         // ---- what is in the picture ------------------------------------------
         //
-        // Every number below was MEASURED off the asset by the script that made
-        // it, not eyeballed here: unity/tools/chassis/cut.py prints them. They are
-        // in the art's own pixels, and nothing but this file may care about them.
+        // Every number here is a MEASUREMENT OF AN ASSET, so it lives with the
+        // asset: Resources/chassis.asset, a ChassisSpec, written by the tool under
+        // Singularity → Chassis when the case is cut. They used to be consts in
+        // this file with a comment saying a Python script had printed them, which
+        // was true and was also a trap — the numbers and the picture they describe
+        // could drift apart with nothing to notice, and swapping the case meant
+        // editing C# with a calculator open.
+        //
+        // THE FALLBACK IS THE SHIPPED CASE, so a clone with no .asset file draws
+        // the housing this game was built with rather than no housing at all. It
+        // is a floor, not a default: the tool always writes the spec.
 
-        const float ArtW = 461f, ArtH = 1018f;          // the case, cropped to itself
-
-        // display edge to the glass, per side. The case is not symmetrical — the
-        // top and bottom bezels are half again as deep as the sides, and the
-        // bottom is deeper than the top — and pretending otherwise is what would
-        // put a screen's own background over the metal on one edge.
-        const float ArtLeft = 38f, ArtRight = 38f, ArtTop = 60f, ArtBottom = 62f;
-
-        // How much of the art a corner piece takes. Both cuts land in a stretch of
-        // edge whose PROFILE IS CONSTANT — past the notch on the top edge, above
-        // the waist on the side — which is the whole trick to a nine-slice that
-        // does not shear: what stretches has to be featureless along the direction
-        // it stretches in.
-        const float ArtCorner = 160f;
-
-        // and how deep each piece has to be to hold all the metal in its stretch.
-        // The arms are wider than the bezel by the opening's corner radius,
-        // because the metal reaches further in where the glass turns the corner.
-        const float ArmW = 58f, ArmH = 80f, SideW = 44f, BandH = 66f;
+        static ChassisSpec _spec;
 
         /// <summary>
-        /// Art pixels to canvas units.
-        ///
-        /// FIXED, RATHER THAN "WHATEVER MAKES THE CASE FIT". Scaling the art to
-        /// the display would make the bezel thicker on a tall phone than on a
-        /// short one and the layout underneath it would move, which is a bad trade
-        /// for a housing whose whole job is to be the one thing that never moves.
-        /// At five to four the bezel is the same forty-eight units everywhere and
-        /// the corners are never distorted; the sides absorb the difference, which
-        /// is what sides are for.
+        /// Loaded once and kept. A property rather than a const because the whole
+        /// point of the spec is that a different case can be dropped in, and none
+        /// of the four callers of the insets could ever have seen that happen
+        /// while the compiler was folding them into their call sites.
         /// </summary>
-        const float K = 1.25f;
+        public static ChassisSpec Spec
+        {
+            get
+            {
+                if (_spec == null)
+                {
+                    _spec = Resources.Load<ChassisSpec>("chassis");
+                    if (_spec == null)
+                    {
+                        _spec = ScriptableObject.CreateInstance<ChassisSpec>();
+                        _spec.name = "chassis (defaults)";
+                    }
+                    else if (!_spec.Consistent)
+                    {
+                        // A crop that disagrees with the art it describes places
+                        // all twelve pieces wrong, and does it subtly — a few
+                        // pixels of seam rather than a visible fault. Say so.
+                        Debug.LogWarning("Chassis: chassis.asset says the art is " +
+                                         _spec.artW + "x" + _spec.artH + " but its crop is " +
+                                         (_spec.crop.z - _spec.crop.x) + "x" + (_spec.crop.w - _spec.crop.y) +
+                                         ". Re-cut it from Singularity → Chassis.");
+                    }
+                }
+                return _spec;
+            }
+        }
+
+        /// <summary>Forget the loaded spec. The editor tool calls this after a re-cut.</summary>
+        public static void Reload() => _spec = null;
 
         // ---- what the rest of the interface is allowed to know ----------------
 
         /// <summary>Display edge to glass, in canvas units. Everything readable lives inside these.</summary>
-        public const float InsetLeft = ArtLeft * K;
-        public const float InsetRight = ArtRight * K;
-        public const float InsetTop = ArtTop * K;
-        public const float InsetBottom = ArtBottom * K;
+        public static float InsetLeft => Spec.left * Spec.scale;
+        public static float InsetRight => Spec.right * Spec.scale;
+        public static float InsetTop => Spec.top * Spec.scale;
+        public static float InsetBottom => Spec.bottom * Spec.scale;
 
-        const float Corner = ArtCorner * K;
+        static float Corner => Spec.corner * Spec.scale;
 
         // ---- the panel -------------------------------------------------------
 
@@ -133,6 +150,12 @@ namespace Singularity.Game
             Vector2 _fitted = Vector2.zero;
             readonly RectTransform[] _piece = new RectTransform[12];
 
+            // The art's own height, cached the moment Compose reads it, because
+            // Piece flips y against it once per piece and a property that reloads
+            // a ScriptableObject is not what that arithmetic should cost.
+            float _artH;
+            float _k;
+
             void LateUpdate()
             {
                 var rt = (RectTransform)transform;
@@ -163,8 +186,12 @@ namespace Singularity.Game
                     return;
                 }
 
-                const float Aw = ArmW, Ah = ArmH, Sw = SideW, Bh = BandH, C = ArtCorner;
-                const float W = ArtW, H = ArtH;
+                ChassisSpec s = Spec;
+                _artH = s.artH;
+                _k = s.scale;
+                float Aw = s.armW, Ah = s.armH, Sw = s.sideW, Bh = s.bandH, C = s.corner;
+                float W = s.artW, H = s.artH;
+                float K = s.scale;
 
                 // top left, and then the same L three more times. The vertical arm
                 // runs the full depth of the corner; the horizontal arm takes the
@@ -199,13 +226,13 @@ namespace Singularity.Game
                        float sx, float sy, float sw, float sh,
                        int ax, int ay, float ox)
             {
-                var rect = new UnityEngine.Rect(sx, ArtH - sy - sh, sw, sh);
+                var rect = new UnityEngine.Rect(sx, _artH - sy - sh, sw, sh);
                 RectTransform rt = Singularity.UI.UiKit.Rect(root, name,
                                                              new Vector2(ax, ay), new Vector2(ax, ay),
                                                              Vector2.zero, Vector2.zero);
                 rt.pivot = new Vector2(ax, ay);
                 rt.anchoredPosition = new Vector2(ox, 0f);
-                rt.sizeDelta = new Vector2(sw * K, sh * K);
+                rt.sizeDelta = new Vector2(sw * _k, sh * _k);
 
                 var img = rt.gameObject.AddComponent<Image>();
                 img.sprite = Sprite.Create(_tex, rect, new Vector2(0.5f, 0.5f), 1f);

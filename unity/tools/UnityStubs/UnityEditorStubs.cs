@@ -54,6 +54,74 @@ namespace UnityEditor
         public static void ImportAsset(string path, ImportAssetOptions options) { }
         public static T LoadAssetAtPath<T>(string path) where T : UnityEngine.Object => null;
         public static void Refresh() { }
+        public static string GetAssetPath(UnityEngine.Object o) => null;
+        public static void CreateAsset(UnityEngine.Object asset, string path) { }
+    }
+
+    // ---- the chassis window's surface, and only its surface --------------------
+    //
+    // IMGUI is enormous and almost none of it is used here. What is declared is
+    // what ChassisWindow.cs calls, at the overloads it calls them at, because the
+    // failure this catches is the one that costs a round trip through the editor:
+    // a Slider whose arguments are in the wrong order, an ObjectField missing its
+    // allowSceneObjects flag, a LabelField that does not take two strings.
+
+    public enum MessageType { None, Info, Warning, Error }
+
+    public class EditorWindow : UnityEngine.ScriptableObject
+    {
+        public UnityEngine.Vector2 minSize { get; set; }
+        public void Repaint() { }
+        public static T GetWindow<T>(string title) where T : EditorWindow => null;
+    }
+
+    public class GUIStyle { }
+
+    public static class EditorStyles
+    {
+        public static GUIStyle boldLabel => null;
+        public static GUIStyle wordWrappedLabel => null;
+    }
+
+    public static class EditorUtility
+    {
+        public static void SetDirty(UnityEngine.Object o) { }
+        public static bool DisplayDialog(string title, string message, string ok, string cancel) => false;
+    }
+
+    public static class EditorGUI
+    {
+        public static void DrawRect(UnityEngine.Rect r, UnityEngine.Color c) { }
+        public static void LabelField(UnityEngine.Rect r, string label) { }
+    }
+
+    public static class EditorGUILayout
+    {
+        public static void LabelField(string label) { }
+        public static void LabelField(string label, string value) { }
+        public static void LabelField(string label, GUIStyle style) { }
+        public static void Space() { }
+        public static void HelpBox(string message, MessageType type) { }
+        public static void BeginHorizontal() { }
+        public static void EndHorizontal() { }
+        public static int IntField(string label, int value) => value;
+        public static float FloatField(string label, float value) => value;
+        public static float Slider(string label, float value, float min, float max) => value;
+        public static string TextField(string label, string value) => value;
+        public static UnityEngine.Object ObjectField(string label, UnityEngine.Object value,
+                                                     Type type, bool allowSceneObjects) => value;
+
+        /// <summary>
+        /// The scroll view as a SCOPE, because the begin/end pair leaks a mismatched
+        /// layout group the moment anything in the body throws — and an OnGUI that
+        /// throws once throws every frame.
+        /// </summary>
+        public class ScrollViewScope : IDisposable
+        {
+            public ScrollViewScope(UnityEngine.Vector2 pos) { }
+            public UnityEngine.Vector2 scrollPosition => default;
+            public void Dispose() { }
+        }
     }
 
     public class EditorBuildSettingsScene

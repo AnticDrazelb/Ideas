@@ -86,6 +86,7 @@ public static class ForgeChecks
         Daily();
 
         fails += AccessChecks.Run();
+        fails += ChassisChecks.Run(Ok);
 
         Console.WriteLine(fails == 0 ? "CHECKS PASSED" : fails + " CHECKS FAILED");
         return fails;
