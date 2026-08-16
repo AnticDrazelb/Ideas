@@ -23,14 +23,38 @@ namespace Singularity.Core
     /// </summary>
     public static class ShareCode
     {
-        public const string Voxc = ".#+AB";
-        public const int Version = 1;
+        /// <summary>
+        /// THE ALPHABET GREW BY ONE AND THAT IS A FORMAT CHANGE.
+        ///
+        /// Five states packed three to a byte because 5^3 = 125 fits. Six fit
+        /// too — 6^3 = 216 — so the everter costs nothing but a different base,
+        /// and the packing is unchanged.
+        ///
+        /// It is still a different number in the same byte, so a v1 code read as
+        /// v2 decodes into a DIFFERENT CUBE rather than failing: the checksum
+        /// covers the bytes, and the bytes are identical. That is the one failure
+        /// mode worth engineering against here, because a made cube is stored as
+        /// its code and a player would open their own creation and find a
+        /// stranger. So the version leads the payload and each version keeps its
+        /// own alphabet forever — every code already in the wild still decodes to
+        /// exactly the cube it named.
+        /// </summary>
+        public const string Voxc = ".#+ABE";
+        public const string VoxcV1 = ".#+AB";
+        public const int Version = 2;
 
         public static string Encode(Level lv)
         {
             string vx = new string(lv.vox);
             int n = lv.n;
-            var bytes = new List<int> { Version, n };
+
+            // A CUBE THAT USES NOTHING NEW IS STILL WRITTEN AS v1, so a code
+            // shared today opens in a build from yesterday. Only a cube carrying
+            // an everter needs the wider alphabet, and only it pays for it.
+            bool needsV2 = vx.IndexOf('E') >= 0;
+            string alpha = needsV2 ? Voxc : VoxcV1;
+            int radix = alpha.Length;
+            var bytes = new List<int> { needsV2 ? Version : 1, n };
 
             for (int i = 0; i < n * n * n; i += 3)
             {
@@ -38,8 +62,8 @@ namespace Singularity.Core
                 for (int j = 0; j < 3; j++)
                 {
                     char ch = (i + j < n * n * n) ? vx[i + j] : '.';
-                    int k = Voxc.IndexOf(ch);
-                    t = t * 5 + (k < 0 ? 0 : k);
+                    int k = alpha.IndexOf(ch);
+                    t = t * radix + (k < 0 ? 0 : k);
                 }
                 bytes.Add(t);
             }
@@ -134,7 +158,11 @@ namespace Singularity.Core
             int sum = 0;
             for (int i = 0; i < end; i++) sum = (sum * 31 + bytes[i]) & 255;
             if (sum != bytes[end]) return null;              // a mistyped code
-            if (bytes[0] != Version) return null;
+            int ver = bytes[0];
+            if (ver != 1 && ver != Version) return null;
+            string alpha = ver == 1 ? VoxcV1 : Voxc;
+            int radix = alpha.Length;
+            int maxByte = radix * radix * radix - 1;
 
             int n = bytes[1];
             if (n < 3 || n > 8) return null;
@@ -148,9 +176,10 @@ namespace Singularity.Core
             {
                 if (at >= bytes.Count) return null;
                 int t = bytes[at++];
-                if (t > 124) return null;
-                int[] d = { t / 25 % 5, t / 5 % 5, t % 5 };
-                for (int q = 0; q < 3 && i + q < cells; q++) vox.Append(Voxc[d[q]]);
+                if (t > maxByte) return null;
+                int r2 = radix * radix;
+                int[] d = { t / r2 % radix, t / radix % radix, t % radix };
+                for (int q = 0; q < 3 && i + q < cells; q++) vox.Append(alpha[d[q]]);
             }
 
             bool bad = false;

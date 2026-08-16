@@ -90,11 +90,17 @@ namespace Singularity.Core
             var parent = new Dictionary<long, (long from, Act act, bool hasFrom)>();
             bool truncated = false;
 
+            // EIGHT WORLDS PER ORIENTATION, NOT FOUR. The polarity bit rides in
+            // the same mask as the two plate bits, so the cache key has to make
+            // room for it — multiplying by four here was correct until the moment
+            // an everted world existed, and would then have handed back the
+            // NEAREST projection for an everted state without any error anywhere.
             Surf[] P(int oi, int wd)
             {
-                int k = oi * 4 + wd;
+                int k = oi * 8 + wd;
                 if (!projCache.TryGetValue(k, out var s))
-                    projCache[k] = s = Projection.Project(n, lv.Eff(wd), Turns.Oris[oi]);
+                    projCache[k] = s = Projection.Project(n, lv.Eff(wd), Turns.Oris[oi],
+                                                          (wd & Level.Everted) != 0);
                 return s;
             }
 

@@ -89,6 +89,7 @@ public static class ForgeChecks
         fails += ChassisChecks.Run(Ok);
         SoundChecks.Run(Ok);
         SaveChecks.Run(Ok);
+        ArcChecks.Run(Ok);
         CodeChecks.Run(Ok);
         Numbers();
 
@@ -280,6 +281,7 @@ public static class ForgeChecks
         if (args.Length > 0 && args[0] == "content") { ContentAudit.Run(); return; }
         if (args.Length > 0 && args[0] == "gravity") { GravityProbe.Run(); return; }
         if (args.Length > 0 && args[0] == "buried") { BuriedProbe.Run(); return; }
+        if (args.Length > 0 && args[0] == "arc") { ArcSearch.Run(); return; }
         Environment.ExitCode = Run();
     }
 }

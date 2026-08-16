@@ -146,6 +146,26 @@ namespace Singularity.Game
                     float slash = Bar(u, v, 0f, 0.075f) * (r < 0.84f ? 1f : 0f);
                     return Mathf.Max(ring, slash);
                 }
+                case "evert":
+                {
+                    // A RING TURNING THROUGH ITSELF. The plate is a ring with a
+                    // bar across it — one thing crossed out. This is a ring with
+                    // a smaller ring INSIDE it and a gap on each side, which
+                    // reads as a surface passing through its own centre, because
+                    // that is what everting a solid is.
+                    //
+                    // Its silhouette does the work rather than its colour: a mark
+                    // on a lit trace is 1.2 to 1.4 against the cell it sits on,
+                    // for every mark this game has, so the shape is what makes it
+                    // an everter and not a node. See the note in Access.Printed.
+                    float r = Mathf.Sqrt(u * u + v * v);
+                    float outer = Band(r, 0.86f, 0.085f);
+                    float inner = Band(r, 0.40f, 0.115f);
+                    // two bites out of the outer ring, left and right, so the
+                    // silhouette is broken where a node's and a lock's are closed
+                    float gap = (Mathf.Abs(v) < 0.20f && Mathf.Abs(u) > 0.62f) ? 1f : 0f;
+                    return Mathf.Max(outer * (1f - gap), inner);
+                }
                 case "eye":
                 {
                     // a rounded slab, so squashing it for a blink or a smile still

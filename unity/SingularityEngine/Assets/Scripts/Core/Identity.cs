@@ -105,20 +105,39 @@ namespace Singularity.Core
         }
 
         static string[] _bakedIds;
+        static int[] _bakedAt;
 
         /// <summary>Returns null when the cube is new, or a description of what it already is.</summary>
         public static Collision? CollisionOf(Level lv, string skipKey, IReadOnlyDictionary<string, string> madeIds)
         {
             string id = CanonId(lv);
 
+            // EVERY AUTHORED CUBE, NOT JUST THE ONES AT THE FRONT. This walked
+            // Baked.Levels by index and reported `i + 1` as the level number,
+            // which was the same thing while authored cubes were exactly cubes
+            // one to ten. They are not any more — vault IX holds four — and an
+            // index-is-a-level-number assumption would have silently stopped
+            // catching a Forge cube that duplicates one of them.
             if (_bakedIds == null)
             {
-                _bakedIds = new string[Baked.Levels.Length];
-                for (int i = 0; i < Baked.Levels.Length; i++) _bakedIds[i] = CanonId(Baked.Levels[i].ToLevel(i + 1));
+                var ids = new List<string>();
+                var at = new List<int>();
+                for (int i = 0; i < Baked.Levels.Length; i++) { ids.Add(CanonId(Baked.Levels[i].ToLevel(i + 1))); at.Add(i + 1); }
+                for (int i = 0; i < Baked.Arc.Length; i++)
+                {
+                    int arcLevel = Baked.ArcStart + i;
+                    ids.Add(CanonId(Baked.Arc[i].ToLevel(arcLevel)));
+                    at.Add(arcLevel);
+                }
+                _bakedIds = ids.ToArray();
+                _bakedAt = at.ToArray();
             }
             for (int i = 0; i < _bakedIds.Length; i++)
                 if (_bakedIds[i] == id)
-                    return new Collision { kind = "baked", level = i + 1, name = Baked.Levels[i].name, id = id };
+                {
+                    Baked.TryAt(_bakedAt[i], out BakedLevel hit);
+                    return new Collision { kind = "baked", level = _bakedAt[i], name = hit.name, id = id };
+                }
 
             if (MintedIds.Index.TryGetValue(id, out int lvl))
                 return new Collision { kind = "minted", level = lvl, name = Vaults.LevelName(lvl), id = id };

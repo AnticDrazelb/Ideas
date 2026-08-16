@@ -278,6 +278,10 @@ namespace Singularity.Game
         IEnumerator Attract()
         {
             yield return null;
+            // VAULT I ON PURPOSE. The attract loop is the title screen playing
+            // itself, so it wants a small, legible, authored cube — not whatever
+            // the player has reached, and not one of vault IX's arc cubes, whose
+            // whole point is a mechanic nobody has been taught yet.
             int level = Mathf.Clamp(Store.Data.reached, 1, Baked.Levels.Length);
             S.Load(LevelSupply.Get(level), level, LoadKind.Practice);
             SolveClock.Stop();

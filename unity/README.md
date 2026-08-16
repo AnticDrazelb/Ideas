@@ -6,6 +6,17 @@ machine. Fold the engine to align its circuits and collapse into the core.*
 A Unity port of the single-file web build. Same rules, same cubes, same
 numbers — verified, not assumed.
 
+- **[DESIGN.md](DESIGN.md)** — what the game is about, measured: whether the
+  central idea is load-bearing in the content, where the difficulty ladder stops,
+  and eversion, the mechanic that answers it.
+- **[tools/README.md](tools/README.md)** — the harness that runs without Unity.
+
+```sh
+dotnet run --project tools/UnityStubs             # every check
+dotnet run --project tools/UnityStubs content     # the difficulty curve
+python3   tools/type/reflow.py                    # does the prose still fit
+```
+
 ---
 
 ## Opening it
@@ -328,111 +339,13 @@ allowance on vignettes and leave a genuine flash unable to fire.
 Nothing is lost by gating it — every event that raises a vignette also raises a
 sound, a caption and the orb's mood.
 
-### Is the game's own idea load-bearing in its content?
+### The design argument lives in DESIGN.md
 
-Everything else this harness measures is craft. None of it is why anybody
-remembers a puzzle game. What is remembered is whether the central idea is the
-thing you actually have to think about, cube after cube — and that is a property
-of the **content**, not of the code.
+Whether the game's own idea is load-bearing in its content, where the difficulty
+ladder stops and why, which mechanics were measured and which were rejected, and
+what eversion is — all of it is in **[DESIGN.md](DESIGN.md)**, with the command
+that reproduces every number.
 
-```sh
-dotnet run --project unity/tools/UnityStubs content
-```
-
-Ten cubes are authored. Everything from eleven on is minted. The audit solves
-the first 240 and asks three questions.
-
-**Does the solution require a fold at all?** A cube you can walk from start to
-core without folding once is a maze, not this game — and it would still verify,
-still have a par, still look right. **Zero of 240.** The mechanic is load-bearing
-in every cube. This is the gate that matters most and it passes outright.
-
-**Is the opening a decision?** Of the folds legal from the start, 46.7% keep you
-on par. Classified: 18.8% of cubes have no legal opening fold at all (you must
-step first), 55.4% have an opening where some folds lose par — a real decision —
-and **25.8% have an opening where every legal fold keeps par**, which is a first
-move that does not matter.
-
-**Does it get harder, or only bigger?** This is the one that should worry you.
-
-```
-  tenth   mean n   mean folds   steps/fold
-     1       5.9         2.71          2.2
-     3       7.0         4.38          2.8
-     5       8.0         5.17          2.4
-     7       8.8         5.67          2.6
-     9       9.0         5.83          2.4
-    10       9.0         5.54          2.7
-```
-
-Par asymptotes at about 5.8 folds by the fourth tenth and then stops. The tenth
-tenth is *easier* than the ninth. Steps per fold is flat at ~2.6 throughout, so
-the ratio of thinking to searching never shifts either.
-
-The cause is three lines in `Generator.SpecFor`, and they are deliberate
-individually:
-
-```csharp
-int b = Math.Min(band, 11);                              // saturates at cube 111
-int n = ... : band < 15 ? 8 : 9;                          // caps at 9 from cube 151
-int carveTurns = Math.Min(9, 3 + b + ...);                // caps at 9
-int parSpan = ... n == 9 ? 8;   // parHi = 10, and a harder candidate is DISCARDED
-```
-
-From **cube 151 onward every generation parameter is at its ceiling** — same
-size, same carve ambition, same density, same lock cap — and `MaxCube` is
-100,000. The last 99,850 cubes are drawn from one fixed difficulty distribution,
-with a hard maximum of ten folds that is never approached in practice.
-
-`VaultSize` grows the *number* of cubes per vault (25 + 5b) but nothing grows
-their difficulty, so vaults 16 through 30 are fifteen vaults of the same cube.
-
-### Gravity, and the thing under it
-
-`DESIGN-gravity.md` is a design note written against measurements rather than
-taste. Short version:
-
-```sh
-dotnet run --project unity/tools/UnityStubs gravity
-```
-
-Gravity is the right *kind* of idea — folding changes what is deep, gravity makes
-folding change what is **down**, one action with two consequences. But the
-obvious implementation, falling as part of `Projection.Landing`, makes the game
-**easier**: it lets folds through that are currently refused, and free stepping
-undoes the displacement anyway. It only has teeth if it takes away *climbing*, so
-that the fold becomes the only way to gain height.
-
-And it will not work yet, because there is nothing to fall through:
-
-```
-   screen squares showing any cell       63.5
-   of those, walkable                    13.0
-   of those, reachable from the start     6.9   <- the board you actually have
-   trace cells in the whole solid        37.0 of 520  (7.1%)
-```
-
-You are looking at ~64 squares and standing on a corridor of ~7. Gravity's effect
-is bimodal across the range — invisible on 35% of cubes, transformative on 28% —
-and a headline mechanic that sometimes does not apply is worse than none.
-
-**The real cap is upstream of gravity.** The generator carves the trace as a
-single self-avoiding path and deliberately keeps it short, with a comment
-explaining that a longer carve means more shortcuts and a lower par. That
-reasoning is correct and it is the trap: par is being protected by *starving the
-board*, and a board with one route has no decisions on it. Every symptom in the
-content audit — flat par, flat steps-per-fold, a quarter of openings that do not
-matter — is that one symptom.
-
-### Measuring
-
-None of this was eyeballed. `unity/tools/type/reflow.py` wraps every prose box
-against the real `hmtx` advances of both faces and prints which ones overflow
-their measured height — it is how the five overflows were found and how the new
-numbers were chosen, and it exits non-zero while any box is over, so it is worth
-re-running whenever a sentence on a screen changes.
-
----
 
 ## The one idea
 

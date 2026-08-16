@@ -44,8 +44,8 @@ static class GravityProbe
 
         for (int level = 1; level <= Last; level++)
         {
-            Level lv = level <= Baked.Levels.Length
-                     ? Baked.Levels[level - 1].ToLevel(level)
+            Level lv = Baked.TryAt(level, out BakedLevel b)
+                     ? b.ToLevel(level)
                      : Generator.Mint(level);
             if (lv == null) continue;
 

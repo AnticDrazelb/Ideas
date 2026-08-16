@@ -49,6 +49,17 @@ namespace Singularity.Game
         public Ori M = Ori.Id;
         public Int3 pos;
         public int kmask, doors, turns, world;
+
+        /// <summary>
+        /// WHICH WAY THE ENGINE IS BEING LOOKED THROUGH.
+        ///
+        /// Bits 1 and 2 of <see cref="world"/> are the plates, and they change
+        /// what a cell IS. Bit 4 changes nothing about any cell — it flips the
+        /// depth test, so every column shows its FAR side. One accessor rather
+        /// than the mask spelled out at each site, because the three places that
+        /// project are the three places that must never disagree about it.
+        /// </summary>
+        public bool Everted => (world & Level.Everted) != 0;
         public Surf[] surf;
         public bool[] reach;
         public byte[] reachDist;
@@ -134,7 +145,7 @@ namespace Singularity.Game
         /// <summary>Recompute everything the projection decides, after any settled change.</summary>
         public void Settle()
         {
-            surf = Projection.Project(N, lv.Eff(world), M);
+            surf = Projection.Project(N, lv.Eff(world), M, Everted);
             ComputeReach();
             On.Settled?.Invoke();
         }
@@ -476,7 +487,7 @@ namespace Singularity.Game
             world ^= bit;
             plateT = world != 0 ? PlateMs : 0;   // the flipped cube is on a clock
             lv.ClearEff();
-            surf = Projection.Project(N, lv.Eff(world), M);
+            surf = Projection.Project(N, lv.Eff(world), M, Everted);
             On.PlateFired?.Invoke(pos, bit);
             ComputeReach();
             On.Settled?.Invoke();
@@ -530,7 +541,7 @@ namespace Singularity.Game
             _lastPlateTick = -1;
             walking = null;      // any queued route dies with the world it was planned in
             lv.ClearEff();
-            surf = Projection.Project(N, lv.Eff(world), M);
+            surf = Projection.Project(N, lv.Eff(world), M, Everted);
             On.Reverted?.Invoke();
             ThrowToPlate();
             ComputeReach();

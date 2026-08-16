@@ -25,9 +25,7 @@ static class BuriedProbe
     const int Last = 200;
 
     static Level Cube(int level)
-        => level <= Baked.Levels.Length
-         ? Baked.Levels[level - 1].ToLevel(level)
-         : Generator.Mint(level);
+        => Baked.TryAt(level, out BakedLevel b) ? b.ToLevel(level) : Generator.Mint(level);
 
     public static void Run()
     {

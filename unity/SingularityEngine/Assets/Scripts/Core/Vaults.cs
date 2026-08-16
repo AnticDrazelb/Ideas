@@ -96,7 +96,7 @@ namespace Singularity.Core
 
         public static string LevelName(int level)
         {
-            if (level <= Baked.Levels.Length) return Baked.Levels[level - 1].name;
+            if (Baked.TryAt(level, out BakedLevel b)) return b.name;
             // HashSeed is unsigned 32-bit; a signed shift here indexed negatively
             // and named half the cubes past level 40 "undefined".
             uint h = Rng.HashSeed(level);

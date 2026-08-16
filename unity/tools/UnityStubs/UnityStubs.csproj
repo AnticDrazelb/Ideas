@@ -22,6 +22,8 @@
     <Compile Include="ContentAudit.cs" />
     <Compile Include="GravityProbe.cs" />
     <Compile Include="BuriedProbe.cs" />
+    <Compile Include="ArcSearch.cs" />
+    <Compile Include="ArcChecks.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Game/**/*.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Editor/**/*.cs" />

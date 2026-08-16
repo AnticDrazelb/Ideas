@@ -263,7 +263,7 @@ namespace Singularity.UI
             if (_resumeName != null)
             {
                 // the cube's own name and what it costs, so the button has a subject
-                int par = r <= Baked.Levels.Length ? Baked.Levels[r - 1].par : -1;
+                int par = Baked.TryAt(r, out BakedLevel bl) ? bl.par : -1;
                 _resumeName.text = Vaults.LevelName(r) + (par >= 0 ? "  /  PAR " + par : "");
             }
             Stack.Clear();
@@ -569,6 +569,7 @@ namespace Singularity.UI
             Card(cards, 1, "node", Palette.Node, "NODE", "COLLECT");
             Card(cards, 2, "lock", Palette.Lock, "LOCK", "BARRIER");
             Card(cards, 3, "plate", Palette.Rust, "PLATE", "INVERTS");
+            Card(cards, 4, "evert", Palette.Evert, "EVERTER", "FAR SIDE");
             y += 106f;
 
             Kicker("WORTH KNOWING");
@@ -588,6 +589,16 @@ namespace Singularity.UI
 
             RectTransform a7 = Entry("TO GO", "The fewest folds still possible from where you stand.", 82f);
             Mark(a7, "i.togo", Palette.Arc, 44, 0, 0);
+
+            // THE LAST RULE, AND IT ARRIVES LAST ON PURPOSE. Vault IX is where
+            // the ladder stops getting harder, so it is where a new idea has to
+            // land — and the four cubes there teach it without a word. This entry
+            // is for the player who came back to the manual afterwards to check
+            // they had understood, which is the only thing a manual is good for.
+            RectTransform a8 = Entry("STAND ON AN EVERTER",
+                "The engine turns inside out. Every column shows its far side instead of its near one — the same solid, the other way round.", 124f);
+            Mark(a8, "evert", Palette.Evert, 40, -14, 10);
+            Mark(a8, "sq", Palette.Trace, 24, 16, -12);
 
             // THE COLOPHON, AND WHY A PUZZLE GAME HAS ONE.
             //
@@ -621,7 +632,7 @@ namespace Singularity.UI
         /// <summary>One of the four object cards: the mark, its name, and its job.</summary>
         static void Card(RectTransform row, int i, string glyph, Color col, string name, string job)
         {
-            RectTransform c = UiKit.Rect(row, name, new Vector2(i / 4f, 0), new Vector2((i + 1) / 4f, 1),
+            RectTransform c = UiKit.Rect(row, name, new Vector2(i / 5f, 0), new Vector2((i + 1) / 5f, 1),
                                          new Vector2(5, 0), new Vector2(-5, 0));
             UiKit.Framed(c, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.5f));
             UiKit.Icon(c, glyph, col, 34, new Vector2(0.5f, 1f), new Vector2(0, -32));

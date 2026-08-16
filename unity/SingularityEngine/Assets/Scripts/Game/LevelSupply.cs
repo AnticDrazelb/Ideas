@@ -44,7 +44,7 @@ namespace Singularity.Game
 
         public static Level Get(int level)
         {
-            if (level <= Baked.Levels.Length) return Baked.Levels[level - 1].ToLevel(level);
+            if (Baked.TryAt(level, out BakedLevel baked)) return baked.ToLevel(level);
 
             lock (Gate) { if (Cache.TryGetValue(level, out Level hit)) return hit; }
 
@@ -69,16 +69,16 @@ namespace Singularity.Game
 
         public static bool Has(int level)
         {
-            if (level <= Baked.Levels.Length) return true;
+            if (Baked.TryAt(level, out _)) return true;
             lock (Gate) return Cache.ContainsKey(level);
         }
 
         /// <summary>Cut the next cube while this one is being played.</summary>
         public static void Prebuild(int level, Action<Level> then = null)
         {
-            if (level <= Baked.Levels.Length || Has(level))
+            if (Baked.TryAt(level, out _) || Has(level))
             {
-                then?.Invoke(level <= Baked.Levels.Length ? Baked.Levels[level - 1].ToLevel(level) : Get(level));
+                then?.Invoke(Baked.TryAt(level, out BakedLevel b2) ? b2.ToLevel(level) : Get(level));
                 return;
             }
 

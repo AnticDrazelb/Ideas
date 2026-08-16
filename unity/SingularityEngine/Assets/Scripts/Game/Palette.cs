@@ -311,11 +311,29 @@ namespace Singularity.Game
         public static Color LatticeNearOf(int band) => Color.Lerp(LatticeNear, LatticeNearDeep, VaultAge(band));
 
         /// <summary>The flat-board colour of a cell — the same arithmetic the shader does per pixel.</summary>
+        /// <summary>
+        /// The everter, and it is deliberately NOT on either depth ramp.
+        ///
+        /// Trace runs blue and lattice runs slate, and the whole board is read off
+        /// the one property that a trace is brighter than the lattice at every
+        /// depth. An everter is neither material: it is the control that swaps
+        /// which face of the solid you are standing on, and putting it on a ramp
+        /// would make it read as "a trace that is slightly wrong". It is its own
+        /// hue for the same reason a node and a lock are.
+        ///
+        /// Violet because it is the only unused corner of the wheel this palette
+        /// occupies — rust, amber, lime, cyan and blue are all spoken for — and
+        /// because it stays distinguishable from the trace under all three
+        /// dichromacies, which the audit asserts rather than assumes.
+        /// </summary>
+        public static readonly Color Evert = Hex("#a78bfa");
+
         public static Color Tile(char t, int d, int n, int band = 0)
         {
+            if (t == 'E') return Evert;
             float near = Mathf.Clamp01(d / (float)Mathf.Max(1, n - 1));
-            Color a = t == '+' ? TraceFar : LatticeFarOf(band);
-            Color b = t == '+' ? TraceNear : LatticeNearOf(band);
+            Color a = Level.IsWalkType(t) ? TraceFar : LatticeFarOf(band);
+            Color b = Level.IsWalkType(t) ? TraceNear : LatticeNearOf(band);
             return Color.Lerp(a, b, near);
         }
     }

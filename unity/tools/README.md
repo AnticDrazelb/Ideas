@@ -157,3 +157,35 @@ left-handed, so the naive conversion is a reflection with determinant −1 that 
 quaternion can express. Flipping the cube's own Z as well makes it a similarity,
 `M = J A J`, determinant +1. All 24 orientations were checked exhaustively
 against every cell of the four cube sizes.
+
+## The verbs
+
+`UnityStubs` is a checker by default and a set of measuring tools by argument.
+Everything below runs with no Unity install and no network.
+
+```sh
+dotnet run --project tools/UnityStubs             # every check; non-zero on failure
+dotnet run --project tools/UnityStubs content     # par, openings, the difficulty curve
+dotnet run --project tools/UnityStubs buried      # what the solid hides, and what eversion buys
+dotnet run --project tools/UnityStubs gravity     # what a fall rule would cut from the walk graph
+dotnet run --project tools/UnityStubs arc         # search for cubes that provably teach a mechanic
+```
+
+The default run asserts, in order:
+
+| check | what it will not let you break |
+|-------|-------------------------------|
+| `AccessChecks` | the board's band at every vault under every dichromacy; **AA on the shipped palette**, AAA reported |
+| `ChassisChecks` | the C# cut reproduces the shipped PNG byte for byte (needs `CHASSIS_RAW`) |
+| `SoundChecks` | the fader curve, and that the loudest legal moment cannot clip |
+| `SaveChecks` | four launches — fresh, live, recovered, lost — and nothing is ever destroyed |
+| `ArcChecks` | the four authored eversion cubes still *require* their lesson |
+| `CodeChecks` | 120 cubes round-trip byte-identical and re-encode to themselves |
+| `ForgeChecks` | the editor's coach reaches a saveable cube |
+
+Two of them want data the harness cannot decode for itself:
+
+```sh
+python3 tools/chassis/dump.py /tmp/chassis
+CHASSIS_RAW=/tmp/chassis dotnet run --project tools/UnityStubs
+```

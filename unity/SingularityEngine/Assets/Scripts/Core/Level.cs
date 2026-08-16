@@ -84,13 +84,29 @@ namespace Singularity.Core
         // which is what makes it safe to stand on while everything around it
         // changes, and what makes every fold legal while you are on one.
 
-        public static int GlyphBit(char c) => c == 'A' ? 1 : c == 'B' ? 2 : 0;
-        public static bool IsGlyph(char c) => c == 'A' || c == 'B';
-        public static bool IsWalkType(char t) => t == '+' || t == 'A' || t == 'B';
+        /// <summary>
+        /// THE THIRD BIT IS NOT A KIND OF CELL, IT IS A DIRECTION OF LOOKING.
+        ///
+        /// Bits 1 and 2 are the plates: they change what a cell IS — trace goes
+        /// dead, dead cells light up. Bit 4 changes nothing about any cell. It
+        /// flips the depth test in the projection, so each column shows its FAR
+        /// side instead of its near one, and that is why EffType ignores it
+        /// entirely while Project is the only place that reads it.
+        ///
+        /// Keeping them in one mask is deliberate: the solver already carries
+        /// `world` through every state, the glyph that toggles a polarity is the
+        /// same kind of object as the glyph that toggles a world, and a second
+        /// parallel field would be two things to keep in step for no gain.
+        /// </summary>
+        public const int Everted = 4;
+
+        public static int GlyphBit(char c) => c == 'A' ? 1 : c == 'B' ? 2 : c == 'E' ? Everted : 0;
+        public static bool IsGlyph(char c) => c == 'A' || c == 'B' || c == 'E';
+        public static bool IsWalkType(char t) => t == '+' || t == 'A' || t == 'B' || t == 'E';
 
         public static char EffType(char c, int world)
         {
-            if (c == 'A' || c == 'B') return c;
+            if (IsGlyph(c)) return c;
             char t = c;
             if ((world & 1) != 0) { if (t == '+') t = '#'; else if (t == '#') t = '+'; }
             if ((world & 2) != 0) { if (t == '#') t = '.'; else if (t == '.') t = '#'; }
@@ -103,7 +119,12 @@ namespace Singularity.Core
         /// <summary>Effective cells for a world. Derived, cached, and never mutated.</summary>
         public char[] Eff(int world)
         {
-            _eff ??= new char[4][];
+            // eight, not four: the polarity bit rides in the same mask and is a
+            // no-op here, so worlds 0..3 and 4..7 hold identical arrays. Two
+            // wasted rows of cache beats a mask that means different things in
+            // different files.
+            world &= 7;
+            _eff ??= new char[8][];
             if (_eff[world] != null) return _eff[world];
             var outv = new char[vox.Length];
             for (int i = 0; i < outv.Length; i++) outv[i] = EffType(vox[i], world);
@@ -205,7 +226,23 @@ namespace Singularity.Core
             return ViewMaps[key] = map;
         }
 
-        public static Surf[] Project(int n, char[] vox, Ori m)
+        /// <summary>
+        /// THE ONE LINE THIS WHOLE GAME IS MADE OF, AND NOW IT HAS A SIGN.
+        ///
+        /// Every screen column shows one cell and discards the rest. Which one it
+        /// keeps is a single comparison. Nearest is the game you know; farthest is
+        /// the same solid, projected the other way, and the two boards share less
+        /// than six per cent of their walkable squares — see
+        /// `dotnet run --project unity/tools/UnityStubs buried`. It is not a
+        /// lighting effect, it is a second complete board inside every cube that
+        /// has already been made, and it costs no cells, no geometry and no art.
+        ///
+        /// A PLATE STILL WINS ITS COLUMN FROM EITHER SIDE. It is carved clean
+        /// through the rock, so it is the surface whichever way you look — that
+        /// rule is what keeps a plate reachable in the world it is there to
+        /// change, and eversion must not be allowed to bury one.
+        /// </summary>
+        public static Surf[] Project(int n, char[] vox, Ori m, bool evert = false)
         {
             var surf = new Surf[n * n];
             int nn = n * n;
@@ -221,7 +258,8 @@ namespace Singularity.Core
                 ref Surf cur = ref surf[k];
                 // A plate is carved clean through the rock, so it wins its column
                 // outright; among equals the nearer one wins as always.
-                if (!cur.has || (g && !Level.IsGlyph(cur.t)) || (g == Level.IsGlyph(cur.t) && d > cur.d))
+                if (!cur.has || (g && !Level.IsGlyph(cur.t))
+                    || (g == Level.IsGlyph(cur.t) && (evert ? d < cur.d : d > cur.d)))
                 {
                     int yy = i / nn;
                     int rr = i - yy * nn;
@@ -279,7 +317,7 @@ namespace Singularity.Core
         /// </summary>
         public static bool Landing(Level lv, Ori m2, Int3 pos, int doorsOpen, int world, out Surf cell)
         {
-            Surf[] surf2 = Project(lv.n, lv.Eff(world), m2);
+            Surf[] surf2 = Project(lv.n, lv.Eff(world), m2, (world & Level.Everted) != 0);
             Int3 v = ViewOf(lv.n, m2, pos);
             return Walkable(lv, surf2, v.x, v.y, doorsOpen, out cell);
         }

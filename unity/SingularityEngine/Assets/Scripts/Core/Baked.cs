@@ -43,10 +43,83 @@ namespace Singularity.Core
     /// beats. The first two show you a way out you cannot walk to, which is the
     /// entire lesson and is not something a generator can be trusted to stage.
     ///
-    /// Everything from cube eleven is cut on demand by <see cref="Generator.Mint"/>.
+    /// VAULT IX is four more, and they exist because of a measurement. The
+    /// content audit shows par flatlining at 5.8 folds from about cube 100 — by
+    /// 151 every generation parameter is at its ceiling, so the ladder stops
+    /// getting harder and only gets bigger. A new idea has to arrive there or
+    /// nothing does, and a new idea has to be TAUGHT: one cube at a time, by
+    /// cubes that cannot be solved while ignoring it.
+    ///
+    /// Everything else is cut on demand by <see cref="Generator.Mint"/>.
     /// </summary>
     public static class Baked
     {
+        /// <summary>The first cube of vault IX, where eversion is introduced.</summary>
+        public const int ArcStart = 146;
+
+        /// <summary>
+        /// EVERSION, IN FOUR CUBES. Introduce, complicate, bound, invert.
+        ///
+        /// Not drawn — SEARCHED, and each one is PROVED to require its lesson by
+        /// solving the same solid twice: once with the everter, once with that
+        /// cell demoted to ordinary trace. The difference between the two answers
+        /// is the lesson. See unity/tools/UnityStubs/ArcSearch.cs, and the
+        /// harness re-proves all four on every run — a cube that stops teaching
+        /// its lesson is a failed check rather than a thing nobody notices.
+        ///
+        ///   THE FAR SIDE          no route at all without everting
+        ///   TWO SHADOWS           a route either way, one fold cheaper everted
+        ///   NOTHING UNDERNEATH    a square you can stand on until you evert
+        ///   TURNED INSIDE OUT     a fold that only one polarity permits
+        ///
+        /// THE FIRST WAS SCULPTED RATHER THAN PLACED. Dropping an everter onto a
+        /// working cube cannot make it impossible without one, so trace was
+        /// removed — one cell at a time, keeping every cut that left the everted
+        /// route intact — until the un-everted route died. That is what authoring
+        /// a puzzle actually is: taking away everything the intended solution
+        /// does not need.
+        /// </summary>
+        public static readonly BakedLevel[] Arc =
+        {
+            new BakedLevel(
+                n: 6, name: "THE FAR SIDE", par: 3,
+                vox: ".#..####....##.#.####.###E..###.##.#.#.#.....#.#.#...##..#...+..##.....#.+.....##.......###.##....##.#......#..##+..#..##.########.#..#..#.#.##.+#...+##.....#.##.#..#.##.#.#..#...#..##.....#.#.#.###..###..#+#+.++.#..",
+                start: new Int3(1, 1, 4), goal: new Int3(1, 2, 0),
+                keys: new Int3[0],
+                doors: new Int3[0]),
+            new BakedLevel(
+                n: 6, name: "TWO SHADOWS", par: 2,
+                vox: "..#.+#..#...#..#+...#...++..#+.+.#...#...##...E#.####..........+..+##.###.##.##+#.#...##.+...#+...+...#.#..#####.......#....##..####.###..+.+##.#..###+#.##....###.##.+#+..#.#.++#.######....#.#+..#.#.#..#...+.#..+..#.",
+                start: new Int3(2, 3, 5), goal: new Int3(4, 0, 0),
+                keys: new Int3[0],
+                doors: new Int3[0]),
+            new BakedLevel(
+                n: 6, name: "NOTHING UNDERNEATH", par: 3,
+                vox: ".#..####....##.#.####.###E..###.++.#.#.#.....#.#.#...##..#...+..+#.....#.+.....##.......###.##....##.#......+..##+..#..+#.########.#..#..#.#.##.+#...+#+.....#.##.+..#.#+.#.#..#...#..##.....+.#.#.###..+##..++#+.++.#..",
+                start: new Int3(1, 1, 4), goal: new Int3(1, 2, 0),
+                keys: new Int3[0],
+                doors: new Int3[0]),
+            new BakedLevel(
+                n: 6, name: "TURNED INSIDE OUT", par: 3,
+                vox: "#.#.#.#A...#.....##..#.#..#.##.###...##.#.##..#.###.+..##.#.#.###.#...#.##++.+##+....##.##.#+...#...#.#...#.#..#+..#.+...#.#.#..+..#..+#..E#+##.#+..#...+########......+.+...#.#......+##.#+#.###.####..#.......#..+..##",
+                start: new Int3(3, 2, 0), goal: new Int3(1, 1, 3),
+                keys: new[] { new Int3(1, 4, 4) },
+                doors: new[] { new Int3(2, 2, 1) }),
+        };
+
+        /// <summary>
+        /// The authored cube for a level number, if there is one. A lookup rather
+        /// than an index, because authored cubes no longer live only at the front
+        /// of the ladder and the next arc will not either.
+        /// </summary>
+        public static bool TryAt(int level, out BakedLevel lv)
+        {
+            if (level >= 1 && level <= Levels.Length) { lv = Levels[level - 1]; return true; }
+            if (level >= ArcStart && level < ArcStart + Arc.Length) { lv = Arc[level - ArcStart]; return true; }
+            lv = default;
+            return false;
+        }
+
         public static readonly BakedLevel[] Levels =
         {
             new BakedLevel(

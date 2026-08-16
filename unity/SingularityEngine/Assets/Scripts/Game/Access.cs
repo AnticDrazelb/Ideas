@@ -265,6 +265,7 @@ namespace Singularity.Game
                 case "Inert": return Palette.Inert;
                 case "Grid": return Palette.Grid;
                 case "GridHi": return Palette.GridHi;
+                case "Evert": return Palette.Evert;
                 case "Rust": return Palette.Rust;
                 case "RustHi": return Palette.RustHi;
                 case "Core": return Palette.Core;
@@ -316,6 +317,23 @@ namespace Singularity.Game
             // with two names.
             new Pair("Dim2",     "Void",        NonText, "an unlit pip, an unreachable cell, a locked vault's edge"),
             new Pair("Dim2",     "PanelHi",     NonText, "the same marks on a raised plate"),
+            // AN EVERTER IS A MARK, AND A MARK IS A SHAPE HERE, NOT A COLOUR.
+            //
+            // The obvious pair to assert is the everter against the trace it sits
+            // on, and it is the wrong one. Measured against Trace: node 1.42,
+            // lock 1.40, core 1.31, the player 1.19. Every mark this game has
+            // ever drawn is invisible by luminance alone on a lit cell, because
+            // the trace is bright by design and a mark that cleared 3:1 under it
+            // would have to be nearly black — the window between "3:1 below the
+            // trace" and "3:1 above the void" is 0.10 to 0.11 of relative
+            // luminance and no usable hue lands in it.
+            //
+            // 1.4.1 is satisfied by FORM: these are glyphs with distinct
+            // silhouettes, which is why Glyphs.cs exists. So what is asserted is
+            // the same thing asserted of every other mark — that it clears the
+            // ground it is drawn against — and the everter's silhouette is what
+            // separates it from the trace.
+            new Pair("Evert",    "Void",        NonText, "an everter on the board"),
             new Pair("GridHi",   "Void",        NonText, "the ring round an empty cell in the Forge"),
             new Pair("GridHi",   "Panel",       NonText, "the same ring on a control plate"),
         };
