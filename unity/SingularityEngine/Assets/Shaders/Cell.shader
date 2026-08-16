@@ -24,6 +24,10 @@ Shader "Singularity/Cell"
         _Edge     ("Edge inset", Range(0,0.5)) = 0.06
         _EdgeLift ("Edge brightness", Range(0,2)) = 0.55
         _Peek     ("Matrix", Range(0,1)) = 0
+        _WireCol  ("Wire colour, held matrix", Color) = (0.62, 0.91, 1, 1)
+        _WireGain ("X-ray strength", Range(0,2)) = 0.34
+        _WireWidth("X-ray line width, in cells", Range(0.002,0.1)) = 0.026
+        _WireFar  ("X-ray strength at the far side", Range(0,1)) = 0.30
         _Gutter   ("Gutter", Range(0,0.3)) = 0.055
         _Round    ("Corner radius", Range(0,0.5)) = 0.09
         _Dim      ("Dim", Range(0,2)) = 1
@@ -65,209 +69,7 @@ Shader "Singularity/Cell"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #include "UnityCG.cginc"
-
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float3 normal : NORMAL;
-                float2 uv     : TEXCOORD0;   // face-local 0..1, for the inset hairline
-                float3 centre : TEXCOORD1;   // the CELL's centre in object space
-                fixed4 color  : COLOR;       // r: reachable.  g: BFS distance.  b: distance from the transition's focus.
-            };
-
-            struct v2f
-            {
-                float4 pos     : SV_POSITION;
-                float2 uv      : TEXCOORD0;
-                float  depth01 : TEXCOORD1;
-                float3 vnrm    : TEXCOORD2;
-                float  gone    : TEXCOORD3;   // how far through its own throw this cell is
-                fixed4 reach   : COLOR;
-            };
-
-            fixed4 _ColFar, _ColNear;
-            float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim, _Reveal, _Unlit, _UnlitSat, _Gutter, _Round, _Peek;
-            float _Wave, _WaveDir, _WaveSoft;
-            float _Evert, _EvertSpread;
-            float4 _EvertAxis, _EvertSpin;
-            float _Burst, _BurstThrow, _BurstSpread, _BurstSpin;
-
-            // Rodrigues. Both of the things that turn a cell about its own centre
-            // want it, and both of them have to turn the NORMAL by the same amount
-            // — see the note where the eversion uses it.
-            float3 Turn(float3 v, float3 axis, float ang)
-            {
-                float cs = cos(ang), sn = sin(ang);
-                return v * cs + cross(axis, v) * sn + axis * dot(axis, v) * (1.0 - cs);
-            }
-
-            v2f vert(appdata v)
-            {
-                v2f o;
-
-                // THE CUBE ARRIVES AND LEAVES ONE CELL AT A TIME.
-                //
-                // A board that appears all at once is a slide; a board that builds
-                // outward from where the player will be standing is the machine
-                // assembling itself, and it costs one lerp. Each cell shrinks to its
-                // own centre until the front reaches it, which is why the vertex is
-                // interpolated toward v.centre rather than scaled about the origin —
-                // scaling about the origin would slide every cell across the board
-                // instead of letting each one grow where it belongs.
-                float waveD = v.color.b * 255.0;
-                float w = _WaveDir > 0.0
-                    ? saturate((_Wave - waveD) / _WaveSoft)
-                    : saturate((waveD - _Wave) / _WaveSoft);
-                float3 local = lerp(v.centre, v.vertex.xyz, w * w * (3.0 - 2.0 * w));
-
-                // ---- EVERSION, ONE CELL AT A TIME ---------------------------
-                //
-                // The rule is that each column shows its FAR cell instead of its
-                // near one, so the honest end state is every cell mirrored along
-                // the camera axis. Doing that to the whole solid at once is one
-                // line and reads as the object being squashed through a plane.
-                //
-                // Doing it PER CELL reads as what it is. Each cell travels to its
-                // own mirror position and turns a half-circle about its own centre
-                // on the way, and the cells do not leave together: the stagger is
-                // keyed on depth, so the turn sweeps through the machine from the
-                // face you are looking at to the one you are about to be looking
-                // at. Every square on screen is a card flipping over, and what is
-                // on the back of it is the cell that was hiding behind it — which
-                // is not a metaphor for the rule, it is the rule.
-                //
-                // A half-circle about a face axis maps a cube onto itself, so the
-                // settled board is exactly the mirrored board and nothing needs
-                // to be undone at the end.
-                float3 eCentre = v.centre;
-                float3 nrm = v.normal;
-                if (_Evert > 1e-5)
-                {
-                    float3 ax = normalize(_EvertAxis.xyz);
-                    float along = dot(v.centre, ax);
-
-                    // where this cell sits along the view axis, 0 far .. 1 near —
-                    // and therefore when its turn starts
-                    // 2 * _HalfSpan is the full span of cell centres — the same
-                    // divisor the depth ramp below uses. Four would squeeze every
-                    // cell into the middle quarter of the sweep and the stagger
-                    // would be invisible.
-                    float t = saturate(along / (2.0 * _HalfSpan) + 0.5);
-
-                    // the whole sweep still finishes at _Evert = 1 however wide the
-                    // stagger is: the front is scaled up by the spread and each
-                    // cell subtracts its own share
-                    float k = saturate(_Evert * (1.0 + _EvertSpread) - t * _EvertSpread);
-                    float e = k * k * (3.0 - 2.0 * k);
-
-                    eCentre = v.centre - 2.0 * along * ax * e;
-
-                    // Rodrigues, about the cell's own centre. The spin axis is the
-                    // camera's right in object space, so every cell turns the same
-                    // way on screen no matter which way the engine is folded.
-                    //
-                    // THE NORMAL TURNS WITH IT. A half-circle maps ±Z and ±Y onto
-                    // their opposites, so a cell that has finished its flip is
-                    // showing the face whose AUTHORED normal points away from the
-                    // camera — and the fragment shader reads that normal to decide
-                    // whether a face is a back face, which it then discards. The
-                    // settled everted board survived that only because Cull is Off
-                    // and the far face of the same cell was standing in for it.
-                    // That is a coincidence, not a rendering.
-                    float3 sp = normalize(_EvertSpin.xyz);
-                    float3 rel = local - v.centre;
-                    float ang = 3.14159265 * e;
-                    rel = Turn(rel, sp, ang);
-                    nrm = Turn(nrm, sp, ang);
-
-                    local = eCentre + rel;
-                }
-
-                // ---- THE BOARD LEAVES IN PIECES -----------------------------
-                //
-                // The machine is a solid made of cells and the win is the moment
-                // it stops being one. Every cell is thrown straight out from the
-                // core — the thing that just took you — tumbling about an axis of
-                // its own, and the throw is staggered by DISTANCE FROM THE CORE so
-                // the break travels outward as a front rather than happening to
-                // the whole object at once.
-                //
-                // It is the eversion's machinery pointed somewhere else, which is
-                // the argument for having built it per-cell in the first place:
-                // the board was already made of individually addressable cubes,
-                // so the explosion is four uniforms and nothing on the CPU.
-                //
-                // THE SCHEDULE, at the shipped stagger of 0.55. The cell on the
-                // core leaves immediately and the eight corners hold until the
-                // throw is 35% done; halfway through, the corners are 53% of the
-                // way out and the middle is 96%, which is the front. Every cell
-                // lands exactly at _Burst = 1 whatever the spread, because the
-                // front is scaled up by it and each cell subtracts its own share —
-                // the same arithmetic the eversion above uses. The throw is 3.4
-                // half-spans, which is about 1.4 boards from the centre: far
-                // enough to clear the frame at the pull-back the exit asks for.
-                //
-                // The direction comes off the AUTHORED centre even when the board
-                // is everted and the cell is standing at its mirror. A mirror
-                // along the view axis changes only the sign of the component the
-                // orthographic camera cannot see, so on screen the two answers are
-                // the same throw — and the cell is still the cell it was authored
-                // as, which is the answer that means something.
-                float gone = 0.0;
-                if (_Burst > 1e-5)
-                {
-                    float far = max(1e-4, 1.7320508 * _HalfSpan);   // centre to corner
-                    float r = saturate(length(v.centre) / far);
-                    float k = saturate(_Burst * (1.0 + _BurstSpread) - r * _BurstSpread);
-
-                    // FAST OUT, THEN COASTING — the opposite ease to everything
-                    // else in this game, because this is the only thing that is
-                    // thrown rather than moved.
-                    float u = 1.0 - k;
-                    float e = 1.0 - u * u * u;
-
-                    // A cell sitting on the core has no direction of its own, so
-                    // it takes the one that is always true: it comes at you.
-                    float len = length(v.centre);
-                    float3 dir = lerp(float3(0, 0, -1), v.centre / max(1e-4, len),
-                                      saturate(len / max(1e-4, 0.5 * _HalfSpan)));
-
-                    // an axis that differs per cell, so the debris is a cloud of
-                    // separate objects rather than a set of parallel cards
-                    float3 tum = normalize(v.centre * float3(0.71, -1.03, 0.44)
-                                           + float3(0.31, 0.17, 0.93));
-                    float3 rel = local - eCentre;
-                    float ang = 6.2831853 * _BurstSpin * e;
-                    rel = Turn(rel, tum, ang);
-                    nrm = Turn(nrm, tum, ang);
-
-                    eCentre += dir * (_BurstThrow * _HalfSpan * e);
-                    local = eCentre + rel;
-                    gone = k;
-                }
-                o.gone = gone;
-
-                o.pos = UnityObjectToClipPos(float4(local, 1));
-
-                // Depth is measured from the CELL CENTRE, not the vertex, so that
-                // at rest a front face reads exactly d/(N-1) — the same number the
-                // flat 2D original prints — rather than half a step brighter.
-                // Measured against the cube's own centre so it is independent of
-                // how far away the camera happens to sit.
-                // the ANIMATED centre, not the authored one — depth is drawn as
-                // brightness, so a cell reading its old depth while it travels
-                // would keep the near ramp all the way to the far side
-                float centreZ = UnityObjectToViewPos(float4(eCentre, 1)).z;
-                float originZ = UnityObjectToViewPos(float4(0, 0, 0, 1)).z;
-                // Unity view space looks down -Z, so a LARGER z is nearer.
-                o.depth01 = saturate((centreZ - originZ) / (2.0 * _HalfSpan) + 0.5);
-
-                o.vnrm = normalize(mul((float3x3)UNITY_MATRIX_IT_MV, nrm));
-                o.uv = v.uv;
-                o.reach = v.color;
-                return o;
-            }
+            #include "Cell.cginc"
 
             fixed4 frag(v2f i) : SV_Target
             {
@@ -302,12 +104,25 @@ Shader "Singularity/Cell"
                 // cell, and this game's one rule is that a column shows exactly its
                 // nearest solid cell — a gap the rules do not know about would be
                 // the renderer disagreeing with the solver about what is visible.
+                // A TILE ROUNDS OFF; A WIRE DOES NOT.
+                //
+                // The corner radius and the rim inset are what make a settled cell
+                // read as a circuit tile you could stand on. Under a held MATRIX
+                // neither is true any more — the board has stopped being a floor
+                // and become a drawing of the machine — so the corners go square
+                // and the rim narrows to a hairline as the hold comes on. Same
+                // arithmetic, two ends of one lerp, and it is the difference
+                // between a tray of lozenges going translucent and a lattice of
+                // wire boxes.
+                float rnd = lerp(_Round, 0.004, _Peek);
+                float edg = lerp(_Edge, 0.020, _Peek);
+
                 float2 p = abs(i.uv - 0.5);
-                float2 q = p - (0.5 - _Gutter - _Round);
-                float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - _Round;
+                float2 q = p - (0.5 - _Gutter - rnd);
+                float sd = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - rnd;
 
                 float plate = 1.0 - smoothstep(-0.010, 0.010, sd);
-                float rim = (1.0 - smoothstep(0.0, _Edge, -sd)) * plate;
+                float rim = (1.0 - smoothstep(0.0, edg, -sd)) * plate;
                 c *= 1.0 + rim * _EdgeLift * facing;
                 c *= lerp(0.09, 1.0, plate);
 
@@ -320,12 +135,18 @@ Shader "Singularity/Cell"
                 // gives you a dim cube rather than a glass one, which is exactly
                 // what this port was doing.
                 //
-                // The fill drops to 22% (the original's globalAlpha = 1 - 0.78*e)
+                // The fill went to 22% (the original's globalAlpha = 1 - 0.78*e)
                 // and the rim is ADDED rather than multiplied, so it survives the
                 // fill going away underneath it. On a void background a fade to
                 // black and a fade to transparent are the same picture, which is
                 // what lets this stay an opaque pass.
-                c *= 1.0 - 0.78 * _Peek;
+                //
+                // IT GOES FURTHER NOW — six per cent, not twenty-two. Twenty-two
+                // per cent of a fill is still a surface, and a surface is the one
+                // thing a schematic must not have: it is what stops the far side
+                // reading as far and turns a lattice of wire boxes back into a
+                // stack of dim tiles. What is left is the wire.
+                c *= 1.0 - 0.94 * _Peek;
 
                 // AND THE FAR SIDE IS WIRE ONLY, WHEN IT IS THERE AT ALL.
                 //
@@ -349,7 +170,13 @@ Shader "Singularity/Cell"
                 if (back > 0.5 && _Peek < 0.12 && _Burst < 1e-5) discard;
 
                 c *= 1.0 - back * _Peek;
-                c += _ColNear.rgb * rim * _Peek * lerp(0.62, 0.22, back);
+
+                // AND THE WIRE IS ITS OWN COLOUR. This added _ColNear, which is
+                // the near end of the DEPTH ramp — so the brightest thing in the
+                // schematic was whatever the board happened to be tinted by the
+                // vault it was cut from. The wire is a different statement from
+                // the surface and it says so: see Palette.WireTrace.
+                c += _WireCol.rgb * rim * _Peek * lerp(1.30, 0.44, back);
 
                 // THE REVEAL. After every fold the lit reachable set sweeps outward
                 // from the player in BFS order rather than snapping on. It is the
@@ -393,6 +220,82 @@ Shader "Singularity/Cell"
                 c *= 1.0 - smoothstep(0.55, 1.0, i.gone);
 
                 return fixed4(c * _Dim, 1);
+            }
+            ENDCG
+        }
+
+        // ---- THE X-RAY, WHICH IS THE WHOLE POINT OF HOLDING ------------------
+        //
+        // THE DEPTH BUFFER IS THE RULE, AND THIS IS THE ONE PLACE IT IS ALLOWED
+        // TO BE SET ASIDE.
+        //
+        // Every screen column shows its nearest solid cell and everything behind
+        // is discarded — that is the game, it is why the board is drawn as a solid
+        // at all, and the pass above must never stop obeying it. So MATRIX could
+        // only ever thin the material: the fill went translucent and the far side
+        // of each CELL came up as edges, but the cells BEHIND it were still gone,
+        // killed by the same depth test that performs the projection. Holding gave
+        // you a dimmer board rather than a look inside one, and "the lattice goes
+        // to glass" was a promise the renderer could not keep.
+        //
+        // This pass keeps it. Additive, no depth write, no depth test, so every
+        // face of every cell at every depth draws its outline over whatever is in
+        // front of it — the far wall of the solid, the walls of the corridors
+        // carved through it, the shape of the thing you are standing inside.
+        //
+        // It is honest about what it is: it draws NOTHING BUT LINES, and a line is
+        // not a surface. The pass above still decides what the board IS; this one
+        // only says where the machine has material, which is the question a held
+        // MATRIX is asking and the only question it can answer without lying about
+        // the projection.
+        //
+        // Two things keep it from being mud. It fades hard with depth, so the near
+        // structure reads in front of the far; and the trace wire is far brighter
+        // than the lattice wire, so the one property the whole board is read off
+        // survives into the x-ray. At _Peek = 0 the fragment is discarded on its
+        // first instruction and the pass costs a vertex shader on a mesh of a few
+        // hundred quads.
+        Pass
+        {
+            Blend One One
+            BlendOp Add
+            ZWrite Off
+            ZTest Always
+            Cull Off
+
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment fragWire
+            #include "Cell.cginc"
+
+            fixed4 fragWire(v2f i) : SV_Target
+            {
+                if (_Peek < 0.02) discard;
+
+                // a sharp square band on the face's own border. No rounding and no
+                // inset ramp — this is the drawing, not the tile.
+                float2 q = abs(i.uv - 0.5) - (0.5 - _Gutter);
+                float sd = max(q.x, q.y);
+                if (sd > _WireWidth) discard;
+                float wire = saturate(1.0 - abs(sd) / max(1e-4, _WireWidth));
+
+                // FAR IS FAINT. Without this every wire in the solid arrives at the
+                // same strength and the picture has no inside — the eye is given a
+                // flat tangle instead of a depth. It is the same ramp the surface
+                // uses, doing the same job with light instead of value.
+                float fade = lerp(_WireFar, 1.0, i.depth01);
+
+                // If the board is ever thrown while somebody is holding, the wire
+                // leaves with the cell it is drawn on. Nothing today can reach
+                // that state — input is off through the exit — and it is one
+                // instruction to not have to have proved it.
+                float leaving = 1.0 - smoothstep(0.55, 1.0, i.gone);
+
+                // NOT _Dim. That is the surface being taken away as the hold comes
+                // on — _matLattice goes to 0.55 of itself and the trace to 0.85 —
+                // and applying it here would dim the wire by exactly the amount
+                // the wire exists to replace.
+                return fixed4(_WireCol.rgb * (wire * fade * _Peek * _WireGain * leaving), 1);
             }
             ENDCG
         }

@@ -48,6 +48,26 @@ namespace Singularity.Game
         const float Threshold = 0.78f;
         const float Intensity = 0.45f;
 
+        /// <summary>
+        /// HOW FAR THE KNEE COMES DOWN WHILE THE MACHINE IS BEING LOOKED THROUGH.
+        ///
+        /// 0 is the settled board, where a glow that swallows the thing it is
+        /// glowing off is the failure mode and the numbers above are tuned against
+        /// it. 1 is a held MATRIX, which is the opposite picture: the fill is gone,
+        /// what is left is wire, and a wire with no bloom is a hairline. The knee
+        /// drops under the wire colour and the amount goes past one, so the lines
+        /// blow out where they cross — which is not decoration, it is what makes a
+        /// lattice of them read as depth rather than as a flat tangle.
+        ///
+        /// Driven by the hold, scaled by the light setting, and it is the ONLY part
+        /// of the schematic that is: the x-ray itself is the readout MATRIX exists
+        /// to give, so a player who has turned light down loses the halo and keeps
+        /// the answer.
+        /// </summary>
+        public float Lift { get; set; }
+
+        const float LiftThreshold = 0.40f, LiftIntensity = 1.10f;
+
         /// <summary>How many halvings before blurring. Two is quarter res on each axis.</summary>
         const int Down = 2;
 
@@ -78,6 +98,10 @@ namespace Singularity.Game
         void OnRenderImage(RenderTexture src, RenderTexture dst)
         {
             if (_mat == null) { Graphics.Blit(src, dst); return; }
+
+            float lift = Mathf.Clamp01(Lift) * Access.LightAmount;
+            _mat.SetFloat("_Threshold", Mathf.Lerp(Threshold, LiftThreshold, lift));
+            _mat.SetFloat("_Intensity", Mathf.Lerp(Intensity, LiftIntensity, lift));
 
             int w = Mathf.Max(1, src.width >> Down);
             int h = Mathf.Max(1, src.height >> Down);

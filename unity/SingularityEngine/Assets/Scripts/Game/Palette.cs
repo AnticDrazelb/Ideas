@@ -328,6 +328,36 @@ namespace Singularity.Game
         /// </summary>
         public static readonly Color Evert = Hex("#a78bfa");
 
+        /// <summary>
+        /// THE SCHEMATIC. What the lattice is drawn in while it is being LOOKED
+        /// THROUGH rather than played on.
+        ///
+        /// A held MATRIX is not a view of the board, it is a view of the MACHINE:
+        /// the fill goes and every cell becomes a wire box, at every depth, with
+        /// nothing occluding anything. That is a different job from the settled
+        /// board — nobody is asking "can I stand there" with their thumb held down
+        /// — and it gets its own two colours, cool where the housing is rust,
+        /// because a schematic drawn in the same ink as the object is a schematic
+        /// nobody can tell apart from it.
+        ///
+        /// The two still separate the way everything in this game separates: the
+        /// trace wire is far brighter than the lattice wire, so the one property
+        /// the whole board is read off survives into the x-ray. The audit asserts
+        /// it rather than trusting it.
+        ///
+        /// These are ADDITIVE and land on the void, so they are the light itself
+        /// rather than a surface colour — which is why they are allowed to be this
+        /// bright when nothing else in the palette is.
+        /// </summary>
+        /// It is a periwinkle rather than the everter's violet on purpose: an
+        /// everter is a walk type, so its own wire is drawn in WireTrace, but its
+        /// GLYPH is violet and it is sitting over this. Thirty-one degrees of hue
+        /// between them is what stops "the violet marker" and "the violet lattice"
+        /// being the same read at a glance — the shape settles it either way, but
+        /// the shape should not have to.
+        public static readonly Color WireTrace = Hex("#9fe8ff");
+        public static readonly Color WireLattice = Hex("#8098d8");
+
         public static Color Tile(char t, int d, int n, int band = 0)
         {
             if (t == 'E') return Evert;

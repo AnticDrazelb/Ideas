@@ -691,6 +691,10 @@ namespace Singularity.Game
             Rig.Tick(dt, View.cube, !View.attract);
             Filter.Refresh();
             Glow.Refresh();
+            // the schematic's halo. The board is wire whenever the material is out
+            // of the way — a held MATRIX, or the middle of an eversion — and a
+            // wire with no bloom is a hairline. See Bloom.Lift.
+            Glow.Lift = View.GlassAmount;
 
             if (Input.GetKeyDown(KeyCode.Escape) && !_screenUp && S.lv != null) Screens.ShowPause(this);
         }

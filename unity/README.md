@@ -498,8 +498,9 @@ Assets/Scripts/Game/     everything that draws, listens or remembers
   UI/                    built in code (a preference now, not a rule)
 
 Assets/Tests/EditMode/   the port's contract with the original
-Assets/Shaders/          Cell (the solid + the reveal), Glyph (the four
-                         objects), Fx (sparks, chips, fronts)
+Assets/Shaders/          Cell (the solid, the reveal and the x-ray — two passes
+                         over one vertex stage, shared via Cell.cginc), Glyph
+                         (the four objects), Fx (sparks, chips, fronts)
 tools/                   type-check and parity harnesses — see tools/README.md
 ```
 
@@ -612,6 +613,57 @@ continue.
 Everything that **moves** runs on the bent clock; everything that **measures**
 runs on the real one. The solve clock is monotonic and untouched, so a player
 cannot buy thinking time by triggering impacts.
+
+---
+
+## The schematic
+
+A held MATRIX used to *thin* the board: the fill went to 22%, the rim came up,
+and the far side of each cell appeared as edges. What it could not do was show
+you what was **behind** — the depth buffer performs the projection, so every cell
+in a column but the nearest was already gone before the fragment shader had an
+opinion. "The lattice goes to glass" was a promise the renderer could not keep.
+
+It keeps it now, in a second pass. Additive, `ZWrite Off`, `ZTest Always`, so
+every face of every cell at every depth draws its outline over whatever is in
+front of it: the far wall of the solid, the walls of the corridors carved through
+it, the shape of the thing you are standing inside.
+
+**The first pass never stops obeying the projection**, and that is the whole
+licence for this. The x-ray draws nothing but lines, and a line is not a surface
+— the surface pass still decides what the board *is*; this one only says where
+the machine has material. That is the question a held MATRIX is asking, and the
+only one it can answer without lying about the rule.
+
+Four things come on together:
+
+| | |
+|---|---|
+| the tile stops being a tile | corner radius → 0.004 and the rim inset → 0.020, so a rounded circuit plate becomes a sharp wire box. Same arithmetic, two ends of one lerp. |
+| the fill goes | 94% out, not 78%. A fifth of a fill is still a surface, and a surface is what stops the far side reading as far. |
+| the cage becomes the brightest line | rust → the trace's wire colour at full hold. The outline of the object should not read as less present than its contents. |
+| the bloom knee drops under the wire | 0.78 → 0.40 and the amount past one, so the lines blow out where they cross. That is not decoration: it is what makes a lattice of them read as depth rather than a flat tangle. |
+
+The schematic has its own two colours — cool where the housing is rust, because
+a drawing in the same ink as the object is a drawing nobody can tell apart from
+it. They still separate the way everything here separates: `WireTrace` is 0.26 of
+luminance above `WireLattice`, which is wider than the board's own band gap of
+0.169 and asserted rather than trusted. The lattice wire also sits 31° of hue off
+the everter's violet, because an everter's glyph is drawn over it.
+
+Only the **bloom** is gated on the light setting. The x-ray is the readout MATRIX
+exists to give, so a player who has turned light down loses the halo and keeps
+the answer.
+
+It also fires for half a second in the middle of an **eversion** — `_Peek` has
+always meant "the material is out of the way", and the flip already used it. The
+machine turning through itself, seen as wire.
+
+*Unverified on device.* The dials are `_WireGain` per material and `_WireFar` in
+`CubeView.PushPalette`, and `_WireWidth` in `Cell.shader`. Shipped strengths at
+full hold, additive on the void: trace wire 0.34 near / 0.10 far, lattice 0.12 /
+0.02, plate 0.21 / 0.06. Two coincident near trace wires clip to white, which is
+intended — that is the bright line where two trace cells meet.
 
 ---
 

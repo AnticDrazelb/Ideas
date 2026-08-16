@@ -27,6 +27,7 @@ public static class AccessChecks
         Printed();
         Motion();
         Light();
+        Schematic();
 
         return fails;
     }
@@ -279,5 +280,74 @@ public static class AccessChecks
 
         Ok(Access.FlashesPerSecond <= 3, "the flash budget is over 2.3.1's three a second");
         Store.Data.light = 0;
+    }
+
+    /// <summary>
+    /// AND THE READ SURVIVES INTO THE X-RAY.
+    ///
+    /// A held MATRIX stops drawing surfaces and draws the machine as wire, at
+    /// every depth, additively — a different picture with a different palette. It
+    /// is not a picture anybody is planning a fold from, so it is not held to the
+    /// board's contrast table. It IS held to the one property everything in this
+    /// game is read off: a trace is brighter than the lattice. Lose that and the
+    /// x-ray becomes a tangle in which the thing you can stand on and the thing
+    /// you cannot are the same line.
+    ///
+    /// Both wires are also checked against the void they are drawn on, because
+    /// additive light on a near-black background is the easiest place in the
+    /// project to pick a colour that looks lovely in an editor and vanishes on a
+    /// phone in a room with a window.
+    /// </summary>
+    static void Schematic()
+    {
+        float trace = Palette.Luminance(Palette.WireTrace);
+        float lattice = Palette.Luminance(Palette.WireLattice);
+
+        Ok(trace > lattice, "the schematic's trace wire is not brighter than its lattice wire");
+
+        // THE BOARD'S OWN BAND GAP IS 0.169 AND IT IS THE TIGHTEST THING IN THE
+        // GAME — two ramps crowding each other from both sides, with every vault's
+        // corrosion walking one toward the other. This pair has none of that: two
+        // flat colours, no depth ramp, nothing ageing. So the floor is set ABOVE
+        // the board's, at 0.20, because a schematic that separates its two wires
+        // less comfortably than the board separates its two materials has no
+        // excuse. The shipped pair sits at 0.26, which is 0.06 of real margin
+        // rather than the two units this file has been bitten by twice.
+        Ok(trace - lattice > 0.20f,
+           "the schematic's two wires are only " + (trace - lattice).ToString("0.000")
+           + " apart in luminance");
+
+        float tr = Access.Contrast(Palette.WireTrace, Palette.Void);
+        float la = Access.Contrast(Palette.WireLattice, Palette.Void);
+        Ok(la >= 3f, "the schematic's lattice wire is " + la.ToString("0.00")
+                     + ":1 on the void, under the 3:1 floor for a non-text mark");
+
+        // AND IT IS NOT THE EVERTER. An everter is a walk type, so its own wire is
+        // the trace's — but its glyph is violet and sits over the lattice wire, and
+        // two violets one on the other is a read the shape has to rescue on its
+        // own. Hue is what separates them; this is the number that says so.
+        float sep = Hue(Palette.WireLattice) - Hue(Palette.Evert);
+        sep = System.Math.Abs((sep + 540f) % 360f - 180f);
+        Ok(sep > 20f, "the schematic's lattice wire is only " + sep.ToString("0")
+                      + " degrees of hue from the everter's violet");
+
+        System.Console.WriteLine(string.Format(
+            "access: the schematic — trace wire {0:0.00}:1 and lattice wire {1:0.00}:1 on the void, "
+            + "{2:0.000} of luminance apart, {3:0} degrees off the everter",
+            tr, la, trace - lattice, sep));
+    }
+
+    /// <summary>Hue in degrees, which is the one thing Access does not already answer.</summary>
+    static float Hue(UnityEngine.Color c)
+    {
+        float max = System.Math.Max(c.r, System.Math.Max(c.g, c.b));
+        float min = System.Math.Min(c.r, System.Math.Min(c.g, c.b));
+        float d = max - min;
+        if (d < 1e-6f) return 0f;
+        float h = max == c.r ? (c.g - c.b) / d
+                : max == c.g ? (c.b - c.r) / d + 2f
+                             : (c.r - c.g) / d + 4f;
+        h *= 60f;
+        return h < 0f ? h + 360f : h;
     }
 }

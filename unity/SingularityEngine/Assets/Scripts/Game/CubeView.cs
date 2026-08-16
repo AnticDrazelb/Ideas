@@ -153,6 +153,30 @@ namespace Singularity.Game
 
         public const float PeekYaw = 0.62f, PeekPitch = 0.42f, PeekMaxPitch = 1.15f;
 
+        /// <summary>
+        /// The hold, eased — how far into the schematic the board is. Everything
+        /// that comes on with MATRIX reads it from here rather than smoothing the
+        /// raw amount again in its own way and drifting out of step with the rest.
+        /// </summary>
+        public float PeekEase => peekAmt * peekAmt * (3f - 2f * peekAmt);
+
+        /// <summary>
+        /// HOW FAR OUT OF THE WAY THE MATERIAL IS — which is what `_Peek` has
+        /// always meant, and it is not only the hold.
+        ///
+        /// An eversion pushes it too: halfway through the flip the solid is
+        /// edge-on and the cube goes to glass on the way in and hardens on the way
+        /// out, deliberately, because that is a look MATRIX has already taught the
+        /// player. So the x-ray flares for half a second in the middle of a
+        /// polarity change, which is the right picture — the machine turning
+        /// through itself, seen as wire.
+        ///
+        /// Written every frame by Apply and read by anything outside this class
+        /// that has to agree with the shader. Bloom.Lift used the hold alone and
+        /// so was the one part of the schematic that did not come on with the turn.
+        /// </summary>
+        public float GlassAmount { get; private set; }
+
         public void Init(Session s)
         {
             _s = s;
@@ -378,6 +402,24 @@ namespace Singularity.Game
             // not take the depth ramp: it is rust at full strength wherever it is.
             _matPlate.SetColor("_ColFar", Palette.Rust * 0.62f);
             _matPlate.SetColor("_ColNear", Palette.RustHi);
+
+            // AND THE SCHEMATIC, which is what the same three materials are drawn
+            // in while somebody is holding MATRIX. Constants, so they are pushed
+            // with the palette rather than every frame. The plate keeps its rust
+            // for the reason it keeps everything else: it is the one thing that is
+            // the same in every world, and a schematic that recoloured it would be
+            // saying it was not.
+            _matTrace.SetColor("_WireCol", Palette.WireTrace);
+            _matLattice.SetColor("_WireCol", Palette.WireLattice);
+            _matPlate.SetColor("_WireCol", Palette.RustHi);
+
+            // The lattice is most of the solid, so its x-ray is the one that can
+            // turn into a tangle — it draws at half the trace's strength and fades
+            // harder into the far side.
+            _matTrace.SetFloat("_WireGain", 0.40f);
+            _matLattice.SetFloat("_WireGain", 0.20f);
+            _matPlate.SetFloat("_WireGain", 0.34f);
+            _matLattice.SetFloat("_WireFar", 0.20f);
         }
 
         public void Rebuild(bool force = false)
@@ -564,7 +606,8 @@ namespace Singularity.Game
             // transition we are IN, as opposed to which side of it we are on
             float turning = 1f - Mathf.Abs(ev * 2f - 1f);
 
-            float e = Mathf.Max(peekAmt * peekAmt * (3f - 2f * peekAmt), turning * 0.85f);
+            float e = Mathf.Max(PeekEase, turning * 0.85f);
+            GlassAmount = e;
             if (e > 1e-4f)
             {
                 live = Quaternion.AngleAxis(-peekYaw * e * Mathf.Rad2Deg, Vector3.up)
@@ -651,9 +694,17 @@ namespace Singularity.Game
                 // original's drawCage alpha. The cage is the twelve edges of the
                 // thing you are HOLDING, so it has to come up as the material goes
                 // away — glass with no edges is just a dimmer board.
-                float peekE = peekAmt * peekAmt * (3f - 2f * peekAmt);
+                //
+                // AND IT IS THE BRIGHTEST LINE IN THE SCHEMATIC. Under a full hold
+                // the whole solid has become wire, and a rust cage at 0.86 sitting
+                // inside a lattice of lit wire is the outline of the object reading
+                // as less present than its contents. It goes to the trace's wire
+                // colour at full strength, which is the one thing on screen that
+                // should be unambiguous: this is where the machine ends.
+                float peekE = PeekEase;
+                Color cage = Color.Lerp(Palette.Rust, Palette.WireTrace, peekE * 0.85f);
                 _cageR.sharedMaterial.SetColor("_Tint",
-                    new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, e * (0.46f + peekE * 0.40f)));
+                    new Color(cage.r, cage.g, cage.b, e * (0.46f + peekE * 0.54f)));
             }
 
             // A MARKER BELONGS TO A CELL, AND THE CELLS HAVE LEFT. Every glyph on
