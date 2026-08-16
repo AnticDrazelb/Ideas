@@ -88,6 +88,7 @@ public static class ForgeChecks
         fails += AccessChecks.Run();
         fails += ChassisChecks.Run(Ok);
         SoundChecks.Run(Ok);
+        Numbers();
 
         Console.WriteLine(fails == 0 ? "CHECKS PASSED" : fails + " CHECKS FAILED");
         return fails;
@@ -235,6 +236,35 @@ public static class ForgeChecks
 
         Forge.DropDraft();
         Ok(Forge.Resume().n == 5, "a dropped draft still came back");
+    }
+
+    /// <summary>
+    /// THE NO-GARBAGE NUMBER TABLE AGREES WITH ToString, AND HANDS BACK THE SAME
+    /// REFERENCE TWICE.
+    ///
+    /// Both halves matter and they fail differently. A table that disagreed would
+    /// print the wrong fold count — visible, and the sort of thing that survives
+    /// a playtest because nobody counts their own folds. A table that allocated a
+    /// fresh string each call would be correct and pointless, because the whole
+    /// reason it exists is that uGUI skips a Text's mesh rebuild when the
+    /// incoming string is the one it already has.
+    /// </summary>
+    static void Numbers()
+    {
+        for (int i = 0; i < 300; i++)
+        {
+            if (Num.Of(i) != i.ToString()) { Ok(false, "Num.Of(" + i + ") is " + Num.Of(i)); return; }
+            if (Num.Over(i) != "/" + i.ToString()) { Ok(false, "Num.Over(" + i + ") is " + Num.Over(i)); return; }
+        }
+        Ok(Num.Of(-1) == "-1" && Num.Over(-1) == "/-1", "Num does not fall back below zero");
+
+        // the cached range hands back one object; past it, a fresh one, which is
+        // the deliberate trade — an unbounded cache is a leak with a nice name
+        Ok(ReferenceEquals(Num.Of(8), Num.Of(8)), "Num.Of allocates inside its own table");
+        Ok(ReferenceEquals(Num.Over(24), Num.Over(24)), "Num.Over allocates inside its own table");
+        Ok(!ReferenceEquals(Num.Of(9999), Num.Of(9999)), "Num.Of is caching without a bound");
+
+        Console.WriteLine("numbers: the table matches ToString to 300 and is reference-stable to 255");
     }
 
     public static void Main(string[] args)

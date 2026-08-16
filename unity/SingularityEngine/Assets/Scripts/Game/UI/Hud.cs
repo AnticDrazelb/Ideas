@@ -33,6 +33,9 @@ namespace Singularity.UI
         RectTransform _depthRoot;
 
         float _toastT, _flashT, _flashDur, _vig, _capT;
+
+        /// <summary>Whole seconds last printed on the plate clock; -1 means the clock is off.</summary>
+        int _lastSecs = -1;
         Color _flashCol;
         string _goShown = "";
 
@@ -423,12 +426,28 @@ namespace Singularity.UI
             _capT = 1.1f;
         }
 
+        // WHAT THE CHIPS ARE SHOWING, so that a frame in which nothing changed
+        // costs nothing. Refresh is called from Tick, which is every frame, and
+        // it used to rebuild eight strings each time — a caption that is three
+        // concatenations, four counters, a name. uGUI compares the string before
+        // it rebuilds the mesh, so the canvas was safe; the GARBAGE was not, and
+        // a collection landing in the middle of a fold is the one hitch this
+        // game cannot afford.
+        //
+        // Sentinels start at a value nothing can be, so the first Refresh always
+        // writes. -1 is impossible for every counter here and _lastBand is only
+        // consulted after the daily/forge case has been ruled out.
+        int _lastTurns = -1, _lastPar = -1, _lastHeld = -1, _lastKeys = -1;
+        int _lastHints = -1, _lastLvNo = -1, _lastBand = -1;
+        bool _lastNamed;
+        string _lastName = null;
+
         public void Refresh(Session s)
         {
             if (s?.lv == null) return;
 
-            _foldN.text = s.turns.ToString();
-            _parN.text = "/" + s.lv.par;
+            if (s.turns != _lastTurns) { _lastTurns = s.turns; _foldN.text = Num.Of(s.turns); }
+            if (s.lv.par != _lastPar) { _lastPar = s.lv.par; _parN.text = Num.Over(s.lv.par); }
 
             bool hasKeys = s.lv.keys.Count > 0;
             _keyChip.gameObject.SetActive(hasKeys);
@@ -436,15 +455,34 @@ namespace Singularity.UI
             {
                 int held = 0;
                 for (int i = 0; i < s.lv.keys.Count; i++) if ((s.kmask & (1 << i)) != 0) held++;
-                _keyN.text = held.ToString();
-                _keyTot.text = "/" + s.lv.keys.Count;
+                if (held != _lastHeld) { _lastHeld = held; _keyN.text = Num.Of(held); }
+                if (s.lv.keys.Count != _lastKeys) { _lastKeys = s.lv.keys.Count; _keyTot.text = Num.Over(s.lv.keys.Count); }
             }
 
-            _hintN.text = s.hintsLeft.ToString();
-            _lvNo.text = s.IsDaily ? "DAILY" : s.IsMade ? "FORGE" : s.levelNo.ToString();
-            _lvName.text = s.lv.name ?? "";
-            int band = Vaults.VaultOf(s.levelNo);
-            _vault.text = s.IsDaily || s.IsMade ? "" : "VAULT " + Vaults.RomanOf(band) + " · " + Vaults.VaultName(band);
+            if (s.hintsLeft != _lastHints) { _lastHints = s.hintsLeft; _hintN.text = Num.Of(s.hintsLeft); }
+
+            // THE CAPTION IS THE EXPENSIVE ONE — three concatenations and a roman
+            // numeral, every frame, to produce a string that changes once a vault.
+            // It is keyed on the two things that can change it and nothing else.
+            bool named = !(s.IsDaily || s.IsMade);
+            int band = named ? Vaults.VaultOf(s.levelNo) : -1;
+            if (s.levelNo != _lastLvNo || named != _lastNamed)
+            {
+                _lastLvNo = s.levelNo;
+                _lastNamed = named;
+                _lvNo.text = s.IsDaily ? "DAILY" : s.IsMade ? "FORGE" : Num.Of(s.levelNo);
+            }
+            if (band != _lastBand)
+            {
+                _lastBand = band;
+                _vault.text = named ? "VAULT " + Vaults.RomanOf(band) + " · " + Vaults.VaultName(band) : "";
+            }
+
+            // reference equality first: the level's name is the same object from
+            // one frame to the next, so this is a pointer compare in the case
+            // that happens every frame and a string compare only when it changed
+            string nm = s.lv.name;
+            if (!ReferenceEquals(nm, _lastName)) { _lastName = nm; _lvName.text = nm ?? ""; }
 
             RefreshTicks(s);
             PaintGo(s);
@@ -521,9 +559,13 @@ namespace Singularity.UI
             {
                 float k = s.plateT / Session.PlateMs;
                 _plateBar.rectTransform.anchorMax = new Vector2(k, 1);
-                _plateClock.text = Mathf.CeilToInt(s.plateT / 1000f) + "S";
+                // ONE STRING A SECOND, NOT ONE A FRAME. The clock counts whole
+                // seconds and there are five of them, so the concatenation ran
+                // sixty times for every value it produced.
+                int secs = Mathf.CeilToInt(s.plateT / 1000f);
+                if (secs != _lastSecs) { _lastSecs = secs; _plateClock.text = Num.Of(secs) + "S"; }
             }
-            else _plateClock.text = "";
+            else if (_lastSecs != -1) { _lastSecs = -1; _plateClock.text = ""; }
 
             Refresh(s);
         }
@@ -555,7 +597,12 @@ namespace Singularity.UI
                     Surf sc = s.surf[u * n + v];
                     if (!sc.has) continue;
                     Text t = _depthPool[used++];
-                    t.text = sc.d.ToString();
+                    // EIGHTY-ONE OF THESE, EVERY FRAME, on a nine-cube. A depth is
+                    // 0..8 by construction, so the table always hits and the
+                    // reference it hands back is the one the Text already holds —
+                    // which is what makes the assignment free rather than merely
+                    // cheap, because uGUI skips the mesh rebuild on a match.
+                    t.text = Num.Of(sc.d);
                     // the number takes the cell's own colour, so it never claims to
                     // be a different material from the block it is sitting on
                     Color c = Palette.Tile(sc.t, sc.d, n);
