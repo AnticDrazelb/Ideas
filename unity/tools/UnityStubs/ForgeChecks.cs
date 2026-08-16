@@ -278,6 +278,7 @@ public static class ForgeChecks
         // move is to delete the harness rather than leave it printing a picture
         // of something the game no longer draws.
         if (args.Length > 0 && args[0] == "content") { ContentAudit.Run(); return; }
+        if (args.Length > 0 && args[0] == "gravity") { GravityProbe.Run(); return; }
         Environment.ExitCode = Run();
     }
 }

@@ -387,6 +387,43 @@ with a hard maximum of ten folds that is never approached in practice.
 `VaultSize` grows the *number* of cubes per vault (25 + 5b) but nothing grows
 their difficulty, so vaults 16 through 30 are fifteen vaults of the same cube.
 
+### Gravity, and the thing under it
+
+`DESIGN-gravity.md` is a design note written against measurements rather than
+taste. Short version:
+
+```sh
+dotnet run --project unity/tools/UnityStubs gravity
+```
+
+Gravity is the right *kind* of idea — folding changes what is deep, gravity makes
+folding change what is **down**, one action with two consequences. But the
+obvious implementation, falling as part of `Projection.Landing`, makes the game
+**easier**: it lets folds through that are currently refused, and free stepping
+undoes the displacement anyway. It only has teeth if it takes away *climbing*, so
+that the fold becomes the only way to gain height.
+
+And it will not work yet, because there is nothing to fall through:
+
+```
+   screen squares showing any cell       63.5
+   of those, walkable                    13.0
+   of those, reachable from the start     6.9   <- the board you actually have
+   trace cells in the whole solid        37.0 of 520  (7.1%)
+```
+
+You are looking at ~64 squares and standing on a corridor of ~7. Gravity's effect
+is bimodal across the range — invisible on 35% of cubes, transformative on 28% —
+and a headline mechanic that sometimes does not apply is worse than none.
+
+**The real cap is upstream of gravity.** The generator carves the trace as a
+single self-avoiding path and deliberately keeps it short, with a comment
+explaining that a longer carve means more shortcuts and a lower par. That
+reasoning is correct and it is the trap: par is being protected by *starving the
+board*, and a board with one route has no decisions on it. Every symptom in the
+content audit — flat par, flat steps-per-fold, a quarter of openings that do not
+matter — is that one symptom.
+
 ### Measuring
 
 None of this was eyeballed. `unity/tools/type/reflow.py` wraps every prose box
