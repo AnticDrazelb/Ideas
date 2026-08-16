@@ -102,19 +102,32 @@ namespace Singularity.Game
             wetRoot.transform.SetParent(transform, false);
             for (int i = 0; i < Voices; i++) _wet[i] = Voice(wetRoot.transform);
 
-            // The room, on every wet voice: the delay spacing and the damping are
-            // the original's, and the lowpass is what stops the tail turning into
-            // hiss after a few passes.
-            foreach (AudioSource v in _wet)
+            // THE ROOM IS ONE BUS OR IT IS FORTY FILTERS, and which one depends
+            // entirely on whether somebody has made the mixer. With it, the wet
+            // voices route to a group that carries the reverb once; without it,
+            // every wet voice carries its own echo and its own lowpass, because a
+            // per-source room is the only room you can have without a bus. The
+            // delay spacing and damping are the original's either way, and the
+            // lowpass is what stops the tail turning into hiss after a few passes.
+            if (Bus.Live)
             {
-                var echo = v.gameObject.AddComponent<AudioEchoFilter>();
-                echo.delay = 83f;
-                echo.decayRatio = 0.34f;
-                echo.wetMix = 1f;
-                echo.dryMix = 0f;
+                foreach (AudioSource v in _dry) v.outputAudioMixerGroup = Bus.Instrument;
+                foreach (AudioSource v in _wet) v.outputAudioMixerGroup = Bus.Room;
+                Bus.Apply();
+            }
+            else
+            {
+                foreach (AudioSource v in _wet)
+                {
+                    var echo = v.gameObject.AddComponent<AudioEchoFilter>();
+                    echo.delay = 83f;
+                    echo.decayRatio = 0.34f;
+                    echo.wetMix = 1f;
+                    echo.dryMix = 0f;
 
-                var lp = v.gameObject.AddComponent<AudioLowPassFilter>();
-                lp.cutoffFrequency = 1900f;
+                    var lp = v.gameObject.AddComponent<AudioLowPassFilter>();
+                    lp.cutoffFrequency = 1900f;
+                }
             }
 
             var bedGo = new GameObject("bed");
@@ -125,6 +138,10 @@ namespace Singularity.Game
             _bed.spatialBlend = 0f;
             _bed.volume = 0f;
             _bed.clip = Synth.Silence();
+            // THE BED IS THE ROOM, so it belongs on the room's fader. It is the
+            // one sound in the game that is not an event, and a player turning
+            // ROOM down is asking for exactly this to go away.
+            if (Bus.Live) _bed.outputAudioMixerGroup = Bus.Room;
         }
 
         static AudioSource Voice(Transform under)
@@ -162,18 +179,50 @@ namespace Singularity.Game
             // player on a small speaker usually wants the room turned down
             // rather than everything turned up. One master fader cannot say
             // either of those things.
+            // ON A BUS THE FADERS ARE NOT APPLIED HERE. A group's volume is the
+            // bus itself, so multiplying by the slider as well would apply it
+            // twice — and worse, it would only reach sounds that had not started
+            // yet, which is the bug the mixer exists to fix. What stays is the
+            // per-cue gain and the send, because those are the MIX and not the
+            // faders: they are how loud a knock is against a chime.
+            bool bussed = Bus.Live;
+            float vol = bussed ? 1f : Access.Volume;
+            float room = bussed ? 1f : Access.Room;
+
             AudioSource d = _dry[_dryAt++ % Voices];
             d.clip = clip;
-            d.volume = gain * Access.Volume;
+            d.volume = gain * vol;
             d.PlayScheduled(AudioSettings.dspTime + delay);
 
-            if (send > 0.001f && Access.Room > 0.001f)
+            if (send > 0.001f && (bussed || Access.Room > 0.001f))
             {
                 AudioSource w = _wet[_wetAt++ % Voices];
                 w.clip = clip;
-                w.volume = gain * send * Access.Volume * Access.Room;
+                w.volume = gain * send * vol * room;
                 w.PlayScheduled(AudioSettings.dspTime + delay);
             }
+        }
+
+        /// <summary>
+        /// THE RECORDING, IF SOMEBODY HAS PUT ONE THERE.
+        ///
+        /// One line at the top of a cue: if <c>Resources/Audio/&lt;name&gt;</c>
+        /// exists it is played and the cue returns, and if it does not the cue
+        /// falls through to the synthesis underneath it. That shape rather than a
+        /// table of overrides because it keeps the recording's NAME next to the
+        /// sound it replaces, and because a cue that grows a fourth layer next
+        /// year does not need anybody to remember this file exists.
+        ///
+        /// A recording is one clip where the synthesis is two or three layers at
+        /// measured offsets, so the send is the whole cue's send rather than any
+        /// one layer's — a recorded footstep already HAS its ping in it.
+        /// </summary>
+        bool Sample(string name, float gain, float send)
+        {
+            AudioClip clip = Bank.Get(name);
+            if (clip == null) return false;
+            Play(clip, gain, send);
+            return true;
         }
 
         void Tone(float f, float dur, Wave type, float gain, float slideTo = 0f, float send = 0.18f, double at = 0)
@@ -189,6 +238,7 @@ namespace Singularity.Game
         {
             float f = 54f + (_stepN % 3) * 3f;      // barely moves — it is a thud
             _stepN++;
+            if (Sample("step", 0.16f, 0.14f)) return;
             Tone(f, 0.20f, Wave.Sine, 0.16f, f * 0.72f, 0.10f);
             Noise(0.05f, 220f, 0.05f, 0.10f);
             Tone(1244.5f, 0.14f, Wave.Sine, 0.035f, 0f, 0.42f, 0.080);
@@ -197,6 +247,7 @@ namespace Singularity.Game
         public void Land()
         {
             _stepN = 0;
+            if (Sample("land", 0.17f, 0.16f)) return;
             Tone(46f, 0.30f, Wave.Sine, 0.17f, 34f, 0.10f);
             Tone(932.3f, 0.22f, Wave.Sine, 0.032f, 0f, 0.48f, 0.086);
         }
@@ -205,6 +256,7 @@ namespace Singularity.Game
         public void Fold()
         {
             Say("FOLD");
+            if (Sample("fold", 0.13f, 0.12f)) return;
             Tone(78f, 0.34f, Wave.Saw, 0.055f, 132f, 0.10f);
             Tone(157f, 0.30f, Wave.Square, 0.016f, 262f, 0.08f);
             Noise(0.30f, 1800f, 0.055f, 0.14f, 320f);
@@ -217,6 +269,7 @@ namespace Singularity.Game
         {
             // quantised, so the cache is a handful of clips rather than one per frame
             v = Mathf.Round(Mathf.Clamp01(v) * 8f) / 8f;
+            if (Sample("creak", 0.010f + v * 0.016f, 0.10f)) return;
             Tone(60f + v * 90f, 0.09f, Wave.Saw, 0.010f + v * 0.016f, 0f, 0.10f);
             if (v > 0.5f) Noise(0.05f, 700f + v * 1400f, 0.012f, 0.08f);
         }
@@ -229,6 +282,7 @@ namespace Singularity.Game
         public void Deny()
         {
             Say("REFUSED");
+            if (Sample("deny", 0.075f, 0.06f)) return;
             Noise(0.10f, 5200f, 0.075f, 0.06f, 400f);
             Tone(96f, 0.22f, Wave.Square, 0.045f, 62f, 0.06f);
         }
@@ -239,6 +293,14 @@ namespace Singularity.Game
             Say("NODE");
             float f = 1174.7f * Mathf.Pow(1.5f, Mathf.Min(5, _nodeN));
             _nodeN++;
+            // A RECORDING DOES NOT CLIMB, so the bank is allowed more than one.
+            // The fifth-stack is the synthesis telling you how many nodes you
+            // have taken, and a single sampled chime throws that away — so the
+            // second node looks for node2, the third for node3, and any of them
+            // falls back to plain node. Record one and the cue works and is
+            // flatter; record five and it says what it used to say.
+            if (_nodeN > 1 && Sample("node" + _nodeN, 0.075f, 0.55f)) return;
+            if (Sample("node", 0.075f, 0.55f)) return;
             Tone(f, 0.30f, Wave.Sine, 0.075f, 0f, 0.55f);
             Tone(f * 2f, 0.16f, Wave.Sine, 0.022f, 0f, 0.60f);
             Noise(0.05f, 9000f, 0.020f, 0.30f);
@@ -248,6 +310,7 @@ namespace Singularity.Game
         public void Lock()
         {
             Say("GATE OPEN");
+            if (Sample("lock", 0.15f, 0.30f)) return;
             Tone(41f, 0.85f, Wave.Sine, 0.15f, 110f, 0.28f);
             Tone(82f, 0.70f, Wave.Triangle, 0.055f, 220f, 0.30f);
             Noise(0.55f, 400f, 0.045f, 0.34f, 5200f);
@@ -263,6 +326,7 @@ namespace Singularity.Game
         public void Win()
         {
             Say("COLLAPSE");
+            if (Sample("win", 0.13f, 0.58f)) return;
             Tone(220f, 2.2f, Wave.Sine, 0.13f, 0f, 0.55f);
             Tone(440f, 2.0f, Wave.Sine, 0.055f, 0f, 0.60f);
             Tone(880f, 1.4f, Wave.Sine, 0.028f, 0f, 0.65f, 0.240);
@@ -271,6 +335,7 @@ namespace Singularity.Game
         public void Vault()
         {
             Say("VAULT CLEARED");
+            if (Sample("vault", 0.13f, 0.50f)) return;
             Tone(55f, 2.4f, Wave.Sine, 0.13f, 82.4f, 0.55f);
             Noise(1.4f, 300f, 0.035f, 0.45f, 4000f);
         }
@@ -280,6 +345,10 @@ namespace Singularity.Game
         {
             bool up = bit == 1;
             Say(up ? "INVERTED" : "RESTORED");
+            // TWO DIRECTIONS, TWO FILES. The synthesis sweeps the way the world
+            // went and a recording cannot be run backwards convincingly, so the
+            // inversion and the spring-back are separate cues in the bank.
+            if (Sample(up ? "plate" : "plate-off", 0.075f, 0.32f)) return;
             Tone(up ? 60f : 480f, 0.75f, Wave.Saw, 0.075f, up ? 480f : 60f, 0.30f);
             Noise(0.70f, up ? 400f : 6000f, 0.06f, 0.36f, up ? 7000f : 300f);
             Noise(0.08f, 1100f, 0.075f, 0.10f, 0f, 0.620);
@@ -301,6 +370,7 @@ namespace Singularity.Game
         public void Undo()
         {
             Say("UNDONE");
+            if (Sample("undo", 0.045f, 0.12f)) return;
             Tone(180f, 0.26f, Wave.Saw, 0.045f, 92f, 0.12f);
             Noise(0.20f, 2400f, 0.030f, 0.12f, 600f);
         }
@@ -309,6 +379,7 @@ namespace Singularity.Game
         public void Stuck()
         {
             Say("NO ROUTE FROM HERE");
+            if (Sample("stuck", 0.085f, 0.20f)) return;
             Noise(0.05f, 1600f, 0.06f, 0.08f);
             Noise(0.05f, 1200f, 0.05f, 0.08f, 0f, 0.120);
             Tone(73.4f, 0.9f, Wave.Sine, 0.085f, 69f, 0.24f, 0.240);
@@ -318,6 +389,7 @@ namespace Singularity.Game
         public void Peek()
         {
             Say("MATRIX");
+            if (Sample("peek", 0.055f, 0.22f)) return;
             Tone(58f, 0.60f, Wave.Saw, 0.055f, 175f, 0.18f);
             Noise(0.50f, 600f, 0.032f, 0.30f, 6000f);
         }
@@ -325,6 +397,7 @@ namespace Singularity.Game
         public void PeekOff()
         {
             Say("MATRIX OFF");
+            if (Sample("peekoff", 0.045f, 0.14f)) return;
             Tone(140f, 0.22f, Wave.Saw, 0.045f, 62f, 0.14f);
             Noise(0.16f, 3000f, 0.022f, 0.12f, 500f);
         }
@@ -340,7 +413,18 @@ namespace Singularity.Game
             _ambBand = band;
 
             _bed.Stop();
-            _bed.clip = Synth.Bed(Synth.RootFor(band));
+            // THE ROOM ITSELF, RECORDED, IF THERE IS ONE. Per band first — the
+            // hum is tuned to the vault you are in, and a single loop across all
+            // thirty throws that away — then a plain bed, then the synthesis.
+            //
+            // Written out rather than chained with ??, for the reason UiKit.Ensure
+            // is written out: those operators do not go through Unity's operator==
+            // overload, so a destroyed clip is null to the engine and not null to
+            // them, and the fallback silently does not happen.
+            AudioClip room = Bank.Get("bed" + band);
+            if (room == null) room = Bank.Get("bed");
+            if (room == null) room = Synth.Bed(Synth.RootFor(band));
+            _bed.clip = room;
             _bed.volume = 0f;
             _bed.Play();
             StartCoroutine(Fade(BedLevel, 1.2f));

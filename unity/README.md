@@ -172,6 +172,47 @@ against this one found a chamfer groove or the foot. So that stays yours, seeded
 from the current proportions, with the case drawn assembled underneath so a bad
 corner or a shallow band is visible before anything is written.
 
+### Sound: a recording, if there is one
+
+Every cue in the game is synthesised — two primitives in `Synth`, layered at
+measured offsets, and the offsets are what make a thud plus a ping read as sonar
+rather than as two beeps. That was the only option while importing an asset was
+against the rules, and it is also the ceiling: there is no synthesised eighty
+milliseconds of servo that sounds like a servo does.
+
+So there is a seam. Drop a clip at `Assets/Resources/Audio/<name>` and that cue
+plays the recording; leave it out and it synthesises itself, exactly as now.
+Nothing is all-or-nothing — a recorded footstep and fifteen synthesised cues is
+a valid state and probably the state this passes through. The names are in
+`Bank.Cues`, and each cue names its own file at the point it would otherwise
+synthesise, so a cue that grows a fourth layer next year does not need anybody
+to remember a table exists. Two of them take more than one file: `node2`…`node6`
+if you want the chime to keep climbing per node taken, and `bed0`…`bed29` if you
+want the room's hum tuned per vault the way the synthesis tunes it.
+
+**The mixer has to be made by hand, once.** `Bus` looks for
+`Assets/Resources/Audio/mixer` and routes the dry voices, the wet voices and the
+bed through it; without one it multiplies volumes per source exactly as before,
+and the harness runs in that state. It is not in the repository because an
+`AudioMixer` **cannot be created from script** — `AudioMixerController` is
+internal to the editor, so nothing supported makes a group or exposes a
+parameter. Five minutes of clicking:
+
+1. `Assets/Resources/Audio/mixer.mixer` — Create → Audio Mixer.
+2. Two groups under Master, named exactly **Instrument** and **Room**.
+3. Right-click each group's Volume → *Expose to script*, and rename the exposed
+   parameters to **Instrument** and **Room** as well. This is the step that
+   half-works if you skip it: the routing is fine and the faders do nothing,
+   which reads as a broken slider rather than as a missing one.
+4. Put the reverb on **Room** — one effect on one bus.
+
+That last point is most of why this is worth doing. Without a mixer the room is
+twenty wet voices each carrying its own `AudioEchoFilter` and its own
+`AudioLowPassFilter`: forty DSP nodes, on a phone, to approximate one send. It
+also makes the two faders **decibels instead of a multiply**, so half is six down
+rather than half, and it makes them audible *while they move* — a level applied
+at play time cannot reach the bed that is already humming.
+
 ### Measuring
 
 None of this was eyeballed. `unity/tools/type/reflow.py` wraps every prose box

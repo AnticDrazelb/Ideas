@@ -991,8 +991,15 @@ namespace Singularity.UI
             // ---- sound -------------------------------------------------------
             AccToggle(panel, "i.sound", "CAPTIONS", "EVERY CUE, IN WORDS",
                       () => Store.Data.captions, v => Store.Data.captions = v);
-            AccBar(panel, "i.sound", "INSTRUMENT", "", 0, 150, () => Store.Data.vol, v => Store.Data.vol = v);
-            AccBar(panel, "i.sound", "ROOM", "", 0, 150, () => Store.Data.room, v => Store.Data.room = v);
+            // Bus.Apply is what makes these two faders audible WHILE THEY MOVE.
+            // Without a mixer it does nothing and the level reaches the next
+            // sound to be played, exactly as it always has; with one, the group's
+            // volume is the bus everything is already passing through, so the bed
+            // follows the ROOM slider under your thumb.
+            AccBar(panel, "i.sound", "INSTRUMENT", "", 0, 150, () => Store.Data.vol,
+                   v => { Store.Data.vol = v; Bus.Apply(); });
+            AccBar(panel, "i.sound", "ROOM", "", 0, 150, () => Store.Data.room,
+                   v => { Store.Data.room = v; Bus.Apply(); });
 
             // ---- hand --------------------------------------------------------
             AccToggle(panel, "i.haptic", "FOLD BUTTONS", "FOUR ARROWS · NO SWIPE NEEDED",

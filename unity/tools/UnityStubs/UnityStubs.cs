@@ -146,6 +146,7 @@ namespace UnityEngine
         public const float Rad2Deg = 57.29578f;
         public const float Deg2Rad = 0.0174532924f;
         public static float Abs(float f) => Math.Abs(f);
+        public static float Log10(float f) => (float)Math.Log10(f);
 
         // Unity's own definition, which is a relative epsilon and not the
         // absolute one everybody assumes: 1e-6 scaled by the larger magnitude,
@@ -507,6 +508,7 @@ namespace UnityEngine
         public bool isPlaying => false;
         public float spatialBlend { get; set; }
         public bool bypassReverbZones { get; set; }
+        public Audio.AudioMixerGroup outputAudioMixerGroup { get; set; }
         public void Play() { }
         public void Stop() { }
         public void PlayScheduled(double time) { }
@@ -524,6 +526,30 @@ namespace UnityEngine
     public class AudioLowPassFilter : Behaviour { public float cutoffFrequency { get; set; } }
 
     public static class AudioSettings { public static double dspTime => 0; }
+
+    namespace Audio
+    {
+        /// <summary>
+        /// THE MIXER, WHICH THIS PROJECT CANNOT SHIP AND CAN STILL USE.
+        ///
+        /// There is no .mixer asset in the repository because an AudioMixer
+        /// cannot be created from script — AudioMixerController is internal to
+        /// the editor, so nothing supported makes a group or exposes a
+        /// parameter. What the harness can prove is the shape of the calls Bus
+        /// makes against one when a person has made it: FindMatchingGroups
+        /// returns an ARRAY and not a group, and SetFloat takes the exposed
+        /// parameter's name and not the group's, which are the two ways this
+        /// goes wrong quietly.
+        /// </summary>
+        public class AudioMixer : Object
+        {
+            public AudioMixerGroup[] FindMatchingGroups(string subPath) => null;
+            public bool SetFloat(string name, float value) => false;
+            public bool GetFloat(string name, out float value) { value = 0f; return false; }
+        }
+
+        public class AudioMixerGroup : Object { }
+    }
 
     public class Font : Object
     {
