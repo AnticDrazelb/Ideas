@@ -542,7 +542,8 @@ continue.
 | a landed fold | 52ms of stop. Enough to feel, too short to see. |
 | a refusal | 78ms — longer, and none of the reward. A wall is the one thing that should take a frame away from you. |
 | a plate firing | 120ms, then a third of speed easing back over most of a second. The world turning inside out is worth a held breath. |
-| the collapse | 150ms and 900, so the board comes apart at the pace of something *ending* rather than something being dismissed. |
+| the collapse | 150ms and 470, so the core taking you lands at the pace of something *ending*. It stops there on purpose — the exit that follows runs in real time. |
+| the engine breaking | 80ms, half a second later. The whole picture holds — solid still whole, grit stopped mid-air — and then all of it moves at once. |
 
 Everything that **moves** runs on the bent clock; everything that **measures**
 runs on the real one. The solve clock is monotonic and untouched, so a player
@@ -563,6 +564,41 @@ It costs nothing per frame. The geometry only changes when the *world* does, so
 a settle rewrites only the vertex colour stream — reachability in red, BFS
 distance in green — and the shader compares the distance against a front that
 runs out in real time. No re-triangulation, no per-cell draw calls.
+
+---
+
+## The exit
+
+The win used to shrink every cell to a point, running out from the core. It was
+correct and it was quiet: the board did not come apart, it was switched off one
+cell at a time — which is what you do to make room for a card, and is exactly
+how it read.
+
+It is thrown now, in three moves.
+
+| | |
+|---|---|
+| **lean** | 0.34s. The solid turns into three quarters and the camera eases back off it. Nothing breaks yet: an explosion only lands if the eye has just been told the thing is three-dimensional and made of parts. It is the one moment in the game where the board is looked *at* rather than played. |
+| **break** | One frame with everything on it — kick, shake, a *negative* punch that snaps the frame outward instead of in, the rumble, the crack — then 80ms where the whole picture holds still together. |
+| **throw** | 0.85s. Every cell straight out from the core, tumbling about an axis of its own, staggered by **distance from the core** so the break travels outward as a front. The camera holds back while they go. The card arrives into an empty room afterwards. |
+
+The throw is the eversion's machinery pointed somewhere else, which is the
+argument for having built that per cell in the first place: the board was
+already made of individually addressable cubes, so the explosion is four
+uniforms in `Cell.shader` and **nothing on the CPU moves at all**.
+
+At the shipped stagger the cell on the core leaves immediately and the eight
+corners hold until the throw is 35% done; halfway through, the corners are 53%
+of the way out and the middle is 96%. Every cell lands exactly at the end
+whatever the spread, because the front is scaled up by it and each cell
+subtracts its own share.
+
+Two things it deliberately does *not* do. It does not raise `_Peek` — MATRIX
+takes the board to glass so you can see through it, and debris you can see
+through is not debris. And it does not run on the bent clock: the collapse's
+slow-motion is shortened to 470ms so it is over before the break, because the
+geometry is on the unscaled clock and `Fx` is on the bent one, and the debris
+crawling while the cells it came off flew is the one way this can look wrong.
 
 ---
 

@@ -35,6 +35,10 @@ Shader "Singularity/Cell"
         _EvertAxis ("Eversion axis, object space", Vector) = (0,0,1,0)
         _EvertSpin ("Eversion spin axis, object space", Vector) = (1,0,0,0)
         _EvertSpread ("Eversion stagger", Range(0,1)) = 0.75
+        _Burst       ("Burst", Range(0,1)) = 0
+        _BurstThrow  ("Burst throw, in half-spans", Float) = 3.4
+        _BurstSpread ("Burst stagger", Range(0,1)) = 0.55
+        _BurstSpin   ("Burst tumble, in turns", Float) = 1.35
         _Unlit    ("Unreachable dimming", Range(0,1)) = 0.46
         _UnlitSat ("Unreachable colour left", Range(0,1)) = 0.30
 
@@ -78,6 +82,7 @@ Shader "Singularity/Cell"
                 float2 uv      : TEXCOORD0;
                 float  depth01 : TEXCOORD1;
                 float3 vnrm    : TEXCOORD2;
+                float  gone    : TEXCOORD3;   // how far through its own throw this cell is
                 fixed4 reach   : COLOR;
             };
 
@@ -86,6 +91,16 @@ Shader "Singularity/Cell"
             float _Wave, _WaveDir, _WaveSoft;
             float _Evert, _EvertSpread;
             float4 _EvertAxis, _EvertSpin;
+            float _Burst, _BurstThrow, _BurstSpread, _BurstSpin;
+
+            // Rodrigues. Both of the things that turn a cell about its own centre
+            // want it, and both of them have to turn the NORMAL by the same amount
+            // — see the note where the eversion uses it.
+            float3 Turn(float3 v, float3 axis, float ang)
+            {
+                float cs = cos(ang), sn = sin(ang);
+                return v * cs + cross(axis, v) * sn + axis * dot(axis, v) * (1.0 - cs);
+            }
 
             v2f vert(appdata v)
             {
@@ -126,6 +141,7 @@ Shader "Singularity/Cell"
                 // settled board is exactly the mirrored board and nothing needs
                 // to be undone at the end.
                 float3 eCentre = v.centre;
+                float3 nrm = v.normal;
                 if (_Evert > 1e-5)
                 {
                     float3 ax = normalize(_EvertAxis.xyz);
@@ -150,14 +166,87 @@ Shader "Singularity/Cell"
                     // Rodrigues, about the cell's own centre. The spin axis is the
                     // camera's right in object space, so every cell turns the same
                     // way on screen no matter which way the engine is folded.
+                    //
+                    // THE NORMAL TURNS WITH IT. A half-circle maps ±Z and ±Y onto
+                    // their opposites, so a cell that has finished its flip is
+                    // showing the face whose AUTHORED normal points away from the
+                    // camera — and the fragment shader reads that normal to decide
+                    // whether a face is a back face, which it then discards. The
+                    // settled everted board survived that only because Cull is Off
+                    // and the far face of the same cell was standing in for it.
+                    // That is a coincidence, not a rendering.
                     float3 sp = normalize(_EvertSpin.xyz);
                     float3 rel = local - v.centre;
                     float ang = 3.14159265 * e;
-                    float cs = cos(ang), sn = sin(ang);
-                    rel = rel * cs + cross(sp, rel) * sn + sp * dot(sp, rel) * (1.0 - cs);
+                    rel = Turn(rel, sp, ang);
+                    nrm = Turn(nrm, sp, ang);
 
                     local = eCentre + rel;
                 }
+
+                // ---- THE BOARD LEAVES IN PIECES -----------------------------
+                //
+                // The machine is a solid made of cells and the win is the moment
+                // it stops being one. Every cell is thrown straight out from the
+                // core — the thing that just took you — tumbling about an axis of
+                // its own, and the throw is staggered by DISTANCE FROM THE CORE so
+                // the break travels outward as a front rather than happening to
+                // the whole object at once.
+                //
+                // It is the eversion's machinery pointed somewhere else, which is
+                // the argument for having built it per-cell in the first place:
+                // the board was already made of individually addressable cubes,
+                // so the explosion is four uniforms and nothing on the CPU.
+                //
+                // THE SCHEDULE, at the shipped stagger of 0.55. The cell on the
+                // core leaves immediately and the eight corners hold until the
+                // throw is 35% done; halfway through, the corners are 53% of the
+                // way out and the middle is 96%, which is the front. Every cell
+                // lands exactly at _Burst = 1 whatever the spread, because the
+                // front is scaled up by it and each cell subtracts its own share —
+                // the same arithmetic the eversion above uses. The throw is 3.4
+                // half-spans, which is about 1.4 boards from the centre: far
+                // enough to clear the frame at the pull-back the exit asks for.
+                //
+                // The direction comes off the AUTHORED centre even when the board
+                // is everted and the cell is standing at its mirror. A mirror
+                // along the view axis changes only the sign of the component the
+                // orthographic camera cannot see, so on screen the two answers are
+                // the same throw — and the cell is still the cell it was authored
+                // as, which is the answer that means something.
+                float gone = 0.0;
+                if (_Burst > 1e-5)
+                {
+                    float far = max(1e-4, 1.7320508 * _HalfSpan);   // centre to corner
+                    float r = saturate(length(v.centre) / far);
+                    float k = saturate(_Burst * (1.0 + _BurstSpread) - r * _BurstSpread);
+
+                    // FAST OUT, THEN COASTING — the opposite ease to everything
+                    // else in this game, because this is the only thing that is
+                    // thrown rather than moved.
+                    float u = 1.0 - k;
+                    float e = 1.0 - u * u * u;
+
+                    // A cell sitting on the core has no direction of its own, so
+                    // it takes the one that is always true: it comes at you.
+                    float len = length(v.centre);
+                    float3 dir = lerp(float3(0, 0, -1), v.centre / max(1e-4, len),
+                                      saturate(len / max(1e-4, 0.5 * _HalfSpan)));
+
+                    // an axis that differs per cell, so the debris is a cloud of
+                    // separate objects rather than a set of parallel cards
+                    float3 tum = normalize(v.centre * float3(0.71, -1.03, 0.44)
+                                           + float3(0.31, 0.17, 0.93));
+                    float3 rel = local - eCentre;
+                    float ang = 6.2831853 * _BurstSpin * e;
+                    rel = Turn(rel, tum, ang);
+                    nrm = Turn(nrm, tum, ang);
+
+                    eCentre += dir * (_BurstThrow * _HalfSpan * e);
+                    local = eCentre + rel;
+                    gone = k;
+                }
+                o.gone = gone;
 
                 o.pos = UnityObjectToClipPos(float4(local, 1));
 
@@ -174,7 +263,7 @@ Shader "Singularity/Cell"
                 // Unity view space looks down -Z, so a LARGER z is nearer.
                 o.depth01 = saturate((centreZ - originZ) / (2.0 * _HalfSpan) + 0.5);
 
-                o.vnrm = normalize(mul((float3x3)UNITY_MATRIX_IT_MV, v.normal));
+                o.vnrm = normalize(mul((float3x3)UNITY_MATRIX_IT_MV, nrm));
                 o.uv = v.uv;
                 o.reach = v.color;
                 return o;
@@ -251,8 +340,13 @@ Shader "Singularity/Cell"
                 // basis into Unity's left-handed one, which inverts winding — so
                 // "back face" and "clockwise" have come apart in this mesh, and only
                 // one of the two still means what it says.
+                // ... and never while the board is coming apart. A tumbling cell
+                // presents its back to the camera for half of every turn, and
+                // discarding that would put a hole straight through the middle of
+                // a piece of debris. The facing term below already darkens it,
+                // which is what a lump of solid turning away is supposed to do.
                 float back = step(facing, 0.01);
-                if (back > 0.5 && _Peek < 0.12) discard;
+                if (back > 0.5 && _Peek < 0.12 && _Burst < 1e-5) discard;
 
                 c *= 1.0 - back * _Peek;
                 c += _ColNear.rgb * rim * _Peek * lerp(0.62, 0.22, back);
@@ -288,6 +382,15 @@ Shader "Singularity/Cell"
                 float lum = dot(c, float3(0.2126, 0.7152, 0.0722));
                 c = lerp(lerp(lum.xxx, c, _UnlitSat), c, lit);
                 c *= lerp(_Unlit, 1.0, lit);
+
+                // AND THE DEBRIS GOES OUT, LATE. It keeps its full brightness for
+                // most of the throw — a piece that starts fading the instant it
+                // leaves never reads as a piece — and is gone by the time the card
+                // arrives. On a void background, fading to black and fading to
+                // transparent are the same picture, which is what lets the whole
+                // exit stay an opaque pass with the depth buffer still doing its
+                // one job.
+                c *= 1.0 - smoothstep(0.55, 1.0, i.gone);
 
                 return fixed4(c * _Dim, 1);
             }

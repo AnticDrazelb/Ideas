@@ -57,6 +57,7 @@ static class SoundChecks
             if (Bank.Has(cue)) { ok(false, "Bank found " + cue + " with no Resources to load from"); return; }
 
         Headroom(ok);
+        Ending(ok);
 
         Console.WriteLine("sound: " + Bank.Cues.Length + " cues fall back to the synth, " +
                           "fader -80 to +3.5 dB");
@@ -119,5 +120,104 @@ static class SoundChecks
         ok(worst < 1.0f, "the loudest legal moment sums to " + worst.ToString("0.00") +
                          " with both faders at 150% — over Unity's 1.0 clip point");
         ok(alone < 1.0f, "the collapse sums to " + alone.ToString("0.00") + " with both faders at 150%");
+    }
+
+    /// <summary>
+    /// THE ENDING, WITH THE ENVELOPES IN IT.
+    ///
+    /// Headroom above sums every layer as if they all peaked on the same sample,
+    /// which is the right bound for a fold landing on a plate — those really are
+    /// simultaneous. The ending is not. A vault crossing rings at t=0, the
+    /// collapse tone arrives at 0.20, and the machine now breaks at 0.51 with
+    /// four more layers on it; treating that as coherent gives 1.35 and would
+    /// have argued for a shatter cue too quiet to hear, on the strength of an
+    /// overlap that does not happen.
+    ///
+    /// So this one models the actual envelopes — Synth.Tone is an exponential
+    /// ramp to a 1e-4 floor after an 8ms attack, Synth.Noise is a linear fade
+    /// across its length — and walks the whole three and a half seconds at
+    /// millisecond resolution looking for the real peak. It is still a bound:
+    /// the layers are summed as though they were phase-aligned, and the noise
+    /// layers are counted before their filters take anything off.
+    ///
+    /// The numbers are copied by hand from the cue bodies in Sfx, deliberately,
+    /// for the reason Headroom gives: a check that read them out of the same
+    /// place they are written would prove only that the file equals itself.
+    /// </summary>
+    static void Ending(Action<bool, string> ok)
+    {
+        // kind: 't' a tone, 'n' a noise.  gain, send, length, and when it starts
+        // relative to the core taking you.
+        var win = new[]
+        {
+            L('t', 0.130f, 0.55f, 2.2f, 0.20f),
+            L('t', 0.055f, 0.60f, 2.0f, 0.20f),
+            L('t', 0.028f, 0.65f, 1.4f, 0.44f),   // its own 240ms delay, on top
+        };
+        // only on a vault boundary, which is the worst case and therefore the case
+        var vault = new[]
+        {
+            L('t', 0.130f, 0.55f, 2.4f, 0.00f),
+            L('n', 0.035f, 0.45f, 1.4f, 0.00f),
+        };
+        // 0.17 to let the collapse land, 0.34 of lean, 0.08 of hitstop — see
+        // GameDirector.WinExit, which is the one description of when this happens
+        const float Break = 0.17f + 0.34f;
+        var shatter = new[]
+        {
+            L('n', 0.105f, 0.18f, 0.09f, Break),
+            L('t', 0.060f, 0.40f, 0.85f, Break),
+            L('n', 0.050f, 0.50f, 0.80f, Break),
+            L('t', 0.095f, 0.14f, 1.00f, Break + 0.04f),
+        };
+
+        const float Vol = 1.5f, Room = 1.5f;
+        float bed = 0.055f * Room * Sfx.Headroom;
+
+        float peak = 0f, at = 0f;
+        for (int i = 0; i < 3500; i++)
+        {
+            float t = i / 1000f;
+            float v = At(win, t, Vol, Room) + At(vault, t, Vol, Room)
+                    + At(shatter, t, Vol, Room) + bed;
+            if (v > peak) { peak = v; at = t; }
+        }
+
+        Console.WriteLine(string.Format(
+            "sound: the ending — a vault crossing, the collapse and the engine coming apart — "
+            + "peaks at {0:0.00} of 1.0, {1:0.00}s in", peak, at));
+
+        ok(peak < 1.0f, "the ending peaks at " + peak.ToString("0.00")
+                        + " with both faders at 150% — over Unity's 1.0 clip point");
+    }
+
+    struct Layer { public char kind; public float gain, send, dur, at; }
+
+    static Layer L(char kind, float gain, float send, float dur, float at)
+        => new Layer { kind = kind, gain = gain, send = send, dur = dur, at = at };
+
+    /// <summary>Synth's two envelopes, at one instant, dry plus its own send.</summary>
+    static float At(Layer[] cue, float t, float vol, float room)
+    {
+        float sum = 0f;
+        foreach (Layer l in cue)
+        {
+            float u = t - l.at;
+            if (u < 0f || u >= l.dur) continue;
+
+            float e;
+            if (l.kind == 't')
+            {
+                const float Attack = 0.008f, Floor = 1e-4f;
+                e = u < Attack
+                    ? Floor * (float)Math.Pow(l.gain / Floor, u / Attack)
+                    : l.gain * (float)Math.Pow(Floor / l.gain,
+                                               (u - Attack) / Math.Max(1e-4f, l.dur - Attack));
+            }
+            else e = l.gain * (1f - u / l.dur);
+
+            sum += e * (vol + l.send * vol * room);
+        }
+        return sum * Sfx.Headroom;
     }
 }

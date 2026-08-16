@@ -83,13 +83,19 @@ namespace Singularity.Game
             "lock",       // a barrier opening
             "win",        // the collapse
             "vault",      // a vault beginning
-            "plate",      // the lattice inverting, and springing back
+            "plate",      // the lattice inverting
+            "plate-off",  // and springing back. A recording cannot be run backwards
+                          // convincingly, so the two directions are two files —
+                          // Sfx.Plate has always asked for this name and this list
+                          // has never offered it, which is the drift the note above
+                          // predicts and the reason the note is there.
             "tick",       // the plate clock, which is a sound because the eyes are elsewhere
             "undo",       // the tape running backwards
             "stuck",      // two clicks and a low held note
             "peek",       // the drive spinning up
             "peekoff",    // and down
             "evert",      // the engine turning through itself
+            "shatter",    // and coming apart, half a second after the core takes you
             "bed",        // the room itself, looped
         };
     }

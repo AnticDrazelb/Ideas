@@ -1159,8 +1159,17 @@ namespace Singularity.UI
         // ---- the win card ---------------------------------------------------
 
         static Text _winWhat, _winVerdict, _winFolds, _winPar, _winBest, _winVault;
-        static RectTransform _winNextRow, _winRetryRow, _winOutsRow;
+        static RectTransform _winNextRow, _winRetryRow, _winOutsRow, _winStats;
         const float WinPad = 84f;
+
+        /// <summary>The instrument: three rows deep enough to read as one panel.</summary>
+        const float StatsH = 204f;
+
+        /// <summary>Air under the last way out, before the bezel.</summary>
+        const float WinFoot = 62f;
+
+        /// <summary>Where the heading block ends: the vault line, plus its air.</summary>
+        const float WinHead = 286f;
         static Button _winNext, _winRetry;
 
         static void BuildWin()
@@ -1177,16 +1186,37 @@ namespace Singularity.UI
             // to do. Everything now lives in a centred column the width of the thing
             // it is reporting on, the numbers sit inside a bordered plate with a
             // hairline between each row, and only NEXT keeps a plate.
+            //
+            // AND IT IS THREE BLOCKS, NOT ONE.
+            //
+            // Fixing the column left a worse problem behind: everything was still
+            // measured downward from the top, so the whole card — name, verdict,
+            // instrument and all three ways out — finished two thirds of the way up
+            // a plate that is eleven hundred units tall, and the bottom third was
+            // empty. It read as a dialogue that had been dropped on the screen
+            // rather than a screen.
+            //
+            // So the three blocks are anchored to three different things, because
+            // they answer to three different things. WHAT HAPPENED goes to the top.
+            // WHAT IT COST is the instrument and sits on the middle of the plate.
+            // WHAT NOW is anchored to the BOTTOM and stacks upward from there,
+            // which is both where a thumb is and the only arrangement in which a
+            // hidden RETRY cannot open a hole — see FlowWin.
 
             _winWhat = UiKit.Label(L, "what", "VAULT SOLVED", 17, Palette.Rust, TextAnchor.LowerCenter,
-                                   new Vector2(0, 1), new Vector2(1, 1), new Vector2(WinPad, -180), new Vector2(-WinPad, -152));
+                                   new Vector2(0, 1), new Vector2(1, 1), new Vector2(WinPad, -150), new Vector2(-WinPad, -122));
             _winVerdict = UiKit.Label(L, "verdict", "AT PAR", 46, Palette.Arc, TextAnchor.UpperCenter,
-                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(WinPad, -252), new Vector2(-WinPad, -186));
+                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(WinPad, -224), new Vector2(-WinPad, -158));
             _winVault = UiKit.Label(L, "vault", "", 18, Palette.Arc, TextAnchor.UpperCenter,
-                                    new Vector2(0, 1), new Vector2(1, 1), new Vector2(WinPad, -284), new Vector2(-WinPad, -256));
+                                    new Vector2(0, 1), new Vector2(1, 1), new Vector2(WinPad, -262), new Vector2(-WinPad, -232));
 
-            RectTransform stats = UiKit.Rect(L, "stats", new Vector2(0, 1), new Vector2(1, 1),
-                                             new Vector2(WinPad, -474), new Vector2(-WinPad, -306));
+            // BETWEEN THE TWO OF THEM, and FlowWin decides where — it is the only
+            // block with slack either side of it, so it is the one that absorbs a
+            // missing RETRY row instead of letting the hole land somewhere it can
+            // be read as a mistake.
+            _winStats = UiKit.Rect(L, "stats", new Vector2(0, 1), new Vector2(1, 1),
+                                   new Vector2(WinPad, -474), new Vector2(-WinPad, -306));
+            RectTransform stats = _winStats;
             UiKit.Framed(stats, Palette.PanelHi, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.55f));
             _winFolds = Stat(stats, "FOLDS USED", 0);
             _winPar   = Stat(stats, "PAR", 1);
@@ -1228,22 +1258,46 @@ namespace Singularity.UI
         /// over. Fixed positions would leave the hole this card had before — and a
         /// PERFECT COLLAPSE, the best outcome in the game, is exactly the case that
         /// hides one.
+        ///
+        /// IT STACKS UPWARD, from the bottom of the plate. Flowing downward from a
+        /// fixed top put the hole back in a different place: with RETRY hidden the
+        /// stack simply ended a hundred units higher and left the bottom of the
+        /// screen empty. Anchored to the foot, a missing row costs air ABOVE the
+        /// primary — which is the one direction where extra space reads as
+        /// composition rather than as something failing to load.
+        ///
+        /// It also puts the three of them in the reverse of their importance from
+        /// the bottom up: the ways out are furthest from the thumb, NEXT is nearest
+        /// the eye, and the last row is always at the same height however many rows
+        /// there are.
         /// </summary>
         static void FlowWin()
         {
-            float y = 498f;
+            // measured downward from the top of the plate, because that is the
+            // frame the offsets are in — the foot is just where we start
+            float y = Layout.PlateHeight - WinFoot;
 
             void Place(RectTransform r, float h, float gap)
             {
                 if (!r.gameObject.activeSelf) return;
-                r.offsetMax = new Vector2(-WinPad, -y);
-                r.offsetMin = new Vector2(WinPad, -(y + h));
-                y += h + gap;
+                r.offsetMax = new Vector2(-WinPad, -(y - h));
+                r.offsetMin = new Vector2(WinPad, -y);
+                y -= h + gap;
             }
 
-            Place(_winNextRow, UiKit.PrimaryH, 20f);
-            Place(_winRetryRow, Access.TapTarget, 14f);
-            Place(_winOutsRow, Access.TapTarget, 0f);
+            Place(_winOutsRow, Access.TapTarget, 18f);
+            Place(_winRetryRow, Access.TapTarget, 26f);
+            Place(_winNextRow, UiKit.PrimaryH, 0f);
+
+            // AND THE INSTRUMENT TAKES THE MIDDLE OF WHATEVER IS LEFT. It is the
+            // only block with slack on both sides, so it is where a missing RETRY
+            // row is allowed to show up — as equal air above and below a panel,
+            // which is a composition, rather than as a gap at one end, which is a
+            // screen that failed to finish loading.
+            // y is now the top of the stack — the last Place took no gap after it
+            float mid = (WinHead + y) * 0.5f;
+            _winStats.offsetMax = new Vector2(-WinPad, -(mid - StatsH * 0.5f));
+            _winStats.offsetMin = new Vector2(WinPad, -(mid + StatsH * 0.5f));
         }
 
         /// <summary>

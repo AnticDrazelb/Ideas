@@ -315,6 +315,8 @@ namespace Singularity.Game
             S.Load(LevelSupply.Get(level), level, LoadKind.Practice);
             SolveClock.Stop();
             View.attract = true;
+            View.Whole();
+            Rig.Pull = 0f;
             View.Rebuild(true);
             View.SkipWave();
             // A LOT MORE MARGIN THAN A PLAYED BOARD GETS. The attract cube is
@@ -375,6 +377,10 @@ namespace Singularity.Game
 
             S.Load(src, level, how, madeKey);
             View.attract = false;
+            // the last cube ended by being thrown across the room; this one is
+            // whole, square to the camera, and the camera is back where it lives
+            View.Whole();
+            Rig.Pull = 0f;
             View.Rebuild(true);
             // the board arrives one cell at a time, outward from where the player
             // is about to be standing
@@ -480,17 +486,26 @@ namespace Singularity.Game
             Hud.Flash(Palette.Core, 0.22f);
             Haptics.Buzz(Haptics.Collapse);
             _fx.Collapse(S.N, AtPlayer());
-            _orb.SetMood("win", 1200f);
+            // through to the card. The exit is a second and a half now, and a mood
+            // that lapses two thirds of the way through it puts the orb back to
+            // idle over an empty room.
+            _orb.SetMood("win", 1700f);
             // THE ONE PLACE THE CLOCK REALLY BENDS. A long stop, then a third of
-            // speed for most of a second, so the board comes apart at the pace of
-            // something ending rather than something being dismissed.
+            // speed, so the core taking you lands at the pace of something ending
+            // rather than something being dismissed.
+            //
+            // IT HAS TO BE OVER BEFORE THE MACHINE BREAKS. This was 900ms, which
+            // ran straight through the exit — and the exit's own geometry is on
+            // the unscaled clock while Fx is on the bent one, so the debris would
+            // have crawled while the cells it came off flew. 470 puts the clock
+            // back at 1.0 a frame or two before the break, which is also the right
+            // shape: slow for the collapse, real time for the failure.
             TimeBend.Hitstop(150f);
-            TimeBend.Slowmo(0.30f, 900f);
+            TimeBend.Slowmo(0.30f, 470f);
 
             // THE CARD DOES NOT APPEAR OVER A STILL IMAGE OF A SOLVED PUZZLE. The
-            // board comes apart outward from the core first, and the card arrives
-            // after the puzzle has left.
-            StartCoroutine(ExitWave());
+            // machine turns to show you it is a solid, and then it is thrown.
+            StartCoroutine(WinExit());
 
             // A PERFECT LINE IS A DIFFERENT EVENT. Clearing at par with the same
             // exit as clearing four over says the game does not care, and the card
@@ -501,21 +516,103 @@ namespace Singularity.Game
 
             // TWO HUNDRED MILLISECONDS OF NOTHING, AND THEN ONE TONE. The bed is
             // ducked the instant the core takes you, the room goes quiet under a
-            // board that is visibly coming apart, and the tone arrives into that
-            // gap. It is the only silence in the game.
+            // board that is still whole and about to stop being, and the tone
+            // arrives into that gap. It is the only silence in the game — and it
+            // is now also the gap the machine breaks into, three hundred
+            // milliseconds later, with the tone still ringing under it.
             _sfx.Duck(0.20f);
             StartCoroutine(WinTone());
 
             bool crossing = !S.IsDaily && !S.IsMade
                             && Vaults.VaultOf(S.levelNo + 1) != Vaults.VaultOf(S.levelNo);
             if (crossing) _sfx.Vault();
-            StartCoroutine(WinCard());
+            // and the card is the last beat of WinExit, not a timer racing it
         }
 
-        IEnumerator ExitWave()
+        /// <summary>
+        /// THE EXIT, IN THREE MOVES.
+        ///
+        /// It used to be one: the cells shrank to points, running out from the
+        /// core. That is a board being switched off, and switching a board off is
+        /// what you do to make room for a card — which is exactly how it read.
+        ///
+        /// LEAN. The solid turns into three quarters and the camera eases back off
+        /// it. Nothing breaks yet, and that is the point: an explosion only lands
+        /// if the eye has just been shown that the thing is three-dimensional and
+        /// made of parts. This is the one moment in the game where the board is
+        /// looked AT rather than played.
+        ///
+        /// BREAK. One frame with everything on it — the kick, the shake, the
+        /// counter-punch that snaps the frame outward instead of in, the rumble,
+        /// the crack. The hit that starts the throw is a separate event from the
+        /// collapse that started the sequence, because they are separate things:
+        /// the core took you, and then the machine failed.
+        ///
+        /// THROW. Every cell out from the core on its own schedule, tumbling, and
+        /// the camera holding back while they go. The card arrives into an empty
+        /// room afterwards.
+        ///
+        /// All of it runs on the unscaled clock. The bent clock is still running
+        /// underneath from the collapse and this is choreography, not physics — a
+        /// sequence that slows down because the slow-motion it fired is still going
+        /// is a sequence that fights itself.
+        /// </summary>
+        IEnumerator WinExit()
         {
-            yield return new WaitForSecondsRealtime(0.19f);
-            View.StartWave(S.lv.goal, false);
+            // let the collapse land first — the hitstop is still holding
+            yield return new WaitForSecondsRealtime(0.17f);
+
+            for (float t = 0f; t < CubeView.LeanSeconds; t += Time.unscaledDeltaTime)
+            {
+                float k = Mathf.Clamp01(t / CubeView.LeanSeconds);
+                View.winLean = k * k * (3f - 2f * k);
+                Rig.Pull = View.winLean * 0.20f;
+                yield return null;
+            }
+            View.winLean = 1f;
+            Rig.Pull = 0.20f;
+
+            Rig.Kick(16, 0, 1);
+            Rig.Shake(1f);
+            // NEGATIVE punch: orthographicSize goes UP, so the frame jumps outward.
+            // Every other punch in this game pulls in, because every other event is
+            // an impact. This one is the board getting away from you.
+            Rig.Punch(-0.055f);
+            Rig.Squash(false, 0.10f);
+            Haptics.Buzz(Haptics.Shatter);
+            Hud.Flash(Palette.RustHi, 0.26f, 0.75f);
+            // the whole machine goes, so this is centred on the board and not on
+            // the cell the player happened to finish in
+            _fx.Shatter(S.N, Vector3.zero);
+            _sfx.Shatter();
+            // AND THE PICTURE HOLDS FOR EIGHTY MILLISECONDS. Everything is frozen
+            // together — the solid still whole, the ring and the grit stopped
+            // where they were thrown — and then the whole picture moves at once.
+            // Starting the throw inside the freeze would move the cells while the
+            // sparks off them stood still, which is the same clock mismatch the
+            // shortened slowmo above exists to avoid.
+            TimeBend.Hitstop(80f);
+            yield return new WaitForSecondsRealtime(0.08f);
+
+            for (float t = 0f; t < CubeView.BurstSeconds; t += Time.unscaledDeltaTime)
+            {
+                float k = Mathf.Clamp01(t / CubeView.BurstSeconds);
+                View.burstAmt = k;
+                // out with the debris and staying out, so the card lands on a room
+                // that is bigger than the one the puzzle was played in
+                Rig.Pull = 0.20f + k * 0.26f;
+                yield return null;
+            }
+            View.burstAmt = 1f;
+
+            // AFTER THE LAST PIECE, NOT OVER IT. The card used to go up on a fixed
+            // 0.88s timer, which was measured against an exit that no longer
+            // exists; it lives here now so that there is exactly one description of
+            // how long the ending takes, and moving any dial above moves the card
+            // with it. A beat of empty room first — nothing is asked of the player
+            // until the machine has finished leaving.
+            yield return new WaitForSecondsRealtime(0.16f);
+            Screens.ShowWin(S, this);
         }
 
         IEnumerator PerfectLine()
@@ -531,12 +628,6 @@ namespace Singularity.Game
         {
             yield return new WaitForSecondsRealtime(0.20f);
             _sfx.Win();
-        }
-
-        IEnumerator WinCard()
-        {
-            yield return new WaitForSecondsRealtime(0.88f);
-            Screens.ShowWin(S, this);
         }
 
         public void SetScreenUp(bool up)

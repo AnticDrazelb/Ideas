@@ -16,6 +16,13 @@ namespace Singularity.Game
         public static readonly int[] Fault = { 5, 5, 5, 5, 5 };
         public static readonly int[] Collapse = { 0, 50, 100 };
 
+        /// <summary>
+        /// The machine coming apart, which is the heaviest thing that happens and
+        /// is now a separate event from the collapse that precedes it — the core
+        /// takes you, and half a second later the engine fails. Two hits, not one.
+        /// </summary>
+        public static readonly int[] Shatter = { 0, 30, 40, 140 };
+
 #if UNITY_ANDROID && !UNITY_EDITOR
         static AndroidJavaObject _vibrator;
         static AndroidJavaObject Vibrator

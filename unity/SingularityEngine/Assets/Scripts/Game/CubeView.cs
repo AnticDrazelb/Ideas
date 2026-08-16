@@ -104,6 +104,43 @@ namespace Singularity.Game
         /// </summary>
         public const float EvertStagger = 0.75f;
 
+        // ---- the exit ---------------------------------------------------------
+        //
+        // THE MACHINE STOPS BEING ONE OBJECT.
+        //
+        // Winning used to shrink every cell to a point, running out from the core.
+        // It was correct and it was quiet: the board did not come apart, it was
+        // switched off one cell at a time, and the biggest moment in the game read
+        // as a screen being cleared to make room for a card.
+        //
+        // So it is thrown instead. First the solid TURNS — a lean into three
+        // quarters with the camera easing back — because the explosion only means
+        // anything if the eye has just been told the thing is three-dimensional and
+        // made of parts. Then every part goes.
+        //
+        // The turn is rotation only. It deliberately does not raise _Peek: MATRIX
+        // takes the board to glass so you can see through it, and debris you can
+        // see through is not debris.
+
+        /// <summary>0 square to the camera, 1 fully leant into the exit's three quarters.</summary>
+        public float winLean;
+
+        /// <summary>0 whole, 1 fully thrown. Drives the per-cell burst in the shader.</summary>
+        public float burstAmt;
+
+        public const float LeanYaw = 0.50f, LeanPitch = 0.33f;   // radians, ~29 and ~19 degrees
+        public const float LeanSeconds = 0.34f, BurstSeconds = 0.85f;
+
+        /// <summary>
+        /// How far out of step the cells are, keyed on DISTANCE FROM THE CORE, so
+        /// the break travels outward as a front. Wider than the eversion's, because
+        /// this one is allowed to lose its shape — it is ending.
+        /// </summary>
+        public const float BurstStagger = 0.55f;
+
+        /// <summary>Put the solid back together. Every entry into a cube goes through here.</summary>
+        public void Whole() { winLean = 0f; burstAmt = 0f; }
+
         /// <summary>
         /// THE ATTRACT CUBE. The title screen is a composition with a cube in the
         /// middle of it, and a still one reads as a screenshot. It turns slowly on
@@ -420,9 +457,12 @@ namespace Singularity.Game
         public void RestartReveal(float headStart = 0f) => _reveal = -headStart;
 
         /// <summary>
-        /// Run the board in from a cell, or out of it. In on a cube arriving, out
-        /// of the core on a cube ending — the win card does not appear over a still
-        /// image of a solved puzzle, it appears after the puzzle has left.
+        /// Run the board in from a cell, or out of it. Only the inward direction
+        /// has a caller now: the exit used to be an outward wave — every cell
+        /// shrinking to a point, running from the core — and it is a burst instead.
+        /// The direction stays because it costs one sign and the wave is the only
+        /// thing in here that can end a board quietly, which some future screen
+        /// will want.
         /// </summary>
         public void StartWave(Int3 focus, bool inward)
         {
@@ -532,6 +572,18 @@ namespace Singularity.Game
                      * live;
             }
 
+            // THE LEAN OUT. Gated on motion because it is a camera move on top of
+            // the picture rather than the framing of it — a player who asked the
+            // board to hold still gets the burst without the turn, and the burst
+            // is still the board coming apart.
+            if (winLean > 1e-4f)
+            {
+                float wl = winLean * Access.MotionAmount;
+                live = Quaternion.AngleAxis(-LeanYaw * wl * Mathf.Rad2Deg, Vector3.up)
+                     * Quaternion.AngleAxis(LeanPitch * wl * Mathf.Rad2Deg, Vector3.right)
+                     * live;
+            }
+
             if (attract)
             {
                 _attractT += Time.unscaledDeltaTime;
@@ -562,6 +614,9 @@ namespace Singularity.Game
                 m.SetVector("_EvertAxis", cube.InverseTransformDirection(Vector3.forward));
                 m.SetVector("_EvertSpin", cube.InverseTransformDirection(Vector3.right));
                 m.SetFloat("_EvertSpread", EvertStagger);
+
+                m.SetFloat("_Burst", burstAmt);
+                m.SetFloat("_BurstSpread", BurstStagger);
             }
 
             _reveal += Time.unscaledDeltaTime * RevealPerSecond;
@@ -600,6 +655,16 @@ namespace Singularity.Game
                 _cageR.sharedMaterial.SetColor("_Tint",
                     new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, e * (0.46f + peekE * 0.40f)));
             }
+
+            // A MARKER BELONGS TO A CELL, AND THE CELLS HAVE LEFT. Every glyph on
+            // the board is placed each frame at the cube's world position for its
+            // cell, and the burst happens in the vertex shader — so the CPU still
+            // thinks every cell is exactly where it was authored. Leaving them on
+            // would hang the core, the nodes and the player in mid-air over an
+            // empty screen. They go with the board.
+            bool intact = burstAmt <= 1e-4f;
+            if (_markerRoot.gameObject.activeSelf != intact) _markerRoot.gameObject.SetActive(intact);
+            if (!intact) return;
 
             PlaceMarkers(cam);
             PlaceReads(cam);

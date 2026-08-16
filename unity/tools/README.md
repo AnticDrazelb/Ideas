@@ -177,7 +177,7 @@ The default run asserts, in order:
 |-------|-------------------------------|
 | `AccessChecks` | the board's band at every vault under every dichromacy; **AA on the shipped palette**, AAA reported |
 | `ChassisChecks` | the C# cut reproduces the shipped PNG byte for byte (needs `CHASSIS_RAW`) |
-| `SoundChecks` | the fader curve, and that the loudest legal moment cannot clip |
+| `SoundChecks` | the fader curve; that the loudest legal moment cannot clip; and that the ending — a vault crossing, the collapse and the engine coming apart, modelled with Synth's real envelopes — does not either |
 | `SaveChecks` | four launches — fresh, live, recovered, lost — and nothing is ever destroyed |
 | `ArcChecks` | the four authored eversion cubes still *require* their lesson |
 | `CodeChecks` | 120 cubes round-trip byte-identical and re-encode to themselves |

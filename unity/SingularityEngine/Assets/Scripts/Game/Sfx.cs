@@ -356,6 +356,24 @@ namespace Singularity.Game
             Tone(880f, 1.4f, Wave.Sine, 0.028f, 0f, 0.65f, 0.240);
         }
 
+        /// <summary>
+        /// THE ENGINE COMES APART. The crack, the fall, and the debris after it.
+        ///
+        /// It has to sit UNDER the win tone, which is already ringing by the time
+        /// this fires — so it is broadband and short where the tone is narrow and
+        /// long, and the only thing the two share is the sub, which arrives forty
+        /// milliseconds late so the crack gets the transient to itself.
+        /// </summary>
+        public void Shatter()
+        {
+            Say("THE ENGINE COMES APART");
+            if (Sample("shatter", 0.12f, 0.44f)) return;
+            Noise(0.09f, 5200f, 0.105f, 0.18f, 1400f);              // the crack
+            Tone(150f, 0.85f, Wave.Saw, 0.060f, 34f, 0.40f);        // the fall
+            Noise(0.80f, 2600f, 0.050f, 0.50f, 180f);               // the debris
+            Tone(44f, 1.00f, Wave.Sine, 0.095f, 30f, 0.14f, 0.040); // the floor going
+        }
+
         public void Vault()
         {
             Say("VAULT CLEARED");

@@ -116,6 +116,18 @@ namespace Singularity.Game
             _kickDecay = 1f;
         }
 
+        /// <summary>
+        /// STAND BACK AND WATCH IT GO. An extra, held pull on the orthographic
+        /// size that whoever set it is responsible for clearing — unlike Room,
+        /// which is the framing and eases itself home, and unlike Punch, which is
+        /// an impulse and decays. The exit is the only thing that uses it, and it
+        /// wants the camera to stay out for the whole of the throw.
+        ///
+        /// Scaled by the motion amount at the point of use, so STILL loses the
+        /// pull and keeps the containment.
+        /// </summary>
+        public float Pull { get; set; }
+
         public void Shake(float amt) => _trauma = Mathf.Min(1f, _trauma + amt * Amount);
         public void Punch(float amt) => _punch = Mathf.Clamp(_punch + amt * Amount, -0.12f, 0.12f);
 
@@ -203,7 +215,8 @@ namespace Singularity.Game
                 _baseOffset.x + sx + _kickX * _kickDecay,
                 _baseOffset.y + sy + _kickY * _kickDecay,
                 -40f);
-            cam.orthographicSize = _baseSize * Room(dt, cube, contain) * (1f - _punch);
+            cam.orthographicSize = _baseSize * Room(dt, cube, contain)
+                                 * (1f + Pull * Amount) * (1f - _punch);
 
             if (cube != null)
             {

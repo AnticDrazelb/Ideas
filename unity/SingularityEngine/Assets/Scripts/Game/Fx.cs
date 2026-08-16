@@ -444,6 +444,24 @@ namespace Singularity.Game
         /// Par is the whole scoring system; clearing at par with the same exit as
         /// clearing four over says the game does not care.
         /// </summary>
+        /// <summary>
+        /// THE ENGINE FAILING, half a second after the core took you.
+        ///
+        /// The cells themselves are thrown in the vertex shader — see Cell.shader —
+        /// so this is not the explosion, it is the DUST OFF it: a square shock the
+        /// size of the board, and grit thrown wide enough to still be in frame
+        /// while the debris tumbles through it. Centred on the board rather than on
+        /// the player, because it is the whole machine that goes.
+        /// </summary>
+        public void Shatter(int n, Vector3 at)
+        {
+            Ring2(at, 0.3f, n * 1.9f, 0.55f, Palette.RustHi, 0.20f, true);
+            Ring2(at, 0.3f, n * 1.2f, 0.40f, Palette.Core, 0.11f, false);
+            Burst(at, 46, new BurstOpts { kind = Kind.Chip, speed = 3.4f, life = 1.1f, size = 0.16f, gravity = 0.9f, fade = 0.85f, col = Palette.RustHi });
+            Burst(at, 30, new BurstOpts { kind = Kind.Spark, speed = 2.6f, life = 0.70f, size = 0.13f, gravity = 0f, col = Palette.Core });
+            Burst(at, 20, new BurstOpts { kind = Kind.Ember, speed = 0.40f, lift = 0.55f, life = 1.7f, size = 0.18f, gravity = -0.34f, fade = 0.8f, col = Palette.Rust });
+        }
+
         public void PerfectLine(int n, Vector3 at)
         {
             Ring2(at, 0.2f, n * 1.3f, 1.0f, Palette.Arc, 0.13f, true);
