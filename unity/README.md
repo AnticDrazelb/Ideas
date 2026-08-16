@@ -75,14 +75,28 @@ missing member or a wrong overload; every call is correct and the asset simply i
 not there to be found. *A stub proves the shape of a call, never the existence of
 the thing being called* — this is that sentence collecting.
 
-## If the screen is a flat white sheet
+## If the screen is a flat white sheet, or the orange has gone blue
 
-Turn **CALIBRATE → BRIGHTNESS** back to 100 and it will come back. That is the
-screen filter, and the bug it had is worth writing down because the shape of it
-recurs.
+Turn **CALIBRATE → BRIGHTNESS** and **CONTRAST** back to 100 and it will come
+back. That is the screen filter, and it had two bugs worth writing down because
+the shape of each recurs.
 
-The filter is the formula `out = in*b*c + 0.5*(1 - c)`, performed in blend modes
-across a stack of overlay quads. It shipped once with that decomposed wrongly —
+**The blue one is an inversion.** `Blend DstColor Zero` multiplies; the filter
+was written with a literal `4` for `DstColor`, and four is `OneMinusDstColor`,
+so every quad inverted the screen instead of scaling it. It fired the instant
+either slider left 100 and the rust interface came out blue.
+
+The check that walks this arithmetic *could not see it*, because it held the
+same literal — both halves faithfully computed an inversion and agreed to the
+last bit. **A number that has to match something outside this program has to be
+read from that thing, not copied.** The game names `UnityEngine.Rendering.BlendMode`
+now, so in a build the value comes from Unity and cannot be wrong; the stub's
+transcription of that enum is pinned in `FilterChecks` against the documented
+values, which is the only copy left and the only one worth reviewing.
+
+**The white one is a decomposition.** The filter is the formula
+`out = in*b*c + 0.5*(1 - c)`, performed in blend modes across a stack of overlay
+quads. It shipped once with that decomposed wrongly —
 a gain of `c` and an offset of `(b - 1)` — which turns the brightness control
 from a multiply into an addition. At the top of its travel that adds 0.6 to every
 pixel of a game whose background is 0.05, so every dark value in the palette

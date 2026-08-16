@@ -764,13 +764,28 @@ namespace UnityEngine
         public enum LightProbeUsage { Off, BlendProbes }
         public enum CompareFunction { Disabled = 0, Never = 1, Less = 2, Equal = 3, LessEqual = 4, Greater = 5, NotEqual = 6, GreaterEqual = 7, Always = 8 }
 
-        // The values matter: they are what a material's _SrcBlend/_DstBlend floats
-        // are set to, so a wrong number here is a wrong blend in the build.
+        // THE VALUES MATTER, AND THEY ARE THE WHOLE REASON THESE TWO ENUMS ARE
+        // TRANSCRIBED RATHER THAN INVENTED. They are what a material's _SrcBlend,
+        // _DstBlend and _BlendOp floats are set to, so a wrong number here is a
+        // wrong blend in the build — and a blend that is wrong in this particular
+        // way is not subtly wrong. The screen filter shipped once with a literal
+        // 4 in it for DstColor. Four is OneMinusDstColor. Every pixel in the game
+        // came out INVERTED, orange interface and all, the instant either slider
+        // left 100 — and no check could see it, because the checking code held
+        // the same literal.
+        //
+        // So nothing outside these declarations may write one of these numbers
+        // down. FilterChecks pins them against the documented values.
         public enum BlendMode
         {
             Zero = 0, One = 1, DstColor = 2, SrcColor = 3, OneMinusDstColor = 4,
             SrcAlpha = 5, OneMinusSrcColor = 6, DstAlpha = 7, OneMinusDstAlpha = 8,
             SrcAlphaSaturate = 9, OneMinusSrcAlpha = 10
+        }
+
+        public enum BlendOp
+        {
+            Add = 0, Subtract = 1, ReverseSubtract = 2, Min = 3, Max = 4
         }
     }
 

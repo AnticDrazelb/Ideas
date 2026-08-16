@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
+using Mode = UnityEngine.Rendering.BlendMode;
+using Op = UnityEngine.Rendering.BlendOp;
 
 namespace Singularity.Game
 {
@@ -65,18 +67,24 @@ namespace Singularity.Game
         readonly Stage[] _plan = new Stage[Stages];
         int _brightWas = -1, _contrastWas = -1;
 
-        // UnityEngine.Rendering.BlendMode / BlendOp, as the numbers the shader's
-        // [Enum] properties take. The two factors are stored as their enum value
-        // AND used as their arithmetic value where that is the same number —
-        // Zero is 0 and One is 1 — which is what makes Run below three lines.
-        public const float FZero = 0f, FOne = 1f, FDstColor = 4f;
-        public const float OpAdd = 0f, OpRevSub = 2f;
-
-        /// <summary>One quad: a blend op, two factors, and the grey it is drawn in.</summary>
+        /// <summary>
+        /// One quad: a blend op, two factors, and the grey it is drawn in.
+        ///
+        /// THE MODES ARE THE ENGINE'S ENUMS AND NEVER THEIR NUMBERS. This shipped
+        /// once with a literal 4 for DstColor. Four is OneMinusDstColor, so every
+        /// quad INVERTED the screen instead of multiplying it, and the whole
+        /// interface came out blue the moment either slider left 100. Worse, the
+        /// check that walks this arithmetic could not see it — it held the same
+        /// literal, so it faithfully modelled the wrong blend and agreed with
+        /// itself to the last bit. A number that has to match something outside
+        /// this program has to be READ from that thing, not copied.
+        /// </summary>
         public struct Stage
         {
             public bool on;
-            public float op, src, dst, grey;
+            public UnityEngine.Rendering.BlendOp op;
+            public UnityEngine.Rendering.BlendMode src, dst;
+            public float grey;
         }
 
         public static ScreenFilter Attach(Camera cam)
@@ -153,9 +161,9 @@ namespace Singularity.Game
                 bool on = s.on && _mat[i] != null;
                 if (_quad[i].gameObject.activeSelf != on) _quad[i].gameObject.SetActive(on);
                 if (!on) continue;
-                _mat[i].SetFloat("_BlendOp", s.op);
-                _mat[i].SetFloat("_SrcBlend", s.src);
-                _mat[i].SetFloat("_DstBlend", s.dst);
+                _mat[i].SetFloat("_BlendOp", (float)s.op);
+                _mat[i].SetFloat("_SrcBlend", (float)s.src);
+                _mat[i].SetFloat("_DstBlend", (float)s.dst);
                 _quad[i].color = new Color(s.grey, s.grey, s.grey, 1f);
             }
         }
@@ -188,7 +196,7 @@ namespace Singularity.Game
             // dst * src, which is the whole of it below unity
             if (g < 1f)
             {
-                into[at++] = new Stage { on = true, op = OpAdd, src = FDstColor, dst = FZero, grey = g };
+                into[at++] = new Stage { on = true, op = Op.Add, src = Mode.DstColor, dst = Mode.Zero, grey = g };
                 return;
             }
 
@@ -200,7 +208,7 @@ namespace Singularity.Game
             int n = g > 2f ? 2 : 1;
             float each = n == 1 ? g : Mathf.Sqrt(g);
             for (int i = 0; i < n; i++)
-                into[at++] = new Stage { on = true, op = OpAdd, src = FDstColor, dst = FOne, grey = each - 1f };
+                into[at++] = new Stage { on = true, op = Op.Add, src = Mode.DstColor, dst = Mode.One, grey = each - 1f };
         }
 
         static void Offset(Stage[] into, ref int at, float k)
@@ -214,8 +222,8 @@ namespace Singularity.Game
             into[at++] = new Stage
             {
                 on = true,
-                op = k >= 0f ? OpAdd : OpRevSub,
-                src = FOne, dst = FOne,
+                op = k >= 0f ? Op.Add : Op.ReverseSubtract,
+                src = Mode.One, dst = Mode.One,
                 grey = Mathf.Min(1f, mag),
             };
         }
@@ -231,12 +239,28 @@ namespace Singularity.Game
             foreach (Stage s in plan)
             {
                 if (!s.on) continue;
-                float sf = s.src == FDstColor ? x : s.src;   // Zero is 0, One is 1
-                float df = s.dst == FDstColor ? x : s.dst;
-                x = s.op == OpRevSub ? x * df - s.grey * sf : s.grey * sf + x * df;
+                float sf = Factor(s.src, x), df = Factor(s.dst, x);
+                x = s.op == Op.ReverseSubtract ? x * df - s.grey * sf : s.grey * sf + x * df;
                 x = Mathf.Clamp01(x);
             }
             return x;
+        }
+
+        /// <summary>
+        /// What a factor multiplies by, for the three modes Solve emits. Anything
+        /// else answers NaN rather than a guess — a mode this does not know is a
+        /// mode the model cannot claim to have checked, and a NaN says so loudly
+        /// in the one place that compares the two.
+        /// </summary>
+        static float Factor(Mode m, float dst)
+        {
+            switch (m)
+            {
+                case Mode.Zero: return 0f;
+                case Mode.One: return 1f;
+                case Mode.DstColor: return dst;
+                default: return float.NaN;
+            }
         }
 
         /// <summary>The old shader's fragment, line for line. The thing being matched.</summary>

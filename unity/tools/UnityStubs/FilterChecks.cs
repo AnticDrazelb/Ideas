@@ -1,5 +1,6 @@
 using System;
 using Singularity.Game;
+using UnityEngine.Rendering;
 
 /// <summary>
 /// DOES THE SCREEN FILTER STILL SAY WHAT THE SLIDER SAYS?
@@ -34,6 +35,8 @@ static class FilterChecks
 
     public static void Run(Action<bool, string> ok)
     {
+        Numbers(ok);
+
         var plan = new ScreenFilter.Stage[ScreenFilter.Stages];
 
         // AT 100/100 NOTHING IS SUBMITTED. Not "nothing visible happens" —
@@ -106,6 +109,48 @@ static class FilterChecks
         // the formula would be being computed faithfully, of the wrong thing.
         Monotonic(ok, plan);
     }
+
+    /// <summary>
+    /// THE ONLY PLACE THE BLEND NUMBERS ARE WRITTEN DOWN OUTSIDE THE STUB.
+    ///
+    /// This is the check that was missing when the filter inverted the screen.
+    /// The plan was right, the model of the blend stage was right, and they
+    /// agreed to the last bit — because ScreenFilter held a literal 4 for
+    /// DstColor and so did the model. Four is OneMinusDstColor. Both halves were
+    /// faithfully computing an inversion.
+    ///
+    /// The game now names the engine's enum, so in a real build the number comes
+    /// from Unity and cannot be wrong. What is left to get wrong is the
+    /// TRANSCRIPTION in UnityStubs — which would make this harness model the
+    /// wrong blend while the game did the right one. So the transcription is
+    /// pinned here against the documented values, in the one file where somebody
+    /// checking them has a reason to look.
+    ///
+    /// Source: UnityEngine.Rendering.BlendMode and BlendOp, Unity scripting API.
+    /// </summary>
+    static void Numbers(Action<bool, string> ok)
+    {
+        Pin(ok, "BlendMode.Zero", (int)BlendMode.Zero, 0);
+        Pin(ok, "BlendMode.One", (int)BlendMode.One, 1);
+        Pin(ok, "BlendMode.DstColor", (int)BlendMode.DstColor, 2);
+        Pin(ok, "BlendMode.SrcColor", (int)BlendMode.SrcColor, 3);
+        Pin(ok, "BlendMode.OneMinusDstColor", (int)BlendMode.OneMinusDstColor, 4);
+        Pin(ok, "BlendMode.SrcAlpha", (int)BlendMode.SrcAlpha, 5);
+        Pin(ok, "BlendMode.OneMinusSrcAlpha", (int)BlendMode.OneMinusSrcAlpha, 10);
+
+        Pin(ok, "BlendOp.Add", (int)BlendOp.Add, 0);
+        Pin(ok, "BlendOp.Subtract", (int)BlendOp.Subtract, 1);
+        Pin(ok, "BlendOp.ReverseSubtract", (int)BlendOp.ReverseSubtract, 2);
+
+        // And Glyph.shader's own defaults, which are written as bare numbers in
+        // the Properties block where no enum can reach them: 5 and 10, the
+        // ordinary alpha blend every glyph in the game is drawn with.
+        Pin(ok, "Glyph's default source factor", (int)BlendMode.SrcAlpha, 5);
+        Pin(ok, "Glyph's default destination factor", (int)BlendMode.OneMinusSrcAlpha, 10);
+    }
+
+    static void Pin(Action<bool, string> ok, string name, int got, int want)
+        => ok(got == want, name + " is " + got + " in the stubs and " + want + " in Unity");
 
     /// <summary>
     /// More brightness is never darker, and more contrast never moves a value
