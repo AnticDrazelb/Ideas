@@ -179,7 +179,7 @@ namespace Singularity.UI
                                 new Vector2(0, 0), new Vector2(0.6f, 0.45f), new Vector2(28, 0), Vector2.zero);
             _lvName = UiKit.Label(top, "lvName", "—", 22, Palette.Dim, TextAnchor.MiddleLeft,
                                   new Vector2(0, 0), new Vector2(0.9f, 0.45f), new Vector2(96, 0), Vector2.zero);
-            _vault = UiKit.Label(top, "vault", "", 20, Palette.Dim2, TextAnchor.MiddleRight,
+            _vault = UiKit.Label(top, "vault", "", 20, Palette.Dim, TextAnchor.MiddleRight,
                                  new Vector2(0.5f, 0), new Vector2(1, 0.45f), Vector2.zero, new Vector2(-28, 0));
 
             UiKit.Rule(_root, 1f).rectTransform.anchoredPosition = new Vector2(0, -162);

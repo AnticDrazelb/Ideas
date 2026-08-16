@@ -81,15 +81,26 @@ public static class AccessChecks
         Is(Palette.RustHi, "#fb923c", "rust-hi");
         Is(Palette.Core, "#f97316", "core");
         Is(Palette.Fault, "#ef4444", "fault");
-        Is(Palette.Dim, "#64748b", "dim");
-        Is(Palette.Dim2, "#334155", "dim2");
+        // THREE VALUES NO LONGER MATCH THE APK, AND THE REASON IS IN THE PIN.
+        //
+        // Dim was #64748b, which is 4.41:1 on black and 3.70 on a card — under
+        // AA, in the colour that carries every body paragraph in the game. Dim2
+        // was #334155 at 2.03:1 and was carrying five pieces of real text.
+        // Matching a reference that fails AA reproduces the failure, so these
+        // moved: the smallest lift at the same hue and saturation that clears
+        // 4.5:1 on all four dark grounds. The pin stays, because catching a
+        // value that drifts by accident is still the job.
+        Is(Palette.Dim, "#75859b", "dim");
+        Is(Palette.Dim2, "#516888", "dim2");
         Is(Palette.Ink, "#e2e8f0", "ink");
         Is(Palette.Node, "#a3e635", "node");
         Is(Palette.Lock, "#facc15", "lock");
         Is(Palette.Arc, "#22d3ee", "arc");
         Is(Palette.Trace, "#38bdf8", "trace");
         Is(Palette.Panel, "#0d1117", "panel");
-        Is(Palette.LatticeNear, "#3b485c", "the near lattice");
+        // and the near lattice sank, because the board's own worst pair was
+        // 2.30:1 at the deepest vault — see the ratio walk in Band()
+        Is(Palette.LatticeNear, "#313c4d", "the near lattice");
 
         // the smallest type in the interface is --t-micro, 8.5 CSS px -> 17 units
         Ok(Access.SmallestType == 17, "the smallest type is no longer seventeen units");
@@ -150,6 +161,28 @@ public static class AccessChecks
 
             Console.WriteLine("access: " + mode + " palette, narrowest trace-over-lattice margin "
                               + worst.ToString("0.0000") + " at " + worstAt);
+
+            // AND THE SAME PAIR AS A CONTRAST RATIO, AT EVERY VAULT.
+            //
+            // The printed table has TraceFar-on-LatticeNear in it and measures it
+            // exactly once, against the un-aged lattice — which is the BEST case.
+            // The lattice corrodes down the ladder, so it walks toward the trace,
+            // and the pair that read 2.56:1 in vault one was 2.30:1 in vault
+            // thirty with nothing anywhere saying so. The band check above ran at
+            // every vault and could not catch it, because it asks whether the
+            // trace is BRIGHTER and not whether you can tell them apart.
+            float tight = 99f;
+            int tightAt = 0;
+            for (int band = 0; band < Vaults.RankedVaults; band++)
+            {
+                float r = Access.Contrast(Palette.TraceFar, Palette.LatticeNearOf(band));
+                if (r < tight) { tight = r; tightAt = band + 1; }
+            }
+            Ok(tight >= Access.NonText,
+               mode + ": the board's worst pair is " + tight.ToString("0.00") + ":1 in vault " + tightAt
+               + ", under 1.4.11's " + Access.NonText.ToString("0.0") + " for two things you have to tell apart");
+            Console.WriteLine("access: " + mode + " palette, tightest trace-against-lattice ratio "
+                              + tight.ToString("0.00") + ":1 at vault " + tightAt + " of " + Vaults.RankedVaults);
         }
     }
 
@@ -160,12 +193,40 @@ public static class AccessChecks
     /// </summary>
     static void Printed()
     {
+        // TWO STANDARDS, NOT ONE, BECAUSE THEY MEAN DIFFERENT THINGS.
+        //
+        // The table's floor is AAA — 7:1 for type, 3:1 for a graphical object —
+        // and the shipped palette deliberately does not meet all of it: that is
+        // what the legibility mode is for, and a default that matches the
+        // original build is a legitimate shipping choice.
+        //
+        // AA IS NOT A CHOICE. 4.5:1 for type is the baseline every platform's
+        // certification asks for and the one an accessibility regulation names,
+        // so a shipped default under it is a defect rather than a preference.
+        // Reporting one number for both hid that distinction for the whole port:
+        // "11 of 21 below their floor" was true, unactionable, and quietly
+        // contained three body-text pairs under 4.5.
+        //
+        // So the shipped palette is ASSERTED against AA and MEASURED against
+        // AAA, and every pair is named rather than counted.
         Store.Data.legible = 0;
-        int below = 0;
+        int belowAAA = 0;
         foreach (var p in Access.Printed)
-            if (Access.Contrast(Access.Named(p.ink), Access.Named(p.ground)) < p.floor) below++;
-        Console.WriteLine("access: shipped palette, " + below + " of " + Access.Printed.Length
-                          + " printed pairs below their floor (a measurement, not a failure)");
+        {
+            float r0 = Access.Contrast(Access.Named(p.ink), Access.Named(p.ground));
+            bool text = p.floor > Access.NonText + 0.001f;
+            float aa = text ? Access.AAText : Access.NonText;
+            if (r0 < p.floor) belowAAA++;
+            Console.WriteLine(string.Format("   {0} {1,-9} on {2,-12} {3,5:0.00}   AA {4,4:0.0} {5}   AAA {6,4:0.0} {7}",
+                r0 < aa ? "FAIL " : "  ok ", p.ink, p.ground, r0,
+                aa, r0 >= aa ? "pass" : "FAIL", p.floor, r0 >= p.floor ? "pass" : "----"));
+            Ok(r0 >= aa, "shipped: " + p.ink + " on " + p.ground + " is " + r0.ToString("0.00")
+                         + ", under the " + aa.ToString("0.0") + " this has to clear even in the default palette"
+                         + " (" + p.why + ")");
+        }
+        Console.WriteLine("access: shipped palette clears AA everywhere; " + belowAAA + " of "
+                          + Access.Printed.Length + " pairs are short of AAA, which is what the "
+                          + "legibility mode is for");
 
         Store.Data.legible = 1;
         foreach (var p in Access.Printed)

@@ -31,6 +31,17 @@ namespace Singularity.Game
         bool _down, _peeking;
 
         public bool Enabled = true;
+        /// <summary>
+        /// THE AUDIO BUS, AND IT IS NEVER TOUCHED WITH ?. — see UiKit.Ensure.
+        ///
+        /// Three calls in this file used the null-conditional operator on it,
+        /// which reads as a guard and is not one: ?. tests the MANAGED reference,
+        /// which is a live C# handle even after Unity has destroyed the component
+        /// behind it. A destroyed Sfx is null to the engine and not null to ?.,
+        /// so the guard passes and the call throws a MissingReferenceException
+        /// from a line about creaking. An explicit == null goes through Unity's
+        /// operator== overload and is the only form that actually guards.
+        /// </summary>
         public Sfx Sfx;
 
         public InputRouter(Session s, CubeView view, Camera cam)
@@ -136,7 +147,7 @@ namespace Singularity.Game
 
             // the vault complains as it moves, and complains louder near the
             // detent — so the commit threshold is something you can hear coming
-            if (Mathf.Abs(_s.drag.ang) - was > 0.12f) Sfx?.Creak(Mathf.Abs(qq));
+            if (Mathf.Abs(_s.drag.ang) - was > 0.12f && Sfx != null) Sfx.Creak(Mathf.Abs(qq));
             if (was < Mathf.PI / 4f && Mathf.Abs(_s.drag.ang) >= Mathf.PI / 4f) Haptics.Buzz(Haptics.Fold);
             _last = p;
         }
@@ -171,7 +182,7 @@ namespace Singularity.Game
         {
             if (_peeking) return;
             _peeking = true;
-            Sfx?.Peek();
+            if (Sfx != null) Sfx.Peek();
             _view.peekYaw = CubeView.PeekYaw;
             _view.peekPitch = CubeView.PeekPitch;
             if (Store.Data.sawPeek == 0) { Store.Data.sawPeek = 1; Store.Save(); }
@@ -181,7 +192,7 @@ namespace Singularity.Game
         {
             if (!_peeking) return;
             _peeking = false;
-            Sfx?.PeekOff();
+            if (Sfx != null) Sfx.PeekOff();
             _view.peekYaw = 0f;
             _view.peekPitch = 0f;
         }

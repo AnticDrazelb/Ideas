@@ -127,17 +127,22 @@ namespace Singularity.Tests
         [Test]
         public void TheDefaultIsStillTheShippedBuild()
         {
-            // Legibility is a mode, and the entire argument for it being a mode
-            // is that the default stays the picture that was matched to the APK
-            // value by value. Nothing else in this project would notice a palette
-            // drifting one step at a time.
+            // Legibility is a mode, and the argument for it being a mode is that
+            // the default stays the picture that was matched to the APK. That
+            // holds for every value here EXCEPT the three the audit found under
+            // AA — Dim, Dim2 and the near lattice. AAA behind a mode is a
+            // shipping choice; AA in the default is not one, and matching a
+            // reference that fails it only reproduces the failure. Each moved by
+            // the smallest step at its own hue and saturation that clears the
+            // bar. Nothing else in this project would notice a palette drifting
+            // one step at a time, which is why this test is here at all.
             Store.Data.legible = 0;
             Assert.AreEqual("EA580C", Hex(Palette.Rust));
             Assert.AreEqual("F97316", Hex(Palette.Core));
             Assert.AreEqual("EF4444", Hex(Palette.Fault));
-            Assert.AreEqual("64748B", Hex(Palette.Dim));
-            Assert.AreEqual("334155", Hex(Palette.Dim2));
-            Assert.AreEqual("3B485C", Hex(Palette.LatticeNear));
+            Assert.AreEqual("75859B", Hex(Palette.Dim));
+            Assert.AreEqual("516888", Hex(Palette.Dim2));
+            Assert.AreEqual("313C4D", Hex(Palette.LatticeNear));
             Assert.AreEqual(17, Access.SmallestType);
         }
 

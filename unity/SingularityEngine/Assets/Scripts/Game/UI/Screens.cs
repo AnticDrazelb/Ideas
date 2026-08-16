@@ -247,7 +247,7 @@ namespace Singularity.UI
 
             _playLabel = go.GetComponentInChildren<Text>();
 
-            UiKit.Label(L, "foot", "DIAGNOSTIC BUILD · NO DEAD PIXELS", 19, Palette.Dim2, TextAnchor.LowerCenter,
+            UiKit.Label(L, "foot", "DIAGNOSTIC BUILD · NO DEAD PIXELS", 19, Palette.Dim, TextAnchor.LowerCenter,
                         new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 40), new Vector2(0, 76));
         }
 
@@ -453,7 +453,7 @@ namespace Singularity.UI
 
                 var card = (RectTransform)btn.transform;
                 UiKit.Label(card, "n", level.ToString(), 30,
-                            reached ? Palette.Ink : Palette.Dim2, TextAnchor.LowerCenter,
+                            reached ? Palette.Ink : Palette.Dim, TextAnchor.LowerCenter,
                             new Vector2(0, 0.42f), new Vector2(1, 0.86f), Vector2.zero, Vector2.zero);
 
                 if (reached)
@@ -606,7 +606,7 @@ namespace Singularity.UI
                 Kicker("THE FACE");
                 UiKit.Label(M, "colophon",
                             "JetBrains Mono, by the JetBrains Mono Project Authors, under the SIL Open Font License 1.1. The licence ships with the game.",
-                            17, Palette.Dim2, TextAnchor.UpperLeft,
+                            17, Palette.Dim, TextAnchor.UpperLeft,
                             new Vector2(0, 1), new Vector2(1, 1),
                             new Vector2(44, -(y + 76)), new Vector2(-44, -y), wrap: true);
                 y += 76f;

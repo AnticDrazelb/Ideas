@@ -263,6 +263,8 @@ namespace Singularity.Game
                 case "Dim": return Palette.Dim;
                 case "Dim2": return Palette.Dim2;
                 case "Inert": return Palette.Inert;
+                case "Grid": return Palette.Grid;
+                case "GridHi": return Palette.GridHi;
                 case "Rust": return Palette.Rust;
                 case "RustHi": return Palette.RustHi;
                 case "Core": return Palette.Core;
@@ -290,8 +292,7 @@ namespace Singularity.Game
             new Pair("Dim",  "Void",    AAAText, "the pitch under the masthead"),
             new Pair("Dim",  "Panel",   AAAText, "a hint under a calibrate row"),
             new Pair("Dim",  "Card",    AAAText, "a hint on a card"),
-            new Pair("Dim2", "Void",    AAAText, "the title screen footer"),
-            new Pair("Dim2", "Panel",   AAAText, "a field placeholder"),
+            new Pair("Dim",  "PanelHi", AAAText, "a hint on a raised plate — the worst of the four grounds"),
             new Pair("Rust", "Void",    AAAText, "ENGINE, and every vault caption"),
             new Pair("Rust", "Panel",   AAAText, "the reading beside a slider"),
             new Pair("Void", "Rust",    AAAText, "the primary's label — literally color:#000"),
@@ -306,6 +307,17 @@ namespace Singularity.Game
             // they have to be told apart FROM rather than against the page
             new Pair("TraceFar", "LatticeNear", NonText, "the board's worst pair: farthest trace, nearest lattice"),
             new Pair("Rust",     "Inert",       NonText, "a slider's reading against its own track"),
+
+            // DIM2 IS A MARK NOW, NOT TYPE, so it is measured against 1.4.11's
+            // 3:1 rather than against a text floor — and the five places it was
+            // carrying words have moved to Dim. It could not have cleared a text
+            // floor and stayed a tier: at 4.5:1 on near-black it lands on top of
+            // Dim, and two type tiers that measure the same are one type tier
+            // with two names.
+            new Pair("Dim2",     "Void",        NonText, "an unlit pip, an unreachable cell, a locked vault's edge"),
+            new Pair("Dim2",     "PanelHi",     NonText, "the same marks on a raised plate"),
+            new Pair("GridHi",   "Void",        NonText, "the ring round an empty cell in the Forge"),
+            new Pair("GridHi",   "Panel",       NonText, "the same ring on a control plate"),
         };
     }
 }

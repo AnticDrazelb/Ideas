@@ -832,7 +832,7 @@ namespace Singularity.UI
             text.raycastTarget = false;
             text.supportRichText = false;
 
-            Text hint = Label(rt, "placeholder", placeholder, 20, Palette.Dim2, TextAnchor.MiddleLeft,
+            Text hint = Label(rt, "placeholder", placeholder, 20, Palette.Dim, TextAnchor.MiddleLeft,
                               Vector2.zero, Vector2.one, new Vector2(14, 0), new Vector2(-14, 0));
             hint.raycastTarget = false;
 
