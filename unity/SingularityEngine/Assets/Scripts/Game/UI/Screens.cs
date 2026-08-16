@@ -1107,17 +1107,26 @@ namespace Singularity.UI
         static void Steps(RectTransform panel, string icon, string label, string hint, string[] names,
                           System.Func<int> get, System.Action<int> set)
         {
-            // TWO UNITS SHORT, WHICH IS THE WHOLE BUG. The hint ran to 0.50 of
-            // the row and the three stops began at 0.52, which fitted the
-            // proportional face this was measured against with room to spare.
-            // In the mono, SPARKS · BLOOM · FLASH is 224.4 units against 226.5 of
-            // space — inside by two — and on a device it printed SPARKS · BLOOM ·
-            // FLAS. A hint that loses its last word is worse than no hint, and a
-            // two-unit margin is not a margin.
+            // TWO UNITS SHORT, WHICH WAS HALF THE BUG. The hint ran to 0.50 of the
+            // row and the three stops began at 0.52, which fitted the proportional
+            // face this was measured against with room to spare. In the mono,
+            // SPARKS · BLOOM · FLASH is 224.4 units against 226.5 of space —
+            // inside by two — and on a device it printed SPARKS · BLOOM · FLAS.
+            // A hint that loses its last word is worse than no hint, and a
+            // two-unit margin is not a margin. The stops moved right and the hint
+            // got thirty-six units of air.
             //
-            // The stops move right instead of the words being cut: three of them
-            // still get seventy-four units each, which is more than [ NONE ]
-            // needs, and the hint gets thirty-six units of air.
+            // AND THE OTHER HALF WAS MEASURING THE WRONG STRING. That fix claimed
+            // the three slots were "more than [ NONE ] needs" — on the strength of
+            // having measured NONE. UiKit.Bracketed renders [ LABEL ], four
+            // characters more, and at seventeen point every one of these six stops
+            // overflowed its 67.7-unit slot: FULL and LESS and NONE by fourteen,
+            // STILL by twenty-four. They ran under each other and out through the
+            // side of the panel.
+            //
+            // So they are Segments, which is the same plate without the brackets —
+            // see UiKit.Segment for why a lit plate in a group of three does not
+            // need them. STILL is 51 units now, in a slot of 67.7.
             RectTransform r = AccRow(panel, icon, label, hint, 0.56f);
             RectTransform row = UiKit.Rect(r, "steps", new Vector2(0.58f, 0.5f), new Vector2(1, 0.5f),
                                            new Vector2(0, -Access.TapTarget * 0.5f),
@@ -1144,7 +1153,7 @@ namespace Singularity.UI
                     new Vector2(i / (float)names.Length, 0), new Vector2((i + 1f) / (float)names.Length, 1),
                     new Vector2(i == 0 ? 0 : 3, 0), new Vector2(i == names.Length - 1 ? 0 : -3, 0));
 
-                Button b = UiKit.Bracketed(slot, names[i], names[i], () =>
+                Button b = UiKit.Segment(slot, names[i], names[i], () =>
                 {
                     set(which);
                     Store.Save();

@@ -135,6 +135,37 @@ BOXES = [
     ("access LIGHT hint", "SPARKS · BLOOM · FLASH", 17, 260, 24),
 ]
 
+# A LABEL IS NOT PROSE AND THAT IS EXACTLY HOW IT GETS AWAY.
+#
+# Everything above is a sentence in a box, which is the shape of thing somebody
+# thinks to measure. The bugs have all been in the other shape: one word in a
+# slot, where the slot is a fraction of a row somebody wrote down once and the
+# word is four characters longer than it looks because the button adds brackets.
+#
+# The three stops on ACCESS overflowed for exactly that reason — the note that
+# sized the row measured NONE and shipped [ NONE ]. So the labels are measured
+# too, as the STRING THAT IS DRAWN, and the widths are the arithmetic that
+# produced the slot rather than a number copied out of it.
+#
+#   name, text, point size, slot width
+ACCESS_PANEL = 625 - 2 * 28              # the plate, less the ACCESS panel inset
+ACCESS_STOPS = ACCESS_PANEL * (1 - 0.58) - 18   # `steps` runs 0.58 -> 1, less 18
+ACCESS_SLOT = ACCESS_STOPS / 3 - 6       # worst case: the middle one loses both gutters
+
+LABELS = [
+    ("access MOTION · FULL", "FULL", 17, ACCESS_SLOT),
+    ("access MOTION · LESS", "LESS", 17, ACCESS_SLOT),
+    ("access MOTION · STILL", "STILL", 17, ACCESS_SLOT),
+    ("access LIGHT · FULL", "FULL", 17, ACCESS_SLOT),
+    ("access LIGHT · LESS", "LESS", 17, ACCESS_SLOT),
+    ("access LIGHT · NONE", "NONE", 17, ACCESS_SLOT),
+
+    # CALIBRATE's own three-up feet, which are Bracketed and so carry them
+    ("calibrate foot · MANUAL", "[ MANUAL ]", 17, (625 - 80) / 3 - 12),
+    ("calibrate foot · BACK", "[ BACK ]", 17, (625 - 80) / 3 - 12),
+    ("calibrate foot · MENU", "[ MENU ]", 17, (625 - 80) / 3 - 12),
+]
+
 
 def main():
     spacing = float(sys.argv[1]) if len(sys.argv) > 1 else 1.0
@@ -162,10 +193,20 @@ def main():
                 print("       | %s" % ln)
 
     print()
+    print("%-30s %-16s %s" % ("", "imported", "slot"))
+    for name, text, size, sw in LABELS:
+        wd = jbm.width(text, size)
+        flag = "" if wd <= sw else "  OVER"
+        if wd > sw:
+            over.append(name)
+        print("%-30s %6.1f wide     %5.1f%s" % (name[:30], wd, sw, flag))
+
+    print()
     if over:
-        print("%d of %d boxes overflow: %s" % (len(over), len(BOXES), ", ".join(over)))
+        print("%d of %d overflow: %s"
+              % (len(over), len(BOXES) + len(LABELS), ", ".join(over)))
         return 1
-    print("all %d prose boxes fit" % len(BOXES))
+    print("all %d prose boxes and %d labels fit" % (len(BOXES), len(LABELS)))
     return 0
 
 

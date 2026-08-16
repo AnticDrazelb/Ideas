@@ -677,6 +677,31 @@ namespace Singularity.UI
         /// </summary>
         public static Button Bracketed(Transform parent, string name, string label,
                                        System.Action onClick, int size = 26, bool primary = false)
+            => Plated(parent, name, "[ " + label + " ]", onClick, size, primary);
+
+        /// <summary>
+        /// ONE STOP OF A SEGMENTED CONTROL, WHICH IS THE ONE BUTTON WITHOUT
+        /// BRACKETS.
+        ///
+        /// Three stops in a third of a row is the tightest control in the game,
+        /// and the brackets are four characters of pure overhead in it: FULL is
+        /// 40.8 units at seventeen point and [ FULL ] is 81.6, against a slot of
+        /// 67.7. Every stop on MOTION and LIGHT overflowed, ran under its
+        /// neighbour and out through the side of the panel — and the note that
+        /// sized the row claimed the slots were "more than [ NONE ] needs" on the
+        /// strength of having measured NONE.
+        ///
+        /// Losing them costs nothing, because the brackets say "pressable" and
+        /// this control has already said it twice: it is a plate, and the plate it
+        /// is next to is lit. A segmented control is the one place in this
+        /// interface where the frame is not the only thing carrying state.
+        /// </summary>
+        public static Button Segment(Transform parent, string name, string label,
+                                     System.Action onClick, int size = 26)
+            => Plated(parent, name, label, onClick, size, false);
+
+        static Button Plated(Transform parent, string name, string shown,
+                             System.Action onClick, int size, bool primary)
         {
             RectTransform rt = Rect(parent, name, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
@@ -717,7 +742,7 @@ namespace Singularity.UI
 
             // --t-sm on a control, --t-md on a primary; black on the rust, because
             // the shipped rule is literally color:#000
-            Label(rt, "label", "[ " + label + " ]", size,
+            Label(rt, "label", shown, size,
                   primary ? Palette.Void : Palette.Ink, TextAnchor.MiddleCenter,
                   Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 

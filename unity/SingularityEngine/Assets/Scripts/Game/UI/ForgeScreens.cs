@@ -27,10 +27,27 @@ namespace Singularity.UI
         static InputField _importField;
 
         // editor
-        static RectTransform _slice, _toolRow, _coach;
+        static RectTransform _slice, _deck, _toolRow, _coach;
         static Text _deckLabel, _edMsg, _codeText, _coachN, _coachText;
         static InputField _nameField;
         static Button _sizeBtn, _deleteBtn, _verifyBtn, _saveBtn;
+
+        /// <summary>
+        /// One band of the editor column: what it is, how tall, and how much air
+        /// after it. Kept in a list rather than baked into a cursor at build time
+        /// because two of them come and go — see FlowEditor.
+        /// </summary>
+        class EdBand
+        {
+            public RectTransform rt;
+            public float h, gap;
+            public bool on = true;
+        }
+
+        static readonly System.Collections.Generic.List<EdBand> _bands = new System.Collections.Generic.List<EdBand>();
+        static EdBand _sliceBand, _codeBand, _delBand;
+
+        const float EdTop = 84f, EdFoot = 28f, EdSide = 40f;
 
         /// <summary>Which cube DELETE is currently armed for. Cleared by leaving the screen.</summary>
         static string _armedDelete;
@@ -161,15 +178,30 @@ namespace Singularity.UI
             // Everything is placed by a cursor running down from the top now. Bands
             // cannot overlap because each one starts where the last finished, and
             // adding or resizing one moves what follows instead of landing on it.
-            float y = 84f;
+            //
+            // AND THE CURSOR RUNS AT SHOW TIME, NOT AT BUILD TIME. Two of these
+            // bands are not always there — DELETE has nothing to delete until the
+            // cube has been saved once, and the share code is empty until VERIFY
+            // has proved one — and a band that is switched off while its 68 or 70
+            // units stay reserved is a hole. That hole was the empty strip under
+            // the buttons, and it was coming out of the one band that wanted it:
+            // the deck.
+            _bands.Clear();
 
-            RectTransform Band(string name, float h, float gap = 12f)
+            EdBand Slot(string name, float h, float gap = 12f)
             {
-                RectTransform r = UiKit.Rect(L, name, new Vector2(0, 1), new Vector2(1, 1),
-                                             new Vector2(40, -(y + h)), new Vector2(-40, -y));
-                y += h + gap;
-                return r;
+                var b = new EdBand
+                {
+                    rt = UiKit.Rect(L, name, new Vector2(0, 1), new Vector2(1, 1),
+                                    new Vector2(EdSide, -h), new Vector2(-EdSide, 0)),
+                    h = h,
+                    gap = gap,
+                };
+                _bands.Add(b);
+                return b;
             }
+
+            RectTransform Band(string name, float h, float gap = 12f) => Slot(name, h, gap).rt;
 
             RectTransform bar = Band("deckBar", 60);
             RectTransform dn = UiKit.Rect(bar, "dn", new Vector2(0, 0), new Vector2(0.22f, 1), Vector2.zero, Vector2.zero);
@@ -196,20 +228,27 @@ namespace Singularity.UI
                                      new Vector2(0, 0), new Vector2(1, 1), new Vector2(46, 0), new Vector2(-12, 0),
                                      wrap: true);
 
-            // The deck is the one band that should take what is spare, because it is
-            // the thing being edited — so it is measured from what the fixed bands
-            // below it need, rather than being given a number of its own.
-            // the seven fixed bands under it, their gaps, this band's own wider gap,
-            // and a margin off the bottom edge
-            const float Below = 118 + 62 + 58 + 30 + 62 + 58 + 56 + 12 * 7 + 16 + 28;
+            // The deck is the one band that should take what is spare, because it
+            // is the thing being edited — so its height is not a number here at
+            // all. FlowEditor adds up what everything else needs and hands it the
+            // remainder, which is also how it gets bigger when DELETE or the share
+            // code are not on screen.
+            _sliceBand = Slot("slice", 0f, 16f);
+            _slice = _sliceBand.rt;
 
-            // THE PLATE'S HEIGHT, NOT THE CANVAS'S. This was the literal 1280,
-            // which was the display and never what this screen gets — every layer
-            // is inset into the chassis opening, and the housing takes a hundred
-            // and fifty of those units. The deck was sized as though it had them,
-            // so the whole column ran that much past the bottom of the glass and
-            // the delete row went off the end of it.
-            _slice = Band("slice", Mathf.Max(240f, Layout.PlateHeight - y - Below), 16f);
+            // A DECK IS SQUARE, BECAUSE A SLICE OF A CUBE IS SQUARE.
+            //
+            // The cells were anchored as fractions of the band, and the band is as
+            // wide as the plate and as tall as whatever is left — 545 by 333. So a
+            // five-cube drew cells 109 across and 67 high, and the editor showed
+            // you a grid that was not the shape of the thing you were editing.
+            // Every cell you place is a cube; a squashed one is a lie about where
+            // the trace you just laid is going to be.
+            //
+            // So the grid lives in a square centred in the band, and the band's
+            // spare width is the price of the cells being right.
+            _deck = UiKit.Rect(_slice, "deck", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                               Vector2.zero, Vector2.zero);
 
             _toolRow = Band("tools", 118);
 
@@ -230,7 +269,8 @@ namespace Singularity.UI
             // The code used to be printed into the verdict line next to a clipboard
             // call that does not exist offline. It was on screen and there was no
             // way on earth to get it off — so it lives in a selectable field.
-            RectTransform codeRow = Band("codeRow", 58);
+            _codeBand = Slot("codeRow", 58);
+            RectTransform codeRow = _codeBand.rt;
             InputField codeField = UiKit.Field(codeRow, "code", "", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             codeField.readOnly = true;
             _codeText = codeField.textComponent;
@@ -258,7 +298,8 @@ namespace Singularity.UI
             Third(three, 1, "BACK", Screens.Back);
             Third(three, 2, "MENU", Screens.ShowTitle);
 
-            RectTransform del = Band("del", 56);
+            _delBand = Slot("del", 56);
+            RectTransform del = _delBand.rt;
             // DELETING IS THE ONE THING IN THE FORGE THAT CANNOT BE UNDONE.
             //
             // There is no bin and no undo: once the cube is gone the only copy
@@ -284,6 +325,57 @@ namespace Singularity.UI
                 _shelfMsg.text = "DELETED";
                 _shelfMsg.color = Palette.Dim;
             }, 22);
+
+            // every band was built at the top of the layer with a placeholder
+            // height; this is where they get their positions
+            FlowEditor();
+        }
+
+        /// <summary>
+        /// PLACE THE COLUMN, AND GIVE WHAT IS LEFT TO THE DECK.
+        ///
+        /// Called whenever a band appears or disappears, which is: opening a cube,
+        /// saving one for the first time, and proving one. Two bands come and go.
+        ///
+        /// DELETE has nothing to delete until the cube has been saved once. The
+        /// SHARE CODE is an empty read-only field until VERIFY has proved a cube,
+        /// and an empty field is not a thing, it is a gap with a border on it.
+        /// Both used to be hidden while keeping their space, which is where the
+        /// strip of nothing under the buttons came from — and it was coming
+        /// straight out of the deck, the one band on this screen that is the thing
+        /// being worked on.
+        ///
+        /// The message row is NOT reclaimed, deliberately. Its text changes on
+        /// every tap, and a grid that resized itself under the thumb every time a
+        /// status appeared would be far worse than thirty units. The other two
+        /// move only on a deliberate press.
+        /// </summary>
+        static void FlowEditor()
+        {
+            _codeBand.on = !string.IsNullOrEmpty(_codeText.text);
+            _delBand.on = _ed != null && _ed.from != null;
+
+            float taken = 0f;
+            foreach (EdBand b in _bands)
+                if (b.on && b != _sliceBand) taken += b.h + b.gap;
+
+            _sliceBand.h = Mathf.Max(240f,
+                Layout.PlateHeight - EdTop - EdFoot - taken - _sliceBand.gap);
+
+            float y = EdTop;
+            foreach (EdBand b in _bands)
+            {
+                if (b.rt.gameObject.activeSelf != b.on) b.rt.gameObject.SetActive(b.on);
+                if (!b.on) continue;
+                b.rt.offsetMax = new Vector2(-EdSide, -y);
+                b.rt.offsetMin = new Vector2(EdSide, -(y + b.h));
+                y += b.h + b.gap;
+            }
+
+            // and the deck is the largest square the band will hold
+            float side = Mathf.Min(Layout.PlateWidth - EdSide * 2f, _sliceBand.h);
+            _deck.sizeDelta = new Vector2(side, side);
+            _deck.anchoredPosition = Vector2.zero;
         }
 
         static void Third(RectTransform parent, int i, string label, System.Action act)
@@ -303,6 +395,7 @@ namespace Singularity.UI
             _codeText.text = "";
             Status("", false);
             PaintTools();
+            FlowEditor();
             PaintSlice();
             Screens.Show("forgeEdit");
         }
@@ -363,7 +456,7 @@ namespace Singularity.UI
         static void PaintSlice()
         {
             PaintCoach();
-            for (int i = _slice.childCount - 1; i >= 0; i--) Object.Destroy(_slice.GetChild(i).gameObject);
+            for (int i = _deck.childCount - 1; i >= 0; i--) Object.Destroy(_deck.GetChild(i).gameObject);
 
             _deckLabel.text = "DECK " + (_ed.layer + 1) + " / " + _ed.n;
 
@@ -374,7 +467,7 @@ namespace Singularity.UI
                     // z runs up the screen, so deck row 0 is at the bottom — the same
                     // orientation the level literals are written in, which is the only
                     // way hand-authoring one is survivable.
-                    RectTransform slot = UiKit.Rect(_slice, x + "," + z,
+                    RectTransform slot = UiKit.Rect(_deck, x + "," + z,
                         new Vector2(x / (float)n, z / (float)n),
                         new Vector2((x + 1) / (float)n, (z + 1) / (float)n),
                         new Vector2(2, 2), new Vector2(-2, -2));
@@ -451,8 +544,12 @@ namespace Singularity.UI
                     btn.onClick.AddListener(() =>
                     {
                         _ed.Apply(cx2, cz2);
+                        // laying a cell invalidates the proof, so the code goes —
+                        // and the deck grows back into the row it was in
+                        bool hadCode = !string.IsNullOrEmpty(_codeText.text);
                         _codeText.text = "";
                         Status("", false);
+                        if (hadCode) FlowEditor();
                         PaintSlice();
                     });
                 }
@@ -470,6 +567,8 @@ namespace Singularity.UI
             Forge.VerifyResult v = _ed.Verify();
             Status(v.message, !v.ok);
             _codeText.text = v.ok ? ShareCode.Encode(v.level) : "";
+            FlowEditor();
+            PaintSlice();
         }
 
         static void DoSave()
@@ -482,6 +581,8 @@ namespace Singularity.UI
             _deleteBtn.gameObject.SetActive(true);
             MadeCube rec = Store.Made(_ed.from);
             if (rec != null) _codeText.text = rec.code;
+            FlowEditor();
+            PaintSlice();
         }
 
         static void DoPlay()

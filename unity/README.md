@@ -14,7 +14,7 @@ numbers — verified, not assumed.
 ```sh
 dotnet run --project tools/UnityStubs             # every check
 dotnet run --project tools/UnityStubs content     # the difficulty curve
-python3   tools/type/reflow.py                    # does the prose still fit
+python3   tools/type/reflow.py                    # does the type still fit, prose and labels
 ```
 
 ---
@@ -508,6 +508,35 @@ what is true; `GameDirector` decides what that looks like. Nothing in `Session`
 touches a mesh, which is why the rules can be exercised by an edit-mode test
 with no scene loaded, and why the port could be proved identical to the original
 before a single pixel existed.
+
+### Two rules the screens keep getting wrong
+
+**A band that is switched off gives its space back.** Every column in this game
+is a cursor running down from the top, which cannot overlap by construction —
+but a band whose *contents* are hidden while its height stays reserved is a hole,
+and the hole comes out of whichever band wanted the room. The Forge's DELETE row
+has nothing to delete until the cube has been saved once and its share code is an
+empty bordered gap until VERIFY proves one; together that was 138 units of
+nothing under the buttons, taken straight out of the deck. The win card had the
+same shape of bug at the other end. Both flow at *show* time now, not build time.
+
+**A grid of cells is square because the thing it represents is.** The Forge's
+deck was anchored as fractions of a band 545 wide and 333 tall, so a five-cube
+drew cells 109 across and 67 high. Every cell you place is a cube; a squashed
+one is a lie about where the trace is going to be. The grid is the largest square
+the band will hold, and the spare width is the price.
+
+### And measure the string that is drawn
+
+`reflow.py` measured prose — sentences in boxes, which is the shape of thing
+somebody thinks to check. Every type bug so far has been in the other shape: one
+word in a slot, where the slot is a fraction someone wrote down once and the word
+is four characters longer than it looks because `UiKit.Bracketed` renders
+`[ LABEL ]`. All six stops on ACCESS overflowed, ran under each other and out
+through the side of the panel — and the note that had sized that row claimed the
+slots were "more than `[ NONE ]` needs", on the strength of having measured
+`NONE`. The tool measures labels now, as the drawn string, against the
+arithmetic that produced the slot.
 
 ---
 
