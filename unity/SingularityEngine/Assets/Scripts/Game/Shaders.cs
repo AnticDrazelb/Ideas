@@ -35,7 +35,11 @@ namespace Singularity.Game
             "Singularity/Cell",
             "Singularity/Glyph",
             "Singularity/Fx",
-            "Singularity/Filter",
+            // "Singularity/Filter" is NOT here any more. Brightness and contrast
+            // moved off the camera and onto an overlay above every canvas — see
+            // ScreenFilter — so nothing loads that shader. The file stays in
+            // Assets/Shaders because a camera-space filter may be wanted again;
+            // demanding it at boot would be demanding something nothing uses.
             "Singularity/Bloom",
         };
 

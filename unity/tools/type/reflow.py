@@ -103,8 +103,8 @@ BOXES = [
     ("manual HOLD FOR MATRIX",
      "The lattice goes to glass. Keep holding and drag to turn it.", 17, 391, 88 - 32),
     ("manual PLATES INVERT",
-     "Every trace goes dead and every dead cell lights up, for five seconds. "
-     "A plate is always footing, so every fold is legal on one.", 17, 391, 124 - 32),
+     "Every trace goes dead and every dead cell lights up for five seconds. "
+     "A plate is always footing.", 17, 391, 102 - 32),
     ("manual TO GO",
      "The fewest folds still possible from where you stand.", 17, 391, 82 - 32),
     ("manual colophon",
@@ -127,6 +127,12 @@ BOXES = [
      "on a plate every fold is legal.", 19, 529, 78),
 
     ("forge coach", "TRACE IS WHAT YOU STAND ON. TAP CELLS TO LAY 8 MORE.", 19, 471, 58),
+
+    # ACCESS — the two hints that print beside three named stops rather than a
+    # switch, so they get half the row instead of most of it. These truncated by
+    # two units under the mono and are the reason `hintTo` moved to 0.56.
+    ("access MOTION hint", "SHAKE · ZOOM · CLOCK", 17, 260, 24),
+    ("access LIGHT hint", "SPARKS · BLOOM · FLASH", 17, 260, 24),
 ]
 
 

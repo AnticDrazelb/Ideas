@@ -580,8 +580,14 @@ namespace Singularity.UI
             Mark(a5, "sq", new Color(Palette.Arc.r, Palette.Arc.g, Palette.Arc.b, 0.45f), 44, 12, 12);
             Mark(a5, "sqfill", Palette.Trace, 14, -14, -12);
 
+            // THREE LINES, NOT FOUR — the gap under this entry was the complaint.
+            // At four lines the box has to be 124 tall while its diagram gutter is
+            // only 96, so twenty-eight units of empty column sat between this and
+            // TO GO and read as a hole in the page. The last clause was the one
+            // carrying least: "so every fold is legal on one" is the plate lesson
+            // in full and this is the manual's one-line reminder of it.
             RectTransform a6 = Entry("PLATES INVERT",
-                "Every trace goes dead and every dead cell lights up, for five seconds. A plate is always footing, so every fold is legal on one.", 124f);
+                "Every trace goes dead and every dead cell lights up for five seconds. A plate is always footing.", 102f);
             Mark(a6, "sqfill", Palette.Trace, 26, -16, 14);
             Mark(a6, "sq", Palette.Dim2, 26, 14, 14);
             Mark(a6, "sq", Palette.Dim2, 26, -16, -16);
@@ -1101,8 +1107,19 @@ namespace Singularity.UI
         static void Steps(RectTransform panel, string icon, string label, string hint, string[] names,
                           System.Func<int> get, System.Action<int> set)
         {
-            RectTransform r = AccRow(panel, icon, label, hint, 0.50f);
-            RectTransform row = UiKit.Rect(r, "steps", new Vector2(0.52f, 0.5f), new Vector2(1, 0.5f),
+            // TWO UNITS SHORT, WHICH IS THE WHOLE BUG. The hint ran to 0.50 of
+            // the row and the three stops began at 0.52, which fitted the
+            // proportional face this was measured against with room to spare.
+            // In the mono, SPARKS · BLOOM · FLASH is 224.4 units against 226.5 of
+            // space — inside by two — and on a device it printed SPARKS · BLOOM ·
+            // FLAS. A hint that loses its last word is worse than no hint, and a
+            // two-unit margin is not a margin.
+            //
+            // The stops move right instead of the words being cut: three of them
+            // still get seventy-four units each, which is more than [ NONE ]
+            // needs, and the hint gets thirty-six units of air.
+            RectTransform r = AccRow(panel, icon, label, hint, 0.56f);
+            RectTransform row = UiKit.Rect(r, "steps", new Vector2(0.58f, 0.5f), new Vector2(1, 0.5f),
                                            new Vector2(0, -Access.TapTarget * 0.5f),
                                            new Vector2(-18, Access.TapTarget * 0.5f));
 

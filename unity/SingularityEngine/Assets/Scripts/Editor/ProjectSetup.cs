@@ -147,7 +147,11 @@ namespace Singularity.EditorTools
                 "Singularity/Cell",     // the board. Without it there is no game on screen.
                 "Singularity/Glyph",    // every icon, every additive UI surface, the glass
                 "Singularity/Fx",       // sparks and rings
-                "Singularity/Filter",   // brightness and contrast
+            // "Singularity/Filter" is NOT here any more. Brightness and contrast
+            // moved off the camera and onto an overlay above every canvas — see
+            // ScreenFilter — so nothing loads that shader. The file stays in
+            // Assets/Shaders because a camera-space filter may be wanted again;
+            // demanding it at boot would be demanding something nothing uses.
                 "Singularity/Bloom",    // the glow
             };
 

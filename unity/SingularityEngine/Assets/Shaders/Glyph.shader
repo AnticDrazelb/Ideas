@@ -19,6 +19,11 @@ Shader "Singularity/Glyph"
         // has to remove the board under it, not tint it — while the photon ring
         // and the lensing halo around it are light and must ADD. Two materials,
         // one shader, and the sprite pipeline stays a single batch.
+        // SUBTRACT IS NEEDED FOR ONE THING AND IT IS THE SCREEN FILTER. Raising
+        // contrast above 100 makes the offset term NEGATIVE — the pivot maths is
+        // out = in*c + (0.5*(1-c) + b-1) — and no combination of Src/Dst factors
+        // can take light away. Reverse-subtract can.
+        [Enum(UnityEngine.Rendering.BlendOp)] _BlendOp ("Blend op", Float) = 0   // Add
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Src", Float) = 5   // SrcAlpha
         [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Dst", Float) = 10  // OneMinusSrcAlpha
     }
@@ -38,6 +43,7 @@ Shader "Singularity/Glyph"
         Lighting Off
         ZWrite Off
         ZTest Always
+        BlendOp [_BlendOp]
         Blend [_SrcBlend] [_DstBlend]
 
         Pass
