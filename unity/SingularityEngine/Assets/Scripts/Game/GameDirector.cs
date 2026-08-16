@@ -99,8 +99,31 @@ namespace Singularity.Game
 
         Vector3 AtPlayer() => At(S.pos);
 
+        /// <summary>
+        /// IF THE SAVE DID NOT LOAD, SAY SO.
+        ///
+        /// Starting somebody over without a word is the worst thing this code can
+        /// do — and it is also what a player will ASSUME happened any time a
+        /// vault list looks wrong, so the silence costs trust even on the runs
+        /// where nothing went wrong. Store knows which of the three copies it is
+        /// running on; this is the one place that asks.
+        ///
+        /// A toast rather than a modal. There is nothing to decide: the bytes are
+        /// already quarantined and there is no undo to offer, so an OK button is
+        /// a speed bump in front of a fact. RECOVERED is the good outcome and
+        /// reads like one; LOST is the bad one and says the word.
+        /// </summary>
+        void ReportSave()
+        {
+            if (Store.LoadedFrom == Store.Origin.Recovered)
+                Hud.Toast("SAVE RESTORED FROM BACKUP");
+            else if (Store.LoadedFrom == Store.Origin.Lost)
+                Hud.Toast("SAVE UNREADABLE · STARTING OVER");
+        }
+
         void Wire()
         {
+            ReportSave();
             S.On.Toast = msg => Hud.Toast(msg);
 
             S.On.Settled = () =>

@@ -625,18 +625,54 @@ namespace UnityEngine
 
     public static class QualitySettings { public static int vSyncCount { get; set; } }
 
+    /// <summary>
+    /// IMPLEMENTED FOR REAL, for the reason Mathf and Color are.
+    ///
+    /// A stub returning the default is harmless where nothing reads the result.
+    /// Here it is the opposite: Store's whole job is what comes back out of this,
+    /// and a PlayerPrefs that forgets everything turns "does a corrupt save
+    /// recover from its backup" into a question that cannot be asked. The save
+    /// path is the one place in this game where a bug costs a player a hundred
+    /// hours they cannot get back, so it is the last place to accept a check that
+    /// passes because nothing happened.
+    ///
+    /// An in-memory dictionary is exactly PlayerPrefs' contract minus the disk.
+    /// </summary>
     public static class PlayerPrefs
     {
-        public static string GetString(string k, string d) => d;
-        public static void SetString(string k, string v) { }
-        public static bool HasKey(string k) => false;
+        static readonly Dictionary<string, string> Store = new Dictionary<string, string>();
+
+        public static string GetString(string k, string d) => Store.TryGetValue(k, out var v) ? v : d;
+        public static void SetString(string k, string v) { Store[k] = v; }
+        public static bool HasKey(string k) => Store.ContainsKey(k);
         public static void Save() { }
+
+        /// <summary>Harness only: start from an empty device.</summary>
+        public static void Wipe() => Store.Clear();
     }
 
+    /// <summary>
+    /// A REAL SERIALISER, AND IT IS NOT UNITY'S — which is the honest limit of
+    /// what the save checks prove.
+    ///
+    /// System.Text.Json over fields matches JsonUtility on every behaviour the
+    /// recovery logic turns on: malformed input throws, an explicit null leaves a
+    /// null list, and a field the JSON does not mention keeps whatever the
+    /// constructor put there. So the checks exercise Store's DECISIONS for real —
+    /// which string is tried, what is quarantined, what a half-shaped save does.
+    ///
+    /// What they cannot prove is that Unity's parser agrees with this one on some
+    /// input neither of us thought of. That is the same limit every stub here
+    /// has, and it is smaller than the alternative, which is a save path nothing
+    /// has ever run.
+    /// </summary>
     public static class JsonUtility
     {
-        public static T FromJson<T>(string s) => default;
-        public static string ToJson(object o) => "";
+        static readonly System.Text.Json.JsonSerializerOptions Opts =
+            new System.Text.Json.JsonSerializerOptions { IncludeFields = true };
+
+        public static T FromJson<T>(string s) => System.Text.Json.JsonSerializer.Deserialize<T>(s, Opts);
+        public static string ToJson(object o) => System.Text.Json.JsonSerializer.Serialize(o, o.GetType(), Opts);
     }
 
     public static class SystemInfo { public static DeviceType deviceType => default; }

@@ -88,6 +88,7 @@ public static class ForgeChecks
         fails += AccessChecks.Run();
         fails += ChassisChecks.Run(Ok);
         SoundChecks.Run(Ok);
+        SaveChecks.Run(Ok);
         Numbers();
 
         Console.WriteLine(fails == 0 ? "CHECKS PASSED" : fails + " CHECKS FAILED");

@@ -255,6 +255,40 @@ also makes the two faders **decibels instead of a multiply**, so half is six dow
 rather than half, and it makes them audible *while they move* — a level applied
 at play time cannot reach the bed that is already humming.
 
+### The save is the only thing a player cannot get back
+
+The board is deterministic, the settings take a minute to redo, a cube can be
+built again. Thirty vaults of bests are a hundred hours somebody spent, there is
+no server holding a copy, and there is no support channel to recover them from.
+
+The save path had never been executed by anything — the harness stubbed
+`PlayerPrefs` to forget and `JsonUtility` to return the default, so "does a
+corrupt save recover" was not a question that could be asked. Both are real now,
+and three defects came out of asking it:
+
+- **A corrupt save was destroyed, not ignored.** The `catch` replaced it with an
+  empty one and the next write — at most a quarter-second later, because the
+  debounce fires on the first setting the game touches — put the empty one over
+  the top. No backup, no copy, no message.
+- **A null list crashed the launch.** `"bestK": null` is valid JSON, and
+  `Rehydrate` was outside the try. The game did not fail to load a save, it
+  failed to start.
+- **Valid JSON of the wrong shape lost data with no exception at all.**
+  `JsonUtility` does not object to a missing field, so nothing anywhere could
+  see it.
+
+Now: `turnkey-v2-prev` holds the last string that parsed and is tried when the
+live one fails; `turnkey-v2-unreadable` holds whatever could not be read and is
+**never written over**, including by a second bad launch. `Store.LoadedFrom`
+says which of the three the game is running on, and the HUD says so out loud —
+starting somebody over without a word is the worst thing this code can do, and
+it is what a player assumes happened any time a vault list looks wrong.
+
+Both fixes are **mutation-tested**: removing the shape check reproduces the
+launch crash, removing the quarantine guard fails the second-bad-launch case.
+A check that passes whether or not the guard exists is not a check, and the
+first version of the quarantine test was exactly that.
+
 ### Measuring
 
 None of this was eyeballed. `unity/tools/type/reflow.py` wraps every prose box

@@ -90,6 +90,40 @@ namespace Singularity.Game
     {
         const string Key = "turnkey-v2";
 
+        /// <summary>
+        /// THE LAST SAVE THAT WAS KNOWN TO PARSE, AND THE ONE THAT DID NOT.
+        ///
+        /// A save is the only thing in this game a player cannot get back. The
+        /// board is deterministic, the settings take a minute to redo — thirty
+        /// vaults of bests are a hundred hours somebody spent, and there is no
+        /// support channel to recover them from.
+        ///
+        /// Before this there was one key and one behaviour: a save that failed to
+        /// parse was replaced with an empty one, and the next write — which is at
+        /// most a quarter of a second later, because the debounce fires on the
+        /// first setting the game touches — put the empty one over the top of it.
+        /// The corrupt save was not ignored, it was DESTROYED, silently, with no
+        /// copy anywhere.
+        ///
+        /// So: <see cref="Backup"/> holds the previous string that parsed, written
+        /// one step behind the live one, and is tried when the live one fails.
+        /// <see cref="Quarantine"/> holds whatever could not be read at all, and
+        /// is never written over — a player who lands there has lost their
+        /// progress from the game's point of view and still has their bytes.
+        /// </summary>
+        const string Backup = "turnkey-v2-prev";
+        const string Quarantine = "turnkey-v2-unreadable";
+
+        /// <summary>
+        /// Which of the three the game is actually running on. The interface asks,
+        /// because a player whose save did not load has to be TOLD — starting
+        /// somebody over without a word is the worst thing this code can do, and
+        /// it is also the thing they will assume happened whenever a level list
+        /// looks wrong.
+        /// </summary>
+        public enum Origin { Fresh, Live, Recovered, Lost }
+        public static Origin LoadedFrom { get; private set; } = Origin.Fresh;
+
         public static SaveData Data { get; private set; } = new SaveData();
 
         static readonly Dictionary<int, int> Best = new Dictionary<int, int>();
@@ -105,18 +139,35 @@ namespace Singularity.Game
         {
             if (_loaded) return;
             _loaded = true;
-            try
+
+            string live = Read(Key), prev = Read(Backup);
+            bool had = !string.IsNullOrEmpty(live) || !string.IsNullOrEmpty(prev);
+
+            if (Parse(live)) LoadedFrom = string.IsNullOrEmpty(live) ? Origin.Fresh : Origin.Live;
+            else if (Parse(prev))
             {
-                string raw = PlayerPrefs.GetString(Key, "");
-                if (!string.IsNullOrEmpty(raw)) Data = JsonUtility.FromJson<SaveData>(raw) ?? new SaveData();
+                LoadedFrom = Origin.Recovered;
+                Keep(live);
+                Debug.LogWarning("[Singularity] the save did not parse; recovered the previous one. " +
+                                 "The unreadable copy is under " + Quarantine + ".");
             }
-            catch { Data = new SaveData(); }
+            else
+            {
+                LoadedFrom = had ? Origin.Lost : Origin.Fresh;
+                Data = new SaveData();
+                if (had)
+                {
+                    Keep(live);
+                    Debug.LogError("[Singularity] neither the save nor its backup could be read. " +
+                                   "Starting fresh; the unreadable copy is under " + Quarantine + ".");
+                }
+            }
 
             // EFFECTS DEFAULT TO WHAT THE DEVICE ALREADY ASKED FOR. A player who
             // has set "reduce motion" at the OS level has already told every app
             // they open how much shake they want, and making them find a switch
             // to say it again is not a preference, it is a tax.
-            if (!PlayerPrefs.HasKey(Key)) Data.fx = SystemInfo.deviceType == DeviceType.Handheld ? 1 : 1;
+            if (!had) Data.fx = SystemInfo.deviceType == DeviceType.Handheld ? 1 : 1;
 
             Migrate();
 
@@ -125,6 +176,75 @@ namespace Singularity.Game
             Rehydrate(Data.tbestK, Data.tbestV, TBest);
             Rehydrate(Data.vbestK, Data.vbestV, VBest);
             Rehydrate(Data.dhistDay, Data.dhistFolds, DHist);
+        }
+
+        static string Read(string key)
+        {
+            try { return PlayerPrefs.GetString(key, ""); }
+            catch { return ""; }
+        }
+
+        /// <summary>
+        /// Try one stored string. Empty means "there was nothing here", which is a
+        /// clean first run and not a failure — so it succeeds, with defaults.
+        ///
+        /// A THROW IS THE EASY CASE. The one that actually loses progress is JSON
+        /// that parses and is the wrong SHAPE: JsonUtility does not object to a
+        /// missing field, it leaves the default, so a truncated write comes back
+        /// as a real SaveData with half a player's history quietly absent and no
+        /// exception anywhere. <see cref="Whole"/> is the check for that.
+        /// </summary>
+        static bool Parse(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) { Data = new SaveData(); return true; }
+            try
+            {
+                SaveData d = JsonUtility.FromJson<SaveData>(raw);
+                if (d == null || !Whole(d)) return false;
+                Data = d;
+                return true;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Is this a SaveData or only shaped like one?
+        ///
+        /// EVERY LIST HAS AN INITIALISER AND THAT IS NOT ENOUGH. JsonUtility runs
+        /// the constructor and then overwrites what the JSON mentions, so an
+        /// absent field keeps its empty list — but an explicit `"bestK": null`
+        /// sets it to null, and a null list reaching Rehydrate is a
+        /// NullReferenceException thrown out of Load, at startup, before anything
+        /// has drawn. The game does not fail to load a save; it fails to launch.
+        ///
+        /// The paired lists are also checked for agreeing lengths. Rehydrate
+        /// already walks the shorter of the two, so a mismatch cannot crash — it
+        /// silently drops the tail of somebody's records, which is worse, because
+        /// nothing anywhere would ever say so.
+        /// </summary>
+        static bool Whole(SaveData d)
+            => Paired(d.bestK, d.bestV) && Paired(d.parK, d.parV)
+            && Paired(d.tbestK, d.tbestV) && Paired(d.vbestK, d.vbestV)
+            && Paired(d.dhistDay, d.dhistFolds);
+
+        static bool Paired<T>(List<int> k, List<T> v)
+            => k != null && v != null && k.Count == v.Count;
+
+        /// <summary>
+        /// Put an unreadable save somewhere it cannot be written over. Once only:
+        /// a second bad launch must not overwrite the quarantine with the empty
+        /// string the first one left behind.
+        /// </summary>
+        static void Keep(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return;
+            try
+            {
+                if (PlayerPrefs.HasKey(Quarantine)) return;
+                PlayerPrefs.SetString(Quarantine, raw);
+                PlayerPrefs.Save();
+            }
+            catch { /* a device that cannot remember cannot quarantine either */ }
         }
 
         /// <summary>
@@ -180,6 +300,21 @@ namespace Singularity.Game
                 Dehydrate(TBest, Data.tbestK, Data.tbestV);
                 Dehydrate(VBest, Data.vbestK, Data.vbestV);
                 Dehydrate(DHist, Data.dhistDay, Data.dhistFolds);
+
+                // ONE STEP BEHIND, AND ONLY EVER FROM A STRING THAT PARSED.
+                //
+                // The backup is the PREVIOUS live value, not a second copy of the
+                // one being written — two copies of the same corruption are one
+                // copy of it. It is taken from the key rather than re-serialised
+                // so that whatever the last successful write actually put on disk
+                // is what gets kept, including the bytes a partial write left.
+                //
+                // Rolled before the new value goes down, so the window in which
+                // neither key is good is a single SetString rather than a frame.
+                string had = PlayerPrefs.GetString(Key, "");
+                if (!string.IsNullOrEmpty(had) && LoadedFrom != Origin.Lost)
+                    PlayerPrefs.SetString(Backup, had);
+
                 PlayerPrefs.SetString(Key, JsonUtility.ToJson(Data));
                 PlayerPrefs.Save();
             }
