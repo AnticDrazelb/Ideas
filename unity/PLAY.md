@@ -87,7 +87,9 @@ None of these are code and none of them exist yet:
 | Short description | 80 characters |
 | Full description | 4000 characters |
 
-The pitch is already written and it is the first line of the title screen:
+The pitch is already written. It used to be printed under the title screen's
+masthead and is not any more — the screen says what the game is called, where
+you are in it, and then shows you the machine — but it is still the sentence:
 
 > You are a black hole inside a broken machine. Fold the engine until its
 > circuits align, then collapse into the core.

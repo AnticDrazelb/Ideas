@@ -86,10 +86,9 @@ def wrap(face, text, size, width):
 #
 #   name, text, point size, box width, box height
 BOXES = [
-    ("title pitch",
-     "You are a black hole inside a broken machine.\n"
-     "Fold the engine until its circuits align,\n"
-     "then collapse into the core.", 17, 625, 90),
+    # The title's three-line pitch used to be measured here. It has been removed
+    # from the screen — the masthead closes on its rule and the turning cube is
+    # the argument — so there is nothing left to wrap.
 
     ("manual ONE FACE AT A TIME",
      "Two traces that line up when you fold are connected, however far apart they look.",

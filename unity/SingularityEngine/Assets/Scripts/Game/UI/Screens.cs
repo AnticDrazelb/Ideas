@@ -208,18 +208,20 @@ namespace Singularity.UI
                                       new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -322), new Vector2(0, -292));
 
             // .mastRule — one pixel of rust, min(88vw, 420px) wide, 11px above and
-            // 12px below. It is the only rule on the screen and it is doing real
-            // work: it closes the masthead, so the pitch underneath reads as a
-            // caption on the game rather than a fourth line of the title.
+            // 12px below. It is the only rule on the screen and it closes the
+            // masthead: everything above it is what the game is called and where
+            // you are in it, everything below is the machine itself.
+            //
+            // THE PITCH IS GONE AND THE SPACE IT HAD IS NOT RECLAIMED. Three lines
+            // of prose used to sit under this rule — "You are a black hole inside a
+            // broken machine…" — and the ninety units they occupied are deliberately
+            // left empty rather than closed up. The cube is turning behind this
+            // screen and it is the best argument the title has; air between the
+            // masthead and the object is the composition, not a hole where a
+            // paragraph used to be.
             UiKit.Panel(L, "mastRule", Palette.Rust,
                         new Vector2(0.5f, 1), new Vector2(0.5f, 1),
                         new Vector2(-317, -346), new Vector2(317, -344));
-
-            UiKit.Label(L, "sub",
-                "You are a black hole inside a broken machine.\nFold the engine until its circuits align,\nthen collapse into the core.",
-                17, Palette.Dim, TextAnchor.UpperCenter,
-                new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -460), new Vector2(0, -370),
-                wrap: true);
 
             // ONE PRIMARY, THEN A GRID OF FOUR.
             //
