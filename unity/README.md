@@ -310,6 +310,24 @@ the Forge, which places and removes them in pairs — reachable by the next thin
 that builds a `Level`. It writes the minimum of the two now, which is lossless
 for every valid level, so **every code already in the wild is unchanged**.
 
+### The setting said none and something still flashed
+
+`Hud.Flash` is careful: it scales by the light setting, refuses a fourth inside
+a second, and NONE turns it off outright. `Hud.Vignette` was one line with no
+gate on it at all — so a player who set the light channel to **NONE**, which is
+the setting a photosensitive player is told to use, still got the whole screen
+pulsing to 42% black on every refused fold and every dead end.
+
+It is scaled now rather than switched, like `Flash`, so REDUCED gets a subtler
+one instead of a cliff. It is deliberately **not** in the three-per-second
+budget: 2.3.1's threshold is a *pair* of opposing luminance changes of at least
+a tenth of maximum, and this is a darkening on a screen that is already nearly
+black. Sharing the budget would let a burst of refusals spend the flash
+allowance on vignettes and leave a genuine flash unable to fire.
+
+Nothing is lost by gating it — every event that raises a vignette also raises a
+sound, a caption and the orb's mood.
+
 ### Measuring
 
 None of this was eyeballed. `unity/tools/type/reflow.py` wraps every prose box

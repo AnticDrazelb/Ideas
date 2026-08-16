@@ -412,7 +412,38 @@ namespace Singularity.UI
             _flashDur = dur;
         }
 
-        public void Vignette(float amount) => _vig = Mathf.Max(_vig, amount);
+        /// <summary>
+        /// THE OTHER FULL-SCREEN EFFECT, AND THE ONE THAT WAS NOT GATED.
+        ///
+        /// Flash is careful: it scales by the light setting, it refuses a fourth
+        /// inside a second, and NONE turns it off outright. This was one line
+        /// with no gate on it at all — so a player who had set the light channel
+        /// to NONE, which is the setting a photosensitive player is told to use,
+        /// still got the whole screen pulsing to forty-two per cent black on
+        /// every refused fold and every dead end. The setting said none and
+        /// something was still flashing.
+        ///
+        /// It is scaled rather than switched, like Flash, so REDUCED gets a
+        /// subtler one instead of a cliff.
+        ///
+        /// NOT IN THE THREE-PER-SECOND BUDGET, and that is a judgement rather
+        /// than an oversight. 2.3.1's threshold is a PAIR of opposing luminance
+        /// changes of at least a tenth of maximum; this is a darkening, on a
+        /// screen that is already nearly black, so the excursion is small and
+        /// downward. Sharing the budget would mean a burst of refusals could
+        /// spend the flash allowance on vignettes and leave a genuine flash
+        /// unable to fire, which trades a real signal for a theoretical one.
+        ///
+        /// Nothing is lost by gating it: every event that raises a vignette also
+        /// raises a sound, a caption and the orb's mood, so this was never the
+        /// only channel carrying the news.
+        /// </summary>
+        public void Vignette(float amount)
+        {
+            amount *= Access.LightAmount;
+            if (amount <= 0.001f) return;
+            _vig = Mathf.Max(_vig, amount);
+        }
 
         /// <summary>
         /// The words for a sound that has just played. Short-lived, and it
