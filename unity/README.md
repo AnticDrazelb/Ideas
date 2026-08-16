@@ -328,6 +328,65 @@ allowance on vignettes and leave a genuine flash unable to fire.
 Nothing is lost by gating it — every event that raises a vignette also raises a
 sound, a caption and the orb's mood.
 
+### Is the game's own idea load-bearing in its content?
+
+Everything else this harness measures is craft. None of it is why anybody
+remembers a puzzle game. What is remembered is whether the central idea is the
+thing you actually have to think about, cube after cube — and that is a property
+of the **content**, not of the code.
+
+```sh
+dotnet run --project unity/tools/UnityStubs content
+```
+
+Ten cubes are authored. Everything from eleven on is minted. The audit solves
+the first 240 and asks three questions.
+
+**Does the solution require a fold at all?** A cube you can walk from start to
+core without folding once is a maze, not this game — and it would still verify,
+still have a par, still look right. **Zero of 240.** The mechanic is load-bearing
+in every cube. This is the gate that matters most and it passes outright.
+
+**Is the opening a decision?** Of the folds legal from the start, 46.7% keep you
+on par. Classified: 18.8% of cubes have no legal opening fold at all (you must
+step first), 55.4% have an opening where some folds lose par — a real decision —
+and **25.8% have an opening where every legal fold keeps par**, which is a first
+move that does not matter.
+
+**Does it get harder, or only bigger?** This is the one that should worry you.
+
+```
+  tenth   mean n   mean folds   steps/fold
+     1       5.9         2.71          2.2
+     3       7.0         4.38          2.8
+     5       8.0         5.17          2.4
+     7       8.8         5.67          2.6
+     9       9.0         5.83          2.4
+    10       9.0         5.54          2.7
+```
+
+Par asymptotes at about 5.8 folds by the fourth tenth and then stops. The tenth
+tenth is *easier* than the ninth. Steps per fold is flat at ~2.6 throughout, so
+the ratio of thinking to searching never shifts either.
+
+The cause is three lines in `Generator.SpecFor`, and they are deliberate
+individually:
+
+```csharp
+int b = Math.Min(band, 11);                              // saturates at cube 111
+int n = ... : band < 15 ? 8 : 9;                          // caps at 9 from cube 151
+int carveTurns = Math.Min(9, 3 + b + ...);                // caps at 9
+int parSpan = ... n == 9 ? 8;   // parHi = 10, and a harder candidate is DISCARDED
+```
+
+From **cube 151 onward every generation parameter is at its ceiling** — same
+size, same carve ambition, same density, same lock cap — and `MaxCube` is
+100,000. The last 99,850 cubes are drawn from one fixed difficulty distribution,
+with a hard maximum of ten folds that is never approached in practice.
+
+`VaultSize` grows the *number* of cubes per vault (25 + 5b) but nothing grows
+their difficulty, so vaults 16 through 30 are fifteen vaults of the same cube.
+
 ### Measuring
 
 None of this was eyeballed. `unity/tools/type/reflow.py` wraps every prose box
