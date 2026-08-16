@@ -56,7 +56,68 @@ static class SoundChecks
         foreach (string cue in Bank.Cues)
             if (Bank.Has(cue)) { ok(false, "Bank found " + cue + " with no Resources to load from"); return; }
 
+        Headroom(ok);
+
         Console.WriteLine("sound: " + Bank.Cues.Length + " cues fall back to the synth, " +
                           "fader -80 to +3.5 dB");
+    }
+
+    /// <summary>
+    /// WHAT THE LOUDEST MOMENT IN THE GAME ACTUALLY SUMS TO.
+    ///
+    /// Not one cue is loud. Every cue is THREE TO FIVE LAYERS, several of them
+    /// overlap in the worst case, each one is also sent to a wet voice, and the
+    /// bed is humming under all of it — and the master fader can add three and a
+    /// half decibels on top. Nobody had ever added the numbers up, which is how a
+    /// game ships with a collapse that crackles on a phone speaker and nowhere
+    /// else, because the only device it was heard on had a limiter of its own.
+    ///
+    /// Unity sums voices and CLIPS AT 1.0 with nothing in between, so this is not
+    /// a headroom preference, it is the difference between a sound and a click.
+    ///
+    /// The worst case is a fold, whose five layers are inside 210ms of each
+    /// other, arriving while a plate's sweep is still ringing — those two are the
+    /// game's densest legal overlap, because a fold is legal on a plate BY
+    /// DESIGN and that is the sentence the manual uses to sell them.
+    /// </summary>
+    static void Headroom(Action<bool, string> ok)
+    {
+        // gain, send — copied from the cue bodies in Sfx, deliberately by hand:
+        // a check that read the numbers out of the same place they are written
+        // would prove only that the file equals itself.
+        float[,] fold  = { { 0.055f, 0.10f }, { 0.016f, 0.08f }, { 0.055f, 0.14f },
+                           { 0.090f, 0.08f }, { 0.130f, 0.08f } };
+        float[,] plate = { { 0.075f, 0.30f }, { 0.060f, 0.36f }, { 0.075f, 0.10f } };
+        float[,] win   = { { 0.130f, 0.55f }, { 0.055f, 0.60f }, { 0.028f, 0.65f } };
+        float bed = 0.055f;
+
+        float Sum(float[,] cue, float vol, float room)
+        {
+            float t = 0f;
+            for (int i = 0; i < cue.GetLength(0); i++)
+                t += cue[i, 0] * vol + cue[i, 0] * cue[i, 1] * vol * room;
+            return t * Sfx.Headroom;
+        }
+
+        // the faders at their maximum, which is where a player who wants it loud
+        // will leave them
+        const float Vol = 1.5f, Room = 1.5f;
+        float worst = Sum(fold, Vol, Room) + Sum(plate, Vol, Room) + bed * Room * Sfx.Headroom;
+        float alone = Sum(win, Vol, Room) + bed * Room * Sfx.Headroom;
+
+        Console.WriteLine(string.Format(
+            "sound: peak if every layer aligned — fold over a plate {0:0.00}, a collapse {1:0.00} " +
+            "of 1.0, after a {2:0.00} bus trim", worst, alone, Sfx.Headroom));
+
+        // A WORST CASE THAT ASSUMES EVERY LAYER PEAKS ON THE SAME SAMPLE, which
+        // no two of them do: the fold's knock is 210ms behind its whirr and the
+        // plate's re-seat is 620ms behind its sweep. Coherent summing is the
+        // bound, not the expectation. Under 1.0 by this measure means it cannot
+        // clip at all; over 1.0 means it depends on the offsets holding, which is
+        // exactly the kind of thing that stops holding when somebody adds a
+        // layer.
+        ok(worst < 1.0f, "the loudest legal moment sums to " + worst.ToString("0.00") +
+                         " with both faders at 150% — over Unity's 1.0 clip point");
+        ok(alone < 1.0f, "the collapse sums to " + alone.ToString("0.00") + " with both faders at 150%");
     }
 }

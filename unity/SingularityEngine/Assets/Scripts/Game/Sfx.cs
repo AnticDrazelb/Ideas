@@ -86,8 +86,32 @@ namespace Singularity.Game
             return s;
         }
 
+        /// <summary>
+        /// ONE TRIM ON THE WHOLE BUS, BECAUSE THE MIX IS NOT WHAT IS WRONG.
+        ///
+        /// Not one cue in this game is loud. Every cue is three to five layers,
+        /// they overlap, each is sent to a wet voice as well, the bed hums under
+        /// all of it and both faders go to 150%. Nobody had added the numbers up.
+        /// A fold over a plate — the densest legal overlap in the game, and legal
+        /// BY DESIGN, because "every fold is legal on a plate" is the sentence
+        /// the manual sells them with — sums to 1.10 against a mixer that clips
+        /// hard at 1.0. Not a headroom preference: the difference between a
+        /// sound and a click, on the loudest moment the game has.
+        ///
+        /// A TRIM RATHER THAN QUIETER CUES. Turning the layers down would fix the
+        /// number and change the mix — how loud a knock is against a chime is the
+        /// design, and it is the one thing that must not move. Multiplying the
+        /// whole bus preserves every ratio exactly and costs 1.4 dB at the top of
+        /// a fader nobody is at.
+        ///
+        /// It is the fallback for a limiter, not a substitute. Once the mixer
+        /// exists the right place for this is a limiter on Master, which catches
+        /// the case this cannot: a layer somebody adds next year.
+        /// </summary>
+        public const float Headroom = 0.85f;
+
         /// <summary>The bed's level, which is the room's level. See Play.</summary>
-        float BedLevel => 0.055f * Access.Room;
+        float BedLevel => 0.055f * Access.Room * Headroom;
 
         void Init()
         {
@@ -191,14 +215,14 @@ namespace Singularity.Game
 
             AudioSource d = _dry[_dryAt++ % Voices];
             d.clip = clip;
-            d.volume = gain * vol;
+            d.volume = gain * vol * Headroom;
             d.PlayScheduled(AudioSettings.dspTime + delay);
 
             if (send > 0.001f && (bussed || Access.Room > 0.001f))
             {
                 AudioSource w = _wet[_wetAt++ % Voices];
                 w.clip = clip;
-                w.volume = gain * send * vol * room;
+                w.volume = gain * send * vol * room * Headroom;
                 w.PlayScheduled(AudioSettings.dspTime + delay);
             }
         }

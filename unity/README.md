@@ -235,6 +235,18 @@ parameter. Five minutes of clicking:
    half-works if you skip it: the routing is fine and the faders do nothing,
    which reads as a broken slider rather than as a missing one.
 4. Put the reverb on **Room** — one effect on one bus.
+5. Put a **limiter on Master**, and take `Sfx.Headroom` back to 1.0 when you do.
+
+**The headroom is not optional and it is currently a constant.** Nobody had
+added up what the game's loudest moment sums to: a fold over a plate — the
+densest overlap the rules allow, and legal *by design*, since "every fold is
+legal on a plate" is how the manual sells them — is five layers plus three,
+each also sent to a wet voice, over a humming bed, with both faders at 150%.
+That comes to **1.10 against a mixer that clips hard at 1.0**. `Sfx.Headroom`
+trims the whole bus by 0.85, which preserves every ratio in the mix exactly and
+costs 1.4 dB. A limiter on Master is the real answer, because it also catches
+the layer somebody adds next year; the constant cannot. `SoundChecks` prints
+the number every run.
 
 That last point is most of why this is worth doing. Without a mixer the room is
 twenty wet voices each carrying its own `AudioEchoFilter` and its own
