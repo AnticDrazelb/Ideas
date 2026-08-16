@@ -17,6 +17,7 @@
     <Compile Include="AccessChecks.cs" />
     <Compile Include="ChassisChecks.cs" />
     <Compile Include="SoundChecks.cs" />
+    <Compile Include="FilterChecks.cs" />
     <Compile Include="SaveChecks.cs" />
     <Compile Include="CodeChecks.cs" />
     <Compile Include="ContentAudit.cs" />

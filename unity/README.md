@@ -75,6 +75,27 @@ missing member or a wrong overload; every call is correct and the asset simply i
 not there to be found. *A stub proves the shape of a call, never the existence of
 the thing being called* — this is that sentence collecting.
 
+## If the screen is a flat white sheet
+
+Turn **CALIBRATE → BRIGHTNESS** back to 100 and it will come back. That is the
+screen filter, and the bug it had is worth writing down because the shape of it
+recurs.
+
+The filter is the formula `out = in*b*c + 0.5*(1 - c)`, performed in blend modes
+across a stack of overlay quads. It shipped once with that decomposed wrongly —
+a gain of `c` and an offset of `(b - 1)` — which turns the brightness control
+from a multiply into an addition. At the top of its travel that adds 0.6 to every
+pixel of a game whose background is 0.05, so every dark value in the palette
+collapses into the same white and the result looks like a corrupted framebuffer
+rather than like a setting.
+
+Nothing about it was visible in a diff, and no compiler could have had an opinion.
+What catches it is `FilterChecks`, which writes out the blend stage — factor times
+source, factor times destination, and the clamp between every pair — and compares
+the result to the camera shader it replaced at all 8181 slider positions × 256
+input levels. It agrees exactly. Change the decomposition and it says so, in units
+of 255.
+
 ## First run: what to look at, and what to send me
 
 The rules are proved; the presentation is not. So the useful bugs are all in one
