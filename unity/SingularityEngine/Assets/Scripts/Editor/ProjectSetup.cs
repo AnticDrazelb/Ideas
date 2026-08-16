@@ -126,23 +126,19 @@ namespace Singularity.EditorTools
         ///
         /// Every shader here is reached by <c>Shader.Find</c> and NOTHING in the
         /// project references any of them: the scene is empty on purpose, there
-        /// are no materials, no prefabs, no renderers. That is the property this
-        /// project is built on and it is worth what it costs — except that
-        /// Unity's build pipeline decides what to include by REFERENCE, so five
-        /// shaders with zero references are five shaders that do not ship.
+        /// are no materials, no prefabs, no renderers. Unity's build pipeline
+        /// decides what to include by REFERENCE, so five shaders with zero
+        /// references are five shaders that do not ship. In the editor everything
+        /// is loaded and there is no symptom; in a player Shader.Find returns
+        /// null, every material is built on nothing, and the game runs perfectly
+        /// while drawing nothing at all.
         ///
-        /// In the editor everything is loaded, so Shader.Find works and there is
-        /// no symptom whatsoever. In a player it returns null, every material is
-        /// built on nothing, and the game runs perfectly while drawing nothing at
-        /// all. Splash, then black — with no exception, no error, and no clue.
-        ///
-        /// This is the one class of bug the stub harness can NEVER catch. It is
-        /// not a missing member or a wrong overload; every call is correct and the
-        /// asset is simply not there to be found. "A stub proves the SHAPE of a
-        /// call, never the EXISTENCE of the thing being called" — this is that
-        /// sentence collecting.
-        ///
-        /// Always Included Shaders is the reference the project otherwise lacks.
+        /// THERE IS NO PUBLIC API FOR THIS LIST, and that is worth knowing before
+        /// anybody goes looking for one. GraphicsSettings has no
+        /// alwaysIncludedShaders property — the Always Included Shaders array
+        /// lives only in the serialised GraphicsSettings asset, as
+        /// m_AlwaysIncludedShaders, and SerializedObject is the supported way in.
+        /// It is uglier than a property and it is the only thing that exists.
         /// </summary>
         public static void EnsureShaders()
         {
@@ -155,10 +151,21 @@ namespace Singularity.EditorTools
                 "Singularity/Bloom",    // the glow
             };
 
-            var have = new System.Collections.Generic.List<Shader>(
-                GraphicsSettings.defaultRenderPipeline == null
-                    ? GraphicsSettings.alwaysIncludedShaders
-                    : GraphicsSettings.alwaysIncludedShaders);
+            var asset = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset");
+            if (asset == null || asset.Length == 0)
+            {
+                Debug.LogError("[Singularity] cannot open ProjectSettings/GraphicsSettings.asset");
+                return;
+            }
+
+            var so = new SerializedObject(asset[0]);
+            SerializedProperty list = so.FindProperty("m_AlwaysIncludedShaders");
+            if (list == null)
+            {
+                Debug.LogError("[Singularity] GraphicsSettings has no m_AlwaysIncludedShaders — " +
+                               "add the Singularity shaders by hand under Project Settings > Graphics");
+                return;
+            }
 
             int added = 0;
             foreach (string name in want)
@@ -169,16 +176,22 @@ namespace Singularity.EditorTools
                     Debug.LogError("[Singularity] shader " + name + " is missing from the project entirely");
                     continue;
                 }
-                if (have.Contains(sh)) continue;
-                have.Add(sh);
+
+                bool have = false;
+                for (int i = 0; i < list.arraySize; i++)
+                    if (list.GetArrayElementAtIndex(i).objectReferenceValue == sh) { have = true; break; }
+                if (have) continue;
+
+                list.InsertArrayElementAtIndex(list.arraySize);
+                list.GetArrayElementAtIndex(list.arraySize - 1).objectReferenceValue = sh;
                 added++;
             }
 
             if (added == 0) return;
-            GraphicsSettings.alwaysIncludedShaders = have.ToArray();
+            so.ApplyModifiedProperties();
             AssetDatabase.SaveAssets();
-            Debug.Log("[Singularity] added " + added + " shader(s) to Always Included Shaders — "
-                      + "without this a built player draws nothing at all");
+            Debug.Log("[Singularity] added " + added + " shader(s) to Always Included Shaders — " +
+                      "without this a built player draws nothing at all");
         }
 
         public static void EnsureScene()

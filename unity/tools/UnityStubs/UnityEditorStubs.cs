@@ -56,6 +56,38 @@ namespace UnityEditor
         public static void Refresh() { }
         public static string GetAssetPath(UnityEngine.Object o) => null;
         public static void CreateAsset(UnityEngine.Object asset, string path) { }
+        public static UnityEngine.Object[] LoadAllAssetsAtPath(string path) => null;
+    }
+
+    // ---- the serialised back door ---------------------------------------------
+    //
+    // A CAUTIONARY NOTE, BECAUSE THIS FILE JUST FAILED AT ITS ONE JOB.
+    //
+    // The first attempt at Always Included Shaders was written against
+    // GraphicsSettings.alwaysIncludedShaders, which does not exist. A stub was
+    // then added HERE that declared it — so the invention compiled, the harness
+    // went green, and Unity rejected it on open with three CS0117s.
+    //
+    // That is not the harness being wrong, it is the harness being MISUSED. The
+    // rule at the top of UnityStubs.cs is that a declaration is added because the
+    // engine has it, never because the game wants it; a stub written to make a
+    // guess compile converts "I am not sure this API exists" into a green tick,
+    // which is worse than no harness at all. These four are real, and are the
+    // supported way to reach a project setting that has no public property.
+    public class SerializedProperty
+    {
+        public int arraySize { get; set; }
+        public UnityEngine.Object objectReferenceValue { get; set; }
+        public SerializedProperty GetArrayElementAtIndex(int i) => null;
+        public void InsertArrayElementAtIndex(int i) { }
+    }
+
+    public class SerializedObject
+    {
+        public SerializedObject(UnityEngine.Object target) { }
+        public SerializedProperty FindProperty(string path) => null;
+        public bool ApplyModifiedProperties() => false;
+        public void Update() { }
     }
 
     // ---- the chassis window's surface, and only its surface --------------------
