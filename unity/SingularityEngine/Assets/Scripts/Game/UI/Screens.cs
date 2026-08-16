@@ -589,6 +589,29 @@ namespace Singularity.UI
             RectTransform a7 = Entry("TO GO", "The fewest folds still possible from where you stand.", 82f);
             Mark(a7, "i.togo", Palette.Arc, 44, 0, 0);
 
+            // THE COLOPHON, AND WHY A PUZZLE GAME HAS ONE.
+            //
+            // The typeface is licensed under the SIL OFL, which asks that the
+            // copyright notice and the licence travel with the font wherever it
+            // goes. The licence text itself does travel — it is a TextAsset in
+            // Resources beside the .ttf, so it is inside the shipped player and
+            // not only in the repository. This is the part a person can find.
+            //
+            // Gated on the font having actually loaded: if the import failed and
+            // the game is drawing in the builtin, crediting JetBrains Mono for
+            // what you are looking at would simply be false. It also means this
+            // line is a live check on the import — no credit, no font.
+            if (UiKit.HasMono)
+            {
+                Kicker("THE FACE");
+                UiKit.Label(M, "colophon",
+                            "JetBrains Mono, by the JetBrains Mono Project Authors, under the SIL Open Font License 1.1. The licence ships with the game.",
+                            17, Palette.Dim2, TextAnchor.UpperLeft,
+                            new Vector2(0, 1), new Vector2(1, 1),
+                            new Vector2(44, -(y + 76)), new Vector2(-44, -y), wrap: true);
+                y += 76f;
+            }
+
             UiKit.EndScroll(M, y + 24f);
 
             RectTransform got = UiKit.Rect(L, "got", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));
@@ -681,19 +704,41 @@ namespace Singularity.UI
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -130), new Vector2(0, -100));
             UiKit.Label(L, "h", "PLATES", 44, Palette.Rust, TextAnchor.UpperCenter,
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -190), new Vector2(0, -140));
+            // TWO LINES, BECAUSE THE FACE IS A MONOSPACE NOW. Fifty-six characters
+            // at twenty points across the plate is one line in a proportional face
+            // and two in this one — every glyph is 0.6em, and lowercase is where
+            // that costs. The box is as tall as the sentence actually needs; the
+            // gap down to the first row was carrying the slack anyway.
+            //
+            // AND THE SAME FORTY-EIGHT OF MARGIN THE ROWS UNDER IT HAVE. It had
+            // none because it had never wrapped: a single centred line sat well
+            // inside the plate on its own. Two lines fill the measure, and at zero
+            // margin the second one would have run to the literal edge of the
+            // glass with the bezel starting at the next pixel.
             UiKit.Label(L, "sub", "Everything you know how to do is about to be worth less.",
                         20, Palette.Dim, TextAnchor.UpperCenter,
-                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -230), new Vector2(0, -200),
+                        new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, -272), new Vector2(-48, -200),
                         wrap: true);
 
+            // NO AUTHORED BREAKS IN A BODY. Exactly the change the manual got, for
+            // exactly the reason, and this screen is where it actually bit: the
+            // breaks below were placed where a proportional face ran out of plate,
+            // so under a monospace each one forced a short line AND the wrap that
+            // was going to happen anyway. Four lines where two were meant, in a box
+            // built for two, on all four rows. Let it wrap and it is three.
             string[] rows =
             {
-                "THE LATTICE INVERTS|Every trace goes dead. Every dead cell lights up.\nNothing moves — only what carries current.",
-                "IT LASTS FIVE SECONDS|Then the lattice springs back and puts you on the nearest\nplate. Running out costs you the walk, never the vault.",
-                "TAP IT AGAIN TO PRESS IT AGAIN|A plate is a door between two versions of the same engine,\nand the core is usually only reachable in one of them.",
-                "IT ALWAYS GIVES FOOTING|Cut clean through the lattice, visible from every face.\nWhile you stand on a plate every fold is legal.",
+                "THE LATTICE INVERTS|Every trace goes dead. Every dead cell lights up. Nothing moves — only what carries current.",
+                "IT LASTS FIVE SECONDS|Then the lattice springs back and puts you on the nearest plate. Running out costs you the walk, never the vault.",
+                "TAP IT AGAIN TO PRESS IT AGAIN|A plate is a door between two versions of the same engine, and the core is usually only reachable in one of them.",
+                "IT ALWAYS GIVES FOOTING|Cut clean through the lattice, visible from every face. While you stand on a plate every fold is legal.",
             };
 
+            // Three wrapped lines at nineteen points is a hair over seventy-five
+            // units of type, so the body box is seventy-eight and the row pitch is
+            // a hundred and thirty. Four rows from -290 put the last body's floor
+            // at -790, and the STEP ON IT button's ceiling is at -967 — the column
+            // still ends well clear of it.
             float y = -290;
             foreach (string r in rows)
             {
@@ -701,9 +746,9 @@ namespace Singularity.UI
                 UiKit.Label(L, p[0], p[0], 23, Palette.Ink, TextAnchor.UpperLeft,
                             new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 30), new Vector2(-48, y));
                 UiKit.Label(L, p[0] + "_d", p[1], 19, Palette.Dim, TextAnchor.UpperLeft,
-                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 92), new Vector2(-48, y - 32),
+                            new Vector2(0, 1), new Vector2(1, 1), new Vector2(48, y - 110), new Vector2(-48, y - 32),
                             wrap: true);
-                y -= 118;
+                y -= 130;
             }
 
             RectTransform go = UiKit.Rect(L, "go", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 160));

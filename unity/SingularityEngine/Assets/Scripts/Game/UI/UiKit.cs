@@ -48,33 +48,50 @@ namespace Singularity.UI
         }
 
         /// <summary>
-        /// THE FACE THIS INTERFACE CLAIMS TO SPEAK IN, AND DOES NOT.
+        /// THE FACE THIS INTERFACE SPEAKS IN. IT IS A REAL ONE NOW.
         ///
-        /// It is called Mono, the design notes call it monospace, and the shipped
-        /// CSS it was ported from used a real one. What it actually returns is
-        /// `LegacyRuntime.ttf` — Unity's built-in **Arial**. The Courier New
-        /// fallback under it fires only if that builtin is missing, which it is
-        /// not, so it has never once run.
+        /// It is called Mono, the design notes call it monospace, the CSS it was
+        /// ported from used a real one — and for the whole port so far it returned
+        /// `LegacyRuntime.ttf`, which is Unity's built-in **Arial**. Not a taste
+        /// decision: it was the only font obtainable while importing an asset was
+        /// against the rules. That rule is gone, so this is JetBrains Mono, and
+        /// the licence it ships under is in Resources beside it.
         ///
-        /// That was not a taste decision. It was the only font obtainable without
-        /// importing an asset, back when importing an asset was against the rules.
-        /// It no longer is, so this should become a real face — and it is worth
-        /// knowing what changes when it does: numbers in the HUD chips will
-        /// tabular-align for the first time, and every width estimate behind the
-        /// wrapping and best-fit work in this file was made against Arial's
-        /// metrics, not a monospace's.
+        /// WHAT CHANGED, MEASURED RATHER THAN HOPED FOR. Every glyph is 0.6em now,
+        /// so the HUD chips tabular-align for the first time and a counter ticking
+        /// 9 to 10 stops shoving the slash beside it. Across the thirty-one
+        /// single-line labels in the game the median line got NARROWER — x0.963 —
+        /// because uppercase is where a proportional face is widest and a
+        /// monospace is not. Lowercase prose went the other way and grew by up to
+        /// half again, and the line box is taller too (1.32em against Arial's
+        /// 1.15), which is between them why the four rows of the plate lesson had
+        /// to be re-measured in the same commit that brought the font in.
+        ///
+        /// THE FALLBACK IS NOT DECORATION. Resources.Load returns null if the
+        /// asset failed to import — a font Unity could not parse, a stripped
+        /// build, someone deleting it — and a null Font on a Text draws NOTHING.
+        /// Silent, total, every screen. So the builtin stays underneath as the
+        /// thing that keeps the game readable rather than blank.
         /// </summary>
         public static Font Mono
         {
             get
             {
                 if (_mono != null) return _mono;
-                _mono = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                _mono = Resources.Load<Font>("mono");
+                if (_mono == null) _mono = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 if (_mono == null) _mono = Font.CreateDynamicFontFromOSFont("Courier New", 16);
                 return _mono;
             }
         }
         static Font _mono;
+
+        /// <summary>
+        /// Whether the imported face is the one being drawn, or the game fell back
+        /// to the builtin. Only the colophon asks — it should not credit a font it
+        /// is not showing you.
+        /// </summary>
+        public static bool HasMono => Mono != null && Mono.name == "mono";
 
         /// <summary>
         /// Every canvas this kit has made, so legibility can repaint the

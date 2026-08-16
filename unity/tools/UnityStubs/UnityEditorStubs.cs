@@ -132,6 +132,27 @@ namespace UnityEditor
         public UnityEngine.FilterMode filterMode { get; set; }
     }
 
+    // THE FONT IMPORTER, AND THE THREE ENUMS WHOSE MEMBER NAMES ARE THE WHOLE
+    // POINT OF STUBBING IT. The settings themselves are booleans and enum values
+    // — nothing here can check that HintedSmooth is a better choice than Smooth,
+    // and nothing here proves TrueTypeFontImporter has these properties at all.
+    // What it proves is that FontImport.cs says the names Unity's API says, so a
+    // typo in one of them is a compile error in this harness rather than a silent
+    // no-op discovered when a phone renders the interface in Roboto.
+    public enum FontTextureCase { Dynamic = -2, Unicode = -1, ASCII = 0, ASCIIUpperCase = 1, ASCIILowerCase = 2, CustomSet = 3 }
+
+    public enum FontRenderingMode { Smooth = 0, HintedSmooth = 1, HintedRaster = 2, OSDefault = 3 }
+
+    public enum AscentCalculationMode { Legacy = 0, FaceAscender = 1, FaceBoundingBox = 2 }
+
+    public class TrueTypeFontImporter : AssetImporter
+    {
+        public FontTextureCase fontTextureCase { get; set; }
+        public FontRenderingMode fontRenderingMode { get; set; }
+        public AscentCalculationMode ascentCalculationMode { get; set; }
+        public bool includeFontData { get; set; }
+    }
+
     /// <summary>The import hook itself. Only the two members Chassis's importer uses.</summary>
     public class AssetPostprocessor
     {

@@ -116,16 +116,43 @@ files:
   which is what makes it reviewable. That standard holds for anything that gets
   added.
 
-**And the first thing it buys is a typeface, which turns out to be a bug report.**
-Every screen in this game is described as speaking in a monospace face —
-`UiKit.Mono`, `--mono`, "the same monospace the rest of the interface speaks".
-It does not. `Mono` returns `LegacyRuntime.ttf`, which is Unity's built-in
+**And the first thing it bought was a typeface, which turned out to be a bug
+report.** Every screen in this game is described as speaking in a monospace face
+— `UiKit.Mono`, `--mono`, "the same monospace the rest of the interface speaks".
+It did not. `Mono` returned `LegacyRuntime.ttf`, which is Unity's built-in
 **Arial**; the Courier New fallback beneath it only fires if that is missing,
 and it never is. So ninety-four labels, every chip, every bracketed button and
-every number in the HUD render in a proportional face, and the design language
-has been describing something the game does not do since the port was written.
-That was not a decision, it was the only font available without an asset. There
-is now no reason it should stay that way.
+every number in the HUD rendered in a proportional face, and the design language
+had been describing something the game did not do since the port was written.
+Not a decision — the only font available without an asset.
+
+### The face
+
+`Assets/Resources/mono.ttf` is **JetBrains Mono 2.304**, under the SIL Open Font
+License 1.1. The licence travels with it twice: `mono-licence.txt` sits beside
+it in `Resources`, so it is inside the shipped player and not only in this
+repository, and the manual carries a colophon naming the authors — gated on the
+font having actually loaded, so it cannot credit a face the game is not drawing
+in. The builtin stays underneath as a fallback, because `Resources.Load`
+returning null would otherwise mean a `Text` with no font, which draws nothing
+at all on every screen at once.
+
+**What the swap actually cost, measured rather than guessed.** Across the
+thirty-one single-line literal labels the median line got *narrower* — ×0.963 —
+because uppercase is where a proportional face is widest and a monospace is not.
+Lowercase prose went the other way, up to ×1.5, and the line box is taller too:
+1.32em against Arial's 1.15. Both together broke exactly one screen, the plate
+lesson, where four bodies carrying **authored line breaks** turned into four
+lines each in a box built for two. The fix is the one the manual had already
+had: delete the breaks — they were placed where a *proportional* face ran out of
+plate — and let it wrap. Three lines, a row pitch of 130 instead of 118, and the
+column still ends 180 units clear of the button.
+
+None of this was eyeballed. `unity/tools/type/reflow.py` wraps every prose box
+against the real `hmtx` advances of both faces and prints which ones overflow
+their measured height — it is how the five overflows were found and how the new
+numbers were chosen, and it exits non-zero while any box is over, so it is worth
+re-running whenever a sentence on a screen changes.
 
 ---
 
