@@ -205,7 +205,7 @@ namespace Singularity.Game
             // which is not a position anybody can play out of, and undo would be a
             // button that re-served the same death. This is a retry, so it is a
             // whole run at it.
-            plateT = world != 0 ? PlateMs : 0;
+            plateT = (world & ~Level.Everted) != 0 ? PlateMs : 0;
 
             walking = null; anim = null; drag = null;
             won = false; stuck = false;
@@ -485,7 +485,12 @@ namespace Singularity.Game
         public void FirePlate(int bit)
         {
             world ^= bit;
-            plateT = world != 0 ? PlateMs : 0;   // the flipped cube is on a clock
+            // THE CLOCK IS FOR THE PLATE BITS ONLY. An everted world with no plate
+            // in it is a standing state, not a countdown, so the clock is armed
+            // by bits 1 and 2 and is blind to bit 4 — otherwise stepping on an
+            // everter would start a five-second timer that reverts a polarity
+            // nobody asked to be temporary.
+            plateT = (world & ~Level.Everted) != 0 ? PlateMs : 0;
             lv.ClearEff();
             surf = Projection.Project(N, lv.Eff(world), M, Everted);
             On.PlateFired?.Invoke(pos, bit);
@@ -536,7 +541,20 @@ namespace Singularity.Game
         public void RevertWorld()
         {
             PushUndo();
-            world = 0;
+            // EVERSION SURVIVES THE CLOCK, AND THAT IS THE WHOLE DIFFERENCE.
+            //
+            // A plate is a five-second window: it changes the board and takes it
+            // back, and the pressure is the countdown. An everter changes which
+            // FACE of the solid is the surface, and nothing about that is
+            // temporary — you are standing on the far side until you stand on
+            // another everter.
+            //
+            // It is not a preference. The solver carries `world` through its
+            // search and has no notion of the clock at all, because the clock is
+            // real time and the search is not. A polarity that expired would make
+            // every cube in Baked.Arc solvable on paper and impossible in the
+            // hand, and nothing in the harness could have seen it.
+            world &= Level.Everted;
             plateT = 0;
             _lastPlateTick = -1;
             walking = null;      // any queued route dies with the world it was planned in

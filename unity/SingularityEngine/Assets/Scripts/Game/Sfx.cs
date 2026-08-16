@@ -409,6 +409,25 @@ namespace Singularity.Game
             Tone(73.4f, 0.9f, Wave.Sine, 0.085f, 69f, 0.24f, 0.240);
         }
 
+        /// <summary>
+        /// THE ENGINE TURNING THROUGH ITSELF.
+        ///
+        /// Not a plate and it must not sound like one. A plate is a sweep — the
+        /// world going one way — and this is a REVERSAL, so it is built as two
+        /// slides that cross: one falling, one rising, meeting in the middle
+        /// where the solid is edge-on. The ear hears the two pass through each
+        /// other, which is the event.
+        /// </summary>
+        public void Evert()
+        {
+            Say("EVERTED");
+            if (Sample("evert", 0.11f, 0.34f)) return;
+            Tone(320f, 0.52f, Wave.Sine, 0.070f, 70f, 0.30f);      // falling
+            Tone(70f, 0.52f, Wave.Sine, 0.070f, 320f, 0.30f);      // rising, crossing it
+            Noise(0.44f, 900f, 0.045f, 0.34f, 3600f);
+            Tone(52f, 0.20f, Wave.Sine, 0.100f, 40f, 0.10f, 0.270); // the detent, at the crossing
+        }
+
         /// <summary>The lattice going to glass and back: the drive spinning up, and down.</summary>
         public void Peek()
         {

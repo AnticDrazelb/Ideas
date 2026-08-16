@@ -311,13 +311,39 @@ first four of vault IX, which is exactly where the audit says the ladder stops
 getting harder. `ArcChecks` re-proves on every run that each cube still *requires*
 its own lesson.
 
-**The visual language for "everted" is unresolved, and it is the one thing
-between this and shipping.** The solid does not change when you evert — only
-which face of it is the surface — so the mesh looks identical and the board
-underneath silently becomes a different board. That needs a real answer in the
-editor: a flip, a turn-through, a change in the depth shading. Nothing in this
-repository can judge it, and shipping the rule without it would be shipping a
-mechanic the player cannot see.
+**The visual is in, and it is the honest one.** `Cell.shader` opens by insisting
+that the renderer and the rules are the same statement: an orthographic camera
+down one axis makes the *depth buffer* perform the projection, so the nearest
+cell in a column is the one drawn, which is exactly the rule the solver plays
+by. Everting reverses that rule, so the renderer reverses the same way — a scale
+of **−1 along the camera axis**. The far cells become the nearest ones. It does
+not resemble eversion, it *is* eversion, and the depth buffer keeps doing its one
+job.
+
+It goes on `CubeView`'s own transform rather than on `cube`, because `cube`
+carries the orientation and would flip along whichever axis the last fold pointed
+at the camera. `Cull Off` was already set — the solid is closed and the peek path
+draws back faces — so the inverted winding a negative scale produces costs
+nothing.
+
+The **turn** is the drama. Scale passes through zero, where the solid is edge-on
+and momentarily a line, and that instant is not hidden but *used*: the cube goes
+to glass on the way in and hardens on the way out, quoting the MATRIX look the
+player already knows. Matrix says "there is something behind this." Eversion is
+that sentence finished. Violet is pushed into every material's near-colour across
+the turn, there is a hitstop and a slow-mo timed to land at the crossing, and the
+sound is two slides — one falling, one rising — that pass through each other.
+
+**Eversion survives the plate clock, and that is the whole difference between the
+two objects.** A plate is a five-second window; an everter is a standing state.
+The solver carries `world` through its search and has no notion of the clock at
+all, because the clock is real time and the search is not — so a polarity that
+expired would make every cube in `Baked.Arc` solvable on paper and impossible in
+the hand. `plateT` is armed by bits 1 and 2 and is blind to bit 4.
+
+**What is still unseen:** nobody has opened this in an editor. The rule, the
+arithmetic and the four cubes are proved; whether the turn *reads* at 60fps on a
+phone is the one question the harness cannot answer.
 
 **Gravity is not in**, and `DESIGN.md §2` says why: the boards are corridors and
 there is nothing to fall through. It waits on the generator making spaces rather

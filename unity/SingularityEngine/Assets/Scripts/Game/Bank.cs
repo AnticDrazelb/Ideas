@@ -89,6 +89,7 @@ namespace Singularity.Game
             "stuck",      // two clicks and a low held note
             "peek",       // the drive spinning up
             "peekoff",    // and down
+            "evert",      // the engine turning through itself
             "bed",        // the room itself, looped
         };
     }

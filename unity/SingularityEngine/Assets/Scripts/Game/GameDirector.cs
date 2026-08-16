@@ -219,6 +219,35 @@ namespace Singularity.Game
 
             S.On.PlateFired = (cell, bit) =>
             {
+                // AN EVERTER IS NOT A PLATE AND MUST NOT FEEL LIKE ONE.
+                //
+                // A plate changes the BOARD — every trace goes dead, every dead
+                // cell lights — and it earns the loudest moment in the game. An
+                // everter changes nothing about any cell; it changes which face
+                // of the solid you are standing on. So it gets its own weight: a
+                // long, symmetrical turn rather than a bang, violet rather than
+                // rust, and a stop at the CROSSING rather than at the strike,
+                // because the moment the solid is edge-on is the moment the two
+                // boards trade places.
+                if (bit == Level.Everted)
+                {
+                    View.Rebuild(true);
+                    Rig.Punch(0.055f); Rig.Squash(false, 0.11f);
+                    Hud.Flash(Palette.Evert, 0.30f, 0.62f);
+                    _sfx.Evert();
+                    Scanlines.WarmUp();
+                    _fx.PlateFired(S.N, At(cell));
+                    _orb.SetMood("wide", 900f);
+                    // the hold lands halfway through the turn, where the solid is
+                    // edge-on — CubeView.EvertSeconds is the whole flip, so half
+                    // of it is the crossing
+                    TimeBend.Hitstop(90f);
+                    TimeBend.Slowmo(0.42f, CubeView.EvertSeconds * 1000f);
+                    View.RestartReveal(0.26f * 26f);
+                    Hud.Toast(S.Everted ? "EVERTED — THE FAR SIDE" : "RESTORED — THE NEAR SIDE");
+                    return;
+                }
+
                 // THE BIGGEST EVENT IN THE GAME, and the only one that changes the
                 // board rather than the view of it.
                 View.Rebuild(true);

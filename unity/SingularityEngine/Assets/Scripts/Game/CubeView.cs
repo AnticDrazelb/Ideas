@@ -37,6 +37,7 @@ namespace Singularity.Game
 
         // The transition front, in cells, and which way it runs.
         float _wave = 99f, _waveDir = 1f;
+        bool _wasTurning;
         Int3 _waveFocus;
         const float WavePerSecond = 22f;
 
@@ -63,6 +64,33 @@ namespace Singularity.Game
 
         // ---- live view state (driven by the session and the input router) ----
         public float peekYaw, peekPitch, peekAmt;
+
+        // ---- eversion ---------------------------------------------------------
+        //
+        // THE RENDERER AND THE RULES HAVE TO STAY THE SAME STATEMENT. That is the
+        // claim at the top of Cell.shader and it is the reason the board is drawn
+        // as a solid at all: an orthographic camera down one axis makes the DEPTH
+        // BUFFER perform the projection, so the nearest cell in a column is the
+        // one that gets drawn, which is precisely the rule the solver plays by.
+        //
+        // Everting reverses that rule — each column shows its FAR side — so the
+        // renderer has to reverse the same way, and there is exactly one honest
+        // way to do it without touching the depth test: TURN THE SOLID THROUGH
+        // ITSELF. A scale of -1 along the camera axis puts the far cells nearest,
+        // which is not an effect that resembles eversion, it IS eversion, and the
+        // depth buffer keeps doing the one job it was given.
+        //
+        // It goes on THIS transform rather than on `cube`, because `cube` carries
+        // the orientation and would flip along whichever axis the fold happens to
+        // have pointed at the camera. This one is never rotated, so its Z is the
+        // view axis at every orientation. Cull is already Off — the solid is
+        // closed and the peek path draws back faces — so the inverted winding a
+        // negative scale produces costs nothing.
+        public float evertAmt;          // 0 upright, 1 everted; the eased position
+        float _evertTarget;
+
+        /// <summary>How long the solid takes to turn through itself, in seconds.</summary>
+        public const float EvertSeconds = 0.55f;
 
         /// <summary>
         /// THE ATTRACT CUBE. The title screen is a composition with a cube in the
@@ -462,7 +490,25 @@ namespace Singularity.Game
             // MATRIX — the third verb. The lattice goes to glass and the whole
             // solid can be orbited, which costs the other two verbs nothing
             // because it is reached by holding still rather than by moving.
-            float e = peekAmt * peekAmt * (3f - 2f * peekAmt);
+            // THE TURN, AND THE GLASS THAT COVERS IT.
+            //
+            // Halfway through the flip the solid is edge-on and a scale of zero
+            // is a degenerate object — a line. That instant is not hidden, it is
+            // USED: the cube goes to glass on the way in and hardens on the way
+            // out, which is the same look MATRIX already taught the player, so
+            // "there is something behind this" is a sentence they have heard.
+            // Eversion is that sentence finished: the behind is now the front.
+            _evertTarget = _s != null && _s.Everted ? 1f : 0f;
+            evertAmt = Mathf.MoveTowards(evertAmt, _evertTarget,
+                                         Time.unscaledDeltaTime / Mathf.Max(0.01f, EvertSeconds));
+            float ev = evertAmt * evertAmt * (3f - 2f * evertAmt);
+            transform.localScale = new Vector3(1f, 1f, Mathf.Lerp(1f, -1f, ev));
+
+            // one at the middle of the turn, zero at either end — how much of the
+            // transition we are IN, as opposed to which side of it we are on
+            float turning = 1f - Mathf.Abs(ev * 2f - 1f);
+
+            float e = Mathf.Max(peekAmt * peekAmt * (3f - 2f * peekAmt), turning * 0.85f);
             if (e > 1e-4f)
             {
                 live = Quaternion.AngleAxis(-peekYaw * e * Mathf.Rad2Deg, Vector3.up)
@@ -487,12 +533,30 @@ namespace Singularity.Game
             _wave += Time.unscaledDeltaTime * WavePerSecond;
             foreach (Material m in new[] { _matTrace, _matLattice, _matPlate })
             {
-                m.SetFloat("_Peek", peekAmt * peekAmt * (3f - 2f * peekAmt));
+                m.SetFloat("_Peek", e);
                 m.SetFloat("_Wave", _wave);
                 m.SetFloat("_WaveDir", _waveDir);
             }
 
             _reveal += Time.unscaledDeltaTime * RevealPerSecond;
+            // THE COLOUR OF THE TURN. The everter's violet is pushed into the
+            // near-colour of every material while the solid is passing through
+            // itself, so the flip is not a silent geometric event — the whole
+            // board says which control did this, in the control's own hue, and
+            // the light channel scales it because it is light.
+            if (turning > 1e-4f)
+            {
+                float k = turning * Access.LightAmount;
+                _matTrace.SetColor("_ColNear", Color.Lerp(Palette.TraceNear, Palette.Evert, k * 0.8f));
+                _matLattice.SetColor("_ColNear", Color.Lerp(Palette.LatticeNear, Palette.Evert, k * 0.55f));
+            }
+            else if (_wasTurning)
+            {
+                _matTrace.SetColor("_ColNear", Palette.TraceNear);
+                _matLattice.SetColor("_ColNear", Palette.LatticeNear);
+            }
+            _wasTurning = turning > 1e-4f;
+
             _matTrace.SetFloat("_Reveal", _reveal);
             _matLattice.SetFloat("_Reveal", _reveal);
             _matPlate.SetFloat("_Reveal", _reveal);

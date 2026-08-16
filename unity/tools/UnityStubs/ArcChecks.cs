@@ -66,6 +66,17 @@ static class ArcChecks
             ok(Reachable(lv), b.name + " has an everter the player can never stand on");
         }
 
+        // THE POLARITY MUST NOT BE ON THE PLATE CLOCK.
+        //
+        // A plate is a five-second window and an everter is a standing state. The
+        // solver carries `world` through its search and has no notion of the
+        // clock at all — it is real time and the search is not — so a polarity
+        // that expired would make every cube above solvable on paper and
+        // impossible in the hand, and no other check here could have seen it.
+        // This is the arithmetic that decides it, asserted where it is visible.
+        ok((Level.Everted & ~Level.Everted) == 0 && (3 & ~Level.Everted) == 3,
+           "the plate bits and the polarity bit are not separable");
+
         Console.WriteLine("arc: " + Baked.Arc.Length + " authored cubes at " + Baked.ArcStart +
                           "-" + (Baked.ArcStart + Baked.Arc.Length - 1) +
                           ", each still proved to require its own lesson");
