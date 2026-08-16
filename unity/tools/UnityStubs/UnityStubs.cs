@@ -625,6 +625,24 @@ namespace UnityEngine
 
     public static class QualitySettings { public static int vSyncCount { get; set; } }
 
+    namespace Rendering
+    {
+        /// <summary>
+        /// THE LIST THAT DECIDES WHETHER THIS GAME DRAWS ANYTHING AT ALL.
+        ///
+        /// Every shader here is reached by Shader.Find and nothing references
+        /// any of them, because the scene is empty by design — so the build
+        /// strips all five and the player runs perfectly while drawing nothing.
+        /// This stub exists so the fix compiles without an editor; it cannot
+        /// prove the fix WORKS, which is the whole shape of the bug.
+        /// </summary>
+        public static class GraphicsSettings
+        {
+            public static Shader[] alwaysIncludedShaders { get; set; } = new Shader[0];
+            public static Object defaultRenderPipeline => null;
+        }
+    }
+
     /// <summary>
     /// IMPLEMENTED FOR REAL, for the reason Mathf and Color are.
     ///

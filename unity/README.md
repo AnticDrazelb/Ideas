@@ -42,6 +42,39 @@ hex values picked by eye and the board is read off one property — a trace is
 brighter than the lattice at every depth. Linear re-maps all of them and the two
 depth ramps stop being the distances they were authored to be.
 
+## If the build is black after the splash
+
+**This is almost certainly the shaders, and it is the empty scene's one real
+cost.** Every shader here is reached by `Shader.Find` and *nothing in the project
+references any of them* — no scene objects, no materials, no prefabs. Unity
+decides what to include in a player by reference, so five shaders with zero
+references are five shaders that do not ship. In the editor every asset is
+loaded, so `Shader.Find` works and there is no symptom at all; in a player it
+returns null, every material is built on nothing, and the game runs perfectly
+while drawing nothing.
+
+```sh
+adb logcat -c && adb logcat -s Unity:V | grep Singularity
+```
+
+You want the line `shaders missing from this build: …`. Then:
+
+1. **Singularity → Apply Project Settings** — `EnsureShaders` adds all five to
+   Always Included Shaders.
+2. Rebuild.
+
+`build-android.sh` and the editor build item both apply project settings first,
+so a fresh clone gets this without anyone knowing it was ever a problem. A build
+made before this fix existed will not.
+
+The game now says so on screen rather than going black, in Unity's own UI shader
+— the one thing that cannot itself be the missing piece.
+
+**This is the exact class of bug the stub harness can never catch.** It is not a
+missing member or a wrong overload; every call is correct and the asset simply is
+not there to be found. *A stub proves the shape of a call, never the existence of
+the thing being called* — this is that sentence collecting.
+
 ## First run: what to look at, and what to send me
 
 The rules are proved; the presentation is not. So the useful bugs are all in one

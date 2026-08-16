@@ -36,6 +36,18 @@ namespace Singularity.Game
                 Object.DontDestroyOnLoad(es);
             }
 
+            // A BLACK SCREEN MUST NEVER BE THE ERROR MESSAGE.
+            //
+            // If the shaders did not make it into the build, everything below
+            // runs perfectly and draws nothing: no exception, no warning, no
+            // clue. That is the worst failure a player or a build can hand you,
+            // and it is worth twenty lines to make it impossible.
+            if (!Shaders.Ok(out string missing))
+            {
+                Shaders.Complain(missing);
+                return;
+            }
+
             var go = new GameObject("SINGULARITY ENGINE");
             Object.DontDestroyOnLoad(go);
             go.AddComponent<GameDirector>();

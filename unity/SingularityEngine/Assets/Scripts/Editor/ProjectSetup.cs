@@ -3,6 +3,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Singularity.EditorTools
 {
@@ -97,6 +98,7 @@ namespace Singularity.EditorTools
             TrySilenceSplash();
 
             EnsureScene();
+            EnsureShaders();
             AssetDatabase.SaveAssets();
             Debug.Log("[Singularity] project settings applied");
         }
@@ -119,6 +121,66 @@ namespace Singularity.EditorTools
         /// EXIST and be in the build list, and if it has gone missing this makes a
         /// new one rather than failing.
         /// </summary>
+        /// <summary>
+        /// THE EMPTY SCENE'S ONE REAL COST, AND IT COSTS THE WHOLE GAME.
+        ///
+        /// Every shader here is reached by <c>Shader.Find</c> and NOTHING in the
+        /// project references any of them: the scene is empty on purpose, there
+        /// are no materials, no prefabs, no renderers. That is the property this
+        /// project is built on and it is worth what it costs — except that
+        /// Unity's build pipeline decides what to include by REFERENCE, so five
+        /// shaders with zero references are five shaders that do not ship.
+        ///
+        /// In the editor everything is loaded, so Shader.Find works and there is
+        /// no symptom whatsoever. In a player it returns null, every material is
+        /// built on nothing, and the game runs perfectly while drawing nothing at
+        /// all. Splash, then black — with no exception, no error, and no clue.
+        ///
+        /// This is the one class of bug the stub harness can NEVER catch. It is
+        /// not a missing member or a wrong overload; every call is correct and the
+        /// asset is simply not there to be found. "A stub proves the SHAPE of a
+        /// call, never the EXISTENCE of the thing being called" — this is that
+        /// sentence collecting.
+        ///
+        /// Always Included Shaders is the reference the project otherwise lacks.
+        /// </summary>
+        public static void EnsureShaders()
+        {
+            string[] want =
+            {
+                "Singularity/Cell",     // the board. Without it there is no game on screen.
+                "Singularity/Glyph",    // every icon, every additive UI surface, the glass
+                "Singularity/Fx",       // sparks and rings
+                "Singularity/Filter",   // brightness and contrast
+                "Singularity/Bloom",    // the glow
+            };
+
+            var have = new System.Collections.Generic.List<Shader>(
+                GraphicsSettings.defaultRenderPipeline == null
+                    ? GraphicsSettings.alwaysIncludedShaders
+                    : GraphicsSettings.alwaysIncludedShaders);
+
+            int added = 0;
+            foreach (string name in want)
+            {
+                Shader sh = Shader.Find(name);
+                if (sh == null)
+                {
+                    Debug.LogError("[Singularity] shader " + name + " is missing from the project entirely");
+                    continue;
+                }
+                if (have.Contains(sh)) continue;
+                have.Add(sh);
+                added++;
+            }
+
+            if (added == 0) return;
+            GraphicsSettings.alwaysIncludedShaders = have.ToArray();
+            AssetDatabase.SaveAssets();
+            Debug.Log("[Singularity] added " + added + " shader(s) to Always Included Shaders — "
+                      + "without this a built player draws nothing at all");
+        }
+
         public static void EnsureScene()
         {
             if (!File.Exists(ScenePath))
