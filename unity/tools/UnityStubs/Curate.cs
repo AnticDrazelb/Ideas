@@ -92,32 +92,42 @@ static class Curate
     public static readonly Vault[] Ladder =
     {
         // ---- the verbs, one at a time ------------------------------------
+        // ---- the verbs, one at a time ------------------------------------
         V("CALIBRATION", 5, 2, 4, 0, 0, null,  1.00, "the fold, the walk, the core"),
         V("REFRACTION",  5, 3, 5, 0, 0, null,  0.80, "folds that cost you the route"),
         V("INVERSION",   6, 3, 6, 1, 0, null,  0.70, "nodes and the locks they open"),
         V("ENTROPY",     6, 4, 6, 1, 0, null,  0.62, "two pairs, and the order between them"),
         V("EMBERFALL",   6, 4, 7, 0, 1, "A",   0.58, "the plate: two worlds, one board"),
-        V("SUBSTRATE",   6, 4, 7, 1, 1, "AB",  0.54, "the other plate, and a lock behind it"),
+        V("SUBSTRATE",   6, 4, 7, 1, 1, "B",   0.54, "the other plate, which opens the solid"),
         V("THE FAR SIDE",7, 5, 8, 0, 1, "E",   0.50, "the everter: the column shows its far cell"),
 
-        // ---- and then nothing new, for three hundred and twenty-five cubes ---
+        // ---- AND THEN THEY LAYER --------------------------------------------
         //
-        // From here every cube may carry any of the three, which is the whole
-        // point of closing the vocabulary: the interest is in which one turned up
-        // and what it is next to, not in learning a fourth thing.
-        V("REVENANT",    7, 5, 8, 1, 1, "ABE", 0.48, ""),
-        V("COLD FORGE",  7, 5, 9, 2, 1, "ABE", 0.45, ""),
-        V("THE CANT",    7, 6, 9, 1, 1, "ABE", 0.42, ""),
-        V("SALT REACH",  8, 6, 10, 2, 1, "ABE", 0.40, ""),
-        V("BONE WORKS",  8, 6, 10, 1, 1, "ABE", 0.38, ""),
-        V("GLASS SPINE", 8, 7, 11, 2, 1, "ABE", 0.35, ""),
-        V("THE HOLLOW",  8, 7, 11, 2, 1, "ABE", 0.33, ""),
-        V("ASH TERRACE", 8, 7, 12, 2, 1, "ABE", 0.30, ""),
-        V("FROST GATE",  9, 8, 12, 2, 1, "ABE", 0.28, ""),
-        V("COPPER MARCH",9, 8, 13, 2, 1, "ABE", 0.26, ""),
-        V("SHALE KEEP",  9, 8, 13, 2, 1, "ABE", 0.24, ""),
-        V("TIDE WELL",   9, 9, 14, 2, 1, "ABE", 0.22, ""),
-        V("SINGULARITY", 9, 9, 15, 2, 1, "ABE", 0.20, ""),
+        // Nothing new is taught past here and the vocabulary is closed, but until
+        // now every cube in the game carried exactly ONE world-changer. GlyphPlan
+        // says why — "a second lowers par, more worlds to shortcut through" — and
+        // that is correct and it is an argument about the wrong axis. Par has been
+        // measured as the thing that does not carry a ladder; DECISIONS are, and
+        // two glyphs is four worlds, three is eight. Every extra world is another
+        // board the same solid can be, another set of folds that are legal, and
+        // another way to be wrong.
+        //
+        // So they stack: two from vault VIII, three from vault XV, and the SET
+        // widens with the count so a layered cube is usually a plate under an
+        // everter rather than two of the same thing.
+        V("REVENANT",    7, 5, 8, 1, 2, "AB",  0.48, "two plates, and the four boards between them"),
+        V("COLD FORGE",  7, 5, 9, 2, 2, "AE",  0.45, "a plate under an everter"),
+        V("THE CANT",    7, 6, 9, 1, 2, "BE",  0.42, ""),
+        V("SALT REACH",  8, 6, 10, 2, 2, "ABE", 0.40, ""),
+        V("BONE WORKS",  8, 6, 10, 1, 2, "ABE", 0.38, ""),
+        V("GLASS SPINE", 8, 7, 11, 2, 2, "ABE", 0.35, ""),
+        V("THE HOLLOW",  8, 7, 11, 2, 2, "ABE", 0.33, ""),
+        V("ASH TERRACE", 8, 7, 12, 2, 3, "ABE", 0.30, "three, and eight boards in one solid"),
+        V("FROST GATE",  9, 8, 12, 2, 3, "ABE", 0.28, ""),
+        V("COPPER MARCH",9, 8, 13, 2, 3, "ABE", 0.26, ""),
+        V("SHALE KEEP",  9, 8, 13, 2, 3, "ABE", 0.24, ""),
+        V("TIDE WELL",   9, 9, 14, 2, 3, "ABE", 0.22, ""),
+        V("SINGULARITY", 9, 9, 15, 2, 3, "ABE", 0.20, ""),
     };
 
     static Vault V(string name, int n, int lo, int hi, int locks, int glyphs, string set,
@@ -144,6 +154,9 @@ static class Curate
         public bool loadBearing;      // does the world-changer it carries actually change par?
         public int spare;             // trace cells the prune could take away
         public double routeOpen = 1.0;   // the same question asked at every fold, not just the first
+        public int layers;            // world-changers the cube carries
+        public int liveLayers;        // ... and how many of them change par on their own
+        public double depth;          // share of the route's worlds that are not the opening one
         public int points;            // how many folds along the route were a decision point
         public double open => legal == 0 ? 0.0 : onPar / (double)legal;
         public double fill;
@@ -292,7 +305,7 @@ static class Curate
             // figure from 29% to 15% and worsens the route figure from 32% to 44%
             // — so every run before this one was tuned on a signal pointing the
             // wrong way.
-            c.routeOpen = RouteOpen(c.lv, c.par, out c.points);
+            c.routeOpen = RouteOpen(c.lv, c.par, out c.points, out c.depth);
             c.score = Value(c, parLo, v.parHi, openMax, v);
             if (best == null || c.score > best.score) best = c;
             continue;
@@ -391,19 +404,31 @@ static class Curate
         for (int k = 0; k < lv.vox.Length; k++) if (lv.vox[k] != '.') solid++;
         c.fill = solid / (double)lv.vox.Length;
 
+        // EVERY LAYER ON ITS OWN, not the stack as a whole.
+        //
+        // Flattening all three at once and finding par moved says only that ONE of
+        // them mattered — a cube with a load-bearing plate and two decorative
+        // everters passes that test and is a lie about its own difficulty. So each
+        // is flattened by itself: how many of the world-changers this cube carries
+        // are actually holding the route up?
+        c.layers = 0; c.liveLayers = 0;
         if (spec.glyphs > 0)
         {
-            var flat = new Level
+            var at = new List<int>();
+            for (int k = 0; k < lv.vox.Length; k++) if (Level.IsGlyph(lv.vox[k])) at.Add(k);
+            c.layers = at.Count;
+
+            foreach (int k in at)
             {
-                n = lv.n, vox = (char[])lv.vox.Clone(), start = lv.start, goal = lv.goal,
-                keys = lv.keys, doors = lv.doors, lockMap = lv.lockMap,
-                level = lv.level, band = lv.band,
-            };
-            for (int k = 0; k < flat.vox.Length; k++)
-                if (Level.IsGlyph(flat.vox[k])) flat.vox[k] = '+';
-            flat.ClearEff();
-            SolveResult f = Solver.Solve(flat, c.par + 3);
-            c.loadBearing = !f.ok || f.turns != c.par;
+                char had = lv.vox[k];
+                lv.vox[k] = '+';
+                lv.ClearEff();
+                SolveResult f = Solver.Solve(lv, c.par + 3);
+                if (!f.ok || f.turns != c.par) c.liveLayers++;
+                lv.vox[k] = had;
+            }
+            lv.ClearEff();
+            c.loadBearing = c.liveLayers > 0;
         }
 
         foreach (SolveState next in Openings(lv))
@@ -512,12 +537,22 @@ static class Curate
     /// only the shortlist is walked — and this time the arithmetic has been done
     /// rather than guessed.
     /// </summary>
-    static double RouteOpen(Level lv, int par, out int points)
+    static double RouteOpen(Level lv, int par, out int points, out double depth)
     {
         points = 0;
         double total = 0;
         SolveState at = Opened(lv);
         int left = par;
+
+        // DEPTH: how much of the solve happens somewhere the opening board cannot
+        // show you. Two things count as depth and they are the same thing seen
+        // twice — a WORLD other than the one you started in, which is a different
+        // board on the same solid, and an ORIENTATION other than the one you were
+        // handed, which is a different face of it. A route that never leaves
+        // either is a puzzle played entirely on the picture it opened with, and
+        // that is what a five-hundred cube ladder cannot be three hundred of.
+        var worlds = new HashSet<int> { at.world };
+        var oris = new HashSet<int> { at.ori };
 
         for (int guard = 0; guard < par + 2 && left > 0; guard++)
         {
@@ -552,8 +587,15 @@ static class Curate
             if (legal > 0) { total += onPar / (double)legal; points++; }
             if (!haveNext) break;
             at = next;
+            worlds.Add(at.world);
+            oris.Add(at.ori);
             left--;
         }
+
+        // eight worlds and twenty-four orientations are the whole space; a route
+        // is scored on the share of each it actually needed
+        depth = 0.5 * Math.Min(1.0, (worlds.Count - 1) / 3.0)
+              + 0.5 * Math.Min(1.0, (oris.Count - 1) / 6.0);
         return points == 0 ? 1.0 : total / points;
     }
 
@@ -727,7 +769,22 @@ static class Curate
         // everter; a cube where the everter is scenery teaches that the everter is
         // scenery. Weighted near the decision-density term because it is the same
         // kind of claim — that the thing on screen is the thing that matters.
-        if (v.glyphs > 0) s += c.loadBearing ? 260.0 : -340.0;
+        // EVERY LAYER HAS TO EARN ITS PLACE. A cube carrying three world-changers
+        // of which one matters is not a three-layer cube, it is a one-layer cube
+        // with two decorations — and it is worse than an honest one-layer cube,
+        // because the player is shown two things that turn out not to be there.
+        if (v.glyphs > 0)
+        {
+            s += c.liveLayers * 220.0;
+            s -= (c.layers - c.liveLayers) * 300.0;
+            if (c.liveLayers == 0) s -= 300.0;
+        }
+
+        // AND THE ROUTE HAS TO LEAVE THE BOARD IT OPENED ON. Depth is the share of
+        // the world-and-orientation space a solution actually needed; a cube solved
+        // without ever seeing a different face or a different board is a flat
+        // puzzle whatever its par.
+        s += c.depth * 420.0;
 
         // A ROUTE YOU HAVE TO WALK IS A ROUTE YOU HAVE TO READ, and the prune
         // eats walking first — it takes away trace, and trace is what you walk on.
@@ -786,25 +843,27 @@ static class Curate
         int empty = 0;
         foreach (Cand c in chosen) if (c == null) empty++;
 
-        Console.WriteLine("vault                  n   par        steps    open   fill   empty");
+        Console.WriteLine("vault                  n   par        steps  route  depth  layers   fill  empty");
         for (int b = 0; b < Ladder.Length; b++)
         {
             Vault v = Ladder[b];
-            int nn = 0, parSum = 0, stepSum = 0, gaps = 0, parMin = 99, parMax = 0;
-            double openSum = 0, fillSum = 0;
+            int nn = 0, parSum = 0, stepSum = 0, gaps = 0, parMin = 99, parMax = 0, liveSum = 0;
+            double openSum = 0, fillSum = 0, routeSum = 0, depthSum = 0;
             for (int i = 0; i < PerVault; i++)
             {
                 Cand c = chosen[b * PerVault + i];
                 if (c == null) { gaps++; continue; }
                 nn++; parSum += c.par; stepSum += c.steps;
                 openSum += c.open; fillSum += c.fill;
+                routeSum += c.routeOpen; depthSum += c.depth; liveSum += c.liveLayers;
                 parMin = Math.Min(parMin, c.par); parMax = Math.Max(parMax, c.par);
             }
             if (nn == 0) { Console.WriteLine(string.Format("{0,-20} {1,2}   — nothing found", v.name, v.n)); continue; }
             Console.WriteLine(string.Format(
-                "{0,-20} {1,2}  {2,4:0.0} [{3}-{4}]  {5,5:0.0}  {6,5:0.0}%  {7,4:0.0}%  {8,4}",
+                "{0,-20} {1,2}  {2,4:0.0} [{3}-{4}]  {5,5:0.0}  {6,5:0.0}% {7,5:0.0}%  {8,4:0.0}/{9}  {10,4:0.0}%  {11,4}",
                 v.name, v.n, parSum / (double)nn, parMin, parMax, stepSum / (double)nn,
-                100.0 * openSum / nn, 100.0 * fillSum / nn, gaps));
+                100.0 * routeSum / nn, 100.0 * depthSum / nn, liveSum / (double)nn, v.glyphs,
+                100.0 * fillSum / nn, gaps));
         }
 
         // ---- the two things that must be true ----------------------------
@@ -872,14 +931,14 @@ static class Curate
             if (best == null) { Console.WriteLine(string.Format("{0,-14} {1}   — nothing", v.name, v.n)); continue; }
 
             double uOpen = best.open;
-            double uRoute = RouteOpen(best.lv, best.par, out int uPts);
+            double uRoute = RouteOpen(best.lv, best.par, out int uPts, out _);
             int uPar = best.par, uSteps = best.steps;
 
             // and the same cube with everywhere it does not need to stand removed
             best.par = Tighten(best.lv, best.par, 400);
             best.steps = best.lv.steps;
             Measure(best, spec);
-            double pRoute = RouteOpen(best.lv, best.par, out int pPts);
+            double pRoute = RouteOpen(best.lv, best.par, out int pPts, out _);
 
             Console.WriteLine(string.Format(
                 "{0,-14} {1}  {2,3} {3,5} {4,5:0}% {5,5:0}% {6,3}  {7,4} {8,5} {9,5:0}% {10,5:0}% {11,3}",
