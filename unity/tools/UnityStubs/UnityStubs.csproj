@@ -29,6 +29,7 @@
     <Compile Include="EndChecks.cs" />
     <Compile Include="StateChecks.cs" />
     <Compile Include="Safety.cs" />
+    <Compile Include="FinishChecks.cs" />
     <Compile Include="ClockChecks.cs" />
     <Compile Include="Curate.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Core/**/*.cs" />

@@ -19,6 +19,20 @@ namespace Singularity.Core
         public bool hasFirst;
 
         /// <summary>
+        /// THE WHOLE LINE, not just its head.
+        ///
+        /// Report already walks the parent chain end to end — it has to, to count
+        /// the steps — and then kept one act of it. A hint wants only the first,
+        /// which is why it was written that way, but ANYTHING THAT REPLAYS A
+        /// SOLUTION NEEDS ALL OF IT: asking again after each move does not work,
+        /// because a step costs nothing, so two states can each be one fold from
+        /// the core and each have the other as the head of an optimal line. A
+        /// driver following `first` walks between them forever. That is not a
+        /// theory — it is what FinishChecks did on 24 cubes before this existed.
+        /// </summary>
+        public List<Act> line;
+
+        /// <summary>
         /// The search was cut short by the budget rather than exhausted — so the
         /// cube may well be solvable, just not within the folds we were willing
         /// to look for. The HUD reads this as "40+" rather than "no route", which
@@ -184,7 +198,8 @@ namespace Singularity.Core
                     turns = cost,
                     steps = steps,
                     first = chain.Count > 0 ? chain[0] : Act.None,
-                    hasFirst = chain.Count > 0
+                    hasFirst = chain.Count > 0,
+                    line = chain
                 };
             }
 

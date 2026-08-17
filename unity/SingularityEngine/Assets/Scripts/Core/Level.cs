@@ -70,6 +70,27 @@ namespace Singularity.Core
 
         public Level() { }
 
+        /// <summary>
+        /// A COPY OF THE CUBE, AND THAT MEANS ALL OF ITS SOLIDS.
+        ///
+        /// `alts` was missing from this list, and Session.Load is
+        /// `lv = source.Clone()` — so the game loaded every trigger cube with its
+        /// second solid dropped on the floor. Nothing threw. Layouts fell to 1,
+        /// Eff fell back to `vox` for the swapped world exactly as it is written
+        /// to for a cube that has one solid, and the trigger became a glyph that
+        /// toggles a bit and changes nothing. On cube 300 it moved 357 cells
+        /// before the clone and 0 after.
+        ///
+        /// It was 125 of the 300 cubes — every single one carrying a trigger,
+        /// the last cube in the game among them — unsolvable in the hand while
+        /// every check in the harness called them solvable, because every check
+        /// solved the Level the catalogue decoded and the game plays a copy.
+        ///
+        /// The lesson is the one this project keeps relearning: a field added to
+        /// a class is not added to the code that copies it, and nothing about
+        /// that is visible at the call site. Anything added below must be added
+        /// here too.
+        /// </summary>
         public Level Clone()
         {
             var c = new Level
@@ -83,6 +104,11 @@ namespace Singularity.Core
                 par = par, steps = steps, level = level, band = band,
                 name = name, authored = authored, fallback = fallback
             };
+            if (alts != null)
+            {
+                c.alts = new char[alts.Length][];
+                for (int i = 0; i < alts.Length; i++) c.alts[i] = (char[])alts[i].Clone();
+            }
             return c;
         }
 

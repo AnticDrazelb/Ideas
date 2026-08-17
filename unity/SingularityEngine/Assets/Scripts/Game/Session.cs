@@ -365,7 +365,18 @@ namespace Singularity.Game
                 Haptics.Buzz(Haptics.Move);
             }
 
-            int gb = lv.GlyphAt(pos);
+            // THE LAYOUT THE FOOT IS IN, NOT THE ONE THE CUBE WAS CARVED IN.
+            //
+            // This read the one-argument GlyphAt, which takes `vox` and only
+            // `vox` — and the overload beside it exists precisely because a glyph
+            // lives in the solid that carries it. Once a trigger had swapped the
+            // board, every plate in the second solid was stepped on and did
+            // nothing: the walk arrived, the cell under the foot was a plate on
+            // the board being played and plain rock in the board being read, and
+            // gb came back zero. The world never flipped, the lattice the route
+            // needed stayed solid, and the cube could not be finished from a
+            // position the solver had reached legally.
+            int gb = lv.GlyphAt(pos, world);
             if (gb != 0) FirePlate(gb);
 
             walking.t = 0;

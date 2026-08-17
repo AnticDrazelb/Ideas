@@ -99,6 +99,7 @@ public static class ForgeChecks
         EndChecks.Run(Ok);
         EndChecks.Reach(Ok);
         ClockChecks.Run(Ok);
+        FinishChecks.Run(Ok);
         Numbers();
 
         Console.WriteLine(fails == 0 ? "CHECKS PASSED" : fails + " CHECKS FAILED");
@@ -291,6 +292,7 @@ public static class ForgeChecks
         if (args.Length > 0 && args[0] == "buried") { BuriedProbe.Run(); return; }
         if (args.Length > 0 && args[0] == "arc") { ArcSearch.Run(); return; }
         if (args.Length > 0 && args[0] == "curate") { Curate.Run(args); return; }
+        if (args.Length > 0 && args[0] == "finish") { FinishChecks.Trace(args); return; }
         Environment.ExitCode = Run();
     }
 }
