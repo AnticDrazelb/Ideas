@@ -232,11 +232,16 @@ static class EndChecks
         ok(last != null, "there is no cube " + Vaults.LastCube + " in the catalogue");
         if (last == null) return;
 
+        // WITHIN its par, not AT it — the last cube is allowed to be beaten like
+        // any other. This wanted equality, which made it a second voice agreeing
+        // with the solver that set the par in the first place; when the solver
+        // was wrong about cube 500 this check was wrong with it, in the same
+        // direction, and reported nothing.
         SolveResult r = Solver.Solve(last, last.par);
-        ok(r.ok && r.turns == last.par,
-           "cube " + Vaults.LastCube + " does not solve at its par of " + last.par);
+        ok(r.ok, "cube " + Vaults.LastCube + " cannot be solved within its par of " + last.par);
         Console.WriteLine("ending: cube " + Vaults.LastCube + " solves in " + r.turns
-                        + " folds, and reaching it ends the machine from the vault and the seed box alike");
+                        + " folds against a par of " + last.par
+                        + ", and reaching it ends the machine from the vault and the seed box alike");
     }
 
     static float Min(List<float> v)

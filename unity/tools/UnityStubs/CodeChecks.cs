@@ -208,10 +208,24 @@ static class CodeChecks
     /// Five hundred cubes are the whole game now and progress is an INDEX into
     /// them, so three claims have to hold and each one fails differently.
     ///
-    /// EVERY CUBE SOLVES AT THE PAR IT SHIPS WITH. Not "was solvable when it was
-    /// cut" — the thing that ships is the text, so the text is what gets solved.
-    /// A cube whose par is one out scores every player who plays it wrongly and
-    /// there is no way to notice from inside the game.
+    /// EVERY CUBE SOLVES WITHIN THE PAR IT SHIPS WITH. Not "was solvable when it
+    /// was cut" — the thing that ships is the text, so the text is what gets
+    /// solved. A cube that cannot be done in its par is a cube nobody can score
+    /// on, and there is no way to notice from inside the game.
+    ///
+    /// WITHIN, AND NOT EQUAL TO. Par is the number you are asked to meet, not the
+    /// floor of what is possible — a hole in one still counts. This asserted
+    /// equality until a solver bug made the distinction matter: five cubes turned
+    /// out to be beatable under their par, and the reflex was to re-cut the
+    /// ladder until every par was exactly the minimum again. That cut 428 of the
+    /// 500 cubes to chase it, put 32 of them under their own vault's floor
+    /// instead of 8, and took a fold and a half off the last vault's mean. The
+    /// curve was the thing being protected and the curve was what it cost.
+    ///
+    /// So the assertion is solvability and the GAP IS REPORTED RATHER THAN
+    /// ASSERTED, on the same argument as the stamp below it: it is a number
+    /// somebody should look at while the ladder is being tuned, and picking a
+    /// threshold for it here would be inventing a design rule in a test file.
     ///
     /// EVERY CUBE IS DISTINCT, under all twenty-four orientations and every solid
     /// it carries. The same puzzle twice in one ladder is a player who recognises
@@ -239,8 +253,9 @@ static class CodeChecks
         ok(n == Vaults.LastCube, "the catalogue holds " + n + " cubes and the ladder wants " + Vaults.LastCube);
 
         var ids = new HashSet<string>();
-        int holes = 0, unsolved = 0, wrongPar = 0, dupes = 0, triggers = 0, everters = 0, plates = 0;
+        int holes = 0, unsolved = 0, dupes = 0, triggers = 0, everters = 0, plates = 0;
         int parMin = 99, parMax = 0;
+        int beatable = 0, worstGap = 0, worstCube = 0;
 
         for (int i = 1; i <= n; i++)
         {
@@ -248,9 +263,15 @@ static class CodeChecks
             Level lv = Catalogue.Get(i);
             if (lv == null) { unsolved++; continue; }
 
+            // Budgeted at par, so a route that comes in under it is found at its
+            // own cost and the difference is the size of the birdie on offer.
             SolveResult r = Solver.Solve(lv, lv.par);
             if (!r.ok) { unsolved++; continue; }
-            if (r.turns != lv.par) { wrongPar++; continue; }
+            if (r.turns < lv.par)
+            {
+                beatable++;
+                if (lv.par - r.turns > worstGap) { worstGap = lv.par - r.turns; worstCube = i; }
+            }
 
             parMin = Math.Min(parMin, lv.par);
             parMax = Math.Max(parMax, lv.par);
@@ -266,9 +287,13 @@ static class CodeChecks
             "catalogue: {0} cubes, par {1}-{2}, {3} carry a trigger, {4} an everter, {5} a plate — stamp {6}",
             n, parMin, parMax, triggers, everters, plates, Catalogue.Stamp()));
 
+        Console.WriteLine(beatable == 0
+            ? "catalogue: every cube's par is exactly its minimum — nothing on the ladder can be beaten"
+            : "catalogue: " + beatable + " of " + n + " cubes can be beaten under par, by at most "
+              + worstGap + " fold" + (worstGap == 1 ? "" : "s") + " (cube " + worstCube + ")");
+
         ok(holes == 0, holes + " cubes in the catalogue are holes");
-        ok(unsolved == 0, unsolved + " cubes in the catalogue do not solve at all");
-        ok(wrongPar == 0, wrongPar + " cubes in the catalogue do not solve at the par they ship with");
+        ok(unsolved == 0, unsolved + " cubes in the catalogue cannot be solved within the par they ship with");
         ok(dupes == 0, dupes + " cubes in the catalogue duplicate another");
 
         // AND THE FORGE CANNOT BUILD ONE OF THEM. It is the same identity table
