@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 using Singularity.Core;
 
@@ -92,7 +93,6 @@ static class Curate
     public static readonly Vault[] Ladder =
     {
         // ---- the verbs, one at a time ------------------------------------
-        // ---- the verbs, one at a time ------------------------------------
         V("CALIBRATION", 5, 2, 4, 0, 0, null,  1.00, "the fold, the walk, the core"),
         V("REFRACTION",  5, 3, 5, 0, 0, null,  0.80, "folds that cost you the route"),
         V("INVERSION",   6, 3, 6, 1, 0, null,  0.70, "nodes and the locks they open"),
@@ -100,34 +100,37 @@ static class Curate
         V("EMBERFALL",   6, 4, 7, 0, 1, "A",   0.58, "the plate: two worlds, one board"),
         V("SUBSTRATE",   6, 4, 7, 1, 1, "B",   0.54, "the other plate, which opens the solid"),
         V("THE FAR SIDE",7, 5, 8, 0, 1, "E",   0.50, "the everter: the column shows its far cell"),
+        V("THRESHOLD",   7, 5, 8, 0, 1, "T",   0.48, "the trigger: the board itself is exchanged"),
 
-        // ---- AND THEN THEY LAYER --------------------------------------------
+        // ---- and then nothing new, for three hundred cubes -------------------
         //
-        // Nothing new is taught past here and the vocabulary is closed, but until
-        // now every cube in the game carried exactly ONE world-changer. GlyphPlan
-        // says why — "a second lowers par, more worlds to shortcut through" — and
-        // that is correct and it is an argument about the wrong axis. Par has been
-        // measured as the thing that does not carry a ladder; DECISIONS are, and
-        // two glyphs is four worlds, three is eight. Every extra world is another
-        // board the same solid can be, another set of folds that are legal, and
-        // another way to be wrong.
+        // ONE MECHANIC A CUBE, MOSTLY, WHICH IS THE OPPOSITE OF WHAT I PLANNED.
         //
-        // So they stack: two from vault VIII, three from vault XV, and the SET
-        // widens with the count so a layered cube is usually a plate under an
-        // everter rather than two of the same thing.
-        V("REVENANT",    7, 5, 8, 1, 2, "AB",  0.48, "two plates, and the four boards between them"),
-        V("COLD FORGE",  7, 5, 9, 2, 2, "AE",  0.45, "a plate under an everter"),
-        V("THE CANT",    7, 6, 9, 1, 2, "BE",  0.42, ""),
-        V("SALT REACH",  8, 6, 10, 2, 2, "ABE", 0.40, ""),
-        V("BONE WORKS",  8, 6, 10, 1, 2, "ABE", 0.38, ""),
-        V("GLASS SPINE", 8, 7, 11, 2, 2, "ABE", 0.35, ""),
-        V("THE HOLLOW",  8, 7, 11, 2, 2, "ABE", 0.33, ""),
-        V("ASH TERRACE", 8, 7, 12, 2, 3, "ABE", 0.30, "three, and eight boards in one solid"),
-        V("FROST GATE",  9, 8, 12, 2, 3, "ABE", 0.28, ""),
-        V("COPPER MARCH",9, 8, 13, 2, 3, "ABE", 0.26, ""),
-        V("SHALE KEEP",  9, 8, 13, 2, 3, "ABE", 0.24, ""),
-        V("TIDE WELL",   9, 9, 14, 2, 3, "ABE", 0.22, ""),
-        V("SINGULARITY", 9, 9, 15, 2, 3, "ABE", 0.20, ""),
+        // The plan was to layer everything from vault VIII and let the
+        // combinations carry three hundred cubes. Four separate measurements said
+        // no. Plates and everters together: live-glyph ratio 7 of 27. Two triggers
+        // instead of one: 11 of 14 against 14 of 14. Every time a second
+        // world-changer went in, the first stopped mattering — the carve has one
+        // route and it can only run through so many worlds before the extra ones
+        // are scenery, and scenery is worse than absence because the player is
+        // shown a thing that turns out not to be there.
+        //
+        // So the back half rotates rather than stacks. A vault is one mechanic at
+        // a time, at rising size and tightening decision density, and the pairs
+        // that do appear are the two that measured cleanest together.
+        V("REVENANT",    7, 5, 8, 1, 1, "T",   0.46, ""),
+        V("COLD FORGE",  7, 5, 9, 1, 1, "E",   0.44, ""),
+        V("THE CANT",    7, 6, 9, 2, 1, "A",   0.42, ""),
+        V("SALT REACH",  8, 6, 10, 1, 1, "T",  0.40, ""),
+        V("BONE WORKS",  8, 6, 10, 2, 1, "B",  0.38, ""),
+        V("GLASS SPINE", 8, 7, 11, 1, 1, "E",  0.36, ""),
+        V("THE HOLLOW",  8, 7, 11, 2, 1, "T",  0.34, ""),
+        V("ASH TERRACE", 8, 7, 12, 1, 2, "AT", 0.32, "a plate under a trigger"),
+        V("FROST GATE",  9, 8, 12, 2, 1, "T",  0.30, ""),
+        V("COPPER MARCH",9, 8, 13, 1, 1, "E",  0.28, ""),
+        V("SHALE KEEP",  9, 8, 13, 2, 2, "ET", 0.26, "the far side of a board that is about to go"),
+        V("TIDE WELL",   9, 9, 14, 2, 1, "T",  0.24, ""),
+        V("SINGULARITY", 9, 9, 15, 2, 2, "ET", 0.22, ""),
     };
 
     static Vault V(string name, int n, int lo, int hi, int locks, int glyphs, string set,
@@ -199,6 +202,7 @@ static class Curate
 
         Console.WriteLine();
         Report(chosen, taken, sw);
+        Emit(chosen);
     }
 
     /// <summary>
@@ -337,6 +341,8 @@ static class Curate
             glyphKinds = v.kinds,
             glyphSet = v.set,
             layouts = v.set != null && v.set.IndexOf('T') >= 0 ? 2 : 1,
+            // a cube may carry a trigger and a plate; it never carries two triggers
+
             turns = Math.Min(11, 3 + v.parHi),
             locks = v.locks,
             // Denser than the generated ladder ran, because a sparse cube is a
@@ -839,6 +845,75 @@ static class Curate
     }
 
     // ---- what came out ---------------------------------------------------
+
+    /// <summary>
+    /// WRITE THE CATALOGUE OUT, and refuse to write a broken one.
+    ///
+    /// Two claims have to hold before a cube can be in a fixed ladder, and they
+    /// are different claims. It has to SOLVE at the par it is shipped with —
+    /// which the solver proved when the cube was chosen and is proved again here
+    /// against the encoded form, because what ships is the code and not the
+    /// object it came from. And it has to be DISTINCT from every other cube under
+    /// all twenty-four orientations and every solid it carries, or the same
+    /// puzzle appears twice in one ladder and a player who recognises it is
+    /// right.
+    ///
+    /// The file is share codes and nothing else. Not a C# array — five hundred
+    /// literals is a file nobody can review and two people cannot merge, which is
+    /// the argument this project already makes about ProjectSettings.asset — and
+    /// not a binary, because a catalogue you cannot read in a diff is a catalogue
+    /// whose changes nobody can see.
+    /// </summary>
+    static void Emit(Cand[] chosen)
+    {
+        string dir = Path.Combine("unity", "SingularityEngine", "Assets", "Resources");
+        Directory.CreateDirectory(dir);
+        string path = Path.Combine(dir, "catalogue.txt");
+
+        var lines = new List<string>();
+        var seen = new HashSet<string>();
+        int bad = 0, missing = 0;
+
+        for (int i = 0; i < chosen.Length; i++)
+        {
+            Cand c = chosen[i];
+            if (c == null) { missing++; lines.Add("-"); continue; }
+
+            string code = ShareCode.Encode(c.lv);
+
+            // THROUGH THE CODE, NOT AROUND IT. The catalogue ships as text; a cube
+            // that solves in memory and not after a round trip is a cube that does
+            // not solve.
+            Level back = ShareCode.Decode(code);
+            if (back == null) { bad++; lines.Add("-"); continue; }
+            back.par = c.par;
+            SolveResult r = Solver.Solve(back, c.par);
+            if (!r.ok || r.turns != c.par) { bad++; lines.Add("-"); continue; }
+
+            string id = Identity.CanonId(back);
+            if (!seen.Add(id)) { bad++; lines.Add("-"); continue; }
+
+            lines.Add(string.Format("{0} {1} {2} {3}", c.par, c.steps, id, code));
+        }
+
+        using (var w = new StreamWriter(path))
+        {
+            w.WriteLine("# SINGULARITY ENGINE — the catalogue. One cube a line, in order.");
+            w.WriteLine("# par steps id code");
+            w.WriteLine("# " + Ladder.Length + " vaults of " + PerVault + ", cut by tools/UnityStubs curate.");
+            foreach (Vault v in Ladder)
+                w.WriteLine(string.Format("# {0,-14} n={1} par {2}-{3} {4}{5}",
+                    v.name, v.n, v.parLo, v.parHi,
+                    v.set == null ? "bare" : v.set,
+                    string.IsNullOrEmpty(v.teaches) ? "" : "  — " + v.teaches));
+            foreach (string l in lines) w.WriteLine(l);
+        }
+
+        Console.WriteLine();
+        Console.WriteLine(string.Format(
+            "catalogue: {0} cubes written to {1} — {2} empty, {3} rejected at the gate",
+            lines.Count - missing - bad, path, missing, bad));
+    }
 
     static void Report(Cand[] chosen, HashSet<string> taken, Stopwatch sw)
     {

@@ -191,6 +191,18 @@ namespace Singularity.Game
                     float e = Mathf.Max(Mathf.Abs(u), Mathf.Abs(v));
                     return e < 0.80f ? 1f : Mathf.Clamp01(1f - (e - 0.80f) / 0.08f);
                 }
+                case "swap":
+                {
+                    // TWO SQUARES TRADING PLACES, which is what a trigger does:
+                    // one board leaves and another arrives in the same space. Not
+                    // a ring and not a diamond — those are taken by things that
+                    // change a cell, and this changes all of them.
+                    float a1 = Math.Max(Mathf.Abs(u + 0.34f), Mathf.Abs(v + 0.34f));
+                    float a2 = Math.Max(Mathf.Abs(u - 0.34f), Mathf.Abs(v - 0.34f));
+                    float r1 = Band(a1, 0.46f, 0.11f);
+                    float r2 = Band(a2, 0.46f, 0.11f);
+                    return Mathf.Max(r1, r2);
+                }
                 case "arrow":
                 {
                     // a head and a shaft, pointing up

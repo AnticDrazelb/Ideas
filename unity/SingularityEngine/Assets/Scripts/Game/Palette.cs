@@ -358,9 +358,21 @@ namespace Singularity.Game
         public static readonly Color WireTrace = Hex("#9fe8ff");
         public static readonly Color WireLattice = Hex("#8098d8");
 
+        /// <summary>
+        /// THE TRIGGER, and it is not on either depth ramp for the same reason the
+        /// everter is not: it does not change what a cell IS, it changes which
+        /// board you are standing on. A green because it is the last unspoken
+        /// corner of this wheel — rust, amber, lime, cyan, blue and violet are all
+        /// taken — and because it has to be told apart from the everter's violet
+        /// at a glance, the two being the only marks that rearrange the board
+        /// rather than recolour it.
+        /// </summary>
+        public static readonly Color Trigger = Hex("#34d399");
+
         public static Color Tile(char t, int d, int n, int band = 0)
         {
             if (t == 'E') return Evert;
+            if (t == 'T' || t == 'U') return Trigger;
             float near = Mathf.Clamp01(d / (float)Mathf.Max(1, n - 1));
             Color a = Level.IsWalkType(t) ? TraceFar : LatticeFarOf(band);
             Color b = Level.IsWalkType(t) ? TraceNear : LatticeNearOf(band);
