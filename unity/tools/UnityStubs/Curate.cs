@@ -919,10 +919,10 @@ static class Curate
     /// </summary>
     static void Trigger()
     {
-        Console.WriteLine("            n  set    made  par  steps  route  depth  live/carried");
+Console.WriteLine("            n  set   lay  made  par  steps  route  depth  live/carried");
 
         foreach (int n in new[] { 6, 7, 8, 9 })
-        foreach (string set in new[] { "AB", "ABE", "T", "ABT", "ABET" })
+        foreach (string set in new[] { "AB", "ABE", "T", "TU", "ABT", "TUE" })
         {
             int made = 0, parSum = 0, stepSum = 0, live = 0, carried = 0;
             double routeSum = 0, depthSum = 0;
@@ -931,8 +931,11 @@ static class Curate
             {
                 var spec = new Spec
                 {
-                    n = n, glyphs = set.Length >= 3 ? 2 : 1, glyphKinds = set.Length,
-                    glyphSet = set, layouts = set.IndexOf('T') >= 0 ? 2 : 1,
+                    // one glyph a kind, so "TU" really is two triggers and four
+                    // boards rather than one trigger rolled twice
+                    n = n, glyphs = Math.Max(1, set.Length - 1), glyphKinds = set.Length,
+                    glyphSet = set,
+                    layouts = set.IndexOf('U') >= 0 ? 4 : set.IndexOf('T') >= 0 ? 2 : 1,
                     turns = 8, locks = 1, density = 0.50,
                     legMin = 2 + n / 3, legMax = 4 + n / 2,
                     parLo = 1, parHi = 14, minSteps = 6,
@@ -970,8 +973,9 @@ static class Curate
 
             if (made == 0) { Console.WriteLine(string.Format("            {0}  {1,-5}    — nothing", n, set)); continue; }
             Console.WriteLine(string.Format(
-                "            {0}  {1,-5} {2,5} {3,4:0.0} {4,6:0.0} {5,6:0}% {6,6:0}%  {7,4}/{8}",
-                n, set, made, parSum / (double)made, stepSum / (double)made,
+                "            {0}  {1,-5} {2,3} {3,5} {4,4:0.0} {5,6:0.0} {6,6:0}% {7,6:0}%  {8,4}/{9}",
+                n, set, set.IndexOf('U') >= 0 ? 4 : set.IndexOf('T') >= 0 ? 2 : 1,
+                made, parSum / (double)made, stepSum / (double)made,
                 100 * routeSum / made, 100 * depthSum / made, live, carried));
         }
     }

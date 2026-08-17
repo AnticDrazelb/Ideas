@@ -61,7 +61,7 @@ namespace Singularity.Core
             // form that stopped at `vox` would call them the same and refuse to
             // let the second one exist.
             string b = "";
-            if (lv.voxB != null)
+            for (int a = 0; lv.alts != null && a < lv.alts.Length; a++)
             {
                 var vb = new char[n * n * n];
                 for (int y = 0; y < n; y++)
@@ -69,9 +69,9 @@ namespace Singularity.Core
                         for (int x = 0; x < n; x++)
                         {
                             Int3 v = Projection.ViewOf(n, m, new Int3(x, y, z));
-                            vb[Level.Vidx(n, v)] = lv.voxB[Level.Vidx(n, x, y, z)];
+                            vb[Level.Vidx(n, v)] = lv.alts[a][Level.Vidx(n, x, y, z)];
                         }
-                b = "|" + new string(vb);
+                b += "|" + new string(vb);
             }
 
             return n + "|" + new string(vox) + b + "|" + Pt(lv.start) + "|" + Pt(lv.goal) + "|" + string.Join(";", pairs);

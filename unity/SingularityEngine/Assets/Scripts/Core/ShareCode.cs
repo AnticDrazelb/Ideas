@@ -64,9 +64,10 @@ namespace Singularity.Core
             // A CUBE THAT USES NOTHING NEW IS STILL WRITTEN AS v1, so a code
             // shared today opens in a build from yesterday. Only a cube carrying
             // an everter needs the wider alphabet, and only it pays for it.
-            bool hasTrigger = vx.IndexOf('T') >= 0 || lv.voxB != null;
-            bool needsV2 = vx.IndexOf('E') >= 0
-                           || (lv.voxB != null && new string(lv.voxB).IndexOf('E') >= 0);
+            bool hasTrigger = vx.IndexOf('T') >= 0 || vx.IndexOf('U') >= 0 || lv.alts != null;
+            bool needsV2 = vx.IndexOf('E') >= 0;
+            for (int a = 0; lv.alts != null && a < lv.alts.Length; a++)
+                if (new string(lv.alts[a]).IndexOf('E') >= 0) needsV2 = true;
             int ver = hasTrigger ? VersionTrigger : needsV2 ? 2 : 1;
             string alpha = ver >= 2 ? Voxc : VoxcV1;
             int radix = alpha.Length;
@@ -83,7 +84,7 @@ namespace Singularity.Core
                     for (int j = 0; j < 3; j++)
                     {
                         char ch = (i + j < n * n * n) ? cells[i + j] : '.';
-                        if (ch == 'T') ch = '+';
+                        if (ch == 'T' || ch == 'U') ch = '+';
                         int k = alpha.IndexOf(ch);
                         t = t * radix + (k < 0 ? 0 : k);
                     }
@@ -126,10 +127,17 @@ namespace Singularity.Core
             if (ver >= VersionTrigger)
             {
                 var trig = new List<int>();
-                for (int i = 0; i < n * n * n; i++) if (lv.vox[i] == 'T') trig.Add(i);
+                for (int i = 0; i < n * n * n; i++)
+                    if (lv.vox[i] == 'T' || lv.vox[i] == 'U') trig.Add(i);
                 bytes.Add(Math.Min(255, trig.Count));
-                foreach (int i in trig) { bytes.Add((i >> 8) & 255); bytes.Add(i & 255); }
-                Pack(lv.voxB ?? lv.vox);
+                foreach (int i in trig)
+                {
+                    bytes.Add((i >> 8) & 255); bytes.Add(i & 255);
+                    bytes.Add(lv.vox[i] == 'U' ? 1 : 0);
+                }
+                int nAlt = lv.alts?.Length ?? 0;
+                bytes.Add(nAlt);
+                for (int a = 0; a < nAlt; a++) Pack(lv.alts[a]);
             }
 
             int sum = 0;
@@ -246,46 +254,59 @@ namespace Singularity.Core
             }
 
             char[] cellsA = vox.ToString().ToCharArray();
-            char[] cellsB = null;
+            char[][] altsOut = null;
 
             // ---- the second solid, and where the triggers were --------------
             if (ver >= VersionTrigger)
             {
                 if (at >= bytes.Count) return null;
                 int tn = bytes[at++];
-                var trig = new List<int>();
+                var trig = new List<(int at, char kind)>();
                 for (int i = 0; i < tn; i++)
                 {
-                    if (at + 1 >= bytes.Count) return null;
+                    if (at + 2 >= bytes.Count) return null;
                     int v = (bytes[at] << 8) | bytes[at + 1];
-                    at += 2;
+                    char kind = bytes[at + 2] == 1 ? 'U' : 'T';
+                    at += 3;
                     if (v >= cells) return null;
-                    trig.Add(v);
+                    trig.Add((v, kind));
                 }
 
-                var b = new StringBuilder(cells);
-                for (int i = 0; i < cells; i += 3)
+                if (at >= bytes.Count) return null;
+                int nAlt = bytes[at++];
+                if (nAlt > 3) return null;
+                var got = new char[nAlt][];
+                for (int a = 0; a < nAlt; a++)
                 {
-                    if (at >= bytes.Count) return null;
-                    int t = bytes[at++];
-                    if (t > maxByte) return null;
-                    int r2 = radix * radix;
-                    int[] d = { t / r2 % radix, t / radix % radix, t % radix };
-                    for (int q = 0; q < 3 && i + q < cells; q++) b.Append(alpha[d[q]]);
+                    var b = new StringBuilder(cells);
+                    for (int i = 0; i < cells; i += 3)
+                    {
+                        if (at >= bytes.Count) return null;
+                        int t = bytes[at++];
+                        if (t > maxByte) return null;
+                        int r2 = radix * radix;
+                        int[] d = { t / r2 % radix, t / radix % radix, t % radix };
+                        for (int q = 0; q < 3 && i + q < cells; q++) b.Append(alpha[d[q]]);
+                    }
+                    got[a] = b.ToString().ToCharArray();
                 }
-                cellsB = b.ToString().ToCharArray();
+                altsOut = nAlt > 0 ? got : null;
 
                 // A TRIGGER EXISTS IN BOTH SOLIDS, which is what makes the swap a
                 // door rather than a cliff — see the carve. Restoring it into one
                 // array and not the other would ship a one-way version of a
                 // mechanic whose whole argument is that you can step back.
-                foreach (int i in trig) { cellsA[i] = 'T'; cellsB[i] = 'T'; }
+                foreach (var t in trig)
+                {
+                    cellsA[t.at] = t.kind;
+                    for (int a = 0; altsOut != null && a < altsOut.Length; a++) altsOut[a][t.at] = t.kind;
+                }
             }
 
             return new Level
             {
                 n = n,
-                vox = cellsA, voxB = cellsB,
+                vox = cellsA, alts = altsOut,
                 start = start, goal = goal,
                 keys = keys, doors = doors,
                 par = 0, name = "SHARED"

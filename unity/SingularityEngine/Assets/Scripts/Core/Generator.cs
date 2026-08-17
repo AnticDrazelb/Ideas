@@ -214,8 +214,15 @@ namespace Singularity.Core
             // crosses between them exactly as it crosses between plate worlds, and
             // the guarantee that comes with it is the same: footing is CONSTRUCTED
             // on both sides rather than hoped for.
-            char[] voxB = opt.layouts > 1 ? new char[n * n * n] : null;
-            char[] Solid(int w) => (w & Level.Swapped) != 0 && voxB != null ? voxB : vox;
+            int nLayouts = Math.Max(1, Math.Min(4, opt.layouts));
+            char[][] alts = nLayouts > 1 ? new char[nLayouts - 1][] : null;
+            for (int i = 0; alts != null && i < alts.Length; i++) alts[i] = new char[n * n * n];
+
+            char[] Solid(int w)
+            {
+                int L = Level.LayoutOf(w);
+                return L > 0 && alts != null && L <= alts.Length ? alts[L - 1] : vox;
+            }
             for (int i = 0; i < vox.Length; i++) vox[i] = rng.Next() < opt.density ? '#' : '.';
 
             // THE SECOND SOLID IS FILLED HERE OR IT IS NOT FILLED AT ALL. A
@@ -228,8 +235,8 @@ namespace Singularity.Core
             //
             // Guarded, so a single-layout cube draws exactly the numbers it drew
             // before this existed. Every cube already minted is byte-identical.
-            if (voxB != null)
-                for (int i = 0; i < voxB.Length; i++) voxB[i] = rng.Next() < opt.density ? '#' : '.';
+            for (int a = 0; alts != null && a < alts.Length; a++)
+                for (int i = 0; i < alts[a].Length; i++) alts[a][i] = rng.Next() < opt.density ? '#' : '.';
 
             Ori m = Ori.Id;
             var path = new List<Int3>();
@@ -294,7 +301,14 @@ namespace Singularity.Core
                     // promise a plate makes, and the reason a plate is a decision
                     // rather than a commitment you cannot inspect.
                     Solid(world)[gi] = kind;
-                    if (kind == 'T' && voxB != null) { vox[gi] = 'T'; voxB[gi] = 'T'; }
+                    // A TRIGGER EXISTS IN EVERY SOLID. It is what makes the swap a
+                    // door rather than a cliff: two triggers toggling two bits give
+                    // four boards reachable in any order and leavable the same way.
+                    if ((kind == 'T' || kind == 'U') && alts != null)
+                    {
+                        vox[gi] = kind;
+                        foreach (char[] a in alts) a[gi] = kind;
+                    }
                     lockMap[gi] = kind;
                     placed.Add((pos, kind));
                     world ^= Level.GlyphBit(kind);
@@ -324,7 +338,7 @@ namespace Singularity.Core
 
             var lv = new Level
             {
-                n = n, vox = vox, voxB = voxB, start = path[0], goal = goal,
+                n = n, vox = vox, alts = alts, start = path[0], goal = goal,
                 glyphs = placed, lockMap = lockMap
             };
 
@@ -334,7 +348,8 @@ namespace Singularity.Core
             if (Level.IsGlyph(vox[Level.Vidx(n, lv.start)])) return null;
             if (Level.IsGlyph(vox[Level.Vidx(n, goal)])) return null;
             // and the goal has to be somewhere in the layout it is reached in
-            if (voxB != null && voxB[Level.Vidx(n, goal)] == '.') voxB[Level.Vidx(n, goal)] = '+';
+            for (int a = 0; alts != null && a < alts.Length; a++)
+                if (alts[a][Level.Vidx(n, goal)] == '.') alts[a][Level.Vidx(n, goal)] = '+';
             if (placed.Count != nGlyph) return null;
 
             // Keys and locks go on the route, but NEVER on a plate. A shut lock

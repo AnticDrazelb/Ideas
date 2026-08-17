@@ -37,7 +37,17 @@ namespace Singularity.Core
         /// nothing downstream needs to know it exists: Eff picks which array to
         /// start from and then does exactly what it always did.
         /// </summary>
-        public char[] voxB;
+        public char[][] alts;
+
+        /// <summary>The first alternate layout, for the code and identity paths that predate the chain.</summary>
+        public char[] voxB
+        {
+            get => alts != null && alts.Length > 0 ? alts[0] : null;
+            set => alts = value == null ? null : new[] { value };
+        }
+
+        /// <summary>How many solids this cube is, counting the first. One is every cube in the game so far.</summary>
+        public int Layouts => alts == null ? 1 : alts.Length + 1;
         public Int3 start, goal;
         public List<Int3> keys = new List<Int3>();
         public List<Int3> doors = new List<Int3>();
@@ -115,12 +125,28 @@ namespace Singularity.Core
         /// </summary>
         public const int Everted = 4;
 
-        /// <summary>The layout bit: which of the cube's two solids is on.</summary>
-        public const int Swapped = 8;
+        /// <summary>
+        /// THE LAYOUT BITS: which of the cube's solids is on.
+        ///
+        /// TWO BITS AND NOT A COUNTER, which is the whole design decision. Every
+        /// world-changer in this game is an INVOLUTION — step on it twice and you
+        /// are back where you started — and that is what makes one a decision you
+        /// can inspect rather than a door that slams. A counter advancing 1-2-3-4
+        /// would break it: the board you were solving would be gone and undo would
+        /// be the only way back.
+        ///
+        /// So four layouts are reached by two triggers that each toggle a bit,
+        /// in any order, all reversible. Same four boards, and the mechanic still
+        /// behaves like every other one in the game.
+        /// </summary>
+        public const int Swapped = 8, Swapped2 = 16;
 
-        public static int GlyphBit(char c) => c == 'A' ? 1 : c == 'B' ? 2 : c == 'E' ? Everted : c == 'T' ? Swapped : 0;
-        public static bool IsGlyph(char c) => c == 'A' || c == 'B' || c == 'E' || c == 'T';
-        public static bool IsWalkType(char t) => t == '+' || t == 'A' || t == 'B' || t == 'E' || t == 'T';
+        /// <summary>Which solid a world selects: 0 for the first, 1..3 for the alternates.</summary>
+        public static int LayoutOf(int world) => ((world & Swapped) != 0 ? 1 : 0) | ((world & Swapped2) != 0 ? 2 : 0);
+
+        public static int GlyphBit(char c) => c == 'A' ? 1 : c == 'B' ? 2 : c == 'E' ? Everted : c == 'T' ? Swapped : c == 'U' ? Swapped2 : 0;
+        public static bool IsGlyph(char c) => c == 'A' || c == 'B' || c == 'E' || c == 'T' || c == 'U';
+        public static bool IsWalkType(char t) => t == '+' || t == 'A' || t == 'B' || t == 'E' || t == 'T' || t == 'U';
 
         public static char EffType(char c, int world)
         {
@@ -146,10 +172,11 @@ namespace Singularity.Core
             // 0..7 and 8..15 are identical on a cube with one layout, which is
             // most of them, and eight wasted rows of cache beats a mask that means
             // different things in different files.
-            world &= 15;
-            _eff ??= new char[16][];
+            world &= 31;
+            _eff ??= new char[32][];
             if (_eff[world] != null) return _eff[world];
-            char[] from = (world & Swapped) != 0 && voxB != null ? voxB : vox;
+            int layout = LayoutOf(world);
+            char[] from = layout > 0 && alts != null && layout <= alts.Length ? alts[layout - 1] : vox;
             var outv = new char[from.Length];
             for (int i = 0; i < outv.Length; i++) outv[i] = EffType(from[i], world);
             return _eff[world] = outv;
@@ -167,7 +194,8 @@ namespace Singularity.Core
 
         public int GlyphAt(Int3 w, int world)
         {
-            char[] from = (world & Swapped) != 0 && voxB != null ? voxB : vox;
+            int layout = LayoutOf(world);
+            char[] from = layout > 0 && alts != null && layout <= alts.Length ? alts[layout - 1] : vox;
             return GlyphBit(from[Vidx(w)]);
         }
 
