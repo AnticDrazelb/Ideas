@@ -222,16 +222,37 @@ static class Curate
         {
             uint seed = unchecked((uint)(level * 2654435761u) ^ (uint)(i * 40503u) ^ 0x5eed1eu);
             Cand c = Rough(seed, spec, level);
-            if (c != null) pool.Add(c);
+            if (c == null) continue;
+
+            // MEASURED HERE, NOT LATER. This was deferred to a second stage on the
+            // grounds that decision density costs "one solve per legal opening
+            // fold, which is up to a dozen". It is at most FOUR — Openings walks
+            // the four turns off the identity orientation and nothing else — so
+            // the whole reason for splitting the pipeline was an estimate that was
+            // wrong by a factor of three, and the split is what broke the run.
+            Measure(c, spec);
+            c.score = Value(c, parLo, v.parHi, openMax, v);
+            pool.Add(c);
         }
         if (pool.Count == 0) return null;
 
-        // Pruning is the dear part — most of a second on a nine-cube — so only a
-        // shortlist gets it. Sorted by how much room there is to prune, because a
-        // cube with more spare footing has more to give: that is the whole of what
-        // the pass removes.
-        pool.Sort((a, bb) => bb.spare.CompareTo(a.spare));
+        // SORTED BY WHAT THEY ARE WORTH, NOT BY HOW MUCH THERE IS TO CUT.
+        //
+        // This sorted on spare trace, reasoning that a cube with more footing has
+        // more for the prune to take. True, and it is exactly backwards: the cubes
+        // with the most spare footing are the ones where every fold is legal and
+        // free, so the shortlist was being filled with mush before the scorer ever
+        // saw it. Decision density came out at forty per cent — worse than not
+        // curating at all, and worse than the run before it.
+        //
+        // The pool is scored in full now, so the shortlist is simply the best of
+        // it, and the prune is offered the good cubes rather than the loose ones.
+        pool.Sort((a, bb) => bb.score.CompareTo(a.score));
         int shortlist = Math.Min(Shortlist, pool.Count);
+
+        // The unpruned winner is in the running on its own account: if the prune
+        // improves nothing, nothing is what it should change.
+        Cand asIs = pool[0];
 
         // HOW FAR TO PRUNE IS A CHOICE, NOT A MAXIMUM.
         //
@@ -249,11 +270,12 @@ static class Curate
         // shortlist instead — a quarter, a half, three quarters, all of it — and
         // the scorer picks the amount of pruning as well as the cube. Nothing
         // about the pass changed; it is asked a different question.
-        Cand best = null;
+        Cand best = asIs;
         for (int i = 0; i < shortlist; i++)
         {
             Cand c = pool[i];
             double frac = Depths[i % Depths.Length];
+            if (frac <= 0.0) continue;                  // already scored, above
             c.par = Tighten(c.lv, c.par, (int)Math.Ceiling(c.spare * frac));
             c.steps = c.lv.steps;
             Measure(c, spec);
