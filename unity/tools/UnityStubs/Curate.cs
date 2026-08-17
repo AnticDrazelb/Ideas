@@ -143,6 +143,8 @@ static class Curate
         public int par, steps, legal, onPar;
         public bool loadBearing;      // does the world-changer it carries actually change par?
         public int spare;             // trace cells the prune could take away
+        public double routeOpen = 1.0;   // the same question asked at every fold, not just the first
+        public int points;            // how many folds along the route were a decision point
         public double open => legal == 0 ? 0.0 : onPar / (double)legal;
         public double fill;
         public string id;
@@ -152,6 +154,7 @@ static class Curate
     public static void Run(string[] args)
     {
         if (args.Length > 1 && args[1] == "probe") { Probe(); return; }
+        if (args.Length > 1 && args[1] == "compare") { Compare(); return; }
         int budget = args.Length > 1 && int.TryParse(args[1], out int b) ? b : DefaultBudget;
 
         Console.WriteLine("CURATING " + Total + " CUBES — " + Ladder.Length + " vaults of " + PerVault
@@ -275,7 +278,24 @@ static class Curate
         {
             Cand c = pool[i];
             double frac = Depths[i % Depths.Length];
-            if (frac <= 0.0) continue;                  // already scored, above
+            if (frac > 0.0)
+            {
+                c.par = Tighten(c.lv, c.par, (int)Math.Ceiling(c.spare * frac));
+                c.steps = c.lv.steps;
+                Measure(c, spec);
+            }
+
+            // SCORED ON THE ROUTE, NOT THE OPENING. The pool is shortlisted on the
+            // opening because that is cheap and roughly right; the winner is chosen
+            // on the measure that survives a change of par. They disagree in
+            // DIRECTION on exactly this comparison — pruning improves the opening
+            // figure from 29% to 15% and worsens the route figure from 32% to 44%
+            // — so every run before this one was tuned on a signal pointing the
+            // wrong way.
+            c.routeOpen = RouteOpen(c.lv, c.par, out c.points);
+            c.score = Value(c, parLo, v.parHi, openMax, v);
+            if (best == null || c.score > best.score) best = c;
+            continue;
             c.par = Tighten(c.lv, c.par, (int)Math.Ceiling(c.spare * frac));
             c.steps = c.lv.steps;
             Measure(c, spec);
@@ -464,6 +484,132 @@ static class Curate
         return c;
     }
 
+    /// <summary>
+    /// DECISION DENSITY ALONG THE WHOLE ROUTE, not at the first move.
+    ///
+    /// Every number in this tool until now measured the OPENING fold, and four
+    /// runs were compared on it before anybody noticed that it does not transfer.
+    /// On a par-three cube the opening is a third of the puzzle; on a par-ten cube
+    /// it is a tenth. So "the pruned ladder scores 26% and the unpruned one scores
+    /// 7%" was never a comparison — it was two different questions with the same
+    /// name, and the pruned cubes were being judged on a tenth of themselves.
+    ///
+    /// This walks the route instead. At each fold along an optimal solution: how
+    /// many of the legal folds from here keep par? Average over the whole route.
+    /// A cube that offers a real choice at every one of ten folds is a hard cube
+    /// however easy its first move was, and a cube whose first move is agonising
+    /// and whose next nine are forced is not.
+    ///
+    /// WHERE IT IS APPROXIMATE, and it is worth being exact about that. It
+    /// measures at the LANDING of each fold, and the player may walk before
+    /// folding again — walking is free and can reach several cells, from which
+    /// different folds are legal. So this counts the choices on one optimal line
+    /// rather than every choice available on every line. It is a lower bound on
+    /// the branching and an honest one; the alternative is the full game tree.
+    ///
+    /// It costs about four solves a fold, so ten times the opening measure on a
+    /// par-ten cube. That is why the pool is still shortlisted on the opening and
+    /// only the shortlist is walked — and this time the arithmetic has been done
+    /// rather than guessed.
+    /// </summary>
+    static double RouteOpen(Level lv, int par, out int points)
+    {
+        points = 0;
+        double total = 0;
+        SolveState at = Opened(lv);
+        int left = par;
+
+        for (int guard = 0; guard < par + 2 && left > 0; guard++)
+        {
+            // EVERY FOLD AVAILABLE FROM HERE, and "here" is not one cell.
+            //
+            // Stepping is free, so before folding again the player may be
+            // anywhere the walk reaches — and a fold with no footing under your
+            // feet may have plenty two cells away. The first version of this
+            // enumerated folds from the landing cell alone and reported ZERO
+            // decision points on par-thirteen cubes, because from that one cell
+            // nothing was legal. It was not measuring a forced route, it was
+            // measuring the wrong position, and every 100% it printed was the
+            // no-data case defaulting to fully-forced.
+            var landings = new Dictionary<long, SolveState>();
+            foreach (SolveState from in FreeWalk(lv, at))
+                foreach (SolveState cand in Folds(lv, from))
+                    landings[SKey(lv.n, cand)] = cand;
+
+            int legal = 0, onPar = 0;
+            bool haveNext = false;
+            SolveState next = default;
+
+            foreach (SolveState cand in landings.Values)
+            {
+                legal++;
+                SolveResult r = Solver.Solve(lv, left, cand);
+                if (!r.ok || r.turns + 1 > left) continue;
+                onPar++;
+                if (!haveNext) { next = cand; haveNext = true; }
+            }
+
+            if (legal > 0) { total += onPar / (double)legal; points++; }
+            if (!haveNext) break;
+            at = next;
+            left--;
+        }
+        return points == 0 ? 1.0 : total / points;
+    }
+
+    /// <summary>
+    /// Everywhere a free walk reaches from a state — the solver's zero-cost
+    /// expansion, lifted out. It is a set of STATES and not of cells: a step onto
+    /// a plate flips the world under your foot and a step through a lock spends a
+    /// key, so two routes to the same square can arrive as different situations.
+    /// </summary>
+    static IEnumerable<SolveState> FreeWalk(Level lv, SolveState from)
+    {
+        int n = lv.n;
+        var seen = new HashSet<long> { SKey(n, from) };
+        var q = new List<SolveState> { from };
+
+        for (int i = 0; i < q.Count; i++)
+        {
+            SolveState s = q[i];
+            Ori m = Turns.Oris[s.ori];
+            Surf[] surf = Projection.Project(n, lv.Eff(s.world), m);
+            Int3 v = Projection.ViewOf(n, m, s.pos);
+
+            for (int t = 0; t < 4; t++)
+            {
+                int u2 = v.x + Turns.All[t].dx, v2 = v.y + Turns.All[t].dy;
+                if (u2 < 0 || v2 < 0 || u2 >= n || v2 >= n) continue;
+                Surf raw = surf[u2 * n + v2];
+                if (!raw.has || !Level.IsWalkType(raw.t)) continue;
+
+                int nd = s.doors;
+                int di = lv.DoorIndexAt(raw.w);
+                if (di >= 0 && (s.doors & (1 << di)) == 0)
+                {
+                    if (Bits(s.kmask) - Bits(s.doors) < 1) continue;
+                    nd = s.doors | (1 << di);
+                }
+                int nk = s.kmask;
+                int ki = lv.KeyIndexAt(raw.w);
+                if (ki >= 0) nk |= 1 << ki;
+
+                var ns = new SolveState
+                {
+                    pos = raw.w, ori = s.ori, kmask = nk, doors = nd,
+                    world = s.world ^ Level.GlyphBit(raw.t),
+                };
+                if (seen.Add(SKey(n, ns))) q.Add(ns);
+            }
+        }
+        return q;
+    }
+
+    static long SKey(int n, SolveState s)
+        => (((long)Level.Vidx(n, s.pos) * 24 + s.ori) * 8 + s.kmask) * 64 + s.doors * 8 + s.world;
+
+    static int Bits(int v) { int c = 0; while (v != 0) { c += v & 1; v >>= 1; } return c; }
+
     // ---- the prune -------------------------------------------------------
 
     /// <summary>
@@ -563,8 +709,14 @@ static class Curate
         // by a distance, and that is the correct preference rather than a
         // consolation for a generator that cannot go higher.
         if (c.legal == 0) s -= 200;                 // forced first step: not wrong, but not a choice
-        else s += (1.0 - c.open) * 900.0;
-        if (c.open > openMax) s -= (c.open - openMax) * 600.0;
+        else s += (1.0 - c.open) * 200.0;
+
+        // AND THE SAME QUESTION ASKED AT EVERY FOLD, which is where the weight
+        // belongs. routeOpen defaults to 1.0 on a candidate that has not been
+        // walked, so an unwalked cube simply gains nothing here rather than
+        // winning by not having been measured.
+        s += (1.0 - c.routeOpen) * 900.0;
+        if (c.routeOpen > openMax) s -= (c.routeOpen - openMax) * 600.0;
 
         // and a cube with only one legal opening fold has not offered a choice
         // either, however costly that fold is
@@ -597,13 +749,20 @@ static class Curate
     /// ContentAudit walks — the four turns off the identity orientation, each
     /// asked whether it has anywhere to land.
     /// </summary>
-    static IEnumerable<SolveState> Openings(Level lv)
+    static SolveState Opened(Level lv)
     {
         var start = new SolveState { pos = lv.start, ori = 0, kmask = 0, doors = 0, world = 0 };
         int s0 = lv.KeyIndexAt(lv.start);
         if (s0 >= 0) start.kmask = 1 << s0;
         start.world = lv.GlyphAt(lv.start);
+        return start;
+    }
 
+    static IEnumerable<SolveState> Openings(Level lv) => Folds(lv, Opened(lv));
+
+    /// <summary>Every legal fold from a state, as the state it lands you in.</summary>
+    static IEnumerable<SolveState> Folds(Level lv, SolveState start)
+    {
         Ori m = Turns.Oris[start.ori];
         for (int t = 0; t < 4; t++)
         {
@@ -674,6 +833,68 @@ static class Curate
     /// why it was thrown away — because "nothing found" is four different
     /// problems and they want four different fixes.
     /// </summary>
+    /// <summary>
+    /// THE ONE COMPARISON THAT WAS NEVER MADE. The same slot's best candidate,
+    /// unpruned and pruned, measured BOTH ways — at the opening, which is what
+    /// five runs were judged on, and along the route, which is what the question
+    /// actually was. If the pruned cubes are genuinely more forced, the route
+    /// figure will say so too. If it does not, the last three runs were compared
+    /// on an artefact.
+    /// </summary>
+    static void Compare()
+    {
+        Console.WriteLine("                        UNPRUNED                    PRUNED");
+        Console.WriteLine("vault           n   par steps  open  route pts   par steps  open  route pts");
+
+        double su = 0, sp = 0, ru = 0, rp = 0;
+        int nn = 0;
+
+        for (int b = 0; b < Ladder.Length; b++)
+        {
+            Vault v = Ladder[b];
+            int slot = b * PerVault + PerVault / 2;
+            int level = slot + 1;
+            double t = (PerVault / 2) / (double)(PerVault - 1);
+            int parLo = v.parLo + (int)Math.Round(t * (v.parHi - v.parLo) * 0.45);
+            Spec spec = SpecOf(v, level, parLo);
+
+            // the best of the pool on the opening measure, exactly as Pick does
+            Cand best = null;
+            for (int i = 0; i < 60; i++)
+            {
+                uint seed = unchecked((uint)(level * 2654435761u) ^ (uint)(i * 40503u) ^ 0x5eed1eu);
+                Cand c = Rough(seed, spec, level);
+                if (c == null) continue;
+                Measure(c, spec);
+                c.score = Value(c, parLo, v.parHi, v.openMax, v);
+                if (best == null || c.score > best.score) best = c;
+            }
+            if (best == null) { Console.WriteLine(string.Format("{0,-14} {1}   — nothing", v.name, v.n)); continue; }
+
+            double uOpen = best.open;
+            double uRoute = RouteOpen(best.lv, best.par, out int uPts);
+            int uPar = best.par, uSteps = best.steps;
+
+            // and the same cube with everywhere it does not need to stand removed
+            best.par = Tighten(best.lv, best.par, 400);
+            best.steps = best.lv.steps;
+            Measure(best, spec);
+            double pRoute = RouteOpen(best.lv, best.par, out int pPts);
+
+            Console.WriteLine(string.Format(
+                "{0,-14} {1}  {2,3} {3,5} {4,5:0}% {5,5:0}% {6,3}  {7,4} {8,5} {9,5:0}% {10,5:0}% {11,3}",
+                v.name, v.n, uPar, uSteps, 100 * uOpen, 100 * uRoute, uPts,
+                best.par, best.steps, 100 * best.open, 100 * pRoute, pPts));
+
+            su += uOpen; sp += best.open; ru += uRoute; rp += pRoute; nn++;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine(string.Format(
+            "mean   unpruned: opening {0:0.0}%  route {1:0.0}%     pruned: opening {2:0.0}%  route {3:0.0}%",
+            100 * su / nn, 100 * ru / nn, 100 * sp / nn, 100 * rp / nn));
+    }
+
     static void Probe()
     {
         const int N = 40;
