@@ -118,16 +118,25 @@ static class Curate
         // So the back half rotates rather than stacks. A vault is one mechanic at
         // a time, at rising size and tightening decision density, and the pairs
         // that do appear are the two that measured cleanest together.
+        //
+        // AND THE EVERTER IS DOWN TO TWO VAULTS, on the first cut's own numbers.
+        // Of the four it had, GLASS SPINE came back with 0.4 live layers of 1 and
+        // the worst route figure in the ladder at 44.8%, and COPPER MARCH with
+        // 0.5 — better than half their everters were sitting in cubes no solution
+        // touched. The trigger vaults next to them ran 60 to 66% depth against the
+        // everter vaults' 38 to 43. GLASS SPINE is cut, which is also what lands
+        // this on five hundred rather than five hundred and twenty-five, and
+        // COPPER MARCH becomes a trigger vault. THE FAR SIDE keeps the everter
+        // because that is where it is taught, and two more carry it afterwards.
         V("REVENANT",    7, 5, 8, 1, 1, "T",   0.46, ""),
         V("COLD FORGE",  7, 5, 9, 1, 1, "E",   0.44, ""),
         V("THE CANT",    7, 6, 9, 2, 1, "A",   0.42, ""),
         V("SALT REACH",  8, 6, 10, 1, 1, "T",  0.40, ""),
         V("BONE WORKS",  8, 6, 10, 2, 1, "B",  0.38, ""),
-        V("GLASS SPINE", 8, 7, 11, 1, 1, "E",  0.36, ""),
         V("THE HOLLOW",  8, 7, 11, 2, 1, "T",  0.34, ""),
         V("ASH TERRACE", 8, 7, 12, 1, 2, "AT", 0.32, "a plate under a trigger"),
         V("FROST GATE",  9, 8, 12, 2, 1, "T",  0.30, ""),
-        V("COPPER MARCH",9, 8, 13, 1, 1, "E",  0.28, ""),
+        V("COPPER MARCH",9, 8, 13, 1, 1, "T",  0.28, ""),
         V("SHALE KEEP",  9, 8, 13, 2, 2, "ET", 0.26, "the far side of a board that is about to go"),
         V("TIDE WELL",   9, 9, 14, 2, 1, "T",  0.24, ""),
         V("SINGULARITY", 9, 9, 15, 2, 2, "ET", 0.22, ""),
