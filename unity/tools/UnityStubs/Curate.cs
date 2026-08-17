@@ -107,13 +107,26 @@ static class Curate
         // ONE MECHANIC A CUBE, MOSTLY, WHICH IS THE OPPOSITE OF WHAT I PLANNED.
         //
         // The plan was to layer everything from vault VIII and let the
-        // combinations carry three hundred cubes. Four separate measurements said
-        // no. Plates and everters together: live-glyph ratio 7 of 27. Two triggers
-        // instead of one: 11 of 14 against 14 of 14. Every time a second
-        // world-changer went in, the first stopped mattering — the carve has one
-        // route and it can only run through so many worlds before the extra ones
-        // are scenery, and scenery is worse than absence because the player is
-        // shown a thing that turns out not to be there.
+        // combinations carry three hundred cubes. Four probes said no, and then a
+        // whole five-hundred-slot cut of the layered ladder said it again, against
+        // the rotating one, slot for slot:
+        //
+        //     vault           layered par/route/depth   rotating
+        //     SALT REACH        7.4  38.4%  55.3%      7.8  28.4%  64.0%
+        //     THE HOLLOW        7.3  40.1%  61.7%      8.6  28.9%  64.3%
+        //     COPPER MARCH      8.2  37.4%  57.7%     10.0  35.6%  66.7%
+        //     TIDE WELL         8.3  41.6%  61.3%     10.4  35.5%  65.7%
+        //
+        // Rotating wins par at every back-half vault by one to two, wins the route
+        // measure everywhere, and wins depth almost everywhere — while carrying
+        // one world-changer instead of three and taking a third of the time to
+        // cut. Layered live-glyph ratios ran 1.6 to 2.4 of 2 to 3; rotating is 1
+        // of 1.
+        //
+        // Every time a second world-changer went in, the first stopped mattering.
+        // The carve has one route and it can only run through so many worlds
+        // before the extra ones are scenery, and scenery is worse than absence
+        // because the player is shown a thing that turns out not to be there.
         //
         // So the back half rotates rather than stacks. A vault is one mechanic at
         // a time, at rising size and tightening decision density, and the pairs
