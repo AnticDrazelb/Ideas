@@ -138,7 +138,10 @@ namespace Singularity.Game
         public float burstAmt;
 
         public const float LeanYaw = 0.50f, LeanPitch = 0.33f;   // radians, ~29 and ~19 degrees
-        public const float LeanSeconds = 0.34f, BurstSeconds = 0.85f;
+        // 0.85 was too quick to read — the cells were gone before the eye had
+        // found them. The lean gains a little too, so the turn that sets the
+        // explosion up is not the fastest part of it.
+        public const float LeanSeconds = 0.40f, BurstSeconds = 1.30f;
 
         /// <summary>
         /// How far out of step the cells are, keyed on DISTANCE FROM THE CORE, so

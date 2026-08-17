@@ -961,7 +961,69 @@ namespace Singularity.UI
             sr.inertia = true;
             sr.decelerationRate = 0.135f;
             sr.scrollSensitivity = 28f;
+
+            // AND IT SAYS SO WHEN THERE IS MORE.
+            //
+            // A page that runs off the bottom of the glass with nothing at the
+            // bottom edge is a page that ends there, as far as anybody can tell:
+            // there is no bar, no shadow and no overscroll bounce — the movement
+            // is clamped on purpose, because a document that rubber-bands reads as
+            // a toy — so the ONLY evidence that the manual continues was already
+            // knowing it did. Half the objects on that page are below the fold.
+            //
+            // One arrow, at the foot, pointing the way the content goes, fading
+            // out over the last stretch of travel so it is gone by the time it
+            // would be lying. It is the game's own drawn mark rather than a font
+            // glyph, turned through half a circle, because the mono has no arrow
+            // and a "v" is a letter.
+            RectTransform hint = Rect(view, "more", new Vector2(0.5f, 0), new Vector2(0.5f, 0),
+                                      Vector2.zero, Vector2.zero);
+            hint.sizeDelta = new Vector2(34, 34);
+            hint.anchoredPosition = new Vector2(0, 26);
+            hint.localRotation = Quaternion.Euler(0, 0, 180f);
+            var arrow = hint.gameObject.AddComponent<Image>();
+            arrow.sprite = Glyphs.For("arrow");
+            arrow.raycastTarget = false;
+            arrow.color = Palette.Rust;
+
+            var more = view.gameObject.AddComponent<ScrollMore>();
+            more.Bind(sr, arrow);
             return content;
+        }
+
+        /// <summary>
+        /// Fades the "there is more below" arrow out as the last of the travel is
+        /// used up, and hides it outright on a page that fits.
+        /// </summary>
+        class ScrollMore : MonoBehaviour
+        {
+            ScrollRect _sr;
+            Image _arrow;
+            Color _base;
+
+            public void Bind(ScrollRect sr, Image arrow)
+            {
+                _sr = sr;
+                _arrow = arrow;
+                _base = arrow.color;
+            }
+
+            void LateUpdate()
+            {
+                if (_sr == null || _arrow == null) return;
+
+                // how much content there is past the bottom of the window, in units
+                float over = _sr.content.rect.height - _sr.viewport.rect.height;
+                float left = over <= 1f ? 0f : over * Mathf.Clamp01(_sr.verticalNormalizedPosition);
+
+                // Full for the first page of travel and out over the last sixty
+                // units, so the arrow disappears as the end arrives rather than
+                // snapping off at it.
+                float a = Mathf.Clamp01(left / 60f);
+                var c = new Color(_base.r, _base.g, _base.b, _base.a * a);
+                if (_arrow.color != c) _arrow.color = c;
+                if (_arrow.enabled != (a > 0.01f)) _arrow.enabled = a > 0.01f;
+            }
         }
 
         /// <summary>Tell a scroll how tall its content turned out to be.</summary>

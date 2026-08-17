@@ -176,8 +176,15 @@ v2f vert(appdata v)
         // FAST OUT, THEN COASTING — the opposite ease to everything
         // else in this game, because this is the only thing that is
         // thrown rather than moved.
+        //
+        // SQUARED, NOT CUBED. At the third power a cell was two
+        // thirds of the way out a third of the way through its own
+        // throw, which reads as a thing that has already happened
+        // rather than a thing happening. Squared keeps the throw in
+        // front and the coast behind and gives the eye something to
+        // follow.
         float u = 1.0 - k;
-        float e = 1.0 - u * u * u;
+        float e = 1.0 - u * u;
 
         // A cell sitting on the core has no direction of its own, so
         // it takes the one that is always true: it comes at you.

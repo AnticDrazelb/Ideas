@@ -432,11 +432,14 @@ namespace Singularity.Game
         /// </summary>
         public void Collapse(int n, Vector3 at)
         {
+            // NO RINGS. A square front and a circular one, expanding off the cell
+            // the core took you in, on top of a board that is about to come apart
+            // into its own cells — two more shapes arriving in the same half second
+            // as the shape that matters. The exit is the machine breaking; anything
+            // drawn over it is competing with it.
             Burst(at, 34, new BurstOpts { kind = Kind.Spark, speed = 1.9f, life = 0.80f, size = 0.18f, gravity = 0f, col = Palette.Core });
             Burst(at, 18, new BurstOpts { kind = Kind.Spark, speed = 0.70f, life = 1.0f, size = 0.24f, gravity = -0.14f, col = Palette.RustHi });
             Burst(at, 22, new BurstOpts { kind = Kind.Ember, speed = 0.14f, lift = 0.70f, life = 1.5f, size = 0.16f, gravity = -0.40f, fade = 0.8f, col = Palette.Core });
-            Ring2(at, 0.2f, n * 1.2f, 0.90f, Palette.Core, 0.15f, true);
-            Ring2(at, 0.2f, n * 0.7f, 0.60f, Palette.RustHi, 0.09f, false);
         }
 
         /// <summary>
@@ -455,8 +458,6 @@ namespace Singularity.Game
         /// </summary>
         public void Shatter(int n, Vector3 at)
         {
-            Ring2(at, 0.3f, n * 1.9f, 0.55f, Palette.RustHi, 0.20f, true);
-            Ring2(at, 0.3f, n * 1.2f, 0.40f, Palette.Core, 0.11f, false);
             Burst(at, 46, new BurstOpts { kind = Kind.Chip, speed = 3.4f, life = 1.1f, size = 0.16f, gravity = 0.9f, fade = 0.85f, col = Palette.RustHi });
             Burst(at, 30, new BurstOpts { kind = Kind.Spark, speed = 2.6f, life = 0.70f, size = 0.13f, gravity = 0f, col = Palette.Core });
             Burst(at, 20, new BurstOpts { kind = Kind.Ember, speed = 0.40f, lift = 0.55f, life = 1.7f, size = 0.18f, gravity = -0.34f, fade = 0.8f, col = Palette.Rust });
@@ -464,7 +465,6 @@ namespace Singularity.Game
 
         public void PerfectLine(int n, Vector3 at)
         {
-            Ring2(at, 0.2f, n * 1.3f, 1.0f, Palette.Arc, 0.13f, true);
             Burst(at, 34, new BurstOpts { kind = Kind.Chip, speed = 2.1f, life = 1.5f, size = 0.14f, gravity = 1.8f, fade = 0.9f, col = Palette.Arc });
             Burst(at, 22, new BurstOpts { kind = Kind.Ember, speed = 0.30f, lift = 1.2f, life = 1.8f, size = 0.16f, gravity = -0.46f, fade = 0.85f, col = Palette.Arc });
         }

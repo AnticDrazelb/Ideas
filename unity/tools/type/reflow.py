@@ -160,9 +160,29 @@ LABELS = [
     ("access LIGHT · NONE", "NONE", 17, ACCESS_SLOT),
 
     # CALIBRATE's own three-up feet, which are Bracketed and so carry them
-    ("calibrate foot · MANUAL", "[ MANUAL ]", 17, (625 - 80) / 3 - 12),
-    ("calibrate foot · BACK", "[ BACK ]", 17, (625 - 80) / 3 - 12),
-    ("calibrate foot · MENU", "[ MENU ]", 17, (625 - 80) / 3 - 12),
+    ("calibrate foot · MANUAL", "[ MANUAL ]", 24, (625 - 80) / 3 - 12),
+    ("calibrate foot · BACK", "[ BACK ]", 24, (625 - 80) / 3 - 12),
+    ("calibrate foot · MENU", "[ MENU ]", 24, (625 - 80) / 3 - 12),
+
+    # PAUSE, whose three-up is the same shape in a narrower column
+    ("pause · RESET", "[ RESET ]", 24, (625 - 144) / 3 - 12),
+    ("pause · VAULTS", "[ VAULTS ]", 24, (625 - 144) / 3 - 12),
+    ("pause · MENU", "[ MENU ]", 24, (625 - 144) / 3 - 12),
+
+    # THE FORGE'S TEN TOOLS. Five columns of a 545-unit band, four units of
+    # margin each side — a hundred and one units apiece, and [ WIPE DECK ] is a
+    # hundred and nine. It printed [ WIPE DEC and this list is why it will not
+    # again.
+] + [
+    ("forge tool · " + t, "[ %s ]" % t, 14, (625 - 80) / 5 - 8)
+    for t in ("VOID", "LATTICE", "TRACE", "PLATE A", "PLATE B",
+              "START", "EXIT", "NODE", "LOCK", "WIPE")
+] + [
+    # and the four that run down the right of the same screen
+    ("forge · VERIFY", "[ VERIFY ]", 24, (625 - 80) / 2 - 6),
+    ("forge · SAVE", "[ SAVE ]", 24, (625 - 80) / 2 - 6),
+    ("forge · DELETE", "[ DELETE THIS CUBE ]", 22, 625 - 80),
+    ("forge · size", "[ 5 ]", 24, (625 - 80) * 0.28),
 ]
 
 

@@ -295,7 +295,7 @@ namespace Singularity.UI
             RectTransform next = UiKit.Rect(L, "next", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-140, -154), new Vector2(-40, -66));
             UiKit.Bracketed(next, "next", ">", () => { _viewBand++; PaintVaults(); }, 26);
 
-            _grid = UiKit.Rect(L, "grid", new Vector2(0, 0), new Vector2(1, 1), new Vector2(40, 300), new Vector2(-40, -170));
+            _grid = UiKit.Rect(L, "grid", new Vector2(0, 0), new Vector2(1, 1), new Vector2(40, 300), new Vector2(-40, -RackTop));
 
             // THE SEED BOX. Every generated cube in this game is a pure function of
             // its number, so the NUMBER IS THE SEED — a few characters that cut the
@@ -311,8 +311,17 @@ namespace Singularity.UI
             // between the rack and the seed box — the two halves of one screen with
             // a hole punched between them. PaintVaults now puts them directly under
             // however many rows it actually drew.
+            // A FIXED FOOT, AND THE RACK TAKES WHAT IS LEFT.
+            //
+            // These used to follow the rack — placed directly under however many
+            // rows PaintVaults drew — which fixed one hole by opening another: a
+            // ten-cube vault put the seed box at 724 and BACK at 950, so a quarter
+            // of the screen was a single continuous black band with a link
+            // floating at the bottom of it. Now the foot is where a foot goes and
+            // the CARDS grow to meet it, which is the one thing on this screen
+            // that is worth more space.
             _jumpRow = UiKit.Rect(L, "jumpRow", new Vector2(0, 1), new Vector2(1, 1),
-                                  new Vector2(40, -286), new Vector2(-40, -220));
+                                  new Vector2(40, -JumpTop), new Vector2(-40, -(JumpTop + Access.TapTarget)));
             _jumpField = UiKit.Field(_jumpRow, "jump", "CUBE NUMBER",
                                      new Vector2(0, 0), new Vector2(0.72f, 1), Vector2.zero, new Vector2(-8, 0));
             _jumpField.contentType = InputField.ContentType.IntegerNumber;
@@ -320,16 +329,27 @@ namespace Singularity.UI
             UiKit.Bracketed(goSlot, "go", "GO", Jump, 24);
 
             _jumpMsg = UiKit.Label(L, "jumpMsg", "", 18, Palette.Dim, TextAnchor.UpperCenter,
-                                   new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -324), new Vector2(-40, -290));
+                                   new Vector2(0, 1), new Vector2(1, 1),
+                                   new Vector2(40, -(JumpTop + Access.TapTarget + 8f)),
+                                   new Vector2(-40, -(JumpTop + Access.TapTarget + 42f)));
 
             // A LINK, NOT A PLATE. This screen's subject is the rack; BACK was a
             // full-width filled control at the bottom of it, which made the heaviest
             // object on the screen the one way OFF the screen. The house rule is
             // already written down in UiKit: one plate per screen, and everything
             // else is a bracketed label with nothing behind it.
-            RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0), new Vector2(60, 90), new Vector2(-60, 90 + Access.TapTarget));
+            RectTransform back = UiKit.Rect(L, "back", new Vector2(0, 0), new Vector2(1, 0),
+                                            new Vector2(60, FootFloor), new Vector2(-60, FootFloor + Access.TapTarget));
             UiKit.Link(back, "back", "BACK", Back, 24, Palette.Ink);
         }
+
+        /// <summary>Where the rack starts, and where the seed box that follows it does.</summary>
+        const float RackTop = 170f;
+        /// <summary>
+        /// The seed box, measured up from the foot: BACK, twenty-four of air, the
+        /// message line, eight, and then the box itself.
+        /// </summary>
+        static float JumpTop => Layout.PlateHeight - FootFloor - Access.TapTarget * 2f - 66f;
 
         static InputField _jumpField;
         static Text _jumpMsg;
@@ -389,14 +409,17 @@ namespace Singularity.UI
             const int cols = 3;
             int rows = Mathf.CeilToInt(size / (float)cols);
             float cellW = _grid.rect.width / cols;
-            float cellH = Mathf.Min(cellW * 0.86f, 132f);
 
-            // and the seed box follows the rack rather than the floor
-            float below = 170f + rows * cellH + 26f;
-            _jumpRow.offsetMax = new Vector2(-40, -below);
-            _jumpRow.offsetMin = new Vector2(40, -(below + Access.TapTarget));
-            _jumpMsg.rectTransform.offsetMax = new Vector2(-40, -(below + Access.TapTarget + 6f));
-            _jumpMsg.rectTransform.offsetMin = new Vector2(40, -(below + Access.TapTarget + 40f));
+            // THE RACK TAKES THE HEIGHT IT IS GIVEN, up to a sane card shape.
+            //
+            // This was capped at 132 flat, which is a number that fit a vault of
+            // twenty and left a vault of ten with two hundred units of black under
+            // it. The cap that matters is the SHAPE of a card — past about square
+            // it stops reading as a tile in a rack — so that is the cap, and
+            // otherwise the rows share whatever is between the heading and the
+            // seed box. A ten-cube vault gets cards half again as tall; a
+            // twenty-cube vault gets exactly what it always had.
+            float cellH = Mathf.Min(cellW * 0.86f, (JumpTop - RackTop - 26f) / Mathf.Max(1, rows));
 
             for (int i = 0; i < size; i++)
             {
@@ -672,27 +695,48 @@ namespace Singularity.UI
             // back. Naming the cube and its vault costs nothing and turns the card
             // into a place; RESUME takes the only plate, the three ways to a
             // different board share a row, and the two settings screens are text.
+            // AND IT IS A SCREEN, NOT A LUMP IN THE MIDDLE OF ONE.
+            //
+            // Every one of these was anchored to the plate's CENTRE, so the whole
+            // card — name, vault, RESUME, three ways out and a link — occupied 420
+            // units of an eleven-hundred-unit plate with three hundred and fifty of
+            // nothing above it and the same below. Two holes.
+            //
+            // It takes the win card's shape now, because they are the same object
+            // seen twice: what cube this is at the top, what you can do about it
+            // stacked UP from the foot, and the space between them in one piece
+            // rather than two. That space is not empty either — this is the one
+            // card that lets the board through, and what shows in the middle of it
+            // is the puzzle you are about to go back to.
             _pauseName = UiKit.Label(L, "h", "", 40, Palette.Ink, TextAnchor.LowerCenter,
-                                     new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(40, 150), new Vector2(-40, 206));
+                                     new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -206), new Vector2(-40, -150));
             _pauseWhere = UiKit.Label(L, "where", "", 17, Palette.Rust, TextAnchor.UpperCenter,
-                                      new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(40, 112), new Vector2(-40, 142));
+                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(40, -244), new Vector2(-40, -214));
 
-            RectTransform go = UiKit.Rect(L, "resume", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                          new Vector2(72, -12), new Vector2(-72, 108));
-            UiKit.Bracketed(go, "resume", "RESUME", () => Show(null), 28, true);
+            float y = Layout.PlateHeight - FootFloor;
 
-            RectTransform three = UiKit.Rect(L, "three", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                             new Vector2(72, -128), new Vector2(-72, -24));
+            RectTransform Up(string name, float h, float gap)
+            {
+                RectTransform r = UiKit.Rect(L, name, new Vector2(0, 1), new Vector2(1, 1),
+                                             new Vector2(72, -(y - h)), new Vector2(-72, -y));
+                y -= h + gap;
+                return r;
+            }
+
+            // ONE LINK, CENTRED, AND FURTHEST FROM THE THUMB. It was a pair —
+            // BOARDS beside CALIBRATE — and the boards screen is gone, so the
+            // survivor takes the whole row rather than sitting in the left half of
+            // a row built for two.
+            RectTransform links = Up("links", Access.TapTarget, 18f);
+            UiKit.Link(links, "calibrate", "CALIBRATE", ShowCalibrate, 20);
+
+            RectTransform three = Up("three", Access.TapTarget, 26f);
             Third(three, 0, "RESET", () => { Show(null); _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey); });
             Third(three, 1, "VAULTS", OpenVaults);
             Third(three, 2, "MENU", ShowTitle);
 
-            // ONE LINK, CENTRED. It was a pair — BOARDS beside CALIBRATE — and
-            // the boards screen is gone, so the survivor takes the whole row
-            // rather than sitting in the left half of a row built for two.
-            RectTransform links = UiKit.Rect(L, "links", new Vector2(0, 0.5f), new Vector2(1, 0.5f),
-                                             new Vector2(72, -(128 + Access.TapTarget)), new Vector2(-72, -128));
-            UiKit.Link(links, "calibrate", "CALIBRATE", ShowCalibrate, 20);
+            RectTransform go = Up("resume", UiKit.PrimaryH, 0f);
+            UiKit.Bracketed(go, "resume", "RESUME", () => Show(null), 28, true);
         }
 
         public static void ShowPause(GameDirector dir)
@@ -804,7 +848,7 @@ namespace Singularity.UI
             // recognised, which is what you want on the screen somebody opens to
             // change one thing they already had in mind.
             RectTransform panel = UiKit.Rect(L, "panel", new Vector2(0, 0), new Vector2(1, 1),
-                                             new Vector2(28, 190), new Vector2(-28, -200));
+                                             new Vector2(28, PanelFloor), new Vector2(-28, -200));
             UiKit.Framed(panel, Palette.Panel, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.55f));
 
             _calRow = 0;
@@ -840,7 +884,7 @@ namespace Singularity.UI
             Bar(panel, "i.contrast", "CONTRAST", "", 70, 150, () => Store.Data.contrast, v => Store.Data.contrast = v);
 
             RectTransform feet = UiKit.Rect(L, "feet", new Vector2(0, 0), new Vector2(1, 0),
-                                            new Vector2(40, 90), new Vector2(-40, 90 + Access.TapTarget));
+                                            new Vector2(40, FootFloor), new Vector2(-40, FootFloor + Access.TapTarget));
             Third(feet, 0, "MANUAL", ShowManual);
             Third(feet, 1, "BACK", Back);
             Third(feet, 2, "MENU", ShowTitle);
@@ -853,6 +897,21 @@ namespace Singularity.UI
         /// a row added below without changing it draws on top of the last one.
         /// </summary>
         const int CalRows = 7;
+
+        /// <summary>
+        /// WHERE THE THREE WAYS OFF A SETTINGS SCREEN SIT, and how much air is
+        /// above them.
+        ///
+        /// CALIBRATE and ACCESS both put their panel's floor at 190 and their feet
+        /// at 90, which leaves TWELVE UNITS between a bordered panel and a row of
+        /// framed buttons — near enough to touching that the feet read as a fourth
+        /// row of the panel that had fallen off the bottom of it, while ninety
+        /// units of nothing sat underneath. The gap and the margin have swapped
+        /// most of the way round.
+        /// </summary>
+        const float FootFloor = 62f;
+        const float FootGap = 58f;
+        static float PanelFloor => FootFloor + Access.TapTarget + FootGap;
 
         static void Third(RectTransform parent, int i, string label, System.Action act)
         {
@@ -977,7 +1036,7 @@ namespace Singularity.UI
                         new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -176), new Vector2(0, -146));
 
             RectTransform panel = UiKit.Rect(L, "panel", new Vector2(0, 0), new Vector2(1, 1),
-                                             new Vector2(28, 190), new Vector2(-28, -200));
+                                             new Vector2(28, PanelFloor), new Vector2(-28, -200));
             UiKit.Framed(panel, Palette.Panel, new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.55f));
 
             _accRow = 0;
@@ -1028,7 +1087,7 @@ namespace Singularity.UI
                       () => Store.Data.depth, v => Store.Data.depth = v);
 
             RectTransform feet = UiKit.Rect(L, "feet", new Vector2(0, 0), new Vector2(1, 0),
-                                            new Vector2(40, 90), new Vector2(-40, 90 + Access.TapTarget));
+                                            new Vector2(40, FootFloor), new Vector2(-40, FootFloor + Access.TapTarget));
             Third(feet, 0, "MANUAL", ShowManual);
             Third(feet, 1, "BACK", Back);
             Third(feet, 2, "MENU", ShowTitle);

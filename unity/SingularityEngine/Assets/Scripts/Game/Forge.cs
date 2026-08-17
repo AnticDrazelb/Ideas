@@ -36,7 +36,12 @@ namespace Singularity.Game
             new Tool('.', "VOID"),    new Tool('#', "LATTICE"), new Tool('+', "TRACE"),
             new Tool('A', "PLATE A"), new Tool('B', "PLATE B"),
             new Tool('S', "START"),   new Tool('G', "EXIT"),    new Tool('K', "NODE"),
-            new Tool('D', "LOCK"),    new Tool('C', "WIPE DECK"),
+            // WIPE, not WIPE DECK. Bracketed renders [ WIPE DECK ] at 109.2 units
+            // into a slot of 101 and it printed [ WIPE DEC. The deck it wipes is
+            // named twice on the same screen — the stepper above it says DECK 1/5
+            // — so the second word was costing eight units to repeat something the
+            // player is already looking at.
+            new Tool('D', "LOCK"),    new Tool('C', "WIPE"),
         };
 
         /// <summary>The generator reaches nine, so the Forge does.</summary>

@@ -729,9 +729,15 @@ It is thrown now, in three moves.
 
 | | |
 |---|---|
-| **lean** | 0.34s. The solid turns into three quarters and the camera eases back off it. Nothing breaks yet: an explosion only lands if the eye has just been told the thing is three-dimensional and made of parts. It is the one moment in the game where the board is looked *at* rather than played. |
+| **lean** | 0.40s. The solid turns into three quarters and the camera eases back off it. Nothing breaks yet: an explosion only lands if the eye has just been told the thing is three-dimensional and made of parts. It is the one moment in the game where the board is looked *at* rather than played. |
 | **break** | One frame with everything on it — kick, shake, a *negative* punch that snaps the frame outward instead of in, the rumble, the crack — then 80ms where the whole picture holds still together. |
-| **throw** | 0.85s. Every cell straight out from the core, tumbling about an axis of its own, staggered by **distance from the core** so the break travels outward as a front. The camera holds back while they go. The card arrives into an empty room afterwards. |
+| **throw** | 1.30s. Every cell straight out from the core, tumbling about an axis of its own, staggered by **distance from the core** so the break travels outward as a front. The camera holds back while they go. The card arrives into an empty room afterwards. |
+
+**Nothing is drawn over it.** The collapse, the shatter and the perfect line each
+used to throw an expanding square front and a circular one — three more shapes
+arriving in the same half-second as the shape that matters, which is the machine
+coming apart into its own cells. The rings are gone from all three. The exit is
+the board; anything on top of it is competing with it.
 
 The throw is the eversion's machinery pointed somewhere else, which is the
 argument for having built that per cell in the first place: the board was
@@ -739,8 +745,10 @@ already made of individually addressable cubes, so the explosion is four
 uniforms in `Cell.shader` and **nothing on the CPU moves at all**.
 
 At the shipped stagger the cell on the core leaves immediately and the eight
-corners hold until the throw is 35% done; halfway through, the corners are 53%
-of the way out and the middle is 96%. Every cell lands exactly at the end
+corners hold until the throw is 35% done. The ease is *squared*, not cubed: at
+the third power a cell was two thirds of the way out a third of the way through
+its own throw, which reads as a thing that has already happened rather than a
+thing happening. Every cell lands exactly at the end
 whatever the spread, because the front is scaled up by it and each cell
 subtracts its own share.
 

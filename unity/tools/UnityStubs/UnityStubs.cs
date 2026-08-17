@@ -100,6 +100,19 @@ namespace UnityEngine
                              a.b + (b.b - a.b) * t, a.a + (b.a - a.a) * t);
         }
         public static implicit operator Color(Color32 c) => new Color(c.r / 255f, c.g / 255f, c.b / 255f, c.a / 255f);
+
+        // Unity compares colours as Vector4s with a squared-distance epsilon
+        // rather than exactly, which is the behaviour anything writing
+        // `if (img.color != want)` to avoid a redundant assignment depends on.
+        // Declared because UnityEngine.Color has it.
+        public static bool operator ==(Color a, Color b)
+        {
+            float dr = a.r - b.r, dg = a.g - b.g, db = a.b - b.b, da = a.a - b.a;
+            return dr * dr + dg * dg + db * db + da * da < 9.99999944e-11f;
+        }
+        public static bool operator !=(Color a, Color b) => !(a == b);
+        public override bool Equals(object o) => o is Color c && this == c;
+        public override int GetHashCode() => 0;
     }
 
     public struct Color32
@@ -806,7 +819,13 @@ namespace UnityEngine
 
     namespace UI
     {
-        public class Graphic : Component
+        // Graphic is a UIBehaviour is a MonoBehaviour in Unity, which is where
+        // `enabled` comes from. It was declared straight off Component here, so
+        // switching a graphic off — the ordinary way to hide one without
+        // destroying it — did not compile against the harness while compiling
+        // perfectly against the engine. Wrongly strict costs as much time as
+        // wrongly lax and is harder to believe.
+        public class Graphic : MonoBehaviour
         {
             public Color color { get; set; }
             public bool raycastTarget { get; set; }
