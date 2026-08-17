@@ -23,6 +23,21 @@ namespace Singularity.Core
     {
         public int n;
         public char[] vox;
+
+        /// <summary>
+        /// THE SECOND SOLID, and null on every cube that does not have one.
+        ///
+        /// A, B and E are all functions of ONE voxel array: swap two materials,
+        /// swap two others, reverse which cell wins its column. Eight readings of
+        /// the same thing. A TRIGGER is not that — it exchanges the array itself,
+        /// so the ground under the rest of the route is rearranged rather than
+        /// re-coloured, and that is a different kind of claim about the machine.
+        ///
+        /// It rides in the same world mask as everything else, one bit higher, so
+        /// nothing downstream needs to know it exists: Eff picks which array to
+        /// start from and then does exactly what it always did.
+        /// </summary>
+        public char[] voxB;
         public Int3 start, goal;
         public List<Int3> keys = new List<Int3>();
         public List<Int3> doors = new List<Int3>();
@@ -100,9 +115,12 @@ namespace Singularity.Core
         /// </summary>
         public const int Everted = 4;
 
-        public static int GlyphBit(char c) => c == 'A' ? 1 : c == 'B' ? 2 : c == 'E' ? Everted : 0;
-        public static bool IsGlyph(char c) => c == 'A' || c == 'B' || c == 'E';
-        public static bool IsWalkType(char t) => t == '+' || t == 'A' || t == 'B' || t == 'E';
+        /// <summary>The layout bit: which of the cube's two solids is on.</summary>
+        public const int Swapped = 8;
+
+        public static int GlyphBit(char c) => c == 'A' ? 1 : c == 'B' ? 2 : c == 'E' ? Everted : c == 'T' ? Swapped : 0;
+        public static bool IsGlyph(char c) => c == 'A' || c == 'B' || c == 'E' || c == 'T';
+        public static bool IsWalkType(char t) => t == '+' || t == 'A' || t == 'B' || t == 'E' || t == 'T';
 
         public static char EffType(char c, int world)
         {
@@ -123,17 +141,35 @@ namespace Singularity.Core
             // no-op here, so worlds 0..3 and 4..7 hold identical arrays. Two
             // wasted rows of cache beats a mask that means different things in
             // different files.
-            world &= 7;
-            _eff ??= new char[8][];
+            // sixteen, not eight: the polarity bit is a no-op here and the LAYOUT
+            // bit is not — it chooses which solid the swaps are applied to. Rows
+            // 0..7 and 8..15 are identical on a cube with one layout, which is
+            // most of them, and eight wasted rows of cache beats a mask that means
+            // different things in different files.
+            world &= 15;
+            _eff ??= new char[16][];
             if (_eff[world] != null) return _eff[world];
-            var outv = new char[vox.Length];
-            for (int i = 0; i < outv.Length; i++) outv[i] = EffType(vox[i], world);
+            char[] from = (world & Swapped) != 0 && voxB != null ? voxB : vox;
+            var outv = new char[from.Length];
+            for (int i = 0; i < outv.Length; i++) outv[i] = EffType(from[i], world);
             return _eff[world] = outv;
         }
 
         public void ClearEff() { _eff = null; }
 
+        /// <summary>
+        /// Which world bit the cell under a foot flips. It reads the LAYOUT the
+        /// foot is standing in, because a trigger only exists in the solid that
+        /// carries it — reading `vox` unconditionally would fire the swap off a
+        /// cell that is not there.
+        /// </summary>
         public int GlyphAt(Int3 w) => GlyphBit(vox[Vidx(w)]);
+
+        public int GlyphAt(Int3 w, int world)
+        {
+            char[] from = (world & Swapped) != 0 && voxB != null ? voxB : vox;
+            return GlyphBit(from[Vidx(w)]);
+        }
 
         public int KeyIndexAt(Int3 w)
         {

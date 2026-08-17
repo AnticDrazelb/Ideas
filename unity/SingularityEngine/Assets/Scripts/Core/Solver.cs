@@ -97,7 +97,11 @@ namespace Singularity.Core
             // NEAREST projection for an everted state without any error anywhere.
             Surf[] P(int oi, int wd)
             {
-                int k = oi * 8 + wd;
+                // sixteen worlds now, not eight: the layout bit joined the mask.
+                // This was widened from four to eight when eversion arrived and it
+                // is the same trap — a cache keyed narrower than the world it is
+                // caching silently hands back another world's projection.
+                int k = oi * 16 + wd;
                 if (!projCache.TryGetValue(k, out var s))
                     projCache[k] = s = Projection.Project(n, lv.Eff(wd), Turns.Oris[oi],
                                                           (wd & Level.Everted) != 0);

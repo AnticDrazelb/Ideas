@@ -168,6 +168,7 @@ static class Curate
     {
         if (args.Length > 1 && args[1] == "probe") { Probe(); return; }
         if (args.Length > 1 && args[1] == "compare") { Compare(); return; }
+        if (args.Length > 1 && args[1] == "trigger") { Trigger(); return; }
         int budget = args.Length > 1 && int.TryParse(args[1], out int b) ? b : DefaultBudget;
 
         Console.WriteLine("CURATING " + Total + " CUBES — " + Ladder.Length + " vaults of " + PerVault
@@ -335,6 +336,7 @@ static class Curate
             glyphs = v.glyphs,
             glyphKinds = v.kinds,
             glyphSet = v.set,
+            layouts = v.set != null && v.set.IndexOf('T') >= 0 ? 2 : 1,
             turns = Math.Min(11, 3 + v.parHi),
             locks = v.locks,
             // Denser than the generated ladder ran, because a sparse cube is a
@@ -900,6 +902,80 @@ static class Curate
     /// figure will say so too. If it does not, the last three runs were compared
     /// on an artefact.
     /// </summary>
+    /// <summary>
+    /// IS A LAYOUT SWAP WORTH A FOURTH VERB? Measured before it is built.
+    ///
+    /// A, B and E are readings of one solid; a trigger exchanges the solid. That
+    /// is a different KIND of thing and it sounds like it must add difficulty —
+    /// but so did the everter, and the everter moved nothing. So the same three
+    /// cubes are minted at each size with and without one, and the two measures
+    /// that have survived scrutiny are compared: decision density along the whole
+    /// route, and how much of the world-and-orientation space the solve needed.
+    ///
+    /// Nothing is shipped by this. ShareCode, Identity, the Forge and the save
+    /// format have not been touched — a second voxel array exists in Level and
+    /// the carve can fill it, which is exactly enough to answer the question and
+    /// nothing like enough to release.
+    /// </summary>
+    static void Trigger()
+    {
+        Console.WriteLine("            n  set    made  par  steps  route  depth  live/carried");
+
+        foreach (int n in new[] { 6, 7, 8, 9 })
+        foreach (string set in new[] { "AB", "ABE", "T", "ABT", "ABET" })
+        {
+            int made = 0, parSum = 0, stepSum = 0, live = 0, carried = 0;
+            double routeSum = 0, depthSum = 0;
+
+            for (uint i = 0; i < 220 && made < 14; i++)
+            {
+                var spec = new Spec
+                {
+                    n = n, glyphs = set.Length >= 3 ? 2 : 1, glyphKinds = set.Length,
+                    glyphSet = set, layouts = set.IndexOf('T') >= 0 ? 2 : 1,
+                    turns = 8, locks = 1, density = 0.50,
+                    legMin = 2 + n / 3, legMax = 4 + n / 2,
+                    parLo = 1, parHi = 14, minSteps = 6,
+                    tries = 1, decoys = 4, band = 8, level = 200 + n,
+                };
+                Level lv = Generator.Generate(unchecked(i * 7919u + (uint)n * 131u), spec);
+                if (lv == null || lv.keys.Count != spec.locks) continue;
+
+                var wr = Rng.Mulberry32(unchecked(i * 104729u));
+                Generator.Widen(ref wr, lv, spec.decoys, lv.lockMap);
+                lv.ClearEff();
+
+                Surf[] s0 = Projection.Project(lv.n, lv.Eff(0), Ori.Id);
+                if (!Projection.SurfaceAt(lv.n, s0, Ori.Id, lv.start)) continue;
+                SolveResult r = Solver.Solve(lv, spec.parHi);
+                if (!r.ok) continue;
+
+                lv.par = r.turns; lv.level = spec.level;
+                made++; parSum += r.turns; stepSum += r.steps;
+                routeSum += RouteOpen(lv, r.turns, out _, out double d);
+                depthSum += d;
+
+                for (int k = 0; k < lv.vox.Length; k++)
+                {
+                    if (!Level.IsGlyph(lv.vox[k])) continue;
+                    carried++;
+                    char had = lv.vox[k];
+                    lv.vox[k] = '+'; lv.ClearEff();
+                    SolveResult f = Solver.Solve(lv, r.turns + 3);
+                    if (!f.ok || f.turns != r.turns) live++;
+                    lv.vox[k] = had;
+                }
+                lv.ClearEff();
+            }
+
+            if (made == 0) { Console.WriteLine(string.Format("            {0}  {1,-5}    — nothing", n, set)); continue; }
+            Console.WriteLine(string.Format(
+                "            {0}  {1,-5} {2,5} {3,4:0.0} {4,6:0.0} {5,6:0}% {6,6:0}%  {7,4}/{8}",
+                n, set, made, parSum / (double)made, stepSum / (double)made,
+                100 * routeSum / made, 100 * depthSum / made, live, carried));
+        }
+    }
+
     static void Compare()
     {
         Console.WriteLine("                        UNPRUNED                    PRUNED");

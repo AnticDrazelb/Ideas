@@ -20,6 +20,14 @@ namespace Singularity.Core
         /// to demand one rather than hope a three-way roll lands on it.
         /// </summary>
         public string glyphSet;
+
+        /// <summary>
+        /// TWO SOLIDS, NOT ONE. A trigger exchanges the voxel array rather than
+        /// re-reading it, so a cube that carries one needs a second array for the
+        /// carve to continue into. One means the cube has a single layout and
+        /// behaves exactly as every cube in the game has until now.
+        /// </summary>
+        public int layouts;
         public int turns;          // the CARVE's ambition, not the acceptance band
         public int locks;
         public double density;
@@ -198,6 +206,16 @@ namespace Singularity.Core
             var rng = Rng.Mulberry32(seed);
             int n = opt.n;
             var vox = new char[n * n * n];
+
+            // THE SECOND SOLID IS CARVED THE SAME WAY AS THE FIRST, by the same
+            // walk, in the legs that happen after the trigger fires. Carve already
+            // takes the array it writes to as an argument, so the whole of "carve
+            // into the other layout" is choosing which one to hand it — the route
+            // crosses between them exactly as it crosses between plate worlds, and
+            // the guarantee that comes with it is the same: footing is CONSTRUCTED
+            // on both sides rather than hoped for.
+            char[] voxB = opt.layouts > 1 ? new char[n * n * n] : null;
+            char[] Solid(int w) => (w & Level.Swapped) != 0 && voxB != null ? voxB : vox;
             for (int i = 0; i < vox.Length; i++) vox[i] = rng.Next() < opt.density ? '#' : '.';
 
             Ori m = Ori.Id;
@@ -217,7 +235,7 @@ namespace Singularity.Core
 
             int u0 = 1 + (int)Math.Floor(rng.Next() * (n - 2));
             int v0 = 1 + (int)Math.Floor(rng.Next() * (n - 2));
-            if (!Carve(n, vox, m, u0, v0, null, world, lockMap, out Int3 pos)) return null;
+            if (!Carve(n, Solid(world), m, u0, v0, null, world, lockMap, out Int3 pos)) return null;
             path.Add(pos);
 
             var order = new int[4];
@@ -231,7 +249,7 @@ namespace Singularity.Core
                 {
                     int u2 = vv.x + Turns.All[order[t]].dx, v2 = vv.y + Turns.All[order[t]].dy;
                     if (u2 < 0 || v2 < 0 || u2 >= n || v2 >= n) continue;
-                    if (!Carve(n, vox, m, u2, v2, vv.z, world, lockMap, out Int3 nx)) continue;
+                    if (!Carve(n, Solid(world), m, u2, v2, vv.z, world, lockMap, out Int3 nx)) continue;
                     pos = nx; path.Add(pos);
                     return true;
                 }
@@ -255,10 +273,25 @@ namespace Singularity.Core
                         kind = opt.glyphSet[(int)(rng.Next() * opt.glyphSet.Length) % opt.glyphSet.Length];
                     else
                         kind = (kinds > 1 && rng.Next() < 0.45) ? 'B' : 'A';
-                    vox[gi] = kind;
+
+                    // A TRIGGER HAS TO EXIST IN BOTH SOLIDS OR IT IS A ONE-WAY
+                    // DOOR. The cell is written into whichever layout the walk is
+                    // standing in AND into the other one at the same index, so the
+                    // swap can be undone by stepping back onto it — the same
+                    // promise a plate makes, and the reason a plate is a decision
+                    // rather than a commitment you cannot inspect.
+                    Solid(world)[gi] = kind;
+                    if (kind == 'T' && voxB != null) { vox[gi] = 'T'; voxB[gi] = 'T'; }
                     lockMap[gi] = kind;
                     placed.Add((pos, kind));
                     world ^= Level.GlyphBit(kind);
+
+                    // and the landing cell has to exist in the world we just
+                    // opened, or the walk continues from somewhere it is not
+                    if (!Carve(n, Solid(world), m, Projection.ViewOf(n, m, pos).x,
+                               Projection.ViewOf(n, m, pos).y, null, world, lockMap, out Int3 kept))
+                        return null;
+                    pos = kept;
 
                     int after = 2 + (int)Math.Floor(rng.Next() * 3);
                     for (int ea = 0; ea < after; ea++) if (!WalkOnce()) break;
@@ -270,14 +303,25 @@ namespace Singularity.Core
                 int pick = (int)Math.Floor(rng.Next() * 4);
                 Ori m2 = Turns.All[pick].f(m);
                 Int3 lv2 = Projection.ViewOf(n, m2, pos);
-                if (!Carve(n, vox, m2, lv2.x, lv2.y, null, world, lockMap, out Int3 lnd)) continue;
+                if (!Carve(n, Solid(world), m2, lv2.x, lv2.y, null, world, lockMap, out Int3 lnd)) continue;
                 m = m2; pos = lnd; path.Add(lnd);
             }
 
             Int3 goal = path[path.Count - 1];
+
+            // THE OTHER SOLID MUST BE A SOLID. Only the legs walked after the
+            // trigger fired carved into it, so the rest of it is void — and a
+            // layout that is a ribbon of trace in empty space is not a second
+            // board, it is a corridor, and the whole point of a layout swap is
+            // that the ground is REARRANGED rather than removed. So it gets the
+            // same lattice fill the first one gets, at the same density.
+            if (voxB != null)
+                for (int i = 0; i < voxB.Length; i++)
+                    if (voxB[i] == '.' && rng.Next() < opt.density) voxB[i] = '#';
+
             var lv = new Level
             {
-                n = n, vox = vox, start = path[0], goal = goal,
+                n = n, vox = vox, voxB = voxB, start = path[0], goal = goal,
                 glyphs = placed, lockMap = lockMap
             };
 
@@ -286,6 +330,8 @@ namespace Singularity.Core
             // the other would change the world at the moment the cube ends.
             if (Level.IsGlyph(vox[Level.Vidx(n, lv.start)])) return null;
             if (Level.IsGlyph(vox[Level.Vidx(n, goal)])) return null;
+            // and the goal has to be somewhere in the layout it is reached in
+            if (voxB != null && voxB[Level.Vidx(n, goal)] == '.') voxB[Level.Vidx(n, goal)] = '+';
             if (placed.Count != nGlyph) return null;
 
             // Keys and locks go on the route, but NEVER on a plate. A shut lock
