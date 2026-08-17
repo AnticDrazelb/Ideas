@@ -35,22 +35,30 @@ static class FinishChecks
     const float Frame = 1000f / 60f;
 
     /// <summary>Pump the session like the director does, until it is idle again.</summary>
-    static void Settle(Session s, int maxFrames = 600)
+    static float Settle(Session s, int maxFrames = 600)
     {
+        float ms = 0f;
         for (int i = 0; i < maxFrames; i++)
         {
             s.AdvanceWalk(Frame);
             s.AdvanceAnim(Frame);
             s.StepPlateClock(Frame, false);
-            if (s.walking == null && s.anim == null) return;
+            ms += Frame;
+            if (s.walking == null && s.anim == null) return ms;
         }
+        return ms;
     }
 
     /// <summary>Play one cube to a win, or say why it could not be played.</summary>
+    /// <summary>Longest unbroken stretch, in ms of animation, that any replay spent inside a plate world.</summary>
+    public static float WorstPlateWindow;
+    public static int WorstPlateCube;
+
     public static bool Play(Level source, int number, out string why, out int folds)
     {
         why = null;
         folds = 0;
+        float inPlate = 0f;
         var s = new Session();
         s.Load(source, number, LoadKind.Vault);
         Settle(s);
@@ -86,7 +94,9 @@ static class FinishChecks
                     return false;
                 }
                 folds++;
-                Settle(s);
+                float dt1 = Settle(s);
+                if ((s.world & Level.Plates) != 0) { inPlate += dt1; if (inPlate > WorstPlateWindow) { WorstPlateWindow = inPlate; WorstPlateCube = number; } }
+                else inPlate = 0f;
             }
             else
             {
@@ -95,7 +105,9 @@ static class FinishChecks
                 Int3 v = Projection.ViewOf(s.N, s.M, s.pos);
                 Int3 was = s.pos;
                 s.TapCell(v.x + Turns.All[a.dir].dx, v.y + Turns.All[a.dir].dy);
-                Settle(s);
+                float dt2 = Settle(s);
+                if ((s.world & Level.Plates) != 0) { inPlate += dt2; if (inPlate > WorstPlateWindow) { WorstPlateWindow = inPlate; WorstPlateCube = number; } }
+                else inPlate = 0f;
                 if (s.pos == was)
                 {
                     why = "the game would not walk to the cell the solver stepped to, from " + was
@@ -197,6 +209,26 @@ static class FinishChecks
         }
         ok(failed == 0, failed + " cubes cannot be played to a win in the real Session — first is cube "
             + firstBad + ": " + firstWhy);
+
+        // THE BOARD THE GAME PLAYS, AUDITED. Safety's sweep runs on the Level the
+        // catalogue decoded; Session plays a Clone of it. Those were different
+        // objects until Clone was fixed, so asserting on one and playing the
+        // other is exactly the hole this file exists to close.
+        int deadOnClone = 0, firstDead = 0;
+        for (int i = 1; i <= Catalogue.Count; i++)
+        {
+            Level lv2 = Catalogue.Get(i);
+            if (lv2 == null) continue;
+            var vd = Safety.Audit(lv2.Clone());
+            if (!vd.Ok) { deadOnClone++; if (firstDead == 0) firstDead = i; }
+        }
+        ok(deadOnClone == 0, deadOnClone + " cubes can be bricked on the board the GAME loads (first cube "
+            + firstDead + ") even though the decoded board is clean");
+        Console.WriteLine("finish: " + Catalogue.Count + " cubes audited on the cloned board the game plays — "
+            + deadOnClone + " can be bricked");
+        Console.WriteLine("finish: the longest any solution stayed inside a plate's five-second window was "
+            + (WorstPlateWindow / 1000f).ToString("0.00") + "s of animation (cube " + WorstPlateCube
+            + "), against " + (Session.PlateMs / 1000f).ToString("0.0") + "s on the clock");
         Console.WriteLine("finish: " + played + " of " + Catalogue.Count
             + " cubes played to a win through the Session the game runs");
     }
