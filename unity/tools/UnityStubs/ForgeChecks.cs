@@ -283,6 +283,7 @@ public static class ForgeChecks
         if (args.Length > 0 && args[0] == "gravity") { GravityProbe.Run(); return; }
         if (args.Length > 0 && args[0] == "buried") { BuriedProbe.Run(); return; }
         if (args.Length > 0 && args[0] == "arc") { ArcSearch.Run(); return; }
+        if (args.Length > 0 && args[0] == "curate") { Curate.Run(args); return; }
         Environment.ExitCode = Run();
     }
 }
