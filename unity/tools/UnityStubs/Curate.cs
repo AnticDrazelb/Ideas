@@ -233,11 +233,28 @@ static class Curate
         pool.Sort((a, bb) => bb.spare.CompareTo(a.spare));
         int shortlist = Math.Min(Shortlist, pool.Count);
 
+        // HOW FAR TO PRUNE IS A CHOICE, NOT A MAXIMUM.
+        //
+        // Pruning to exhaustion doubles par and destroys the cube. Measured over
+        // five hundred slots: par 2.2->7.2 became 3.3->10.2, and the share of
+        // opening folds that keep par went 7% to THIRTY-SIX — barely better than
+        // the shipped ladder's 46 — while route length halved. What is left after
+        // a total prune is a corridor in fold-space: a long forced sequence with
+        // nothing to get wrong, which is the same failure as a free opening
+        // wearing the opposite mask.
+        //
+        // The scorer could not save it because every shortlisted candidate had
+        // been pruned the same distance, so it was choosing between seven
+        // identically over-pruned cubes. So the DEPTH varies across the
+        // shortlist instead — a quarter, a half, three quarters, all of it — and
+        // the scorer picks the amount of pruning as well as the cube. Nothing
+        // about the pass changed; it is asked a different question.
         Cand best = null;
         for (int i = 0; i < shortlist; i++)
         {
             Cand c = pool[i];
-            c.par = Tighten(c.lv, c.par, 400);
+            double frac = Depths[i % Depths.Length];
+            c.par = Tighten(c.lv, c.par, (int)Math.Ceiling(c.spare * frac));
             c.steps = c.lv.steps;
             Measure(c, spec);
             c.score = Value(c, parLo, v.parHi, openMax, v);
@@ -246,8 +263,15 @@ static class Curate
         return best;
     }
 
+    /// <summary>
+    /// How much of a cube's spare footing each shortlist slot is allowed to take.
+    /// Zero is in the list on purpose: sometimes the carve was already right, and
+    /// a tool that can only subtract will always subtract.
+    /// </summary>
+    static readonly double[] Depths = { 0.0, 0.25, 0.5, 0.8, 1.0 };
+
     /// <summary>How many of a slot's candidates are worth the prune.</summary>
-    const int Shortlist = 7;
+    const int Shortlist = 10;
 
     static Spec SpecOf(Vault v, int level, int parLo)
         => new Spec
@@ -531,9 +555,13 @@ static class Curate
         // kind of claim — that the thing on screen is the thing that matters.
         if (v.glyphs > 0) s += c.loadBearing ? 260.0 : -340.0;
 
-        // A route you have to walk is a route you have to READ. Steps are capped
-        // so a cube cannot win on wandering alone.
-        s += Math.Min(90, c.steps) * 0.8;
+        // A ROUTE YOU HAVE TO WALK IS A ROUTE YOU HAVE TO READ, and the prune
+        // eats walking first — it takes away trace, and trace is what you walk on.
+        // A par-10 cube reached in three steps is ten folds in a row with nothing
+        // between them. Weighted up, and with a floor under it, because losing the
+        // walk is how the last run turned good cubes into fold sequences.
+        s += Math.Min(90, c.steps) * 2.2;
+        if (c.steps < c.par) s -= (c.par - c.steps) * 45.0;
 
         // Fill: too sparse is a corridor, too solid is a brick with a groove in it.
         double want = 0.52;
