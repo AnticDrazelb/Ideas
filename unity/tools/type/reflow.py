@@ -159,6 +159,21 @@ LABELS = [
     ("access LIGHT · LESS", "LESS", 17, ACCESS_SLOT),
     ("access LIGHT · NONE", "NONE", 17, ACCESS_SLOT),
 
+    # THE TITLE'S PRIMARY, WHICH HAS THREE TEXTS AND ONLY EVER SHOWS ONE. It is
+    # the widest button in the game — the whole 625 less the column's 48 a side —
+    # and the label fills the plate edge to edge, so the slot is that number
+    # exactly. THE CORE is the state a finished machine sits in and it had never
+    # been measured against anything.
+    ("title primary · INITIALISE", "[ INITIALISE ]", 30, 625 - 96),
+    ("title primary · CONTINUE", "[ CONTINUE ]", 30, 625 - 96),
+    ("title primary · THE CORE", "[ THE CORE ]", 30, 625 - 96),
+
+    # and the four under it, two to a row out of the same column
+    ("title quad · DAILY", "[ DAILY ]", 24, (625 - 96) / 2 - 6),
+    ("title quad · VAULTS", "[ VAULTS ]", 24, (625 - 96) / 2 - 6),
+    ("title quad · FORGE", "[ FORGE ]", 24, (625 - 96) / 2 - 6),
+    ("title quad · CALIBRATE", "[ CALIBRATE ]", 24, (625 - 96) / 2 - 6),
+
     # CALIBRATE's own three-up feet, which are Bracketed and so carry them
     ("calibrate foot · MANUAL", "[ MANUAL ]", 24, (625 - 80) / 3 - 12),
     ("calibrate foot · BACK", "[ BACK ]", 24, (625 - 80) / 3 - 12),

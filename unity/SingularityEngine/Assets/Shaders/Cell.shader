@@ -28,6 +28,7 @@ Shader "Singularity/Cell"
         _Gutter   ("Gutter", Range(0,0.3)) = 0.055
         _Round    ("Corner radius", Range(0,0.5)) = 0.09
         _Dim      ("Dim", Range(0,2)) = 1
+        _All      ("Whole board", Range(0,1)) = 1
         _Reveal   ("Reveal front", Float) = 99
         _Wave     ("Transition front", Float) = 99
         _WaveDir  ("Transition direction", Float) = 1
@@ -216,7 +217,7 @@ Shader "Singularity/Cell"
                 // one job.
                 c *= 1.0 - smoothstep(0.55, 1.0, i.gone);
 
-                return fixed4(c * _Dim, 1);
+                return fixed4(c * _Dim * _All, 1);
             }
             ENDCG
         }

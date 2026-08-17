@@ -240,7 +240,7 @@ namespace Singularity.UI
             RectTransform go = UiKit.Rect(col, "CONTINUE", new Vector2(0, 1), new Vector2(1, 1),
                                           new Vector2(0, -UiKit.PrimaryH), new Vector2(0, 0));
             UiKit.Bracketed(go, "CONTINUE", "CONTINUE",
-                            () => { Show(null); _dir.Play(Mathf.Max(1, Store.Data.reached)); }, 30, true);
+                            () => { Show(null); _dir.Play(Vaults.Resume(Store.Data.reached)); }, 30, true);
 
             Quad(col, 0, "DAILY", () => { Show(null); _dir.Play(Daily.SpecLevel, LoadKind.Daily); });
             Quad(col, 1, "VAULTS", OpenVaults);
@@ -255,9 +255,14 @@ namespace Singularity.UI
 
         public static void ShowTitle()
         {
-            int r = Mathf.Max(1, Store.Data.reached);
+            int r = Vaults.Resume(Store.Data.reached);
+            bool done = Vaults.Cleared(Store.Data.reached);
             // A machine that has never been started is INITIALISED, not continued.
-            if (_playLabel != null) _playLabel.text = r <= 1 ? "[ INITIALISE ]" : "[ CONTINUE ]";
+            // And one that has been taken all the way to the core is neither: the
+            // button still plays, but it is offering the last cube back rather
+            // than pretending there is a next one.
+            if (_playLabel != null)
+                _playLabel.text = done ? "[ THE CORE ]" : r <= 1 ? "[ INITIALISE ]" : "[ CONTINUE ]";
 
             int band = Vaults.VaultOf(r);
             if (_resumeVault != null)

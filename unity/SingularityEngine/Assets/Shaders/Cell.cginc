@@ -36,6 +36,12 @@ struct v2f
 
 fixed4 _ColFar, _ColNear;
 float _HalfSpan, _Facing, _Edge, _EdgeLift, _Dim, _Reveal, _Unlit, _UnlitSat, _Gutter, _Round, _Peek;
+
+// THE WHOLE BOARD, TOGETHER. Not _Dim — that is the hold shading the far cells
+// to say which of them is nearer, and it means something. This one means the
+// board is going away, so it is the last multiply in both fragment stages and
+// nothing is allowed to be exempt from it.
+float _All;
 float _Wave, _WaveDir, _WaveSoft;
 float _Evert, _EvertSpread;
 float4 _EvertAxis, _EvertSpin;

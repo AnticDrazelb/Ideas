@@ -47,6 +47,7 @@ Shader "Singularity/Wire"
         _EdgeLift ("Edge brightness", Range(0,2)) = 0.55
         _Facing   ("Side-face darkening", Range(0,1)) = 0.42
         _Dim      ("Dim", Range(0,2)) = 1
+        _All      ("Whole board", Range(0,1)) = 1
         _Unlit    ("Unreachable dimming", Range(0,1)) = 0.46
         _UnlitSat ("Unreachable colour left", Range(0,1)) = 0.30
         _Reveal   ("Reveal front", Float) = 99
@@ -115,8 +116,9 @@ Shader "Singularity/Wire"
 
                 // NOT _Dim. That is the surface being taken away as the hold comes
                 // on, and applying it here would dim the wire by exactly the amount
-                // the wire exists to replace.
-                return fixed4(col * (gain * fade * _Peek * leaving), 1);
+                // the wire exists to replace. _All is a different claim — the whole
+                // board leaving — and the schematic is part of the board.
+                return fixed4(col * (gain * fade * _Peek * leaving * _All), 1);
             }
             ENDCG
         }

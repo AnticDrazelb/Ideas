@@ -281,5 +281,29 @@ static class CodeChecks
             ok(col.HasValue && col.Value.level == 1,
                "the Forge would let a player rebuild cube 1 of the catalogue");
         }
+
+        // PROGRESS CANNOT WALK OFF THE END OF THE LADDER.
+        //
+        // Clearing cube n stores n+1, so the last cube stores 501 — and every
+        // consumer of that number then asks for a cube the catalogue does not
+        // have, which the supply answers by MINTING one. A five hundred and
+        // first cube out of a generator that exists for the daily is exactly
+        // what a fixed ladder is not. The clamp lives in Vaults.Resume and this
+        // is the sweep that says it holds for every save value, including the
+        // corrupt ones: zero, negative, and past the end.
+        int strayed = 0, offLadder = 0;
+        for (int r = -3; r <= Vaults.LastCube + 40; r++)
+        {
+            int play = Vaults.Resume(r);
+            if (play < 1 || play > Vaults.LastCube) { strayed++; continue; }
+            if (!Catalogue.Has(play)) offLadder++;
+        }
+        ok(strayed == 0, strayed + " saved progress values resume outside cube 1.." + Vaults.LastCube);
+        ok(offLadder == 0, offLadder + " saved progress values resume onto a cube the catalogue does not hold");
+
+        // and the finished flag is the one thing that reads past the end, so it
+        // has to be true THERE and nowhere earlier
+        ok(!Vaults.Cleared(Vaults.LastCube) && Vaults.Cleared(Vaults.LastCube + 1),
+           "the machine reads as finished at the wrong cube");
     }
 }

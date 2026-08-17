@@ -761,6 +761,58 @@ crawling while the cells it came off flew is the one way this can look wrong.
 
 ---
 
+## The ending
+
+Cube 500 does not exit. Everything the ordinary exit does is wrong for the last
+one: the throw says *and now the next one*, the card asks a question, and the
+vault chime congratulates you on a boundary you are not crossing.
+
+So **nothing is thrown**. The board is left exactly as it was solved and the
+picture closes in on the one square you reached. What goes away is everything
+*around* it.
+
+| | |
+|---|---|
+| **close** | 2.4s. The instrument and the camera move together, so the screen does not empty and *then* move — one gesture, ending with a cell alone in the dark. `UiKit.Dim` fades every canvas the kit ever made; `CubeView.Dim` takes the deck, the schematic, the cage and every glyph down as one; `CameraRig.Close` aims at the goal cell and drops the aperture to a sixth. |
+| **grow** | 2.2s. The singularity has spent five hundred cubes being the smallest thing on the board and stops being small. White, because every other colour in this palette means something and none of them mean this. Cubed easing: slow, then not slow — a star does not swell at a constant rate. |
+| **blow** | One frame with everything on it, then 0.55s of front. The shockwave is the ring the ordinary exits gave up; it was competing with debris there and here there is nothing for it to compete with. |
+| **black** | 3s. Not a fade to a menu — a stop. The only silence in this game longer than the collapse's fifth of a second, and the whole reason the ending reads as one. |
+
+**Every size in the last three moves is measured off the frame, not written
+down.** At full close the camera is at a sixth of its usual aperture, so the
+world units the rest of the game is tuned in mean something completely
+different: a 90-unit ring crosses the closed frame in a fortieth of its life and
+is never seen, and a blob that swells to 26 fills the screen a third of the way
+through the growth and spends the rest of it white on white. Both are the same
+mistake — a number that only made sense at one zoom. The finale reads
+`orthographicSize` off the camera doing the framing and scales the blob, both
+rings, the spark speed and the spark size out of it.
+
+The shake moves with it too, and that is `CameraRig`'s problem rather than the
+finale's. Trauma is a screen gesture stored in world units, and the two agree at
+exactly one aperture: half a world unit against a four-unit frame is a fifth of
+the height and reads as a hit; the same half unit against the closed frame is
+most of the screen, and the shockwave meant to rattle the star would instead
+fling it out of shot and shake an empty picture. Every offset now travels with
+the aperture, so the amplitude **on screen** is what stays constant — which is
+the only part of it anybody can see.
+
+The sound is told how long the picture is. `Sfx.Duck` holds for its argument
+plus 2.4s and then takes 1.2s to bring the bed back, so the finale passes it the
+whole ending minus that lead-in and the hum arrives under the title rather than
+under the shockwave.
+
+And progress stops at the end of the ladder. Clearing cube *n* stores *n+1*,
+which is right for four hundred and ninety-nine of them and off the end of the
+world for the last: 501 is a cube the catalogue does not have, and the supply
+answers a miss by **minting** one out of the generator that exists for the daily.
+`Vaults.Resume` clamps what is played and `Vaults.Cleared` is the separate
+question of whether the machine is finished — the title reads `[ THE CORE ]`
+rather than `[ CONTINUE ]`, and a sweep over every save value from −3 to 540
+proves none of them resume onto a cube that is not in the ladder.
+
+---
+
 ## Two reads that change nothing
 
 Both are in, and both are worth having precisely because they cost nothing.

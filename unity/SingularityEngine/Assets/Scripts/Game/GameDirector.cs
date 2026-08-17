@@ -479,7 +479,10 @@ namespace Singularity.Game
                 Store.SetPar(S.levelNo, S.lv.par);
                 if (!Store.TryTimeBest(S.levelNo, out long tb) || ms < tb) Store.SetTimeBest(S.levelNo, ms);
                 if (S.levelNo + 1 > Store.Data.reached) { Store.Data.reached = S.levelNo + 1; Store.Save(); }
-                LevelSupply.Prebuild(S.levelNo + 1);
+                // and there is no cube after the last one to cut. Asking for it
+                // would put the generator to work on a five hundred and first that
+                // is not in the ladder and is not supposed to exist.
+                if (S.levelNo < Vaults.LastCube) LevelSupply.Prebuild(S.levelNo + 1);
             }
 
             Rig.Kick(11, 0, 1); Rig.Shake(1f); Rig.Punch(0.09f);
@@ -502,6 +505,13 @@ namespace Singularity.Game
             // shape: slow for the collapse, real time for the failure.
             TimeBend.Hitstop(150f);
             TimeBend.Slowmo(0.30f, 470f);
+
+            // THE LAST CUBE DOES NOT END LIKE THE OTHER FOUR HUNDRED AND NINETY
+            // NINE. Everything below — the throw, the card, the vault chime — is
+            // for a cube you are going to leave and come back from.
+            bool finale = !S.IsDaily && !S.IsMade && !S.IsPractice
+                          && S.levelNo >= Vaults.LastCube;
+            if (finale) { StartCoroutine(Finale()); return; }
 
             // THE CARD DOES NOT APPEAR OVER A STILL IMAGE OF A SOLVED PUZZLE. The
             // machine turns to show you it is a solid, and then it is thrown.
@@ -527,6 +537,154 @@ namespace Singularity.Game
                             && Vaults.VaultOf(S.levelNo + 1) != Vaults.VaultOf(S.levelNo);
             if (crossing) _sfx.Vault();
             // and the card is the last beat of WinExit, not a timer racing it
+        }
+
+        /// <summary>
+        /// THE END OF THE MACHINE.
+        ///
+        /// Five hundred cubes and this is the last one, so it is the only place in
+        /// the game that gets to be an ENDING rather than a transition. Everything
+        /// the ordinary exit does is wrong here: the throw says "and now the next
+        /// one", the card asks a question, and the vault chime congratulates you
+        /// on a boundary you are not crossing.
+        ///
+        /// SO NOTHING IS THROWN. The board is not broken open — it is left exactly
+        /// as it was solved, and the picture closes in on the one square you
+        /// reached instead. What goes away is everything AROUND it: the readout,
+        /// the housing, the glass, the whole instrument the game has been played
+        /// through, until what is left on screen is a cell and the dark.
+        ///
+        /// Then it grows. The singularity has spent five hundred cubes being the
+        /// smallest thing on the board and it stops being small — white, because
+        /// every other colour in this palette means something and none of them
+        /// mean this, and bright enough that the bloom takes it. The shockwave is
+        /// the ring the ordinary exits gave up: it was competing with the debris
+        /// there and here there is nothing for it to compete with.
+        ///
+        /// And then black, and three seconds of it, and the title. A game that has
+        /// an ending should be allowed to stop for a moment before offering you
+        /// anything.
+        /// </summary>
+        bool _ending;
+
+        IEnumerator Finale()
+        {
+            Vector3 at = At(S.lv.goal);
+            Rig.At = at;
+            _input.Enabled = false;
+
+            // THE FOUR MOVES, WRITTEN DOWN ONCE, because the sound has to know how
+            // long the picture is.
+            const float Close = 2.4f, Grow = 2.2f, Blow = 0.55f, Black = 3f;
+
+            // ---- one: everything but the board goes ------------------------
+            //
+            // The instrument fades and the camera closes at the same rate, so the
+            // screen does not empty and then move — it is one gesture, and it ends
+            // with a cell alone in the dark.
+            //
+            // AND THE ROOM GOES QUIET FOR ALL OF IT, INCLUDING THE BLACK. Duck
+            // holds for its argument plus two and a bit and then takes a second
+            // and a fifth to bring the bed back, so the number it wants is the
+            // whole ending minus that lead-in — which lands the hum under the
+            // title rather than under the shockwave. Writing 2.6 there, which is
+            // the length of ONE of the four moves, restarted the music halfway
+            // through the star and then ducked it again over the menu.
+            _sfx.Duck(Close + Grow + Blow + Black - 2.4f);
+            for (float t = 0f; t < Close; t += Time.unscaledDeltaTime)
+            {
+                float k = Mathf.Clamp01(t / Close);
+                float e = k * k * (3f - 2f * k);
+                Singularity.UI.UiKit.Dim(1f - e);
+                Rig.Close = e;
+                View.Dim(1f - e * 0.86f);
+                yield return null;
+            }
+            Singularity.UI.UiKit.Dim(0f);
+            Rig.Close = 1f;
+            yield return null;   // one frame for the rig to publish the closed frame
+
+            // EVERY SIZE BELOW IS MEASURED OFF THE FRAME, NOT WRITTEN DOWN.
+            //
+            // The camera is at a sixth of its usual aperture by now, so the world
+            // units the rest of the game is tuned in mean something completely
+            // different here: the ordinary exit's ninety-unit ring would cross the
+            // closed frame in a fortieth of its life and never be seen, and a blob
+            // that swells to twenty-six would fill the screen a third of the way
+            // through the growth and spend the rest of it white on white. Both of
+            // those are the same mistake — a number that only made sense at one
+            // zoom. Screen is what the shot is worth, so Screen is what it is
+            // measured in: half the visible world height, right now, off the
+            // camera that is doing the framing.
+            float half = Rig.cam.orthographicSize;
+            float aspect = Screen.width / Mathf.Max(1f, (float)Screen.height);
+            // a square quad covering a frame of ANY aspect, corners included
+            float fills = 2f * half * Mathf.Max(1f, aspect) * 1.15f;
+
+            // ---- two: it is not small any more -----------------------------
+            _ending = true;
+            for (float t = 0f; t < Grow; t += Time.unscaledDeltaTime)
+            {
+                float k = Mathf.Clamp01(t / Grow);
+                // slow, then not slow. A star does not swell at a constant rate
+                // and neither should the thing that has been standing in for one.
+                float e = k * k * k;
+                _fx.Blob(at, Mathf.Lerp(half * 0.22f, fills, e),
+                         new Color(1f, 1f, 1f, Mathf.Min(1f, 0.35f + e * 1.6f)));
+                if (t < 0.02f) _sfx.Vault();
+                Rig.Shake(0.006f + e * 0.05f);
+                yield return null;
+            }
+
+            // ---- three: the shockwave ---------------------------------------
+            Rig.Kick(22, 0, 1);
+            Rig.Shake(1f);
+            Rig.Punch(-0.10f);
+            Haptics.Buzz(Haptics.Collapse);
+            Haptics.Buzz(Haptics.Shatter);
+            _sfx.Shatter();
+            // TWO RINGS, ONE BEHIND THE OTHER. The white one is the front and the
+            // core-coloured one is what it leaves behind — the same trick the
+            // ordinary collapse uses, at the scale of the frame it is crossing.
+            _fx.Ring2(at, half * 0.1f, fills * 1.6f, 0.85f, Color.white, half * 0.30f, false);
+            _fx.Ring2(at, half * 0.1f, fills * 1.1f, 1.10f, Palette.Core, half * 0.13f, false);
+            _fx.Burst(at, 60, new Fx.BurstOpts
+            {
+                kind = Fx.Kind.Spark,
+                speed = fills * 1.3f,     // clear of the frame in about a second
+                life = 1.4f,
+                size = half * 0.10f,
+                gravity = 0f,
+                col = Color.white
+            });
+            TimeBend.Hitstop(120f);
+
+            for (float t = 0f; t < Blow; t += Time.unscaledDeltaTime)
+            {
+                _fx.Blob(at, fills * (1f + t * 5.5f),
+                         new Color(1f, 1f, 1f, Mathf.Max(0f, 1f - t / Blow)));
+                yield return null;
+            }
+
+            // ---- four: three seconds of nothing ----------------------------
+            //
+            // Not a fade to a menu. A stop. It is the only silence in this game
+            // longer than the two hundred milliseconds the ordinary collapse gets,
+            // and it is the whole reason the ending reads as one.
+            View.Dim(0f);
+            _fx.Clear();
+            _orb.Reset();
+            yield return new WaitForSecondsRealtime(Black);
+            _ending = false;
+
+            // and the instrument comes back on with the title behind it
+            View.Dim(1f);
+            Rig.Close = 0f;
+            Rig.Pull = 0f;
+            Singularity.UI.UiKit.Dim(1f);
+            // and ShowTitle starts the attract cube itself — asking twice is how
+            // the second call ends up being the one that matters
+            Screens.ShowTitle();
         }
 
         /// <summary>
@@ -681,7 +839,10 @@ namespace Singularity.Game
                 View.Apply(Rig.cam);
                 Hud.Tick(dt, S);
                 Hud.TickDepth(S, Rig.cam, View);
-                _orb.Tick(ms, !_screenUp);
+                // AND THE SINGULARITY STOPS BEING A DOT. The finale grows a white
+                // giant out of the cell the orb is standing on; leaving the orb
+                // drawn puts a black disc in the middle of the star.
+                _orb.Tick(ms, !_screenUp && !_ending);
                 _orb.EmitTrail();
                 _fx.Tick(ms / 1000f);
             }

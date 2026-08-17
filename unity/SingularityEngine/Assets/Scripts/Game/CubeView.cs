@@ -69,6 +69,7 @@ namespace Singularity.Game
             public Int3 cell;
             public string role;   // "core" | "node" | "lock" | "player"
             public int index;
+            public Color col;     // as authored, so a fade has something to come back to
         }
 
         // ---- live view state (driven by the session and the input router) ----
@@ -150,8 +151,23 @@ namespace Singularity.Game
         /// </summary>
         public const float BurstStagger = 0.55f;
 
+        /// <summary>
+        /// TAKE THE WHOLE BOARD DOWN TOGETHER — deck, schematic, cage and every
+        /// glyph standing on it — as one number, so nothing is left lit behind a
+        /// dark cube.
+        ///
+        /// It is NOT the hold's dim, which shades the far cells to say which of
+        /// them is nearer. This one multiplies that: the hold keeps saying what it
+        /// says, quieter, all the way to nothing. Only the finale moves it, and
+        /// Whole() puts it back, so the ONE path every cube is entered through is
+        /// also the path that guarantees the next cube arrives at full strength.
+        /// </summary>
+        public void Dim(float a) => _dimAll = Mathf.Clamp01(a);
+        float _dimAll = 1f;
+        bool _wasDimmed;
+
         /// <summary>Put the solid back together. Every entry into a cube goes through here.</summary>
-        public void Whole() { winLean = 0f; burstAmt = 0f; }
+        public void Whole() { winLean = 0f; burstAmt = 0f; _dimAll = 1f; }
 
         /// <summary>
         /// THE ATTRACT CUBE. The title screen is a composition with a cube in the
@@ -622,7 +638,7 @@ namespace Singularity.Game
             sr.color = col;
             sr.sortingOrder = 100;
             go.transform.localScale = Vector3.one * size;
-            return new Marker { t = go.transform, sr = sr };
+            return new Marker { t = go.transform, sr = sr, col = col };
         }
 
         // ---- per frame ------------------------------------------------------
@@ -736,6 +752,8 @@ namespace Singularity.Game
 
                 m.SetFloat("_Burst", burstAmt);
                 m.SetFloat("_BurstSpread", BurstStagger);
+
+                m.SetFloat("_All", _dimAll);
             }
 
             _reveal += Time.unscaledDeltaTime * RevealPerSecond;
@@ -780,7 +798,7 @@ namespace Singularity.Game
                 float peekE = PeekEase;
                 Color cage = Color.Lerp(Palette.Rust, Palette.WireTrace, peekE * 0.85f);
                 _cageR.sharedMaterial.SetColor("_Tint",
-                    new Color(cage.r, cage.g, cage.b, e * (0.46f + peekE * 0.54f)));
+                    new Color(cage.r, cage.g, cage.b, e * (0.46f + peekE * 0.54f) * _dimAll));
             }
 
             // A MARKER BELONGS TO A CELL, AND THE CELLS HAVE LEFT. Every glyph on
@@ -802,6 +820,14 @@ namespace Singularity.Game
             Vector3 toward = -cam.transform.forward * 0.52f;
             Quaternion face = cam.transform.rotation;
 
+            // A GLYPH IS A SPRITE, NOT A CELL, so the board's fade does not reach it
+            // through a material — it has to be written here. The write is skipped
+            // entirely at full strength, and done ONCE MORE on the frame the fade
+            // ends, so ordinary play costs nothing and nothing is left dark.
+            bool dimming = _dimAll < 0.999f;
+            bool paint = dimming || _wasDimmed;
+            _wasDimmed = dimming;
+
             foreach (var m in _markers)
             {
                 bool shown = Shown(m);
@@ -809,6 +835,7 @@ namespace Singularity.Game
                 if (!shown) continue;
                 m.t.position = cube.TransformPoint(CubeMesh.CellToObject(_s.N, m.cell)) + toward;
                 m.t.rotation = face;
+                if (paint) m.sr.color = m.col * _dimAll;
             }
 
         }

@@ -34,6 +34,7 @@ namespace UnityEngine
         public static Vector2 operator -(Vector2 a, Vector2 b) => new Vector2(a.x - b.x, a.y - b.y);
         public static Vector2 operator +(Vector2 a, Vector2 b) => new Vector2(a.x + b.x, a.y + b.y);
         public static Vector2 operator *(Vector2 a, float f) => new Vector2(a.x * f, a.y * f);
+        public static Vector2 Lerp(Vector2 a, Vector2 b, float t) => default;
         public static implicit operator Vector2(Vector3 v) => new Vector2(v.x, v.y);
     }
 

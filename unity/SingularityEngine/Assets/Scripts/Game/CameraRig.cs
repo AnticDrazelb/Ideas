@@ -128,6 +128,15 @@ namespace Singularity.Game
         /// </summary>
         public float Pull { get; set; }
 
+        /// <summary>
+        /// AIM AT ONE CELL AND CLOSE ON IT. Zero is the framing the game is played
+        /// in; one is that cell filling the aperture with everything else outside
+        /// it. Only the finale uses it — the board is a whole object every other
+        /// second of the game and the camera has no business preferring part of it.
+        /// </summary>
+        public float Close { get; set; }
+        public Vector3 At { get; set; }
+
         public void Shake(float amt) => _trauma = Mathf.Min(1f, _trauma + amt * Amount);
         public void Punch(float amt) => _punch = Mathf.Clamp(_punch + amt * Amount, -0.12f, 0.12f);
 
@@ -211,12 +220,30 @@ namespace Singularity.Game
             float sx = (Mathf.PerlinNoise(Time.time * 34f, 0f) - 0.5f) * 2f * t2 * 0.55f;
             float sy = (Mathf.PerlinNoise(0f, Time.time * 31f) - 0.5f) * 2f * t2 * 0.55f;
 
+            float cl = Mathf.Clamp01(Close);
+            Vector2 aim = Vector2.Lerp(_baseOffset, new Vector2(At.x, At.y), cl * cl * (3f - 2f * cl));
+
+            // AND THE CLOSE IS NOT GATED ON MOTION. It is not an impulse on top of
+            // the picture, it is the framing — the same argument Room makes. A
+            // player who asked the board to hold still did not ask to be shown the
+            // wrong part of it.
+            float zoom = Mathf.Lerp(1f, 0.16f, cl);
+
+            // SHAKE IS A SCREEN GESTURE MEASURED IN WORLD UNITS, and those two
+            // agree only at one zoom. Trauma of one is half a world unit against a
+            // four-unit frame — a fifth of the height, which reads as a hit; the
+            // same half unit against the closed frame's 0.64 is most of the screen,
+            // and the shockwave that is supposed to rattle the star would instead
+            // fling it out of shot and shake an empty picture. So every offset
+            // travels with the aperture and the AMPLITUDE ON SCREEN is what stays
+            // constant, which is the only part of it anybody can see.
             cam.transform.localPosition = new Vector3(
-                _baseOffset.x + sx + _kickX * _kickDecay,
-                _baseOffset.y + sy + _kickY * _kickDecay,
+                aim.x + (sx + _kickX * _kickDecay) * zoom,
+                aim.y + (sy + _kickY * _kickDecay) * zoom,
                 -40f);
             cam.orthographicSize = _baseSize * Room(dt, cube, contain)
-                                 * (1f + Pull * Amount) * (1f - _punch);
+                                 * (1f + Pull * Amount) * (1f - _punch)
+                                 * zoom;
 
             if (cube != null)
             {

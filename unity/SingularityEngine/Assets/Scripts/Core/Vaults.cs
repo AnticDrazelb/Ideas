@@ -81,6 +81,27 @@ namespace Singularity.Core
         /// </summary>
         public const int MaxCube = LastCube;
 
+        /// <summary>
+        /// PROGRESS IS THE NEXT CUBE, AND PAST THE END THERE ISN'T ONE.
+        ///
+        /// Clearing cube n sets reached to n+1, which is the right shape for four
+        /// hundred and ninety-nine of them and off the end of the world for the
+        /// last: reached becomes 501, and every consumer of it then asks for a
+        /// cube the catalogue does not have. LevelSupply answers that by MINTING
+        /// one — a five hundred and first cube that no other player has, out of a
+        /// generator that exists for the daily and nothing else. The title screen
+        /// asks the same question and gets VAULT XXI with a made-up name.
+        ///
+        /// So the two questions are separated and both are asked here. Resume is
+        /// what to PLAY, and it never leaves the ladder. Cleared is whether the
+        /// machine is finished, which is a fact about the save and not a cube
+        /// number — and is the only thing that should ever change what the title
+        /// offers.
+        /// </summary>
+        public static int Resume(int reached) => reached < 1 ? 1 : reached > LastCube ? LastCube : reached;
+
+        public static bool Cleared(int reached) => reached > LastCube;
+
         static readonly int[] VaultAt;
         public static readonly int VaultEnd;   // 90
 

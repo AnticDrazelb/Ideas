@@ -103,6 +103,35 @@ namespace Singularity.UI
         public static readonly System.Collections.Generic.List<Canvas> Canvases
             = new System.Collections.Generic.List<Canvas>();
 
+        /// <summary>
+        /// TAKE THE INSTRUMENT AWAY. Every canvas this kit has made, faded as one
+        /// — the HUD, the chassis, the glass, all of it — leaving the board alone
+        /// in the dark.
+        ///
+        /// It exists for exactly one moment in the game and it is written to be
+        /// harmless the rest of the time: at 1 nothing is touched, and the
+        /// CanvasGroup is added on demand rather than carried by every canvas for
+        /// the sake of the last cube.
+        ///
+        /// AND AN INVISIBLE BUTTON IS STILL A BUTTON. Alpha is a paint setting;
+        /// it does not stop a raycast, so a faded chassis would go on eating taps
+        /// on a PAUSE nobody can see and open a card over the ending. The moment
+        /// the instrument is not fully drawn it stops taking input as well — the
+        /// two are the same statement about whether it is there.
+        /// </summary>
+        public static void Dim(float a)
+        {
+            bool live = a >= 0.999f;
+            foreach (Canvas c in Canvases)
+            {
+                if (c == null) continue;
+                var g = Ensure<CanvasGroup>(c.gameObject);
+                if (g.alpha != a) g.alpha = a;
+                if (g.interactable != live) g.interactable = live;
+                if (g.blocksRaycasts != live) g.blocksRaycasts = live;
+            }
+        }
+
         public static Canvas Canvas(string name, int order)
         {
             var go = new GameObject(name, typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
