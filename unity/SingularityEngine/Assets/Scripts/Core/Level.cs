@@ -126,6 +126,36 @@ namespace Singularity.Core
         public const int Everted = 4;
 
         /// <summary>
+        /// THE PLATE BITS — the only ones the five-second clock has ever belonged
+        /// to, and the only ones a revert takes back.
+        ///
+        /// This mask exists because the alternative kept being written as
+        /// `world &amp; ~Everted`, which is the same thing ONLY while bits 1, 2 and 4
+        /// are the whole of the world. The moment the trigger added bits 8 and 16
+        /// that expression started answering "a plate is up" with "yes" for a
+        /// cube that has no plate in it at all — which armed a countdown nobody
+        /// asked for, sprang the board back when it lapsed, and then, with the
+        /// clock at zero and the world still not empty, did it again every frame.
+        ///
+        /// So the question is asked by NAME. A bit added later is not a plate
+        /// until somebody says it is here.
+        /// </summary>
+        public const int Plates = 1 | 2;
+
+        /// <summary>
+        /// THE STANDING BITS: set by the player, unset only by the player.
+        ///
+        /// An everter changes which face of the solid is the surface and a trigger
+        /// changes which solid it is; neither is temporary and neither is on a
+        /// clock. THE SOLVER CANNOT SEE A CLOCK — it carries `world` through its
+        /// search in a world with no real time in it — so anything the runtime
+        /// expires behind its back makes cubes solvable on paper and impossible in
+        /// the hand. That was already written down for the everter. The trigger is
+        /// the same argument and now carries the same guarantee.
+        /// </summary>
+        public const int Standing = Everted | Swapped | Swapped2;
+
+        /// <summary>
         /// THE LAYOUT BITS: which of the cube's solids is on.
         ///
         /// TWO BITS AND NOT A COUNTER, which is the whole design decision. Every

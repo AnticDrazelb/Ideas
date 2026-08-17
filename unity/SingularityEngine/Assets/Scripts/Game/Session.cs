@@ -205,7 +205,7 @@ namespace Singularity.Game
             // which is not a position anybody can play out of, and undo would be a
             // button that re-served the same death. This is a retry, so it is a
             // whole run at it.
-            plateT = (world & ~Level.Everted) != 0 ? PlateMs : 0;
+            plateT = (world & Level.Plates) != 0 ? PlateMs : 0;
 
             walking = null; anim = null; drag = null;
             won = false; stuck = false;
@@ -486,11 +486,16 @@ namespace Singularity.Game
         {
             world ^= bit;
             // THE CLOCK IS FOR THE PLATE BITS ONLY. An everted world with no plate
-            // in it is a standing state, not a countdown, so the clock is armed
-            // by bits 1 and 2 and is blind to bit 4 — otherwise stepping on an
-            // everter would start a five-second timer that reverts a polarity
-            // nobody asked to be temporary.
-            plateT = (world & ~Level.Everted) != 0 ? PlateMs : 0;
+            // in it is a standing state, not a countdown, and so is a triggered
+            // one — otherwise stepping on either would start a five-second timer
+            // that takes back something nobody asked to be temporary.
+            //
+            // This said "blind to bit 4" and was written as `world & ~Everted`,
+            // which is the same statement only while 1, 2 and 4 are the whole
+            // world. The trigger's bits 8 and 16 slipped straight through it. The
+            // mask is named now, in Level, so the next bit has to be declared a
+            // plate rather than become one by default.
+            plateT = (world & Level.Plates) != 0 ? PlateMs : 0;
             lv.ClearEff();
             surf = Projection.Project(N, lv.Eff(world), M, Everted);
             On.PlateFired?.Invoke(pos, bit);
@@ -503,7 +508,13 @@ namespace Singularity.Game
 
         public void StepPlateClock(float dtMs, bool screenUp)
         {
-            if (world == 0 || lv == null || won || screenUp) return;
+            // A CLOCK ONLY EXISTS WHILE A PLATE IS UP. This asked whether the
+            // world was non-empty, which was the same question until the trigger
+            // arrived: with a layout swapped and no plate fired, plateT is zero
+            // and the world is not, so every frame fell into the branch below and
+            // called RevertWorld — a shake, a rust flash and a sound, sixty times
+            // a second, over a board that could no longer get anywhere.
+            if ((world & Level.Plates) == 0 || lv == null || won || screenUp) return;
 
             // AN EXPIRY WAITS OUT A FOLD IN FLIGHT. A fold is a third of a second
             // of the board rotating toward a landing that was checked against the
@@ -554,7 +565,14 @@ namespace Singularity.Game
             // real time and the search is not. A polarity that expired would make
             // every cube in Baked.Arc solvable on paper and impossible in the
             // hand, and nothing in the harness could have seen it.
-            world &= Level.Everted;
+            //
+            // AND A TRIGGER IS THE SAME ARGUMENT. It changes which SOLID the cube
+            // is, which is a larger claim than which face of it you are on, and
+            // it is just as permanent. This read `world &= Everted`, so a plate
+            // lapsing quietly threw away the layout the player had switched to —
+            // on two hundred and fifty of the five hundred cubes, against a
+            // solver that had already counted on it being there.
+            world &= Level.Standing;
             plateT = 0;
             _lastPlateTick = -1;
             walking = null;      // any queued route dies with the world it was planned in
