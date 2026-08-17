@@ -98,6 +98,7 @@ public static class ForgeChecks
         CodeChecks.CatalogueFile(Ok);
         EndChecks.Run(Ok);
         EndChecks.Reach(Ok);
+        ClockChecks.Run(Ok);
         Numbers();
 
         Console.WriteLine(fails == 0 ? "CHECKS PASSED" : fails + " CHECKS FAILED");
