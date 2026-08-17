@@ -46,12 +46,23 @@ namespace Singularity.Game
             _want = _have = long.MinValue;
         }
 
+        /// <summary>
+        /// THE SAME KEY THE SEARCH USES, because it is caching the search's
+        /// answer. This was a second copy of the packing and it aliased exactly
+        /// as the original did — five world bits folded onto `doors` — so the
+        /// readout could hand back another world's remaining count the moment a
+        /// cube had both a trigger and a lock. Two copies of one expression is
+        /// how that happened; there is one now, and it lives with the search.
+        /// </summary>
         static long StateKey(Session s)
-        {
-            long v = Level.Vidx(s.N, s.pos);
-            return ((((v * 24 + Turns.OriIndex(s.M)) << 8) | (uint)s.kmask) << 10)
-                   | ((uint)s.doors << 2) | (uint)s.world;
-        }
+            => Solver.StateKey(s.N, new SolveState
+            {
+                pos = s.pos,
+                ori = Turns.OriIndex(s.M),
+                kmask = s.kmask,
+                doors = s.doors,
+                world = s.world,
+            });
 
         public void Schedule(Session s)
         {

@@ -677,8 +677,17 @@ static class Curate
         return q;
     }
 
-    static long SKey(int n, SolveState s)
-        => (((long)Level.Vidx(n, s.pos) * 24 + s.ori) * 8 + s.kmask) * 64 + s.doors * 8 + s.world;
+    /// <summary>
+    /// THE THIRD COPY OF THE STATE KEY, AND THE WORST OF THEM. Mixed-radix
+    /// rather than bit-packed, and both radices were too small: kmask got a
+    /// base of 8, so a cube with four nodes wrapped, and world got 8 when a
+    /// world runs to 31. This flood decides which landings the curator can
+    /// reach, so its collisions did not report a wrong number — they hid
+    /// candidates from the cut.
+    ///
+    /// It is the search's key now, like the other two.
+    /// </summary>
+    static long SKey(int n, SolveState s) => Solver.StateKey(n, s);
 
     static int Bits(int v) { int c = 0; while (v != 0) { c += v & 1; v >>= 1; } return c; }
 
@@ -888,7 +897,7 @@ static class Curate
     /// </summary>
     static void Emit(Cand[] chosen)
     {
-        string dir = Path.Combine("unity", "SingularityEngine", "Assets", "Resources");
+        string dir = Repo.ResourceDir ?? Path.Combine("unity", "SingularityEngine", "Assets", "Resources");
         Directory.CreateDirectory(dir);
         string path = Path.Combine(dir, "catalogue.txt");
 

@@ -56,11 +56,44 @@ namespace Singularity.Core
             return c;
         }
 
-        private static long Key(int n, in SolveState s)
+        /// <summary>
+        /// THE VISITED SET'S KEY, AND IT HAS TO BE THE WHOLE STATE.
+        ///
+        /// Five fields pack into one long: where you stand, how the engine is
+        /// folded, which nodes are taken, which locks are open, and which world
+        /// you are in. Two states that differ in any of them are different
+        /// states, and a key that cannot tell them apart is a search that visits
+        /// one and marks the other done.
+        ///
+        /// WORLD GETS FIVE BITS BECAUSE THERE ARE FIVE OF THEM. It had two, from
+        /// when a world was the two plate bits and nothing else — and then
+        /// eversion added a third (4) and the trigger added two more (8, 16),
+        /// and this line was not widened either time. The bits did not vanish;
+        /// they landed on `doors`. An everted cube with no locks open hashed
+        /// identically to an unevated one with lock 1 open, so the search
+        /// reached the second, wrote the first off as seen, and reported a par
+        /// that was too high by however many folds the discarded route saved.
+        ///
+        /// It was wrong on five of the five hundred — every one of them a cube
+        /// with both a trigger and a lock, which is the only place the collision
+        /// is reachable — and cube 500, the last one in the game, was one of
+        /// them. The projection cache eight lines below carries the same warning
+        /// in its own comment and was widened twice; this was missed both times,
+        /// because a narrow cache hands back a wrong picture that somebody sees
+        /// and a narrow visited key hands back a wrong NUMBER that looks fine.
+        ///
+        /// Public because RemainSolver keys its cache on the same state and used
+        /// to do it with its own copy of this expression. That is how the two
+        /// drifted; there is one of them now.
+        /// </summary>
+        public static long StateKey(int n, in SolveState s)
         {
             long v = Level.Vidx(n, s.pos);
-            return ((((v * 24 + s.ori) << 8) | (uint)s.kmask) << 10) | ((uint)s.doors << 2) | (uint)s.world;
+            return ((((v * 24 + s.ori) << 8) | (uint)s.kmask) << 13)
+                   | ((uint)s.doors << 5) | (uint)(s.world & 31);
         }
+
+        private static long Key(int n, in SolveState s) => StateKey(n, s);
 
         public static SolveResult Solve(Level lv, int budget = DefaultBudget, SolveState? from = null)
         {

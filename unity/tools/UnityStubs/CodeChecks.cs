@@ -227,7 +227,7 @@ static class CodeChecks
     /// </summary>
     public static void CatalogueFile(Action<bool, string> ok)
     {
-        string path = Path.Combine("unity", "SingularityEngine", "Assets", "Resources", "catalogue.txt");
+        string path = Repo.Resource("catalogue.txt");
         if (!File.Exists(path))
         {
             Console.WriteLine("catalogue: no asset at " + path + " — the ladder falls back to the generator");

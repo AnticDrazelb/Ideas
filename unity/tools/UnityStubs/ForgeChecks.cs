@@ -87,6 +87,7 @@ public static class ForgeChecks
 
         fails += AccessChecks.Run();
         fails += ChassisChecks.Run(Ok);
+        StateChecks.Run(Ok);
         SoundChecks.Run(Ok);
         FilterChecks.Run(Ok);
         SaveChecks.Run(Ok);
