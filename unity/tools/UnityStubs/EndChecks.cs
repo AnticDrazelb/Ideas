@@ -213,14 +213,14 @@ static class EndChecks
     public static void Reach(Action<bool, string> ok)
     {
         // the last cube ends the machine however you arrived at it — including
-        // by typing 500 into the seed box, which is the only way to reach the
+        // by typing the last cube number into the seed box, which is the only way to reach the
         // ending without solving four hundred and ninety-nine cubes first and
         // was therefore the one route that used to do something else
-        ok(Vaults.EndsTheMachine(Vaults.LastCube, false, false), "cube 500 played from the vault does not end the machine");
-        ok(Vaults.EndsTheMachine(Vaults.LastCube, false, false), "cube 500 practised from the seed box does not end the machine");
+        ok(Vaults.EndsTheMachine(Vaults.LastCube, false, false), "the last cube played from the vault does not end the machine");
+        ok(Vaults.EndsTheMachine(Vaults.LastCube, false, false), "the last cube practised from the seed box does not end the machine");
 
         // and nothing else does
-        ok(!Vaults.EndsTheMachine(Vaults.LastCube - 1, false, false), "cube 499 ends the machine");
+        ok(!Vaults.EndsTheMachine(Vaults.LastCube - 1, false, false), "the second-to-last cube ends the machine");
         ok(!Vaults.EndsTheMachine(Vaults.LastCube, true, false), "a daily ends the machine");
         ok(!Vaults.EndsTheMachine(Vaults.LastCube, false, true), "a made cube ends the machine");
 

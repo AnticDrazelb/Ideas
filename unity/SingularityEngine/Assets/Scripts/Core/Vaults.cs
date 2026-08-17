@@ -3,32 +3,30 @@ using System;
 namespace Singularity.Core
 {
     /// <summary>
-    /// Six authored vaults, and then it keeps going.
-    ///
-    ///   I    CALIBRATION  10   fold, move, nodes, locks. No par pressure.
-    ///   II   REFRACTION   15   locks that need more than one node.
-    ///   III  INVERSION    20   forces the aligned-but-distant move. The aha.
-    ///   IV   ENTROPY      20   par gets tight. Mistakes cost you.
-    ///   V    EMBERFALL    15   where experts live.
-    ///   VI   SINGULARITY  10   postgame.
-    ///
-    /// Ninety cubes, and past ninety the generator keeps cutting them, because a
-    /// machine that can only be broken ninety ways is a demo.
+    /// Twelve vaults of twenty-five. Three hundred cubes, and that is the game.
     /// </summary>
     public static class Vaults
     {
         public struct VaultDef { public string name; public int n; public VaultDef(string a, int b) { name = a; n = b; } }
 
         /// <summary>
-        /// TWENTY VAULTS OF TWENTY-FIVE, WHICH IS THE WHOLE GAME.
+        /// TWELVE VAULTS OF TWENTY-FIVE, WHICH IS THE WHOLE GAME.
         ///
         /// These used to be six vaults of uneven length followed by a generated
         /// tail that grew forever, because the ladder was minted on the device and
-        /// had no last cube. It has one now: the catalogue is five hundred cubes
+        /// had no last cube. It has one now: the catalogue is three hundred cubes
         /// cut offline, chosen rather than accepted, and the vault list is the
         /// shape they were cut in — one mechanic a vault at rising size and
         /// tightening decision density, with the four verbs taught in the first
         /// eight and nothing new after.
+        ///
+        /// IT WAS TWENTY VAULTS AND FIVE HUNDRED CUBES. The cut now refuses any
+        /// cube a player can brick, and a gate that refuses candidates needs
+        /// slots with candidates to spare — five hundred of them did not have
+        /// that even before the gate, and fell back on cubes outside their own
+        /// band. Two hundred fewer slots is the same generator asked an easier
+        /// question. The four mastery vaults that remain were chosen so the board
+        /// size climbs 7-8-8-9-9 without a gap and the bands never step back.
         ///
         /// Twenty-five is also the shape the rack draws best: three columns, nine
         /// rows less two.
@@ -43,17 +41,9 @@ namespace Singularity.Core
             new VaultDef("SUBSTRATE",    25),
             new VaultDef("THE FAR SIDE", 25),
             new VaultDef("THRESHOLD",    25),
-            new VaultDef("REVENANT",     25),
-            new VaultDef("COLD FORGE",   25),
-            new VaultDef("THE CANT",     25),
             new VaultDef("SALT REACH",   25),
-            new VaultDef("BONE WORKS",   25),
-            new VaultDef("THE HOLLOW",   25),
             new VaultDef("ASH TERRACE",  25),
-            new VaultDef("FROST GATE",   25),
             new VaultDef("COPPER MARCH", 25),
-            new VaultDef("SHALE KEEP",   25),
-            new VaultDef("TIDE WELL",    25),
             new VaultDef("SINGULARITY",  25),
         };
 
@@ -67,13 +57,13 @@ namespace Singularity.Core
         // limited number of slots for the life of the game, and a flat ten would
         // spend every slot by cube seven hundred. Growing by five splits it — the
         // ABSOLUTE step is constant while the RELATIVE one collapses on its own.
-        public const int VaultTail0 = 25, VaultGrow = 5, RankedVaults = 20;
+        public const int VaultTail0 = 25, VaultGrow = 5, RankedVaults = 12;
 
         /// <summary>The last cube. There is one now, which is new — see Catalogue.</summary>
-        public const int LastCube = 500;
+        public const int LastCube = 300;
 
         /// <summary>
-        /// THE CATALOGUE ENDS AT FIVE HUNDRED and the seed box ends with it. This
+        /// THE CATALOGUE ENDS AT THREE HUNDRED and the seed box ends with it. This
         /// was a hundred thousand, which was right when the ladder was a pure
         /// function of its number and wrong now that it is a list: typing 900 used
         /// to mint a cube and would now fall through to a generated one that no
@@ -84,13 +74,13 @@ namespace Singularity.Core
         /// <summary>
         /// PROGRESS IS THE NEXT CUBE, AND PAST THE END THERE ISN'T ONE.
         ///
-        /// Clearing cube n sets reached to n+1, which is the right shape for four
+        /// Clearing cube n sets reached to n+1, which is the right shape for two
         /// hundred and ninety-nine of them and off the end of the world for the
-        /// last: reached becomes 501, and every consumer of it then asks for a
+        /// last: reached becomes 301, and every consumer of it then asks for a
         /// cube the catalogue does not have. LevelSupply answers that by MINTING
-        /// one — a five hundred and first cube that no other player has, out of a
+        /// one — a three hundred and first cube that no other player has, out of a
         /// generator that exists for the daily and nothing else. The title screen
-        /// asks the same question and gets VAULT XXI with a made-up name.
+        /// asks the same question and gets VAULT XIII with a made-up name.
         ///
         /// So the two questions are separated and both are asked here. Resume is
         /// what to PLAY, and it never leaves the ladder. Cleared is whether the
@@ -112,7 +102,7 @@ namespace Singularity.Core
         /// pressing it enough times reached VAULT 45 · EMBER SPINE — a made-up
         /// name over a hundred and fifty cards, none of which is a cube, drawn
         /// four rows deep into each other because a rack that size does not fit
-        /// on a telephone. Twenty vaults of twenty-five. That is all there is.
+        /// on a telephone. Twelve vaults of twenty-five. That is all there is.
         /// </summary>
         public const int LastBand = RankedVaults - 1;
 
@@ -120,28 +110,28 @@ namespace Singularity.Core
         /// DOES CLEARING THIS END THE MACHINE?
         ///
         /// A daily borrows the difficulty and is not the ladder; a made cube is
-        /// somebody's own and ends nothing. Everything else that is cube five
+        /// somebody's own and ends nothing. Everything else that is cube three
         /// hundred gets the ending — INCLUDING A PRACTICE RUN, and that is the
         /// part that was wrong.
         ///
         /// Practice is what the seed box gives you for a cube past `reached`, and
         /// suppressing the ending there had two costs. The small one is that a
-        /// player who types 500 to look at the last cube solves it and gets the
-        /// ordinary throw and a card offering them cube five hundred and one. The
-        /// large one is that TYPING 500 IS HOW ANYBODY TESTS THIS — it is the only
-        /// way to reach the ending without solving four hundred and ninety-nine
+        /// player who types 300 to look at the last cube solves it and gets the
+        /// ordinary throw and a card offering them cube three hundred and one. The
+        /// large one is that TYPING 300 IS HOW ANYBODY TESTS THIS — it is the only
+        /// way to reach the ending without solving two hundred and ninety-nine
         /// cubes first — so the one path a developer takes was the one path that
         /// silently did something else.
         ///
         /// What practice withholds is PROGRESS: no best, no par, no rank, nothing
         /// written down. It was never meant to withhold what a cube IS, and cube
-        /// five hundred is the end of the machine whoever is standing on it.
+        /// three hundred is the end of the machine whoever is standing on it.
         /// </summary>
         public static bool EndsTheMachine(int levelNo, bool daily, bool made)
             => !daily && !made && levelNo >= LastCube;
 
         static readonly int[] VaultAt;
-        public static readonly int VaultEnd;   // 90
+        public static readonly int VaultEnd;   // 300
 
         static Vaults()
         {

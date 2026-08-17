@@ -141,17 +141,33 @@ static class Curate
         // this on five hundred rather than five hundred and twenty-five, and
         // COPPER MARCH becomes a trigger vault. THE FAR SIDE keeps the everter
         // because that is where it is taught, and two more carry it afterwards.
-        V("REVENANT",    7, 5, 8, 1, 1, "T",   0.46, ""),
-        V("COLD FORGE",  7, 5, 9, 1, 1, "E",   0.44, ""),
-        V("THE CANT",    7, 6, 9, 2, 1, "A",   0.42, ""),
+        // ---- TWELVE VAULTS, AND THE LADDER STOPS AT THREE HUNDRED -------------
+        //
+        // This was twenty vaults and five hundred cubes. The cap came down for a
+        // reason worth writing next to the list: the safety gate above rejects
+        // any cube a player can brick, and a gate that rejects candidates is only
+        // survivable if the slot has candidates to spare. Five hundred slots at
+        // sixty candidates each was already falling back on out-of-band cubes
+        // before the gate existed — a re-cut measured 32 of them under their own
+        // vault's floor. Two hundred fewer slots and a bigger pool per slot is
+        // the same generator asked an easier question, and a ladder that is
+        // shorter and honest beats one that is long and padded.
+        //
+        // WHICH FOUR SURVIVE THE BACK HALF is chosen on continuity rather than on
+        // which cubes were best. Board size has to climb without a gap — the
+        // teaching set ends at n=7, so the mastery vaults run 8, 8, 9, 9, and
+        // dropping straight to FROST GATE would have skipped n=8 entirely. Par
+        // bands rise monotonically. And the four are not all triggers: ASH
+        // TERRACE is the plate-under-trigger pair and SINGULARITY is the
+        // everter-with-trigger pair, so both combinations that measured cleanest
+        // together still appear after they are taught.
+        //
+        // What goes: REVENANT, COLD FORGE, THE CANT, BONE WORKS, THE HOLLOW,
+        // FROST GATE, SHALE KEEP, TIDE WELL. Their mechanics are all still taught
+        // in the first eight and all still practised in the last four.
         V("SALT REACH",  8, 6, 10, 1, 1, "T",  0.40, ""),
-        V("BONE WORKS",  8, 6, 10, 2, 1, "B",  0.38, ""),
-        V("THE HOLLOW",  8, 7, 11, 2, 1, "T",  0.34, ""),
         V("ASH TERRACE", 8, 7, 12, 1, 2, "AT", 0.32, "a plate under a trigger"),
-        V("FROST GATE",  9, 8, 12, 2, 1, "T",  0.30, ""),
         V("COPPER MARCH",9, 8, 13, 1, 1, "T",  0.28, ""),
-        V("SHALE KEEP",  9, 8, 13, 2, 2, "ET", 0.26, "the far side of a board that is about to go"),
-        V("TIDE WELL",   9, 9, 14, 2, 1, "T",  0.24, ""),
         V("SINGULARITY", 9, 9, 15, 2, 2, "ET", 0.22, ""),
     };
 
