@@ -55,7 +55,26 @@ namespace Singularity.Core
             // of the string forms by UTF-16 code unit — ordinal, not culture.
             pairs.Sort(StringComparer.Ordinal);
 
-            return n + "|" + new string(vox) + "|" + Pt(lv.start) + "|" + Pt(lv.goal) + "|" + string.Join(";", pairs);
+            // THE SECOND SOLID IS PART OF WHAT THE CUBE IS. Two cubes with
+            // identical first layouts and different second ones are two different
+            // puzzles — the trigger sends you somewhere else — and a canonical
+            // form that stopped at `vox` would call them the same and refuse to
+            // let the second one exist.
+            string b = "";
+            if (lv.voxB != null)
+            {
+                var vb = new char[n * n * n];
+                for (int y = 0; y < n; y++)
+                    for (int z = 0; z < n; z++)
+                        for (int x = 0; x < n; x++)
+                        {
+                            Int3 v = Projection.ViewOf(n, m, new Int3(x, y, z));
+                            vb[Level.Vidx(n, v)] = lv.voxB[Level.Vidx(n, x, y, z)];
+                        }
+                b = "|" + new string(vb);
+            }
+
+            return n + "|" + new string(vox) + b + "|" + Pt(lv.start) + "|" + Pt(lv.goal) + "|" + string.Join(";", pairs);
         }
 
         public static string CanonForm(Level lv)

@@ -218,6 +218,19 @@ namespace Singularity.Core
             char[] Solid(int w) => (w & Level.Swapped) != 0 && voxB != null ? voxB : vox;
             for (int i = 0; i < vox.Length; i++) vox[i] = rng.Next() < opt.density ? '#' : '.';
 
+            // THE SECOND SOLID IS FILLED HERE OR IT IS NOT FILLED AT ALL. A
+            // new char[] is '\0', not '.', so a later pass written as
+            // `if (voxB[i] == '.')` never fires and the array ships full of
+            // nulls — which encode as void, look like void to the projection,
+            // and are not void to a byte comparison. The share-code check caught
+            // it: two hundred and two cells of a two hundred and sixteen cell
+            // cube differing between the level and its own round trip.
+            //
+            // Guarded, so a single-layout cube draws exactly the numbers it drew
+            // before this existed. Every cube already minted is byte-identical.
+            if (voxB != null)
+                for (int i = 0; i < voxB.Length; i++) voxB[i] = rng.Next() < opt.density ? '#' : '.';
+
             Ori m = Ori.Id;
             var path = new List<Int3>();
             int world = 0;
@@ -308,16 +321,6 @@ namespace Singularity.Core
             }
 
             Int3 goal = path[path.Count - 1];
-
-            // THE OTHER SOLID MUST BE A SOLID. Only the legs walked after the
-            // trigger fired carved into it, so the rest of it is void — and a
-            // layout that is a ribbon of trace in empty space is not a second
-            // board, it is a corridor, and the whole point of a layout swap is
-            // that the ground is REARRANGED rather than removed. So it gets the
-            // same lattice fill the first one gets, at the same density.
-            if (voxB != null)
-                for (int i = 0; i < voxB.Length; i++)
-                    if (voxB[i] == '.' && rng.Next() < opt.density) voxB[i] = '#';
 
             var lv = new Level
             {
