@@ -68,11 +68,16 @@ static class Curate
         public string teaches;
     }
 
-    // THE PAR BANDS ARE WHAT THE GENERATOR CAN ACTUALLY REACH, and the probe is
-    // where that number came from rather than a hope. Forty candidates a vault,
-    // and thirty-five to thirty-nine of them landed BELOW the band every time —
-    // not unsolvable, not uncarvable, just easier than asked for. The ceiling is
-    // about par seven at n=9 and it is structural: SpecFor already says why.
+    // THE PAR BANDS ARE WHAT THE PRUNE CAN REACH, WHICH IS NOT WHAT THE CARVE
+    // CAN. Three runs said the carve tops out around par seven — thirty-five to
+    // thirty-nine of every forty candidates landing below the band, at every
+    // size, however the spec was written. That was true and it was the wrong
+    // thing to measure. A cube is easy because the carve left it swimming in
+    // footing; take the spare footing away and the same cube is hard. Pruned,
+    // the probe's own winners went 4 to 9 and 5 to TWELVE.
+    //
+    // So these run to fifteen, and the old ceiling was never the generator's —
+    // it was Widen's. SpecFor still says the true bound and it still holds:
     // Folds live in a 24-orientation group whose graph has a diameter of four, so
     // rotation distance can never ask for more than four, and everything above
     // that comes from FOOTING forcing a route through orientations it did not
@@ -87,32 +92,32 @@ static class Curate
     public static readonly Vault[] Ladder =
     {
         // ---- the verbs, one at a time ------------------------------------
-        V("CALIBRATION", 5, 1, 3, 0, 0, null,  1.00, "the fold, the walk, the core"),
-        V("REFRACTION",  5, 2, 4, 0, 0, null,  0.80, "folds that cost you the route"),
-        V("INVERSION",   6, 2, 4, 1, 0, null,  0.70, "nodes and the locks they open"),
-        V("ENTROPY",     6, 2, 5, 1, 0, null,  0.62, "two pairs, and the order between them"),
-        V("EMBERFALL",   6, 3, 5, 0, 1, "A",   0.58, "the plate: two worlds, one board"),
-        V("SUBSTRATE",   6, 3, 6, 1, 1, "AB",  0.54, "the other plate, and a lock behind it"),
-        V("THE FAR SIDE",7, 3, 6, 0, 1, "E",   0.50, "the everter: the column shows its far cell"),
+        V("CALIBRATION", 5, 2, 4, 0, 0, null,  1.00, "the fold, the walk, the core"),
+        V("REFRACTION",  5, 3, 5, 0, 0, null,  0.80, "folds that cost you the route"),
+        V("INVERSION",   6, 3, 6, 1, 0, null,  0.70, "nodes and the locks they open"),
+        V("ENTROPY",     6, 4, 6, 1, 0, null,  0.62, "two pairs, and the order between them"),
+        V("EMBERFALL",   6, 4, 7, 0, 1, "A",   0.58, "the plate: two worlds, one board"),
+        V("SUBSTRATE",   6, 4, 7, 1, 1, "AB",  0.54, "the other plate, and a lock behind it"),
+        V("THE FAR SIDE",7, 5, 8, 0, 1, "E",   0.50, "the everter: the column shows its far cell"),
 
         // ---- and then nothing new, for three hundred and twenty-five cubes ---
         //
         // From here every cube may carry any of the three, which is the whole
         // point of closing the vocabulary: the interest is in which one turned up
         // and what it is next to, not in learning a fourth thing.
-        V("REVENANT",    7, 3, 6, 1, 1, "ABE", 0.48, ""),
-        V("COLD FORGE",  7, 4, 7, 2, 1, "ABE", 0.45, ""),
-        V("THE CANT",    7, 4, 7, 1, 1, "ABE", 0.42, ""),
-        V("SALT REACH",  8, 4, 7, 2, 1, "ABE", 0.40, ""),
-        V("BONE WORKS",  8, 4, 7, 1, 1, "ABE", 0.38, ""),
-        V("GLASS SPINE", 8, 4, 8, 2, 1, "ABE", 0.35, ""),
-        V("THE HOLLOW",  8, 5, 8, 2, 1, "ABE", 0.33, ""),
-        V("ASH TERRACE", 8, 5, 8, 2, 1, "ABE", 0.30, ""),
-        V("FROST GATE",  9, 5, 8, 2, 1, "ABE", 0.28, ""),
-        V("COPPER MARCH",9, 5, 9, 2, 1, "ABE", 0.26, ""),
-        V("SHALE KEEP",  9, 5, 9, 2, 1, "ABE", 0.24, ""),
-        V("TIDE WELL",   9, 6, 9, 2, 1, "ABE", 0.22, ""),
-        V("SINGULARITY", 9, 6, 10, 2, 1, "ABE", 0.20, ""),
+        V("REVENANT",    7, 5, 8, 1, 1, "ABE", 0.48, ""),
+        V("COLD FORGE",  7, 5, 9, 2, 1, "ABE", 0.45, ""),
+        V("THE CANT",    7, 6, 9, 1, 1, "ABE", 0.42, ""),
+        V("SALT REACH",  8, 6, 10, 2, 1, "ABE", 0.40, ""),
+        V("BONE WORKS",  8, 6, 10, 1, 1, "ABE", 0.38, ""),
+        V("GLASS SPINE", 8, 7, 11, 2, 1, "ABE", 0.35, ""),
+        V("THE HOLLOW",  8, 7, 11, 2, 1, "ABE", 0.33, ""),
+        V("ASH TERRACE", 8, 7, 12, 2, 1, "ABE", 0.30, ""),
+        V("FROST GATE",  9, 8, 12, 2, 1, "ABE", 0.28, ""),
+        V("COPPER MARCH",9, 8, 13, 2, 1, "ABE", 0.26, ""),
+        V("SHALE KEEP",  9, 8, 13, 2, 1, "ABE", 0.24, ""),
+        V("TIDE WELL",   9, 9, 14, 2, 1, "ABE", 0.22, ""),
+        V("SINGULARITY", 9, 9, 15, 2, 1, "ABE", 0.20, ""),
     };
 
     static Vault V(string name, int n, int lo, int hi, int locks, int glyphs, string set,
@@ -137,6 +142,7 @@ static class Curate
         public Level lv;
         public int par, steps, legal, onPar;
         public bool loadBearing;      // does the world-changer it carries actually change par?
+        public int spare;             // trace cells the prune could take away
         public double open => legal == 0 ? 0.0 : onPar / (double)legal;
         public double fill;
         public string id;
@@ -198,17 +204,50 @@ static class Curate
 
         Spec spec = SpecOf(v, level, parLo);
 
-        Cand best = null;
+        // THE EASY ONES WERE THE POOL ALL ALONG.
+        //
+        // Every run until now threw away thirty-five to thirty-nine of every
+        // forty candidates for landing BELOW the par band, and then went hunting
+        // for difficulty among the handful left. That had it backwards. A cube is
+        // easy because the carve left it swimming in footing, and the prune takes
+        // footing away — so an "easy" candidate is not a failure, it is raw
+        // material, and there are forty times more of it.
+        //
+        // So stage one now keeps anything that SOLVES, without an opinion about
+        // par. Stage two prunes a shortlist and only then asks whether the result
+        // is in band. The pool at the hard end goes from one-in-forty to
+        // essentially everything.
+        var pool = new List<Cand>();
         for (int i = 0; i < budget; i++)
         {
             uint seed = unchecked((uint)(level * 2654435761u) ^ (uint)(i * 40503u) ^ 0x5eed1eu);
-            Cand c = Make(seed, spec, v, level);
-            if (c == null) continue;
+            Cand c = Rough(seed, spec, level);
+            if (c != null) pool.Add(c);
+        }
+        if (pool.Count == 0) return null;
+
+        // Pruning is the dear part — most of a second on a nine-cube — so only a
+        // shortlist gets it. Sorted by how much room there is to prune, because a
+        // cube with more spare footing has more to give: that is the whole of what
+        // the pass removes.
+        pool.Sort((a, bb) => bb.spare.CompareTo(a.spare));
+        int shortlist = Math.Min(Shortlist, pool.Count);
+
+        Cand best = null;
+        for (int i = 0; i < shortlist; i++)
+        {
+            Cand c = pool[i];
+            c.par = Tighten(c.lv, c.par, 400);
+            c.steps = c.lv.steps;
+            Measure(c, spec);
             c.score = Value(c, parLo, v.parHi, openMax, v);
             if (best == null || c.score > best.score) best = c;
         }
         return best;
     }
+
+    /// <summary>How many of a slot's candidates are worth the prune.</summary>
+    const int Shortlist = 7;
 
     static Spec SpecOf(Vault v, int level, int parLo)
         => new Spec
@@ -239,6 +278,75 @@ static class Curate
 
     /// <summary>Mint one candidate and measure it. Null if it is not a cube at all.</summary>
     static Cand Make(uint seed, Spec spec, Vault v, int level) => Make(seed, spec, v, level, out _);
+
+    /// <summary>
+    /// Stage one: is this a cube at all, and does it solve? No opinion about par,
+    /// because the prune has not run yet and par is what the prune changes.
+    /// </summary>
+    static Cand Rough(uint seed, Spec spec, int level)
+    {
+        Level lv = Generator.Generate(seed, spec);
+        if (lv == null || lv.keys.Count != spec.locks) return null;
+
+        var wrng = Rng.Mulberry32(unchecked(seed + 104729u));
+        Generator.Widen(ref wrng, lv, spec.decoys, lv.lockMap);
+        lv.ClearEff();
+
+        Surf[] s0 = Projection.Project(lv.n, lv.Eff(0), Ori.Id);
+        if (!Projection.SurfaceAt(lv.n, s0, Ori.Id, lv.start)) return null;
+        if (lv.DoorIndexAt(lv.start) >= 0 || lv.DoorIndexAt(lv.goal) >= 0) return null;
+
+        SolveResult r = Solver.Solve(lv, spec.parHi + 6);
+        if (!r.ok) return null;
+
+        lv.par = r.turns; lv.steps = r.steps; lv.level = level; lv.band = spec.band;
+
+        int solid = 0, trace = 0;
+        for (int k = 0; k < lv.vox.Length; k++)
+        {
+            if (lv.vox[k] != '.') solid++;
+            if (lv.vox[k] == '+') trace++;
+        }
+        return new Cand
+        {
+            lv = lv, par = r.turns, steps = r.steps,
+            fill = solid / (double)lv.vox.Length,
+            spare = trace,
+        };
+    }
+
+    /// <summary>Everything that costs a solve per answer, run once on a pruned cube.</summary>
+    static void Measure(Cand c, Spec spec)
+    {
+        Level lv = c.lv;
+        c.legal = 0; c.onPar = 0;
+
+        int solid = 0;
+        for (int k = 0; k < lv.vox.Length; k++) if (lv.vox[k] != '.') solid++;
+        c.fill = solid / (double)lv.vox.Length;
+
+        if (spec.glyphs > 0)
+        {
+            var flat = new Level
+            {
+                n = lv.n, vox = (char[])lv.vox.Clone(), start = lv.start, goal = lv.goal,
+                keys = lv.keys, doors = lv.doors, lockMap = lv.lockMap,
+                level = lv.level, band = lv.band,
+            };
+            for (int k = 0; k < flat.vox.Length; k++)
+                if (Level.IsGlyph(flat.vox[k])) flat.vox[k] = '+';
+            flat.ClearEff();
+            SolveResult f = Solver.Solve(flat, c.par + 3);
+            c.loadBearing = !f.ok || f.turns != c.par;
+        }
+
+        foreach (SolveState next in Openings(lv))
+        {
+            c.legal++;
+            SolveResult after = Solver.Solve(lv, c.par + 1, next);
+            if (after.ok && after.turns + 1 <= c.par) c.onPar++;
+        }
+    }
 
     static Cand Make(uint seed, Spec spec, Vault v, int level, out Reject why)
     {
@@ -308,6 +416,81 @@ static class Curate
             if (after.ok && after.turns + 1 <= r.turns) c.onPar++;
         }
         return c;
+    }
+
+    // ---- the prune -------------------------------------------------------
+
+    /// <summary>
+    /// TAKE AWAY EVERYWHERE THE PLAYER DOES NOT NEED TO STAND.
+    ///
+    /// Three experiments now say the same thing: whatever the spec asks for,
+    /// thirty-five to thirty-nine of every forty candidates come in EASIER than
+    /// the band. The carve intends seven folds and the solver finds four. That is
+    /// not the carve failing to build a hard route — it builds one — it is the
+    /// carve leaving so much trace behind it that the solver can cut the corner.
+    /// Widen then adds more on purpose.
+    ///
+    /// So this is Widen run backwards. Every trace cell that is not a mark is
+    /// tried as LATTICE, and the removal is kept if the cube still solves. It is
+    /// monotone in the only direction that matters — taking footing away can
+    /// never lower par — so the pass either tightens the cube or leaves it alone,
+    /// and it cannot make an unsolvable one.
+    ///
+    /// TRACE TO LATTICE, NOT TRACE TO VOID. Both stop you standing there; only
+    /// one keeps the silhouette. A void changes which cell wins its column, so
+    /// carving footing out as void would quietly redraw the board, and the cube
+    /// somebody looked at would not be the cube that got measured. Lattice is
+    /// solid, occludes exactly as before, and is simply not somewhere you can put
+    /// your feet — which is the whole of what is being removed. It is also the
+    /// game's own vocabulary rather than a tool's invention.
+    ///
+    /// IT LIVES HERE AND NOT IN Generator, deliberately. This costs one solve per
+    /// candidate cell — seconds on a nine-cube — which is nothing at bake time and
+    /// fatal on a phone minting the daily. The shipped generator is untouched, so
+    /// no daily and no existing cube moves.
+    /// </summary>
+    static int Tighten(Level lv, int par, int cap)
+    {
+        int n = lv.n;
+
+        // the cells a route must be able to stand on, whatever else goes
+        var keep = new HashSet<int> { Level.Vidx(n, lv.start), Level.Vidx(n, lv.goal) };
+        foreach (Int3 k in lv.keys) keep.Add(Level.Vidx(n, k));
+        foreach (Int3 d in lv.doors) keep.Add(Level.Vidx(n, d));
+
+        var pool = new List<int>();
+        for (int i = 0; i < lv.vox.Length; i++)
+            if (lv.vox[i] == '+' && !keep.Contains(i)) pool.Add(i);
+
+        // A DETERMINISTIC ORDER, because the answer has to be the same on every
+        // machine. Seeded off the cube itself so two different cubes are not
+        // pruned in the same sequence.
+        var rng = Rng.Mulberry32(unchecked((uint)(lv.level * 2654435761u) ^ (uint)pool.Count));
+        for (int i = pool.Count - 1; i > 0; i--)
+        {
+            int j = (int)(rng.Next() * (i + 1)) % (i + 1);
+            (pool[i], pool[j]) = (pool[j], pool[i]);
+        }
+
+        int tried = 0;
+        foreach (int i in pool)
+        {
+            if (tried++ >= cap) break;
+            lv.vox[i] = '#';
+            lv.ClearEff();
+
+            // Still reachable at all, and the opening still not buried — a prune
+            // that leaves the player standing inside the machine is not a prune.
+            Surf[] s0 = Projection.Project(n, lv.Eff(0), Ori.Id);
+            SolveResult r = Projection.SurfaceAt(n, s0, Ori.Id, lv.start)
+                          ? Solver.Solve(lv, par + 6)
+                          : default;
+            if (!r.ok) { lv.vox[i] = '+'; lv.ClearEff(); continue; }
+            par = r.turns;
+            lv.par = r.turns;
+            lv.steps = r.steps;
+        }
+        return par;
     }
 
     /// <summary>
@@ -471,13 +654,34 @@ static class Curate
             }
             sw.Stop();
 
-            Console.WriteLine(string.Format("{0,-14} {1} {2,6:0}  {3,5} {4,5} {5,5} {6,5} {7,5} {8,5}   {9}",
+            // AND WHAT THE PRUNE BUYS. The strongest candidate the slot found,
+            // then the same cube with everywhere it does not need to stand taken
+            // away — which is the whole question this run exists to answer.
+            string gain = "";
+            if (best != null)
+            {
+                int was = best.par;
+                var sw2 = Stopwatch.StartNew();
+                int now = Tighten(best.lv, best.par, 400);
+                sw2.Stop();
+                int legal = 0, onPar = 0;
+                foreach (SolveState next in Openings(best.lv))
+                {
+                    legal++;
+                    SolveResult after = Solver.Solve(best.lv, now + 1, next);
+                    if (after.ok && after.turns + 1 <= now) onPar++;
+                }
+                gain = string.Format(" -> par {0} open {1}% in {2:0}ms",
+                                     now, legal == 0 ? 0 : 100 * onPar / legal, sw2.Elapsed.TotalMilliseconds);
+            }
+
+            Console.WriteLine(string.Format("{0,-14} {1} {2,6:0}  {3,5} {4,5} {5,5} {6,5} {7,5} {8,5}   {9}{10}",
                 v.name, v.n, sw.Elapsed.TotalMilliseconds,
                 tally[(int)Reject.NoCarve], tally[(int)Reject.WrongLocks], tally[(int)Reject.Buried],
                 tally[(int)Reject.Unsolvable], tally[(int)Reject.TooEasy], tally[(int)Reject.Kept],
                 best == null ? "— nothing in range " + parLo + ".." + v.parHi
-                             : "par " + best.par + " (want " + parLo + ".." + v.parHi + "), open "
-                               + (100 * best.open).ToString("0") + "%"));
+                             : "par " + best.par + " open " + (100 * best.open).ToString("0") + "%",
+                gain));
         }
     }
 }
