@@ -63,6 +63,7 @@ static class Curate
         public int parLo, parHi;      // the band a cube must land in to be kept
         public int locks;             // node/lock pairs
         public int glyphs, kinds;     // plates: how many, and how many kinds
+        public string set;            // which world-changers it may carry: "A", "AB", "E", "ABE"
         public double openMax;        // most of the opening folds that may keep par
         public string teaches;
     }
@@ -86,36 +87,41 @@ static class Curate
     public static readonly Vault[] Ladder =
     {
         // ---- the verbs, one at a time ------------------------------------
-        V("CALIBRATION", 5, 1, 3, 0, 0, 0, 1.00, "the fold, the walk, the core"),
-        V("REFRACTION",  5, 2, 4, 0, 0, 0, 0.80, "folds that cost you the route"),
-        V("INVERSION",   6, 2, 4, 1, 0, 0, 0.70, "nodes and the locks they open"),
-        V("ENTROPY",     6, 2, 5, 1, 0, 0, 0.62, "two pairs, and the order between them"),
-        V("EMBERFALL",   6, 3, 5, 0, 1, 1, 0.58, "the plate: two worlds, one board"),
-        V("SUBSTRATE",   6, 3, 6, 1, 1, 1, 0.54, "a plate with a lock behind it"),
-        V("THE FAR SIDE",7, 3, 6, 0, 1, 1, 0.50, "the everter: the column shows its far cell"),
+        V("CALIBRATION", 5, 1, 3, 0, 0, null,  1.00, "the fold, the walk, the core"),
+        V("REFRACTION",  5, 2, 4, 0, 0, null,  0.80, "folds that cost you the route"),
+        V("INVERSION",   6, 2, 4, 1, 0, null,  0.70, "nodes and the locks they open"),
+        V("ENTROPY",     6, 2, 5, 1, 0, null,  0.62, "two pairs, and the order between them"),
+        V("EMBERFALL",   6, 3, 5, 0, 1, "A",   0.58, "the plate: two worlds, one board"),
+        V("SUBSTRATE",   6, 3, 6, 1, 1, "AB",  0.54, "the other plate, and a lock behind it"),
+        V("THE FAR SIDE",7, 3, 6, 0, 1, "E",   0.50, "the everter: the column shows its far cell"),
 
         // ---- and then nothing new, for three hundred and twenty-five cubes ---
-        V("REVENANT",    7, 3, 6, 1, 1, 1, 0.48, ""),
-        V("COLD FORGE",  7, 4, 7, 2, 1, 2, 0.45, ""),
-        V("THE CANT",    7, 4, 7, 1, 1, 2, 0.42, ""),
-        V("SALT REACH",  8, 4, 7, 2, 1, 1, 0.40, ""),
-        V("BONE WORKS",  8, 4, 7, 1, 1, 2, 0.38, ""),
-        V("GLASS SPINE", 8, 4, 8, 2, 1, 2, 0.35, ""),
-        V("THE HOLLOW",  8, 5, 8, 2, 1, 2, 0.33, ""),
-        V("ASH TERRACE", 8, 5, 8, 2, 1, 2, 0.30, ""),
-        V("FROST GATE",  9, 5, 8, 2, 1, 2, 0.28, ""),
-        V("COPPER MARCH",9, 5, 9, 2, 1, 2, 0.26, ""),
-        V("SHALE KEEP",  9, 5, 9, 2, 1, 2, 0.24, ""),
-        V("TIDE WELL",   9, 6, 9, 2, 1, 2, 0.22, ""),
-        V("SINGULARITY", 9, 6, 10, 2, 1, 2, 0.20, ""),
+        //
+        // From here every cube may carry any of the three, which is the whole
+        // point of closing the vocabulary: the interest is in which one turned up
+        // and what it is next to, not in learning a fourth thing.
+        V("REVENANT",    7, 3, 6, 1, 1, "ABE", 0.48, ""),
+        V("COLD FORGE",  7, 4, 7, 2, 1, "ABE", 0.45, ""),
+        V("THE CANT",    7, 4, 7, 1, 1, "ABE", 0.42, ""),
+        V("SALT REACH",  8, 4, 7, 2, 1, "ABE", 0.40, ""),
+        V("BONE WORKS",  8, 4, 7, 1, 1, "ABE", 0.38, ""),
+        V("GLASS SPINE", 8, 4, 8, 2, 1, "ABE", 0.35, ""),
+        V("THE HOLLOW",  8, 5, 8, 2, 1, "ABE", 0.33, ""),
+        V("ASH TERRACE", 8, 5, 8, 2, 1, "ABE", 0.30, ""),
+        V("FROST GATE",  9, 5, 8, 2, 1, "ABE", 0.28, ""),
+        V("COPPER MARCH",9, 5, 9, 2, 1, "ABE", 0.26, ""),
+        V("SHALE KEEP",  9, 5, 9, 2, 1, "ABE", 0.24, ""),
+        V("TIDE WELL",   9, 6, 9, 2, 1, "ABE", 0.22, ""),
+        V("SINGULARITY", 9, 6, 10, 2, 1, "ABE", 0.20, ""),
     };
 
-    static Vault V(string name, int n, int lo, int hi, int locks, int glyphs, int kinds,
+    static Vault V(string name, int n, int lo, int hi, int locks, int glyphs, string set,
                    double openMax, string teaches)
         => new Vault
         {
             name = name, n = n, parLo = lo, parHi = hi, locks = locks,
-            glyphs = glyphs, kinds = kinds, openMax = openMax, teaches = teaches
+            glyphs = glyphs, kinds = set == null ? 0 : set.Length, set = set,
+            openMax = openMax, teaches = teaches
         };
 
     public const int PerVault = 25;
@@ -130,6 +136,7 @@ static class Curate
     {
         public Level lv;
         public int par, steps, legal, onPar;
+        public bool loadBearing;      // does the world-changer it carries actually change par?
         public double open => legal == 0 ? 0.0 : onPar / (double)legal;
         public double fill;
         public string id;
@@ -209,6 +216,7 @@ static class Curate
             n = v.n,
             glyphs = v.glyphs,
             glyphKinds = v.kinds,
+            glyphSet = v.set,
             turns = Math.Min(11, 3 + v.parHi),
             locks = v.locks,
             // Denser than the generated ladder ran, because a sparse cube is a
@@ -261,6 +269,33 @@ static class Curate
 
         var c = new Cand { lv = lv, par = r.turns, steps = r.steps, fill = solid / (double)lv.vox.Length };
 
+        // IS THE MECHANIC LOAD-BEARING, OR IS IT DECORATION?
+        //
+        // The arc check measures this and the number is bleak: of forty generated
+        // cubes carrying an everter, SEVEN have a route that is any different for
+        // it being there. The other thirty-three have a polarity flip sitting in
+        // them that no solution ever stands on — the cube contains the mechanic
+        // and does not use it, which is the worst of both, because the player is
+        // shown a thing that turns out not to matter.
+        //
+        // One extra solve answers it: flatten every world-changer to plain footing
+        // and ask for par again. If the answer moves, the route went through it.
+        // Cheap, because only a handful of candidates get this far.
+        if (spec.glyphs > 0)
+        {
+            var flat = new Level
+            {
+                n = lv.n, vox = (char[])lv.vox.Clone(), start = lv.start, goal = lv.goal,
+                keys = lv.keys, doors = lv.doors, lockMap = lv.lockMap,
+                level = lv.level, band = lv.band,
+            };
+            for (int k = 0; k < flat.vox.Length; k++)
+                if (Level.IsGlyph(flat.vox[k])) flat.vox[k] = '+';
+            flat.ClearEff();
+            SolveResult f = Solver.Solve(flat, r.turns + 3);
+            c.loadBearing = !f.ok || f.turns != r.turns;
+        }
+
         // STAGE TWO, and only for something already worth measuring. Every legal
         // opening fold, solved from where it leaves you: how many are still on
         // par? One means the cube opens with a decision. All of them means it
@@ -305,6 +340,13 @@ static class Curate
         // and a cube with only one legal opening fold has not offered a choice
         // either, however costly that fold is
         if (c.legal == 1) s -= 90;
+
+        // A CUBE THAT CARRIES A MECHANIC AND DOES NOT USE IT IS WORSE THAN ONE
+        // WITHOUT. Vault VII is called THE FAR SIDE and its job is to teach the
+        // everter; a cube where the everter is scenery teaches that the everter is
+        // scenery. Weighted near the decision-density term because it is the same
+        // kind of claim — that the thing on screen is the thing that matters.
+        if (v.glyphs > 0) s += c.loadBearing ? 260.0 : -340.0;
 
         // A route you have to walk is a route you have to READ. Steps are capped
         // so a cube cannot win on wandering alone.

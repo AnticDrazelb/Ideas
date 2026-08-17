@@ -8,6 +8,18 @@ namespace Singularity.Core
     {
         public int n;
         public int glyphs, glyphKinds;
+
+        /// <summary>
+        /// WHICH WORLD-CHANGING CELLS THIS CUBE MAY CARRY, as the characters
+        /// themselves: "A", "AB", "E", "ABE". Null keeps glyphKinds' behaviour,
+        /// which is what every shipped SpecFor asks for and what the whole
+        /// generated catalogue was minted under.
+        ///
+        /// It exists because glyphKinds is a COUNT and the everter is not the
+        /// third of anything — a cube that must teach the far side has to be able
+        /// to demand one rather than hope a three-way roll lands on it.
+        /// </summary>
+        public string glyphSet;
         public int turns;          // the CARVE's ambition, not the acceptance band
         public int locks;
         public double density;
@@ -114,7 +126,23 @@ namespace Singularity.Core
             var ev = new char[vox.Length];
             for (int i = 0; i < vox.Length; i++) ev[i] = Level.EffType(vox[i], world);
 
-            int best = -1;
+            // WHICH CELL WINS THIS COLUMN, and it has to be Projection.Project's
+            // answer rather than a paraphrase of it — the carve is laying down
+            // footing that the solver will later be asked to stand on, and if the
+            // two disagree about which cell is the surface then the carve is
+            // guaranteeing a route through a cell nobody can reach.
+            //
+            // So this is that comparison, term for term: a glyph beats a
+            // non-glyph, and between two of the same kind the depth decides —
+            // NEAREST normally, FARTHEST when the polarity bit is set. That last
+            // clause is the whole of eversion and it is the only thing in this
+            // file that ever needed to know about it. Without it the generator
+            // could carve a plate but never an everter, which is why the voxel
+            // census across a hundred and twenty minted cubes read E:0.
+            bool evert = (world & Level.Everted) != 0;
+
+            int best = 0;
+            bool bestGlyph = false;
             bool haveBw = false;
             Int3 bw = default;
 
@@ -126,8 +154,17 @@ namespace Singularity.Core
                         if (ev[id] == '.') continue;
                         Int3 vw = Projection.ViewOf(n, m, new Int3(x, y, z));
                         if (vw.x != u || vw.y != v) continue;
-                        if (Level.IsGlyph(ev[id])) { bw = new Int3(x, y, z); haveBw = true; best = 1000000000; }
-                        else if (vw.z > best) { best = vw.z; bw = new Int3(x, y, z); haveBw = true; }
+
+                        bool g = Level.IsGlyph(ev[id]);
+                        bool win = !haveBw
+                                || (g && !bestGlyph)
+                                || (g == bestGlyph && (evert ? vw.z < best : vw.z > best));
+                        if (!win) continue;
+
+                        best = vw.z;
+                        bestGlyph = g;
+                        bw = new Int3(x, y, z);
+                        haveBw = true;
                     }
 
             char want = Level.BaseForWalk(world);
@@ -213,7 +250,11 @@ namespace Singularity.Core
                 if (glyphLegs.Contains(leg) && placed.Count < nGlyph && path.Count > 2)
                 {
                     int gi = Level.Vidx(n, pos);
-                    char kind = (kinds > 1 && rng.Next() < 0.45) ? 'B' : 'A';
+                    char kind;
+                    if (!string.IsNullOrEmpty(opt.glyphSet))
+                        kind = opt.glyphSet[(int)(rng.Next() * opt.glyphSet.Length) % opt.glyphSet.Length];
+                    else
+                        kind = (kinds > 1 && rng.Next() < 0.45) ? 'B' : 'A';
                     vox[gi] = kind;
                     lockMap[gi] = kind;
                     placed.Add((pos, kind));

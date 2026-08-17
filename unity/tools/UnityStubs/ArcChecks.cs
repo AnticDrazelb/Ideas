@@ -120,4 +120,69 @@ static class ArcChecks
             }
         return false;
     }
+
+    /// <summary>
+    /// THE GENERATOR CAN CARVE AN EVERTER, and until this existed it could not.
+    ///
+    /// The voxel census read E:0 across a hundred and twenty minted cubes, and it
+    /// was not a sampling accident — the one line that writes a world-changing
+    /// cell chose between 'A' and 'B' and there was no third branch. The everter
+    /// existed in the rules, in the solver, in the shader and in four cubes
+    /// somebody typed out by hand, and nowhere else. A mechanic the content
+    /// pipeline cannot produce is a mechanic the game does not have.
+    ///
+    /// Two things have to be true and they are different things. The carve has to
+    /// PLACE one, and the solver has to prove a route THROUGH one — carving a
+    /// polarity flip the solver cannot follow would be worse than not carving it,
+    /// because the cube would ship unsolvable-in-practice while passing every
+    /// solvability check by going round it.
+    /// </summary>
+    public static void Everters(Action<bool, string> ok)
+    {
+        int made = 0, withE = 0, solved = 0, usedE = 0;
+
+        for (uint seed = 1; seed <= 400 && withE < 40; seed++)
+        {
+            var spec = new Spec
+            {
+                n = 6, glyphs = 1, glyphKinds = 1, glyphSet = "E",
+                turns = 7, locks = 0, density = 0.52,
+                legMin = 3, legMax = 6, parLo = 1, parHi = 8, minSteps = 6,
+                tries = 1, decoys = 4, band = 6, level = 151,
+            };
+            Level lv = Generator.Generate(seed * 7919u, spec);
+            if (lv == null) continue;
+            made++;
+            if (new string(lv.vox).IndexOf('E') < 0) continue;
+            withE++;
+
+            SolveResult r = Solver.Solve(lv, spec.parHi);
+            if (!r.ok) continue;
+            solved++;
+
+            // AND THE POLARITY IS LOAD-BEARING, at least sometimes. A cube with an
+            // everter sitting in it that no route ever stands on has not used the
+            // mechanic, it has decorated with it. Re-solve with the everter's own
+            // world bit unreachable and see whether par moves.
+            var flat = new Level
+            {
+                n = lv.n, vox = (char[])lv.vox.Clone(), start = lv.start, goal = lv.goal,
+                keys = lv.keys, doors = lv.doors, lockMap = lv.lockMap,
+                level = lv.level, band = lv.band,
+            };
+            for (int i2 = 0; i2 < flat.vox.Length; i2++) if (flat.vox[i2] == 'E') flat.vox[i2] = '+';
+            flat.ClearEff();
+            SolveResult f = Solver.Solve(flat, spec.parHi + 2);
+            if (!f.ok || f.turns != r.turns) usedE++;
+        }
+
+        Console.WriteLine(string.Format(
+            "arc: the carve places an everter in {0} of {1} cubes; {2} solve, and on {3} the polarity changes par",
+            withE, made, solved, usedE));
+
+        ok(withE > 0, "the generator still cannot carve an everter");
+        ok(solved == withE, "the solver could not prove " + (withE - solved)
+                            + " of the everter cubes the carve produced");
+        ok(usedE > 0, "no generated everter was ever load-bearing — the carve decorates with it");
+    }
 }

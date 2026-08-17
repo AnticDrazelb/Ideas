@@ -91,6 +91,7 @@ public static class ForgeChecks
         FilterChecks.Run(Ok);
         SaveChecks.Run(Ok);
         ArcChecks.Run(Ok);
+        ArcChecks.Everters(Ok);
         CodeChecks.Run(Ok);
         Numbers();
 
