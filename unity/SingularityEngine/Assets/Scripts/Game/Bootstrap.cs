@@ -21,6 +21,15 @@ namespace Singularity.Game
         {
             // A puzzle game has nothing to gain from a hot phone. Sixty is plenty
             // and the battery is part of the experience.
+            // THE LADDER IS READ BEFORE ANYTHING ASKS FOR A CUBE. Five hundred
+            // cubes cut offline and shipped as text — see Core/Catalogue — and if
+            // the asset is missing this is a no-op and LevelSupply falls back to
+            // the generator, which is a worse ladder rather than no game.
+            var cat = Resources.Load<TextAsset>("catalogue");
+            Singularity.Core.Catalogue.Load(cat != null ? cat.text : null);
+            if (cat == null)
+                Debug.LogWarning("[Singularity] catalogue.txt missing — the ladder will be generated");
+
             Application.targetFrameRate = 60;
             QualitySettings.vSyncCount = 0;
             Screen.sleepTimeout = SleepTimeout.SystemSetting;

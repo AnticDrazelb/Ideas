@@ -19,14 +19,42 @@ namespace Singularity.Core
     {
         public struct VaultDef { public string name; public int n; public VaultDef(string a, int b) { name = a; n = b; } }
 
+        /// <summary>
+        /// TWENTY VAULTS OF TWENTY-FIVE, WHICH IS THE WHOLE GAME.
+        ///
+        /// These used to be six vaults of uneven length followed by a generated
+        /// tail that grew forever, because the ladder was minted on the device and
+        /// had no last cube. It has one now: the catalogue is five hundred cubes
+        /// cut offline, chosen rather than accepted, and the vault list is the
+        /// shape they were cut in — one mechanic a vault at rising size and
+        /// tightening decision density, with the four verbs taught in the first
+        /// eight and nothing new after.
+        ///
+        /// Twenty-five is also the shape the rack draws best: three columns, nine
+        /// rows less two.
+        /// </summary>
         public static readonly VaultDef[] Authored =
         {
-            new VaultDef("CALIBRATION", 10),
-            new VaultDef("REFRACTION",  15),
-            new VaultDef("INVERSION",   20),
-            new VaultDef("ENTROPY",     20),
-            new VaultDef("EMBERFALL",   15),
-            new VaultDef("SINGULARITY", 10),
+            new VaultDef("CALIBRATION",  25),
+            new VaultDef("REFRACTION",   25),
+            new VaultDef("INVERSION",    25),
+            new VaultDef("ENTROPY",      25),
+            new VaultDef("EMBERFALL",    25),
+            new VaultDef("SUBSTRATE",    25),
+            new VaultDef("THE FAR SIDE", 25),
+            new VaultDef("THRESHOLD",    25),
+            new VaultDef("REVENANT",     25),
+            new VaultDef("COLD FORGE",   25),
+            new VaultDef("THE CANT",     25),
+            new VaultDef("SALT REACH",   25),
+            new VaultDef("BONE WORKS",   25),
+            new VaultDef("THE HOLLOW",   25),
+            new VaultDef("ASH TERRACE",  25),
+            new VaultDef("FROST GATE",   25),
+            new VaultDef("COPPER MARCH", 25),
+            new VaultDef("SHALE KEEP",   25),
+            new VaultDef("TIDE WELL",    25),
+            new VaultDef("SINGULARITY",  25),
         };
 
         static readonly string[] VaultA = { "IRON", "SALT", "GLASS", "ASH", "BONE", "SLATE", "AMBER", "TIDE", "EMBER", "FROST", "COPPER", "SHALE" };
@@ -39,10 +67,19 @@ namespace Singularity.Core
         // limited number of slots for the life of the game, and a flat ten would
         // spend every slot by cube seven hundred. Growing by five splits it — the
         // ABSOLUTE step is constant while the RELATIVE one collapses on its own.
-        public const int VaultTail0 = 25, VaultGrow = 5, RankedVaults = 30;
+        public const int VaultTail0 = 25, VaultGrow = 5, RankedVaults = 20;
 
-        /// <summary>The generator has no last cube, but a text field needs a ceiling.</summary>
-        public const int MaxCube = 100000;
+        /// <summary>The last cube. There is one now, which is new — see Catalogue.</summary>
+        public const int LastCube = 500;
+
+        /// <summary>
+        /// THE CATALOGUE ENDS AT FIVE HUNDRED and the seed box ends with it. This
+        /// was a hundred thousand, which was right when the ladder was a pure
+        /// function of its number and wrong now that it is a list: typing 900 used
+        /// to mint a cube and would now fall through to a generated one that no
+        /// other player has, which is the opposite of what a fixed ladder is for.
+        /// </summary>
+        public const int MaxCube = LastCube;
 
         static readonly int[] VaultAt;
         public static readonly int VaultEnd;   // 90

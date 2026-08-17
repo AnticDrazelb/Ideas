@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using Singularity.Core;
 
@@ -199,5 +200,86 @@ static class CodeChecks
         a.ClearEff();
         ok(Identity.CanonId(a) != before,
            "changing the second solid did not change the cube's identity");
+    }
+
+    /// <summary>
+    /// THE CATALOGUE, PROVED AGAINST ITSELF, on every run of the harness.
+    ///
+    /// Five hundred cubes are the whole game now and progress is an INDEX into
+    /// them, so three claims have to hold and each one fails differently.
+    ///
+    /// EVERY CUBE SOLVES AT THE PAR IT SHIPS WITH. Not "was solvable when it was
+    /// cut" — the thing that ships is the text, so the text is what gets solved.
+    /// A cube whose par is one out scores every player who plays it wrongly and
+    /// there is no way to notice from inside the game.
+    ///
+    /// EVERY CUBE IS DISTINCT, under all twenty-four orientations and every solid
+    /// it carries. The same puzzle twice in one ladder is a player who recognises
+    /// it being right.
+    ///
+    /// AND THE ORDER DOES NOT MOVE. This is the one that would do real damage:
+    /// reorder or replace a cube after release and every save in the world points
+    /// at a different puzzle, with bests and pars attached to numbers that changed
+    /// meaning underneath them. The stamp is a checksum over the whole ladder in
+    /// order — it is printed rather than asserted while the catalogue is still
+    /// being cut, and the day it ships that number goes in a constant and this
+    /// check starts refusing to build without it.
+    /// </summary>
+    public static void CatalogueFile(Action<bool, string> ok)
+    {
+        string path = Path.Combine("unity", "SingularityEngine", "Assets", "Resources", "catalogue.txt");
+        if (!File.Exists(path))
+        {
+            Console.WriteLine("catalogue: no asset at " + path + " — the ladder falls back to the generator");
+            return;
+        }
+
+        Catalogue.Load(File.ReadAllText(path));
+        int n = Catalogue.Count;
+        ok(n == Vaults.LastCube, "the catalogue holds " + n + " cubes and the ladder wants " + Vaults.LastCube);
+
+        var ids = new HashSet<string>();
+        int holes = 0, unsolved = 0, wrongPar = 0, dupes = 0, triggers = 0, everters = 0, plates = 0;
+        int parMin = 99, parMax = 0;
+
+        for (int i = 1; i <= n; i++)
+        {
+            if (!Catalogue.Has(i)) { holes++; continue; }
+            Level lv = Catalogue.Get(i);
+            if (lv == null) { unsolved++; continue; }
+
+            SolveResult r = Solver.Solve(lv, lv.par);
+            if (!r.ok) { unsolved++; continue; }
+            if (r.turns != lv.par) { wrongPar++; continue; }
+
+            parMin = Math.Min(parMin, lv.par);
+            parMax = Math.Max(parMax, lv.par);
+            if (!ids.Add(Catalogue.All[i - 1].id)) dupes++;
+
+            string vx = new string(lv.vox);
+            if (vx.IndexOf('T') >= 0 || vx.IndexOf('U') >= 0) triggers++;
+            if (vx.IndexOf('E') >= 0) everters++;
+            if (vx.IndexOf('A') >= 0 || vx.IndexOf('B') >= 0) plates++;
+        }
+
+        Console.WriteLine(string.Format(
+            "catalogue: {0} cubes, par {1}-{2}, {3} carry a trigger, {4} an everter, {5} a plate — stamp {6}",
+            n, parMin, parMax, triggers, everters, plates, Catalogue.Stamp()));
+
+        ok(holes == 0, holes + " cubes in the catalogue are holes");
+        ok(unsolved == 0, unsolved + " cubes in the catalogue do not solve at all");
+        ok(wrongPar == 0, wrongPar + " cubes in the catalogue do not solve at the par they ship with");
+        ok(dupes == 0, dupes + " cubes in the catalogue duplicate another");
+
+        // AND THE FORGE CANNOT BUILD ONE OF THEM. It is the same identity table
+        // read the same way, so this is not a new guarantee — it is a check that
+        // the wiring reaches the new ladder and not only the old one.
+        Level first = Catalogue.Get(1);
+        if (first != null)
+        {
+            Collision? col = Identity.CollisionOf(first, null, null);
+            ok(col.HasValue && col.Value.level == 1,
+               "the Forge would let a player rebuild cube 1 of the catalogue");
+        }
     }
 }

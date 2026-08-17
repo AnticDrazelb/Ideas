@@ -94,6 +94,7 @@ public static class ForgeChecks
         ArcChecks.Everters(Ok);
         CodeChecks.Run(Ok);
         CodeChecks.Triggers(Ok);
+        CodeChecks.CatalogueFile(Ok);
         Numbers();
 
         Console.WriteLine(fails == 0 ? "CHECKS PASSED" : fails + " CHECKS FAILED");

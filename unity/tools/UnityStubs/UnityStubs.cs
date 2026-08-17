@@ -354,6 +354,12 @@ namespace UnityEngine
         public void SetTexture(string n, Texture t) { }
     }
 
+    /// <summary>
+    /// UnityEngine.TextAsset — a file in Resources read as a string. Declared
+    /// because the engine has it: the five-hundred-cube catalogue ships as one.
+    /// </summary>
+    public class TextAsset : Object { public string text => null; }
+
     public class Shader : Object { public static Shader Find(string n) => null; }
 
     public class Renderer : Component

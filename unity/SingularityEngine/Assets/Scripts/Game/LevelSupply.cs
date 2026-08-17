@@ -46,6 +46,21 @@ namespace Singularity.Game
         {
             if (Baked.TryAt(level, out BakedLevel baked)) return baked.ToLevel(level);
 
+            // THE CATALOGUE FIRST, and for five hundred cubes it is the only
+            // answer. The ladder is cut offline out of a hundred thousand
+            // candidates and shipped as text — see Core/Catalogue — so a cube is
+            // read rather than minted, which is what lets it have been CHOSEN.
+            //
+            // The generator stays underneath for two reasons and both matter: the
+            // daily still borrows it, and a build whose catalogue asset failed to
+            // import should be a game with a worse ladder rather than no game.
+            Level fromCat = Catalogue.Get(level);
+            if (fromCat != null)
+            {
+                Put(level, fromCat);
+                return fromCat;
+            }
+
             lock (Gate) { if (Cache.TryGetValue(level, out Level hit)) return hit; }
 
             Level lv = Generator.Mint(level);

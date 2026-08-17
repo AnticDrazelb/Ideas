@@ -158,6 +158,22 @@ namespace Singularity.Core
                     return new Collision { kind = "baked", level = _bakedAt[i], name = hit.name, id = id };
                 }
 
+            // THE CATALOGUE, WHICH IS NOW WHAT "ALREADY EXISTS" MEANS. Five
+            // hundred fixed cubes, their identities shipped alongside them as
+            // eight characters each — four kilobytes — because computing them
+            // would be twenty-four canonical forms a cube and the better part of a
+            // minute on a phone. MintedIds still answers for the generated
+            // catalogue underneath, which the daily still draws from.
+            for (int i = 0; i < Catalogue.Count; i++)
+            {
+                string cid = Catalogue.All[i].id;
+                if (!string.IsNullOrEmpty(cid) && cid == id)
+                    return new Collision
+                    {
+                        kind = "baked", level = i + 1, name = Vaults.LevelName(i + 1), id = id
+                    };
+            }
+
             if (MintedIds.Index.TryGetValue(id, out int lvl))
                 return new Collision { kind = "minted", level = lvl, name = Vaults.LevelName(lvl), id = id };
 
