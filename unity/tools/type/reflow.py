@@ -127,6 +127,23 @@ BOXES = [
 
     ("forge coach", "TRACE IS WHAT YOU STAND ON. TAP CELLS TO LAY 8 MORE.", 19, 471, 58),
 
+    # THE VAULT RACK'S CARDS. Five columns of a 545-unit grid is 109 a card, less
+    # six of inset each side: ninety-seven units to hold a cube's name, over a
+    # band that is 0.36 of a 113.5-unit card — forty-one units, two lines.
+    #
+    # THE SIZE IS AN OUTPUT OF THIS TABLE, NOT AN INPUT TO IT. At seventeen the
+    # name still does not fit even wrapped: TURNED INSIDE OUT breaks into three
+    # lines in a 97-unit box and needs sixty-seven. Fifteen is the largest size at
+    # which every name the game can print comes out at two lines or fewer. Both
+    # the baked names and the generated ones are here, longest first, because the
+    # generator makes CLOSE CROSS out of word lists nobody thinks to check.
+    ("vault card · NOTHING UNDERNEATH", "NOTHING UNDERNEATH", 15, 97, 41),
+    ("vault card · TURNED INSIDE OUT", "TURNED INSIDE OUT", 15, 97, 41),
+    ("vault card · THE FAR SIDE", "THE FAR SIDE", 15, 97, 41),
+    ("vault card · TWO SHADOWS", "TWO SHADOWS", 15, 97, 41),
+    ("vault card · CLOSE CROSS", "CLOSE CROSS", 15, 97, 41),
+    ("vault card · OUBLIETTE", "OUBLIETTE", 15, 97, 41),
+
     # ACCESS — the two hints that print beside three named stops rather than a
     # switch, so they get half the row instead of most of it. These truncated by
     # two units under the mono and are the reason `hintTo` moved to 0.56.

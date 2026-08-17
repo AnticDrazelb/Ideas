@@ -102,6 +102,20 @@ namespace Singularity.Core
 
         public static bool Cleared(int reached) => reached > LastCube;
 
+        /// <summary>
+        /// THE LAST VAULT, AND THERE IS ONE OF THOSE NOW TOO.
+        ///
+        /// VaultSize and VaultStart still answer for any band you hand them,
+        /// because they are the arithmetic of a ladder that used to be infinite
+        /// and a save written under that ladder has to keep meaning what it meant.
+        /// But nothing may BROWSE past this: the rack's arrow had no ceiling, so
+        /// pressing it enough times reached VAULT 45 · EMBER SPINE — a made-up
+        /// name over a hundred and fifty cards, none of which is a cube, drawn
+        /// four rows deep into each other because a rack that size does not fit
+        /// on a telephone. Twenty vaults of twenty-five. That is all there is.
+        /// </summary>
+        public const int LastBand = RankedVaults - 1;
+
         static readonly int[] VaultAt;
         public static readonly int VaultEnd;   // 90
 
@@ -161,7 +175,17 @@ namespace Singularity.Core
             return NameA[h % (uint)NameA.Length] + " " + NameB[(h >> 5) % (uint)NameB.Length];
         }
 
-        static readonly string[] Roman = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII" };
+        // TWENTY OF THEM, BECAUSE THERE ARE TWENTY VAULTS. This stopped at XII,
+        // which was plenty when the ladder was open-ended and nobody was expected
+        // to browse the far end of it — but the rack now ends at a real vault, and
+        // the last eight of them read "VAULT 13 · THE CANT" through to "VAULT 20 ·
+        // SINGULARITY" while the first twelve had numerals. The fallback stays for
+        // a band that should not be reachable at all.
+        static readonly string[] Roman =
+        {
+            "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
+            "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX"
+        };
         public static string RomanOf(int band) => band < Roman.Length ? Roman[band] : (band + 1).ToString();
     }
 }

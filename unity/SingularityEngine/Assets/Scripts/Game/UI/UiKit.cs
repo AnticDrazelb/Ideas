@@ -275,6 +275,33 @@ namespace Singularity.UI
             rt.SetParent(parent, false);
             rt.anchorMin = anchorMin;
             rt.anchorMax = anchorMax;
+
+            // A RECT WITH NEGATIVE HEIGHT DRAWS NOTHING AND SAYS NOTHING.
+            //
+            // offsetMin is the bottom-left corner and offsetMax the top-right, and
+            // on an axis whose two anchors are the SAME the difference between them
+            // is the whole size — so writing the pair the wrong way round gives a
+            // row a height of minus eighty-eight, lays every child out inside it,
+            // and produces a screen that is simply absent. The pause card lost its
+            // five controls to exactly this and there was nothing on screen to say
+            // so; you could only leave it by solving the cube.
+            //
+            // Where the anchors DIFFER the axis is a stretch and the offsets are
+            // insets against two different edges, so offsetMax below offsetMin is
+            // ordinary and correct. That is why this asks about the anchors first.
+            if (anchorMin.x == anchorMax.x && offsetMax.x <= offsetMin.x)
+            {
+                Debug.LogError("UiKit.Rect: '" + name + "' is " + (offsetMax.x - offsetMin.x)
+                             + " units wide — offsetMin and offsetMax are the wrong way round");
+                float t = offsetMin.x; offsetMin.x = offsetMax.x; offsetMax.x = t;
+            }
+            if (anchorMin.y == anchorMax.y && offsetMax.y <= offsetMin.y)
+            {
+                Debug.LogError("UiKit.Rect: '" + name + "' is " + (offsetMax.y - offsetMin.y)
+                             + " units tall — offsetMin and offsetMax are the wrong way round");
+                float t = offsetMin.y; offsetMin.y = offsetMax.y; offsetMax.y = t;
+            }
+
             rt.offsetMin = offsetMin;
             rt.offsetMax = offsetMax;
             return rt;

@@ -282,6 +282,7 @@ namespace Singularity.UI
 
         static Text _vaultName;
         static RectTransform _grid;
+        static Button _prevBtn, _nextBtn;
 
         static void BuildVaults()
         {
@@ -295,10 +296,18 @@ namespace Singularity.UI
                 UiKit.Label(L, "vaultName", "VAULT I", 32, Palette.Ink, TextAnchor.MiddleCenter,
                             new Vector2(0, 1), new Vector2(1, 1), new Vector2(120, -140), new Vector2(-120, -80)), 18);
 
+            // AND BOTH ARROWS STOP. The rack is twenty vaults wide and neither end
+            // of it is a suggestion: past the last one VaultName starts inventing
+            // titles for bands that hold no cubes. The buttons are kept and made
+            // INERT at the ends rather than hidden, because a control that vanishes
+            // moves everything beside it and a player reads that as the screen
+            // changing rather than as the list ending.
             RectTransform prev = UiKit.Rect(L, "prev", new Vector2(0, 1), new Vector2(0, 1), new Vector2(40, -154), new Vector2(140, -66));
-            UiKit.Bracketed(prev, "prev", "<", () => { _viewBand = Mathf.Max(0, _viewBand - 1); PaintVaults(); }, 26);
+            _prevBtn = UiKit.Bracketed(prev, "prev", "<",
+                () => { _viewBand = Mathf.Max(0, _viewBand - 1); PaintVaults(); }, 26);
             RectTransform next = UiKit.Rect(L, "next", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-140, -154), new Vector2(-40, -66));
-            UiKit.Bracketed(next, "next", ">", () => { _viewBand++; PaintVaults(); }, 26);
+            _nextBtn = UiKit.Bracketed(next, "next", ">",
+                () => { _viewBand = Mathf.Min(Vaults.LastBand, _viewBand + 1); PaintVaults(); }, 26);
 
             _grid = UiKit.Rect(L, "grid", new Vector2(0, 0), new Vector2(1, 1), new Vector2(40, 300), new Vector2(-40, -RackTop));
 
@@ -385,13 +394,22 @@ namespace Singularity.UI
 
         static void OpenVaults()
         {
-            _viewBand = Vaults.VaultOf(Mathf.Max(1, Store.Data.reached));
+            // Resume rather than reached, because a finished machine stores 501 and
+            // VaultOf would open the rack on a vault that does not exist.
+            _viewBand = Vaults.VaultOf(Vaults.Resume(Store.Data.reached));
             PaintVaults();
             Show("vaults");
         }
 
         static void PaintVaults()
         {
+            // BOTH ENDS, ONCE, HERE — rather than trusting the two arrows to have
+            // clamped themselves. This is the one function that reads _viewBand, so
+            // it is the one place that can promise the band is a real vault.
+            _viewBand = Mathf.Clamp(_viewBand, 0, Vaults.LastBand);
+            if (_prevBtn != null) _prevBtn.interactable = _viewBand > 0;
+            if (_nextBtn != null) _nextBtn.interactable = _viewBand < Vaults.LastBand;
+
             for (int i = _grid.childCount - 1; i >= 0; i--) Object.Destroy(_grid.GetChild(i).gameObject);
 
             _vaultName.text = "VAULT " + Vaults.RomanOf(_viewBand) + " · " + Vaults.VaultName(_viewBand);
@@ -408,10 +426,24 @@ namespace Singularity.UI
             // list is the only place a player ever sees it, and a name is what makes
             // "the one with the plates" a thing you can go back to.
             //
-            // So each cube gets a card: its number, its name, and how well it went,
-            // and the cell is sized off the WIDTH because that is the axis that is
-            // actually constrained.
-            const int cols = 3;
+            // So each cube gets a card: its number, its name, and how well it went.
+            //
+            // FIVE ACROSS AND FIVE DOWN, WHICH IS WHAT TWENTY-FIVE ASKS FOR.
+            //
+            // It was three, chosen for a ladder whose early vaults held ten. Every
+            // vault holds twenty-five now, and three columns is NINE ROWS: the
+            // height between the heading and the seed box divides to sixty-nine
+            // units against a hundred and eighty-two of width, and a card at 0.38
+            // does not read as a tile in a rack, it reads as a bar in a chart. It
+            // wasted the height twice over, because the cards were capped by the
+            // WIDTH long before they had spent it — a hundred and sixty units of
+            // black sat under the last row.
+            //
+            // Five divides twenty-five exactly, so there is no ragged last row at
+            // all, and the cell comes out a hundred and nine by a hundred and
+            // twenty-five: a portrait card that fills both axes of the space it is
+            // given. The names go to two lines to pay for it — see below.
+            const int cols = 5;
             int rows = Mathf.CeilToInt(size / (float)cols);
             float cellW = _grid.rect.width / cols;
 
@@ -419,12 +451,11 @@ namespace Singularity.UI
             //
             // This was capped at 132 flat, which is a number that fit a vault of
             // twenty and left a vault of ten with two hundred units of black under
-            // it. The cap that matters is the SHAPE of a card — past about square
-            // it stops reading as a tile in a rack — so that is the cap, and
-            // otherwise the rows share whatever is between the heading and the
-            // seed box. A ten-cube vault gets cards half again as tall; a
-            // twenty-cube vault gets exactly what it always had.
-            float cellH = Mathf.Min(cellW * 0.86f, (JumpTop - RackTop - 26f) / Mathf.Max(1, rows));
+            // it. The cap that matters is the SHAPE of a card, and with five
+            // columns that shape is upright rather than square: 1.3 is tall enough
+            // to stack a number over a two-line name and still stop a hypothetical
+            // short vault from drawing towers.
+            float cellH = Mathf.Min(cellW * 1.30f, (JumpTop - RackTop - 26f) / Mathf.Max(1, rows));
 
             for (int i = 0; i < size; i++)
             {
@@ -484,17 +515,38 @@ namespace Singularity.UI
                 var card = (RectTransform)btn.transform;
                 UiKit.Label(card, "n", level.ToString(), 30,
                             reached ? Palette.Ink : Palette.Dim, TextAnchor.LowerCenter,
-                            new Vector2(0, 0.42f), new Vector2(1, 0.86f), Vector2.zero, Vector2.zero);
+                            new Vector2(0, 0.56f), new Vector2(1, 0.94f), Vector2.zero, Vector2.zero);
 
+                // THE NAME WRAPS TO TWO LINES, AT FIFTEEN, AND THAT IS MEASURED.
+                //
+                // A card is ninety-seven units wide inside its inset. The longest
+                // name this game prints is NOTHING UNDERNEATH — eighteen
+                // characters, a hundred and eighty-four units at seventeen point,
+                // which on one line runs out through both sides of the card. So it
+                // wraps; but at seventeen the wrap does not save it either, because
+                // TURNED INSIDE OUT breaks into THREE lines at that width and
+                // sixty-seven units of text will not go into a forty-unit band.
+                //
+                // Fifteen is the largest size at which every name this game can
+                // produce comes out at two lines or fewer — thirty-nine and a half
+                // units against the band's forty-one. See tools/type/reflow.py,
+                // which measures all ten of the long ones rather than the one
+                // somebody happened to think of.
+                //
+                // Fit stays as the backstop, because a name is DATA: it is the
+                // thing that catches a name added later that this arithmetic never
+                // saw. Truncating is not an option when the game has cubes whose
+                // names differ only in the last word.
                 if (reached)
-                    UiKit.Label(card, "name", Vaults.LevelName(level), 17, Palette.Dim,
-                                TextAnchor.UpperCenter,
-                                new Vector2(0, 0.24f), new Vector2(1, 0.44f), Vector2.zero, Vector2.zero);
+                    UiKit.Fit(UiKit.Label(card, "name", Vaults.LevelName(level), 15, Palette.Dim,
+                                          TextAnchor.UpperCenter,
+                                          new Vector2(0, 0.16f), new Vector2(1, 0.52f),
+                                          Vector2.zero, Vector2.zero, true), 12);
 
                 for (int p = 0; p < 3; p++)
                     UiKit.Icon(card, p < pips ? "sqfill" : "sq",
                                p < pips ? Palette.Arc : Palette.Dim2, 9f,
-                               new Vector2(0.5f, 0.16f), new Vector2((p - 1) * 13f, 0f));
+                               new Vector2(0.5f, 0.09f), new Vector2((p - 1) * 13f, 0f));
             }
         }
 
@@ -720,10 +772,19 @@ namespace Singularity.UI
 
             float y = Layout.PlateHeight - FootFloor;
 
+            // MEASURED DOWN FROM THE TOP, WHICH MEANS THE BOTTOM EDGE IS THE MORE
+            // NEGATIVE OF THE TWO. offsetMin is the bottom-left corner and
+            // offsetMax the top-right; writing them the other way round gives every
+            // row a height of MINUS eighty-eight, and a rect with negative height
+            // lays its children out inside nothing. That is what happened here —
+            // the card kept its name and its vault line, which are anchored
+            // normally, and lost RESUME, RESET, VAULTS, MENU and CALIBRATE
+            // entirely, leaving a screen that could only be left by solving the
+            // cube. FlowWin, which this was copied from, has it the right way up.
             RectTransform Up(string name, float h, float gap)
             {
                 RectTransform r = UiKit.Rect(L, name, new Vector2(0, 1), new Vector2(1, 1),
-                                             new Vector2(72, -(y - h)), new Vector2(-72, -y));
+                                             new Vector2(72, -y), new Vector2(-72, -(y - h)));
                 y -= h + gap;
                 return r;
             }

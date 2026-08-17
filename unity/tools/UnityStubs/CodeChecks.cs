@@ -305,5 +305,28 @@ static class CodeChecks
         // has to be true THERE and nowhere earlier
         ok(!Vaults.Cleared(Vaults.LastCube) && Vaults.Cleared(Vaults.LastCube + 1),
            "the machine reads as finished at the wrong cube");
+
+        // THE TWENTY VAULTS TILE THE FIVE HUNDRED EXACTLY.
+        //
+        // The rack's arrow had no ceiling, so it walked into VAULT 45 · EMBER
+        // SPINE — a generated name over a hundred and fifty cards, not one of
+        // which is a cube. Vaults.LastBand is the stop, and this is the sweep
+        // that says the bands it admits are the whole ladder and nothing else:
+        // every vault starts where the last one ended, every cube in every vault
+        // is in the catalogue, and the last one ends on 500.
+        int at = 1, gaps = 0, missing = 0;
+        for (int b = 0; b <= Vaults.LastBand; b++)
+        {
+            if (Vaults.VaultStart(b) != at) gaps++;
+            int sz = Vaults.VaultSize(b);
+            for (int c = at; c < at + sz; c++) if (!Catalogue.Has(c)) missing++;
+            at += sz;
+            // a vault's title is read off the rack, so it has to be a numeral
+            if (Vaults.RomanOf(b).IndexOfAny("0123456789".ToCharArray()) >= 0) gaps++;
+        }
+        ok(gaps == 0, gaps + " vaults start in the wrong place or have no numeral");
+        ok(missing == 0, missing + " cubes across the twenty vaults are not in the catalogue");
+        ok(at - 1 == Vaults.LastCube,
+           "the twenty vaults cover " + (at - 1) + " cubes and the catalogue holds " + Vaults.LastCube);
     }
 }

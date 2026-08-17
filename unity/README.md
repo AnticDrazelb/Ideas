@@ -761,6 +761,59 @@ crawling while the cells it came off flew is the one way this can look wrong.
 
 ---
 
+## The rack, and a rect that draws nothing
+
+Two bugs on one screen, and they are the same bug seen from either end: a number
+that was right for a layout that no longer exists.
+
+**The rack was three columns wide.** That was chosen when the early vaults held
+ten cubes. Every vault holds twenty-five now, and three columns is *nine rows* —
+the height between the heading and the seed box divides to 69 units against 182
+of width, and a card at 0.38 does not read as a tile in a rack, it reads as a bar
+in a chart. It wasted the height twice over, because the cards were capped by the
+**width** long before they had spent it, leaving 160 units of black under the
+last row. Five divides twenty-five exactly, so there is no ragged last row at all
+and the cell comes out 109 × 125.
+
+That costs the names, and paying for it is where the measurement earns its place.
+A card is 97 units wide inside its inset; `NOTHING UNDERNEATH` is 184 at
+seventeen point, so the label has to wrap — and *at seventeen the wrap does not
+save it either*, because `TURNED INSIDE OUT` breaks into **three** lines in a
+97-unit box and 67 units of text will not go into a 41-unit band. Fifteen is the
+largest size at which every name the game can print comes out at two lines or
+fewer. That is an output of `tools/type/reflow.py`, not an input to it: the table
+now measures all six of the long names, the generated `CLOSE CROSS` among them,
+because the generator builds names out of word lists nobody thinks to check.
+
+**And the browser had no ceiling.** Pressing the arrow enough times reached
+`VAULT 45 · EMBER SPINE`: a made-up name over a hundred and fifty cards, none of
+which is a cube, drawn four rows deep into each other. `Vaults.LastBand` is the
+stop, both arrows go inert at the ends rather than vanishing, and a sweep proves
+the twenty vaults tile 1..500 exactly — every vault starting where the last one
+ended, every cube in the catalogue, the last one landing on 500. The numerals
+stopped at XII too, so the last eight vaults read `VAULT 13` through `VAULT 20`.
+
+### A rect with negative height
+
+The pause card lost every one of its five controls, and there was nothing on
+screen to say so — the name and the vault line were anchored normally and drew
+fine, so the screen looked deliberate. You could only leave it by solving the
+cube.
+
+`offsetMin` is the bottom-left corner and `offsetMax` the top-right, and on an
+axis whose two anchors are the **same** the difference between them is the whole
+size. The pause stack passed them the other way round, so every row was minus 88
+units tall and laid its children out inside nothing. `FlowWin`, which it was
+copied from, has it the right way up.
+
+`UiKit.Rect` now refuses to build one. It asks about the anchors first, because
+where they *differ* the axis is a stretch and the offsets are insets against two
+different edges — `offsetMax` below `offsetMin` is ordinary and correct there.
+Where they match, an inverted pair is logged as an error and swapped: a screen
+that works while shouting beats a screen that is silently absent.
+
+---
+
 ## The ending
 
 Cube 500 does not exit. Everything the ordinary exit does is wrong for the last
