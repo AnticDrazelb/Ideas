@@ -1,3 +1,5 @@
 # dotnet build output for the check harnesses. Nothing here is source.
 bin/
 obj/
+audio/out/
+audio/__pycache__/

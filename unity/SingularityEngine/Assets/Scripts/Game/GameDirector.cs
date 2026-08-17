@@ -99,6 +99,23 @@ namespace Singularity.Game
 
         Vector3 AtPlayer() => At(S.pos);
 
+        /// <summary>
+        /// Where a cell sits across the stereo field, which is simply where it
+        /// sits across the board.
+        ///
+        /// It is capped at three quarters rather than run to the edges. A fully
+        /// panned cue is silent in one ear, and every sound this is used on is a
+        /// sound the player is meant to be able to COUNT — a run of footsteps
+        /// that vanishes from one side while somebody is walking a long deck is
+        /// a worse cue than a mono one, however much wider it sounds.
+        /// </summary>
+        float PanAt(Int3 cell)
+        {
+            float half = (S.N - 1) * 0.5f;
+            if (half <= 0f) return 0f;
+            return Mathf.Clamp(At(cell).x / half, -1f, 1f) * 0.75f;
+        }
+
         void Wire()
         {
             S.On.Toast = msg => Hud.Toast(msg);
@@ -115,14 +132,14 @@ namespace Singularity.Game
             S.On.Stepped = (cell, surf) =>
             {
                 Rig.Shake(0.045f);
-                _sfx.Step();
+                _sfx.Step(PanAt(cell));
                 _fx.Footfall(At(cell), Palette.Tile(surf.t, surf.d, S.N));
             };
 
             S.On.Landed = cell =>
             {
                 Rig.Kick(3, 0, 1); Rig.Shake(0.10f);
-                _sfx.Land();
+                _sfx.Land(PanAt(cell));
                 _fx.Land(At(cell), Palette.GridHi);
                 _orb.Hop();
                 _orb.SetMood("land", 260f);

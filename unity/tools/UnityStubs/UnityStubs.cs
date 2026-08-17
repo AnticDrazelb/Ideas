@@ -165,6 +165,8 @@ namespace UnityEngine
         public static float Round(float f) => (float)Math.Round(f, MidpointRounding.AwayFromZero);
         public static float Sin(float f) => (float)Math.Sin(f);
         public static float Cos(float f) => (float)Math.Cos(f);
+        public static float Tan(float f) => (float)Math.Tan(f);
+        public static float Log10(float f) => (float)Math.Log10(f);
         public static float Atan2(float y, float x) => (float)Math.Atan2(y, x);
         public static float InverseLerp(float a, float b, float v) => a == b ? 0f : Clamp01((v - a) / (b - a));
         public static float Exp(float f) => (float)Math.Exp(f);
@@ -400,10 +402,7 @@ namespace UnityEngine
     public class AudioClip : Object
     {
         public delegate void PCMReaderCallback(float[] data);
-        public delegate void PCMSetPositionCallback(int position);
-        public static AudioClip Create(string name, int lengthSamples, int channels, int frequency, bool stream) => null;
         public static AudioClip Create(string name, int lengthSamples, int channels, int frequency, bool stream, PCMReaderCallback read) => null;
-        public bool SetData(float[] data, int offset) => true;
     }
 
     public class AudioListener : Behaviour { }
@@ -414,26 +413,22 @@ namespace UnityEngine
         public float volume { get; set; }
         public bool loop { get; set; }
         public bool playOnAwake { get; set; }
-        public bool isPlaying => false;
         public float spatialBlend { get; set; }
         public bool bypassReverbZones { get; set; }
         public void Play() { }
-        public void Stop() { }
-        public void PlayScheduled(double time) { }
-        public void PlayOneShot(AudioClip c, float v) { }
     }
 
-    public class AudioEchoFilter : Behaviour
+    // AudioEchoFilter and AudioLowPassFilter used to be declared here. They are
+    // gone because nothing asks for them any more: the room is a feedback delay
+    // network inside Bus, not a per-voice echo component. This list is meant to
+    // be an honest inventory of what the game needs from Unity, and an entry
+    // that outlives its caller makes the inventory a lie.
+
+    public static class AudioSettings
     {
-        public float delay { get; set; }
-        public float decayRatio { get; set; }
-        public float wetMix { get; set; }
-        public float dryMix { get; set; }
+        public static double dspTime => 0;
+        public static int outputSampleRate => 48000;
     }
-
-    public class AudioLowPassFilter : Behaviour { public float cutoffFrequency { get; set; } }
-
-    public static class AudioSettings { public static double dspTime => 0; }
 
     public class Font : Object
     {

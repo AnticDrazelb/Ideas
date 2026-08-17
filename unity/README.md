@@ -45,7 +45,12 @@ half, and these are the ones most likely to be real:
    held MATRIX?
 5. **Is the glyph set legible at phone size** — node, lock, core, and you?
 6. **Does the audio arrive on the beat** — the footstep's ping eighty
-   milliseconds behind the thud, the fold's knock at the detent?
+   milliseconds behind the thud, the fold's knock at the detent? And does the
+   machine sound like METAL: is the detent a struck bar rather than a beep, is
+   the node glass, does the room sit behind the cues rather than on them? The
+   whole set can be heard without opening Unity — `python3 tools/audio/render.py`
+   writes `out/_walkthrough.wav` — so the useful report is where the device
+   differs from that file, not where it differs from a description.
 7. **The Forge**: build a five-cube, verify, save, play it back. Follow the coach
    from an empty grid to a saved cube without reading anything else — that is the
    one path it exists for, and it was broken: the coach never mentioned decks, so
@@ -168,7 +173,9 @@ Assets/Scripts/Game/     everything that draws, listens or remembers
   GameDirector           turns those events into light and noise
   CubeView, CubeMesh     the solid, and the handedness conversion
   Fx                     the debris and the fronts — one mesh, rebuilt a frame
-  Synth, Sfx             every sound in the game, made from two primitives
+  Synth, Sfx, Bus        every sound in the game, and the room it is in.
+                         Synth makes the bodies, Sfx layers them into cues,
+                         Bus is one AudioSource mixing the lot
   Forge                  the editor's model, with no UnityEngine in it
   CameraRig, InputRouter, RemainSolver, LevelSupply, Store, ...
   UI/                    built in code; no prefabs anywhere
@@ -200,6 +207,13 @@ dependency to marshal:
   correct, for a cube reached faster than it could be cut.
 - **The live "to go" readout.** The fewest folds still possible from where you
   stand, re-solved on every state change, cached so undo is instant.
+
+And one thread the game does not own: **the audio callback**. `Bus.Render` is
+called by Unity's mixer, not by the game, and the rules there are stricter than
+anywhere else in this project — it may not allocate, may not touch a Unity
+object, and may not read anything the main thread is writing. Levels are pushed
+at it once a frame; sounds are handed over through a fixed array of voice slots
+with a single volatile int as the handshake. Nothing else crosses.
 
 ---
 
@@ -238,6 +252,65 @@ The debris around it falls **inward**. Motes are spawned out on a ring and
 thrown at the centre with a sideways kick, so what you see is light being pulled
 in and going out at the horizon. Same particle system, same cost — the velocity
 is simply aimed the other way. A lamp sheds; this is the opposite of a lamp.
+
+---
+
+## The machine is made of metal
+
+The web build made every sound in the game out of two primitives: an enveloped
+oscillator and a filtered burst of noise. That is what a WebAudio graph gives
+you cheaply, and for a sonar ping and a servo whirr it is exactly right. It is
+the wrong instrument for everything this game **hits, drops, seats or latches**,
+because a struck object is not an oscillator with a decay on it — it is a body
+with a set of modes, and the high ones die first.
+
+That single fact is why a sine with an envelope reads as a *beep* and a real
+knock reads as *metal*: the spectrum at the moment of impact is nothing like the
+spectrum forty milliseconds later, and an envelope cannot make that happen. So
+there is a third primitive now — a bank of two-pole resonators excited by a
+strike — and five bodies for it to ring:
+
+| | |
+|---|---|
+| **Glass** | the ideal free bar, 1 : 2.756 : 5.404. The node chime, and the reason a glockenspiel does not sound like a guitar. |
+| **Knock** | a small steel bar hit hard, gone in eighty milliseconds. The fold's detent, the dead-end clicks, and the plate clock. |
+| **Deck** | a large plate struck from underneath, dense and low. What the player is standing on. |
+| **Clunk** | bell ratios, with a hum an octave under the strike — which is what makes a heavy thing sound heavy. The gate seating, the rails re-seating. |
+| **Drive** | a tight cluster that beats against itself, *driven* rather than struck. The matrix spinning up. |
+
+The strike is a short burst of noise rather than an impulse, and **the burst
+length is the mallet**: a millisecond is steel on steel and finds every mode,
+ten milliseconds is a soft head that never reaches the top of the bank. Same
+bodies, different tool.
+
+**And the room is a real room.** The original ran a send into two delays at
+prime-ish spacings, damped and fed back; the first Unity port replaced that with
+a single `AudioEchoFilter` — one tap at 83ms, repeating four times, which is a
+slapback in a corridor — and then paid for it forty-one times over, because
+every voice carried its own copy. It is now a four-line feedback delay network
+with a Householder mixing matrix, damped, lightly modulated, behind twenty
+milliseconds of pre-delay and six early reflections. Two of those reflections
+are at 83 and 127ms, which are the original's own numbers, kept: they are what
+this game has always sounded like, and they now arrive as reflections off the
+walls of something rather than as the whole of it.
+
+Underneath both, the thing that makes them possible: **one AudioSource for the
+whole game.** A streamed clip whose PCM callback is a small mixer — voices, the
+bed, the room and a master compressor whose numbers are the original's to the
+decimal. The port had no master at all, which is why it had no compressor; and
+the entire "only custom filters can be played" hazard it carries scar tissue
+about is a property of having a pool of forty-one sources. There is no pool.
+
+None of this is a file. It is still true that a packaged app should not pay a
+download for a dozen sounds it can synthesise, and that an offline build should
+not go quiet.
+
+> The one half of this that can be checked without Unity is the arithmetic, and
+> it is: `tools/audio` renders every cue to WAV and asserts on the samples —
+> that the knock gets darker as it decays, that the tail is dense rather than a
+> slapback, that Volume 0 silences a cue *and its tail*. It found four real bugs
+> on its first run. See `tools/audio/README.md`, including the three checks that
+> were wrong before the code was.
 
 ---
 

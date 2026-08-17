@@ -125,6 +125,30 @@ That last one is why the asset exists. Rust does not come out of value noise.
 The verb is gone rather than left printing a picture of something the game no
 longer draws.
 
+## `audio`
+
+The same argument as `chassis`, pointed at the other generated thing in the
+game. A texture cannot be judged by reading it and neither can a struck bar:
+"five resonators at inharmonic ratios" is a claim about a SOUND.
+
+```sh
+python3 audio/render.py
+```
+
+`dsp.py` transliterates `Synth.cs` and `Bus.cs`; `render.py` transliterates the
+cue table out of `Sfx.cs` and plays it through them, so `out/*.wav` is what a
+player hears — room, compressor and all — and `out/_walkthrough.wav` is the
+whole set in one pass over the bed.
+
+It earned its place on the first run by finding four real bugs, one of which
+made every cue in the game play at its gain **squared** and two of which were
+silent. It also got three of its own checks wrong first, in ways that looked
+exactly like bugs in the code they were aimed at. Both halves of that are
+written up in `audio/README.md`, because the second half is the more useful
+lesson: this is a *second implementation of the same numbers*, so it proves the
+maths and is structurally blind to the two drifting apart — the same blindness
+`UnityStubs` has about anything invented wholesale, for the same reason.
+
 ## Parity against the original
 
 `Singularity.Core` has no engine references at all — that is what its
