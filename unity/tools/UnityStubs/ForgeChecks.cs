@@ -95,6 +95,8 @@ public static class ForgeChecks
         CodeChecks.Run(Ok);
         CodeChecks.Triggers(Ok);
         CodeChecks.CatalogueFile(Ok);
+        EndChecks.Run(Ok);
+        EndChecks.Reach(Ok);
         Numbers();
 
         Console.WriteLine(fails == 0 ? "CHECKS PASSED" : fails + " CHECKS FAILED");

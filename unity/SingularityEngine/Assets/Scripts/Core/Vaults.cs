@@ -116,6 +116,30 @@ namespace Singularity.Core
         /// </summary>
         public const int LastBand = RankedVaults - 1;
 
+        /// <summary>
+        /// DOES CLEARING THIS END THE MACHINE?
+        ///
+        /// A daily borrows the difficulty and is not the ladder; a made cube is
+        /// somebody's own and ends nothing. Everything else that is cube five
+        /// hundred gets the ending — INCLUDING A PRACTICE RUN, and that is the
+        /// part that was wrong.
+        ///
+        /// Practice is what the seed box gives you for a cube past `reached`, and
+        /// suppressing the ending there had two costs. The small one is that a
+        /// player who types 500 to look at the last cube solves it and gets the
+        /// ordinary throw and a card offering them cube five hundred and one. The
+        /// large one is that TYPING 500 IS HOW ANYBODY TESTS THIS — it is the only
+        /// way to reach the ending without solving four hundred and ninety-nine
+        /// cubes first — so the one path a developer takes was the one path that
+        /// silently did something else.
+        ///
+        /// What practice withholds is PROGRESS: no best, no par, no rank, nothing
+        /// written down. It was never meant to withhold what a cube IS, and cube
+        /// five hundred is the end of the machine whoever is standing on it.
+        /// </summary>
+        public static bool EndsTheMachine(int levelNo, bool daily, bool made)
+            => !daily && !made && levelNo >= LastCube;
+
         static readonly int[] VaultAt;
         public static readonly int VaultEnd;   // 90
 

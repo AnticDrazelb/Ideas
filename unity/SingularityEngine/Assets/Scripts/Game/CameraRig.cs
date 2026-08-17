@@ -138,6 +138,24 @@ namespace Singularity.Game
         public Vector3 At { get; set; }
 
         public void Shake(float amt) => _trauma = Mathf.Min(1f, _trauma + amt * Amount);
+
+        /// <summary>
+        /// HOLD THE FRAME AT A LEVEL, rather than shoving it once.
+        ///
+        /// Shake ADDS, because every caller of it is an event: a fold lands, a
+        /// plate fires, the machine breaks. Trauma decays at 2.4 a second, so an
+        /// event's shove is gone in well under half a second and the next one
+        /// stacks on whatever is left — which is exactly right for events and
+        /// exactly wrong for a rumble that is supposed to RISE over two seconds.
+        /// Called every frame, Shake wins the race against the decay by about ten
+        /// to one and pins trauma at maximum from a fifth of the way in; what you
+        /// get is not a star waking up, it is the picture coming off its mount.
+        ///
+        /// This sets the floor instead. An event on top of it still reads, because
+        /// the max is taken rather than the assignment — a rumble cannot quieten a
+        /// hit that happens during it.
+        /// </summary>
+        public void Rumble(float amt) => _trauma = Mathf.Max(_trauma, Mathf.Clamp01(amt) * Amount);
         public void Punch(float amt) => _punch = Mathf.Clamp(_punch + amt * Amount, -0.12f, 0.12f);
 
         public void Squash(bool axisX, float amt)

@@ -509,9 +509,11 @@ namespace Singularity.Game
             // THE LAST CUBE DOES NOT END LIKE THE OTHER FOUR HUNDRED AND NINETY
             // NINE. Everything below — the throw, the card, the vault chime — is
             // for a cube you are going to leave and come back from.
-            bool finale = !S.IsDaily && !S.IsMade && !S.IsPractice
-                          && S.levelNo >= Vaults.LastCube;
-            if (finale) { StartCoroutine(Finale()); return; }
+            if (Vaults.EndsTheMachine(S.levelNo, S.IsDaily, S.IsMade))
+            {
+                StartCoroutine(Finale());
+                return;
+            }
 
             // THE CARD DOES NOT APPEAR OVER A STILL IMAGE OF A SOLVED PUZZLE. The
             // machine turns to show you it is a solid, and then it is thrown.
@@ -567,123 +569,107 @@ namespace Singularity.Game
         /// </summary>
         bool _ending;
 
+        /// <summary>
+        /// THE DIRECTOR, SEEN THROUGH THE ENDING'S EYES.
+        ///
+        /// Ending decides what happens when; this decides what each of those
+        /// things is made of. Every method is one line of forwarding on purpose —
+        /// the moment a decision creeps in here it is a decision the harness
+        /// cannot run, which is the whole reason the split exists.
+        /// </summary>
+        sealed class Stage : IStage
+        {
+            readonly GameDirector _d;
+            readonly Vector3 _at;
+            public Stage(GameDirector d, Vector3 at) { _d = d; _at = at; }
+
+            public float Dt => Time.unscaledDeltaTime;
+            public float HalfHeight => _d.Rig.cam.orthographicSize;
+            public float Aspect => Screen.width / Mathf.Max(1f, (float)Screen.height);
+
+            public void Ui(float a) => Singularity.UI.UiKit.Dim(a);
+            public void Board(float a) => _d.View.Dim(a);
+            public void Close(float k) { _d.Rig.Close = k; _d.Rig.At = _at; }
+            public void Rumble(float amt) => _d.Rig.Rumble(amt);
+
+            public void Blob(float size, float alpha)
+                => _d._fx.Blob(_at, size, new Color(1f, 1f, 1f, alpha));
+
+            public void Ring(float r0, float r1, float dur, float width, bool core)
+                => _d._fx.Ring2(_at, r0, r1, dur, core ? Palette.Core : Color.white, width, false);
+
+            public void Sparks(float speed, float size)
+                => _d._fx.Burst(_at, 60, new Fx.BurstOpts
+                {
+                    kind = Fx.Kind.Spark, speed = speed, life = 1.4f,
+                    size = size, gravity = 0f, col = Color.white
+                });
+
+            public void Bang()
+            {
+                _d.Rig.Kick(22, 0, 1);
+                _d.Rig.Shake(1f);
+                _d.Rig.Punch(-0.10f);
+                Haptics.Buzz(Haptics.Collapse);
+                Haptics.Buzz(Haptics.Shatter);
+                _d._sfx.Shatter();
+                TimeBend.Hitstop(120f);
+            }
+
+            public void Chime() => _d._sfx.Vault();
+            public void Hush(float seconds) => _d._sfx.Duck(seconds);
+
+            public void Input(bool on) => _d._input.Enabled = on;
+
+            public void Clear()
+            {
+                _d._fx.Clear();
+                _d._orb.Reset();
+            }
+
+            // ShowTitle starts the attract cube itself — asking twice is how the
+            // second call ends up being the one that matters.
+            public void Title() => Screens.ShowTitle();
+        }
+
+        /// <summary>
+        /// PUMP THE ENDING, AND SAY SO IF IT DIES.
+        ///
+        /// A coroutine that throws is logged once by Unity and then simply stops,
+        /// leaving whatever it had already set exactly where it was — which for
+        /// this sequence means a screen that is half faded, or not faded at all,
+        /// with no card, no throw and no way to tell that anything went wrong.
+        /// Driving the enumerator by hand costs one try block and turns that into
+        /// a message that names the ending; the catch also PUTS THE SCREEN BACK,
+        /// because a player who hits this should land on the title rather than on
+        /// a dead board.
+        /// </summary>
         IEnumerator Finale()
         {
-            Vector3 at = At(S.lv.goal);
-            Rig.At = at;
-            _input.Enabled = false;
-
-            // THE FOUR MOVES, WRITTEN DOWN ONCE, because the sound has to know how
-            // long the picture is.
-            const float Close = 2.4f, Grow = 2.2f, Blow = 0.55f, Black = 3f;
-
-            // ---- one: everything but the board goes ------------------------
-            //
-            // The instrument fades and the camera closes at the same rate, so the
-            // screen does not empty and then move — it is one gesture, and it ends
-            // with a cell alone in the dark.
-            //
-            // AND THE ROOM GOES QUIET FOR ALL OF IT, INCLUDING THE BLACK. Duck
-            // holds for its argument plus two and a bit and then takes a second
-            // and a fifth to bring the bed back, so the number it wants is the
-            // whole ending minus that lead-in — which lands the hum under the
-            // title rather than under the shockwave. Writing 2.6 there, which is
-            // the length of ONE of the four moves, restarted the music halfway
-            // through the star and then ducked it again over the menu.
-            _sfx.Duck(Close + Grow + Blow + Black - 2.4f);
-            for (float t = 0f; t < Close; t += Time.unscaledDeltaTime)
-            {
-                float k = Mathf.Clamp01(t / Close);
-                float e = k * k * (3f - 2f * k);
-                Singularity.UI.UiKit.Dim(1f - e);
-                Rig.Close = e;
-                View.Dim(1f - e * 0.86f);
-                yield return null;
-            }
-            Singularity.UI.UiKit.Dim(0f);
-            Rig.Close = 1f;
-            yield return null;   // one frame for the rig to publish the closed frame
-
-            // EVERY SIZE BELOW IS MEASURED OFF THE FRAME, NOT WRITTEN DOWN.
-            //
-            // The camera is at a sixth of its usual aperture by now, so the world
-            // units the rest of the game is tuned in mean something completely
-            // different here: the ordinary exit's ninety-unit ring would cross the
-            // closed frame in a fortieth of its life and never be seen, and a blob
-            // that swells to twenty-six would fill the screen a third of the way
-            // through the growth and spend the rest of it white on white. Both of
-            // those are the same mistake — a number that only made sense at one
-            // zoom. Screen is what the shot is worth, so Screen is what it is
-            // measured in: half the visible world height, right now, off the
-            // camera that is doing the framing.
-            float half = Rig.cam.orthographicSize;
-            float aspect = Screen.width / Mathf.Max(1f, (float)Screen.height);
-            // a square quad covering a frame of ANY aspect, corners included
-            float fills = 2f * half * Mathf.Max(1f, aspect) * 1.15f;
-
-            // ---- two: it is not small any more -----------------------------
             _ending = true;
-            for (float t = 0f; t < Grow; t += Time.unscaledDeltaTime)
+            IEnumerator seq = Ending.Run(new Stage(this, At(S.lv.goal)));
+
+            for (int guard = 0; guard < Ending.FrameCap; guard++)
             {
-                float k = Mathf.Clamp01(t / Grow);
-                // slow, then not slow. A star does not swell at a constant rate
-                // and neither should the thing that has been standing in for one.
-                float e = k * k * k;
-                _fx.Blob(at, Mathf.Lerp(half * 0.22f, fills, e),
-                         new Color(1f, 1f, 1f, Mathf.Min(1f, 0.35f + e * 1.6f)));
-                if (t < 0.02f) _sfx.Vault();
-                Rig.Shake(0.006f + e * 0.05f);
+                bool more;
+                try { more = seq.MoveNext(); }
+                catch (System.Exception e)
+                {
+                    Debug.LogError("the ending stopped: " + e);
+                    break;
+                }
+                if (!more) { _ending = false; yield break; }
                 yield return null;
             }
 
-            // ---- three: the shockwave ---------------------------------------
-            Rig.Kick(22, 0, 1);
-            Rig.Shake(1f);
-            Rig.Punch(-0.10f);
-            Haptics.Buzz(Haptics.Collapse);
-            Haptics.Buzz(Haptics.Shatter);
-            _sfx.Shatter();
-            // TWO RINGS, ONE BEHIND THE OTHER. The white one is the front and the
-            // core-coloured one is what it leaves behind — the same trick the
-            // ordinary collapse uses, at the scale of the frame it is crossing.
-            _fx.Ring2(at, half * 0.1f, fills * 1.6f, 0.85f, Color.white, half * 0.30f, false);
-            _fx.Ring2(at, half * 0.1f, fills * 1.1f, 1.10f, Palette.Core, half * 0.13f, false);
-            _fx.Burst(at, 60, new Fx.BurstOpts
-            {
-                kind = Fx.Kind.Spark,
-                speed = fills * 1.3f,     // clear of the frame in about a second
-                life = 1.4f,
-                size = half * 0.10f,
-                gravity = 0f,
-                col = Color.white
-            });
-            TimeBend.Hitstop(120f);
-
-            for (float t = 0f; t < Blow; t += Time.unscaledDeltaTime)
-            {
-                _fx.Blob(at, fills * (1f + t * 5.5f),
-                         new Color(1f, 1f, 1f, Mathf.Max(0f, 1f - t / Blow)));
-                yield return null;
-            }
-
-            // ---- four: three seconds of nothing ----------------------------
-            //
-            // Not a fade to a menu. A stop. It is the only silence in this game
-            // longer than the two hundred milliseconds the ordinary collapse gets,
-            // and it is the whole reason the ending reads as one.
-            View.Dim(0f);
-            _fx.Clear();
-            _orb.Reset();
-            yield return new WaitForSecondsRealtime(Black);
+            // it either threw or ran away with itself; either way, do not strand
+            // the player on a board they cannot see and cannot leave
             _ending = false;
-
-            // and the instrument comes back on with the title behind it
             View.Dim(1f);
             Rig.Close = 0f;
             Rig.Pull = 0f;
             Singularity.UI.UiKit.Dim(1f);
-            // and ShowTitle starts the attract cube itself — asking twice is how
-            // the second call ends up being the one that matters
+            _input.Enabled = true;
             Screens.ShowTitle();
         }
 
