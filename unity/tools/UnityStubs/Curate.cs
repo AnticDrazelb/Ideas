@@ -295,7 +295,7 @@ static class Curate
 
         // The unpruned winner is in the running on its own account: if the prune
         // improves nothing, nothing is what it should change.
-        Cand asIs = pool[0];
+        Cand asIs = Safety.Audit(pool[0].lv).Ok ? pool[0] : null;
 
         // HOW FAR TO PRUNE IS A CHOICE, NOT A MAXIMUM.
         //
@@ -334,6 +334,18 @@ static class Curate
             // wrong way.
             c.routeOpen = RouteOpen(c.lv, c.par, out c.points, out c.depth);
             c.score = Value(c, parLo, v.parHi, openMax, v);
+
+            // A CUBE THAT CAN BE BRICKED IS NOT A CANDIDATE, AT ANY SCORE.
+            //
+            // This is a gate and not a term in Value on purpose. Everything else
+            // the scorer weighs is a matter of degree — a cube can be a little
+            // loose at the opening, a fold outside its band, and still be the
+            // best thing available for a slot. There is no amount of decision
+            // density that compensates for a state a player can walk into and
+            // never walk out of, so it cannot be allowed to trade against
+            // anything. See Safety: 134 of the shipped 500 fail this.
+            if (!Safety.Audit(c.lv).Ok) continue;
+
             if (best == null || c.score > best.score) best = c;
             continue;
             c.par = Tighten(c.lv, c.par, (int)Math.Ceiling(c.spare * frac));

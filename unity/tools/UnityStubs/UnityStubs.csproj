@@ -28,6 +28,7 @@
     <Compile Include="ArcChecks.cs" />
     <Compile Include="EndChecks.cs" />
     <Compile Include="StateChecks.cs" />
+    <Compile Include="Safety.cs" />
     <Compile Include="Curate.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Game/**/*.cs" />
