@@ -44,10 +44,24 @@ namespace Singularity.Game
             cam = go.AddComponent<Camera>();
             cam.orthographic = true;
             cam.clearFlags = CameraClearFlags.SolidColor;
-            // THERE IS NOTHING BEHIND THE BOARD, AND THAT IS THE STATEMENT. A void
-            // column is unrendered space: not a dark room, not deep sky, nothing.
-            // Anything painted there is the display claiming to have data it does
-            // not have.
+            // THE CLEAR IS STILL BLACK, AND IT IS NOT WHAT YOU SEE ANY MORE.
+            //
+            // This line used to carry the whole statement: there is nothing behind
+            // the board, a void column is unrendered space — not a dark room, not
+            // deep sky, nothing — and anything painted there is the display
+            // claiming to have data it does not have.
+            //
+            // Sky draws over it in the Background queue, so what is behind the
+            // board is deep sky now, deliberately. The half of that argument
+            // worth keeping is kept where it can be checked: the field's one area
+            // fill is held below the dimmest cell this game draws, so the depth
+            // ramp still has its whole range against a floor that has not moved,
+            // and everything else in it is a point under two pixels across. See
+            // Sky and SkyChecks.
+            //
+            // The clear stays because it is what is under the sky when the sky is
+            // off — LEGIBLE takes it away — and because a camera with no clear at
+            // all smears on a device that does not tile its framebuffer.
             cam.backgroundColor = Palette.Void;
             cam.nearClipPlane = 0.01f;
             cam.farClipPlane = 200f;

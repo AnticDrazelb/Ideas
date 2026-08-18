@@ -29,13 +29,23 @@ namespace Singularity.Game
     /// </summary>
     public static class Shaders
     {
-        /// <summary>The five, in the order they matter. Cell first: without it there is no game.</summary>
+        /// <summary>
+        /// The six, in the order they matter. Cell first: without it there is no
+        /// game. ProjectSetup reads this same array rather than keeping a second
+        /// copy — a shader demanded at boot and not in Always Included Shaders is
+        /// a build that complains about itself on every launch.
+        /// </summary>
         public static readonly string[] Required =
         {
             "Singularity/Cell",
             "Singularity/Wire",
             "Singularity/Glyph",
             "Singularity/Fx",
+            // the field behind the machine. It is not load-bearing for the game
+            // being playable, and it is demanded anyway: a player whose sky did
+            // not ship gets a black rectangle behind glass and no way to know
+            // that is not how it looks.
+            "Singularity/Sky",
             // "Singularity/Filter" is NOT here any more. Brightness and contrast
             // moved off the camera and onto an overlay above every canvas — see
             // ScreenFilter — so nothing loads that shader. The file stays in

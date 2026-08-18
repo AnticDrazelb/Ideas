@@ -45,7 +45,11 @@ namespace Singularity.Game
         /// off — and the amount is well under one, because this is a rim on the
         /// picture rather than a second copy of it.
         /// </summary>
-        const float Threshold = 0.78f;
+        /// <summary>
+        /// The knee, and it is internal because one thing outside this file has
+        /// to stay under it: a star in the sky behind the board. See Sky.StarPeak.
+        /// </summary>
+        internal const float Threshold = 0.78f;
         const float Intensity = 0.45f;
 
         /// <summary>

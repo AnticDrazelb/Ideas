@@ -34,7 +34,9 @@ namespace UnityEngine
         public static Vector2 operator -(Vector2 a, Vector2 b) => new Vector2(a.x - b.x, a.y - b.y);
         public static Vector2 operator +(Vector2 a, Vector2 b) => new Vector2(a.x + b.x, a.y + b.y);
         public static Vector2 operator *(Vector2 a, float f) => new Vector2(a.x * f, a.y * f);
+        public static Vector2 operator /(Vector2 a, float f) => new Vector2(a.x / f, a.y / f);
         public static Vector2 Lerp(Vector2 a, Vector2 b, float t) => default;
+        public static Vector2 MoveTowards(Vector2 a, Vector2 b, float d) => default;
         public static implicit operator Vector2(Vector3 v) => new Vector2(v.x, v.y);
     }
 
@@ -431,6 +433,26 @@ namespace UnityEngine
         public void RecalculateBounds() { }
         public void MarkDynamic() { }
         public void SetColors(List<Color> c) { }
+
+        // THE SKY'S QUAD IS FOUR VERTICES AND TWO TRIANGLES, so it is built with
+        // the array properties rather than the List overloads above — those exist
+        // because the board rebuilds thousands of vertices every fold and wants
+        // no garbage; four does not.
+        public Vector3[] vertices { get; set; }
+        public int[] triangles { get; set; }
+        public Bounds bounds { get; set; }
+    }
+
+    /// <summary>
+    /// UnityEngine.Bounds. Declared for one line: the sky is drawn in clip space
+    /// and sits at the origin, so its renderer has to be given bounds big enough
+    /// that frustum culling can never reach it.
+    /// </summary>
+    public struct Bounds
+    {
+        public Bounds(Vector3 centre, Vector3 size) { center = centre; this.size = size; }
+        public Vector3 center { get; set; }
+        public Vector3 size { get; set; }
     }
 
     /// <summary>
@@ -466,6 +488,7 @@ namespace UnityEngine
         public Rendering.ShadowCastingMode shadowCastingMode { get; set; }
         public bool receiveShadows { get; set; }
         public Rendering.LightProbeUsage lightProbeUsage { get; set; }
+        public Rendering.ReflectionProbeUsage reflectionProbeUsage { get; set; }
         public Material[] sharedMaterials { get; set; }
     }
 
@@ -743,6 +766,23 @@ namespace UnityEngine
         public static bool GetKey(KeyCode k) => false;
         public static bool GetKeyDown(KeyCode k) => false;
         public static bool touchSupported => true;
+
+        // THE TWO SENSORS THE SKY PARALLAXES ON. Both are declared because the
+        // engine has both and Tilt reads whichever the device answers — see the
+        // note there on why it is gravity rather than rotation rate.
+        public static Gyroscope gyro => default;
+        public static Vector3 acceleration => default;
+    }
+
+    /// <summary>
+    /// UnityEngine.Gyroscope. Only the two members Tilt touches: the switch that
+    /// has to be thrown before the device reports anything at all, and the fused
+    /// gravity vector, which is the quiet version of Input.acceleration.
+    /// </summary>
+    public class Gyroscope
+    {
+        public bool enabled { get; set; }
+        public Vector3 gravity => default;
     }
 
     public struct Touch { public Vector2 position => default; public TouchPhase phase => default; }
@@ -824,7 +864,11 @@ namespace UnityEngine
         public static string ToJson(object o) => System.Text.Json.JsonSerializer.Serialize(o, o.GetType(), Opts);
     }
 
-    public static class SystemInfo { public static DeviceType deviceType => default; }
+    public static class SystemInfo
+    {
+        public static DeviceType deviceType => default;
+        public static bool supportsGyroscope => false;
+    }
     public enum DeviceType { Unknown, Handheld, Console, Desktop }
     public static class Handheld { public static void Vibrate() { } }
 
@@ -910,6 +954,7 @@ namespace UnityEngine
         public enum IndexFormat { UInt16, UInt32 }
         public enum ShadowCastingMode { Off, On }
         public enum LightProbeUsage { Off, BlendProbes }
+        public enum ReflectionProbeUsage { Off, BlendProbes, Simple }
         public enum CompareFunction { Disabled = 0, Never = 1, Less = 2, Equal = 3, LessEqual = 4, Greater = 5, NotEqual = 6, GreaterEqual = 7, Always = 8 }
 
         // THE VALUES MATTER, AND THEY ARE THE WHOLE REASON THESE TWO ENUMS ARE

@@ -785,6 +785,29 @@ fewer. That is an output of `tools/type/reflow.py`, not an input to it: the tabl
 now measures all six of the long names, the generated `CLOSE CROSS` among them,
 because the generator builds names out of word lists nobody thinks to check.
 
+**And then the ladder was re-cut to fifteen a vault, and five columns became the
+same bug pointing the other way.** Five across is three rows; the card hits its
+own aspect cap at 109 × 142 and the rack stops **two hundred units above the seed
+box** — a quarter of the screen of continuous black between the two halves of one
+layout, which is exactly the fault the foot was moved down to fix, reappearing on
+the other side of it.
+
+A constant cannot answer this, because the question is not "how many columns", it
+is "what shape is a card and how much space is there". `Screens.Rack` computes it:
+for each column count, measure the card that falls out of it, discard any that is
+a tower or a bar — `CardTallest` 1.30, `CardFlattest` 0.62 — and take the one with
+the most **card**, by area, because a number, a name and three pips all get easier
+as it grows. Fifteen comes out **three columns of five rows, a 182 × 126 card, and
+100% of the height spent** against five columns' 68%. Twenty-five still comes out
+five, which is what the constant was right about for that size. Ten comes out
+three, four rows, also 100%.
+
+`LayoutChecks.Rack` asserts it on ten vault sizes from six to thirty-six, well
+past anything the ladder holds, because a rule that only works on fifteen is a
+constant with extra steps. The type table keeps measuring the **five**-column
+card: a name that fits the narrowest card the rule can produce fits every card it
+can produce.
+
 **And the browser had no ceiling.** Pressing the arrow enough times reached
 `VAULT 45 · EMBER SPINE`: a made-up name over a hundred and fifty cards, none of
 which is a cube, drawn four rows deep into each other. `Vaults.LastBand` is the
@@ -1280,6 +1303,86 @@ rectangle the camera frames against.
 `LayoutChecks` measures the fill on six real phone shapes and one turned one:
 **82–83% across** on every one, the stroke reaching the chrome at both ends to
 within a unit, and the stroke and the camera agreeing to half a pixel.
+
+## Deep sky, and the phone knows which way it is being held
+
+The camera cleared to `Palette.Void` and the comment on that line carried a
+doctrine: *there is nothing behind the board, and that is the statement. A void
+column is unrendered space — not a dark room, not deep sky, nothing. Anything
+painted there is the display claiming to have data it does not have.*
+
+**This is the deliberate reversal of it, and the half that was load-bearing is
+kept as two numbers rather than as a sentence.** The case is a photograph of a
+real object with a glass front, and behind the glass was a flat black rectangle.
+A black rectangle behind glass reads as a screen that is off. The same rectangle
+with a field of stars in it that moves when the phone moves reads as a *window* —
+which is the whole fiction of a game about something trapped inside a machine
+somewhere out there.
+
+What the doctrine was right about was **area fills competing with the depth
+ramp**. The board is read off one property — a trace is brighter than the lattice
+at every depth — and the far end of that ramp is the darkest thing the game
+draws. Lift the floor behind it and the bottom of the ramp stops being a distance.
+So:
+
+- **The one area fill is held below the dimmest cell.** The nebula sits at
+  `0.0012` relative luminance against the deepest vault's far lattice at `0.0196`
+  — sixteen times under it, asserted, not eyeballed.
+- **Everything else is a point.** Stars are 3.4 pixels across against a cell of
+  at least 82 on the tightest shape the game runs on — *1 to 24* at worst, over a
+  3-cube and a 9-cube on three real phone shapes. A point is not a claim about the
+  board, which is why the stars are allowed to be bright: a dim star is not a
+  subtle star, it is a smudge.
+- **And a star stays under the bloom's knee.** `Bloom.Threshold` is 0.78 and a
+  star peaks at 0.74. Over it, the glow hands back a halo several times the star's
+  size and the sentence above stops being true of what is on the screen.
+
+`Sky.shader` draws in **clip space**, so it covers the display whatever the camera
+is doing — and the camera is never still: `Room` pulls out on a fold, `Close`
+drops to a sixth on a win, punch and shake ride on top. A quad sized in world
+units would have to chase all of it.
+
+**Nothing twinkles.** The only motion is the parallax, and it comes from the
+device.
+
+### Tilt
+
+`Input.gyro.gravity` where there is a gyroscope, `Input.acceleration` where there
+is not, and **gravity rather than rotation rate on purpose**: a gyroscope answers
+*how fast are you turning*, which has to be integrated to become *how are you
+held* — and an integrated rate drifts, so the sky would slide away over a long
+session and never come back. Gravity is an absolute reading of the same question
+and it cannot drift.
+
+**The centre is wherever you are holding it.** This is the part that decides
+whether the effect is pleasant or infuriating. Tilt pinned to true vertical means
+somebody lying down, or just holding a phone at the angle people actually hold
+one, gets the sky jammed against a corner with no travel left in that direction.
+So the rest pose *follows*, over about three and a half seconds: quick movement is
+parallax, anything held becomes the new centre, and coming back from the
+background forgets the pose entirely, because whatever happened while the game was
+off screen was very likely a pocket.
+
+Three shells at different rates do the depth. The field travels **3% of the
+half-screen** at full lean — a movement you notice at the edge of vision and never
+look at directly, which is the right amount of attention for a background.
+
+**CALIBRATE governs all of it.** At `STILL` the travel is exactly zero and the
+field stands still: a player who asked the board to stop moving did not ask for a
+background that does. Under `LEGIBLE` there is no sky at all — that setting is a
+promise the interface will stop performing, and a starfield is the interface
+performing. Both are asserted rather than left to a multiplication staying where
+it is.
+
+The menus stay opaque. The rack, the manual, CALIBRATE, ACCESS and the pause card
+all paint `Palette.Void` over the layer, because text over a starfield is worse
+text. The title does not: the attract cube tumbles against the sky.
+
+**And one list became one list.** `ProjectSetup.EnsureShaders` kept its own
+annotated copy of `Shaders.Required`, which is two places that have to agree about
+which shaders ship. It reads the array now — a shader the game refuses to start
+without, missing from the array that decides what gets built, is the failure this
+whole mechanism exists to prevent.
 
 ## The front screen's one object
 

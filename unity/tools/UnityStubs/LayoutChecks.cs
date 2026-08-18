@@ -57,6 +57,7 @@ static class LayoutChecks
             foreach (Device d in Phones) Portrait(d, ok);
             FoldMarks(ok);
             Stack(ok);
+            Rack(ok);
             Landscape(ok);
             Insets(ok);
             Peek(ok);
@@ -221,6 +222,70 @@ static class LayoutChecks
         Console.WriteLine("layout: the fold arrows sit " + clear.ToString("0")
                         + " units inside the stroke, on an " + Access.TapTarget.ToString("0")
                         + "-unit plate seated " + (Access.TapTarget * 0.5f).ToString("0") + " in");
+    }
+
+    /// <summary>
+    /// THE VAULT RACK FILLS THE SCREEN IT IS ON.
+    ///
+    /// Five columns was a constant chosen for a vault of twenty-five, and every
+    /// vault holds fifteen: five across is three rows, the card hits its own
+    /// aspect cap at 142 units, and the rack stops two hundred units above the
+    /// seed box. That is a quarter of the screen of continuous black between the
+    /// two halves of one layout — the exact fault the foot was moved down to fix,
+    /// reappearing on the other side of it.
+    ///
+    /// Screens.Rack computes the column count now, and what has to be true of its
+    /// answer is checkable: the card is a card at both ends of its shape, the rack
+    /// fits the height it is given, and on the size this game actually ships it
+    /// SPENDS that height rather than leaving a band. The sizes below go well past
+    /// what the ladder holds, because the rule is what is being asserted and a
+    /// rule that only works on fifteen is a constant with extra steps.
+    /// </summary>
+    static void Rack(Action<bool, string> ok)
+    {
+        (float gridW, float avail) = Screens.RackSpace();
+
+        foreach (int size in new[] { 6, 10, 12, 15, 16, 20, 24, 25, 30, 36 })
+        {
+            (int cols, float w, float h) = Screens.Rack(size, gridW, avail);
+            int rows = Mathf.CeilToInt(size / (float)cols);
+
+            ok(cols >= Screens.MinCols && cols <= Screens.MaxCols,
+               size + " cubes: the rack chose " + cols + " columns");
+            ok(rows * h <= avail + 0.5f,
+               size + " cubes: " + rows + " rows of " + h.ToString("0") + " is "
+                    + (rows * h - avail).ToString("0") + " units past the seed box");
+            ok(h <= w * Screens.CardTallest + 0.5f && h >= w * Screens.CardFlattest - 0.5f,
+               size + " cubes: the card is " + w.ToString("0") + " by " + h.ToString("0")
+                    + ", which is " + (h / w).ToString("0.00") + " and not a card");
+
+            Console.WriteLine("rack: " + size + " cubes  " + cols + "x" + rows + "  card "
+                            + w.ToString("0") + "x" + h.ToString("0") + "  fills "
+                            + (rows * h / avail * 100f).ToString("0") + "% of the height");
+        }
+
+        // AND THE ONE THE GAME SHIPS SPENDS THE HEIGHT. Every vault holds fifteen
+        // — ten chapters of it, see Vaults.Authored — so this is not a general
+        // claim about racks, it is the claim about THIS rack, and it is the one
+        // the screenshot was about.
+        int n = Singularity.Core.Vaults.VaultSize(0);
+        (int c15, float w15, float h15) = Screens.Rack(n, gridW, avail);
+        int r15 = Mathf.CeilToInt(n / (float)c15);
+        float used = r15 * h15;
+        ok(used > avail * 0.94f,
+           "the fifteen-cube rack fills only " + (used / avail * 100f).ToString("0")
+         + "% of its height, leaving " + (avail - used).ToString("0") + " units of black");
+
+        // no ragged last row at the size the ladder is cut to, which is what
+        // fifteen was chosen for in the first place
+        ok(n % c15 == 0, n + " cubes in " + c15 + " columns leaves a short last row");
+
+        // what it replaced, for the record
+        float w5 = gridW / 5f, h5 = Mathf.Min(w5 * Screens.CardTallest, avail / 3f);
+        Console.WriteLine("rack: " + n + " cubes is " + c15 + " columns, card " + w15.ToString("0") + "x"
+                        + h15.ToString("0") + ", " + (used / avail * 100f).ToString("0")
+                        + "% of the height — against five columns' " + w5.ToString("0") + "x"
+                        + h5.ToString("0") + " and " + (3f * h5 / avail * 100f).ToString("0") + "%");
     }
 
     /// <summary>

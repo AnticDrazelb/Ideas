@@ -127,9 +127,17 @@ BOXES = [
 
     ("forge coach", "TRACE IS WHAT YOU STAND ON. TAP CELLS TO LAY 8 MORE.", 19, 471, 58),
 
-    # THE VAULT RACK'S CARDS. Five columns of a 545-unit grid is 109 a card, less
-    # six of inset each side: ninety-seven units to hold a cube's name, over a
-    # band that is 0.36 of a 113.5-unit card — forty-one units, two lines.
+    # THE VAULT RACK'S CARDS, AT THE NARROWEST CARD THE RULE CAN PRODUCE.
+    #
+    # Screens.Rack picks the column count from the size of the vault now, so the
+    # card is not one width any more: every vault the game ships holds fifteen and
+    # comes out three across, a 182-unit cell and a 170-unit box. Five across is
+    # what a twenty-five-cube vault would get, and that is 109 a card — ninety-
+    # seven units inside the inset, over a band that is 0.36 of a 126-unit card.
+    #
+    # The narrow one is what is measured, deliberately. A name that fits the
+    # five-column card fits every card the rule can hand it, and the alternative
+    # is a table that has to be re-derived every time a vault changes size.
     #
     # THE SIZE IS AN OUTPUT OF THIS TABLE, NOT AN INPUT TO IT. At seventeen the
     # name still does not fit even wrapped: TURNED INSIDE OUT breaks into three

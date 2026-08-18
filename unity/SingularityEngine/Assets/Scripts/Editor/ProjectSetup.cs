@@ -142,19 +142,20 @@ namespace Singularity.EditorTools
         /// </summary>
         public static void EnsureShaders()
         {
-            string[] want =
-            {
-                "Singularity/Cell",     // the board. Without it there is no game on screen.
-                "Singularity/Wire",     // the schematic under a held MATRIX
-                "Singularity/Glyph",    // every icon, every additive UI surface, the glass
-                "Singularity/Fx",       // sparks and rings
-            // "Singularity/Filter" is NOT here any more. Brightness and contrast
-            // moved off the camera and onto an overlay above every canvas — see
+            // ONE LIST, AND IT IS THE ONE THE GAME DEMANDS AT BOOT.
+            //
+            // This was a second copy of Shaders.Required, annotated, and the two
+            // could go out of step in the one direction that matters: a shader
+            // the game refuses to start without, missing from the array that
+            // decides what ships. Shaders.Required is the list; the reasons live
+            // beside it there.
+            //
+            // "Singularity/Filter" is in neither. Brightness and contrast moved
+            // off the camera and onto an overlay above every canvas — see
             // ScreenFilter — so nothing loads that shader. The file stays in
             // Assets/Shaders because a camera-space filter may be wanted again;
             // demanding it at boot would be demanding something nothing uses.
-                "Singularity/Bloom",    // the glow
-            };
+            string[] want = Singularity.Game.Shaders.Required;
 
             var asset = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset");
             if (asset == null || asset.Length == 0)

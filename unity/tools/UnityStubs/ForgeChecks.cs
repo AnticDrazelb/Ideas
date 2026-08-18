@@ -100,6 +100,7 @@ public static class ForgeChecks
         EndChecks.Reach(Ok);
         ClockChecks.Run(Ok);
         LayoutChecks.Run(Ok);
+        SkyChecks.Run(Ok);
         CoachChecks.Run(Ok);
         ClaimChecks.Run(Ok);
         TitleChecks.Run(Ok);

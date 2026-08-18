@@ -22,6 +22,8 @@ namespace Singularity.Game
         public Session S { get; private set; }
         public CubeView View { get; private set; }
         public CameraRig Rig { get; private set; }
+
+        Sky _sky;
         public Hud Hud { get; private set; }
         public ScreenFilter Filter { get; private set; }
         public Bloom Glow { get; private set; }
@@ -49,6 +51,11 @@ namespace Singularity.Game
             _fx = Fx.Build(transform);
             _orb = PlayerOrb.Build(transform, S, View, Rig.cam, _fx);
             _input = new InputRouter(S, View, Rig.cam) { Sfx = _sfx };
+
+            // AND THE SKY UNDER EVERYTHING, before the housing goes on. It draws
+            // in the Background queue and occludes nothing; building it here is
+            // only so the order in this method reads the way the light arrives.
+            _sky = Sky.Build(transform);
 
             // THE HOUSING FIRST, so everything after it is mounted IN something.
             // Order 5, behind the HUD's 10 and the screens' 20, and it is twelve
@@ -830,6 +837,11 @@ namespace Singularity.Game
             Store.Tick();
             LevelSupply.Tick();
 
+            // ONE READING OF THE DEVICE PER FRAME, whoever comes to ask. The sky
+            // is the only thing that asks today.
+            Tilt.Sample(dt);
+            _sky.Tick(dt);
+
             // A ROTATION IS A RE-LAYOUT, NOT A RESIZE. The board is centred in the
             // space the HUD is not using, and that space is a different shape the
             // instant the device turns — so the fit is redone rather than stretched.
@@ -837,10 +849,10 @@ namespace Singularity.Game
             {
                 _lastW = Screen.width;
                 _lastH = Screen.height;
-                // the window is a square cut out of the glass, so it is a
-                // different rectangle in a different aspect — the stroke and the
-                // four fold marks that hang on it are re-cut before the camera is
-                // re-fitted to them
+                // the window is cut to the board across and to the whole band
+                // down, so it is a different rectangle in a different aspect —
+                // the stroke and the four fold marks that hang on it are re-cut
+                // before the camera is re-fitted to them
                 Hud.Relayout();
                 if (S.lv != null) { Rig.Fit(S.N); _fx.SetBoard(S.N); }
             }
@@ -901,6 +913,12 @@ namespace Singularity.Game
             // A phone call in the middle of a cube is not part of the solve.
             if (paused) { SolveClock.Hold(); Store.Flush(); }
             else if (!_screenUp) SolveClock.Go();
+
+            // AND THE SKY FORGETS HOW THE PHONE WAS BEING HELD. Whatever happened
+            // while this game was not on screen, it was very likely a pocket —
+            // and coming back to a sky jammed against one corner, with no travel
+            // in that direction, is worse than coming back to it centred.
+            if (!paused) Tilt.Recentred();
         }
 
         void OnApplicationQuit() => Store.Flush();

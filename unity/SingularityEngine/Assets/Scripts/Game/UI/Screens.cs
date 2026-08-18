@@ -446,7 +446,8 @@ namespace Singularity.UI
             _nextBtn = UiKit.Bracketed(next, "next", ">",
                 () => { _viewBand = Mathf.Min(Vaults.LastBand, _viewBand + 1); PaintVaults(); }, 26);
 
-            _grid = UiKit.Rect(L, "grid", new Vector2(0, 0), new Vector2(1, 1), new Vector2(40, 300), new Vector2(-40, -RackTop));
+            _grid = UiKit.Rect(L, "grid", new Vector2(0, 0), new Vector2(1, 1),
+                               new Vector2(RackInset, 300), new Vector2(-RackInset, -RackTop));
 
             // THE SEED BOX. Every generated cube in this game is a pure function of
             // its number, so the NUMBER IS THE SEED — a few characters that cut the
@@ -494,13 +495,85 @@ namespace Singularity.UI
             UiKit.Link(back, "back", "BACK", Back, 24, Palette.Ink);
         }
 
+        /// <summary>
+        /// HOW MANY COLUMNS, AND HOW BIG A CARD — one answer, computed from the
+        /// vault's size and the space there is for it.
+        ///
+        /// THE SHAPE OF A CARD IS THE CONSTRAINT, NOT THE NUMBER OF THEM. A card
+        /// carries a number over a name over three pips, and that stack stops
+        /// working at both ends: past <see cref="CardTallest"/> it is a tower,
+        /// under <see cref="CardFlattest"/> it is a bar in a chart with writing
+        /// on it. Every column count that produces a card between those two is
+        /// allowed, and the one with the MOST CARD wins — area, because all three
+        /// things on it get easier as it grows.
+        ///
+        /// It falls out at three columns for the fifteen every vault holds, and
+        /// the rack then fills the height it is given exactly. At twenty-five it
+        /// falls out at five, which is what the constant this replaced was right
+        /// about, for that size. At ten it is three again, four rows.
+        ///
+        /// Static and given its numbers rather than reading the layout, so
+        /// RackChecks can ask it about sizes this game does not currently ship.
+        /// </summary>
+        internal const float CardTallest = 1.30f, CardFlattest = 0.62f;
+
+        /// <summary>The column counts worth considering. Two is a list; seven is a keyboard.</summary>
+        internal const int MinCols = 3, MaxCols = 6;
+
+        internal static (int cols, float w, float h) Rack(int size, float gridW, float avail)
+        {
+            int bestCols = MaxCols;
+            float bestW = gridW / MaxCols, bestH = 1f, bestArea = -1f;
+
+            for (int cols = MinCols; cols <= MaxCols; cols++)
+            {
+                int rows = Mathf.CeilToInt(size / (float)cols);
+                if (rows < 1) continue;
+
+                float w = gridW / cols;
+                float h = Mathf.Min(w * CardTallest, avail / rows);
+                if (h < w * CardFlattest) continue;      // a bar, not a card
+
+                float area = w * h;
+                if (area <= bestArea) continue;
+                bestCols = cols; bestW = w; bestH = h; bestArea = area;
+            }
+
+            // NOTHING QUALIFYING IS STILL AN ANSWER. A vault big enough that every
+            // column count draws bars gets the most columns and whatever height is
+            // left, which is cramped and legible — the alternative is a rack drawn
+            // off the bottom of the screen.
+            if (bestArea < 0f)
+            {
+                int rows = Mathf.Max(1, Mathf.CeilToInt(size / (float)MaxCols));
+                bestH = Mathf.Min(bestW * CardTallest, avail / rows);
+            }
+            return (bestCols, bestW, Mathf.Max(1f, bestH));
+        }
+
         /// <summary>Where the rack starts, and where the seed box that follows it does.</summary>
         const float RackTop = 170f;
+
+        /// <summary>The rack's margin either side of the plate.</summary>
+        const float RackInset = 40f;
+
+        /// <summary>
+        /// The rack's room, in canvas units: how wide the grid is and how much
+        /// height there is between the heading and the seed box. Twenty-six of
+        /// that height is air under the last row.
+        ///
+        /// It answers in REFERENCE units rather than from the live rect, because
+        /// RackChecks asks it before any canvas has been laid out — and because
+        /// the plate is the same 625 by 1127 on every display, which is the whole
+        /// point of authoring against one.
+        /// </summary>
+        internal static (float gridW, float avail) RackSpace()
+            => (Layout.PlateWidth - RackInset * 2f, JumpTop - RackTop - 26f);
         /// <summary>
         /// The seed box, measured up from the foot: BACK, twenty-four of air, the
         /// message line, eight, and then the box itself.
         /// </summary>
-        static float JumpTop => Layout.PlateHeight - FootFloor - Access.TapTarget * 2f - 66f;
+        internal static float JumpTop => Layout.PlateHeight - FootFloor - Access.TapTarget * 2f - 66f;
 
         static InputField _jumpField;
         static Text _jumpMsg;
@@ -582,19 +655,19 @@ namespace Singularity.UI
             // three-row rack from drawing towers: the cell settles at a hundred
             // and nine by a hundred and forty-two, a portrait card that fills the
             // width it is given. The names go to two lines to pay for it.
-            const int cols = 5;
-            int rows = Mathf.CeilToInt(size / (float)cols);
-            float cellW = _grid.rect.width / cols;
-
-            // THE RACK TAKES THE HEIGHT IT IS GIVEN, up to a sane card shape.
+            // AND THE RACK CHOOSES ITS OWN, because a constant cannot.
             //
-            // This was capped at 132 flat, which is a number that fit a vault of
-            // twenty and left a vault of ten with two hundred units of black under
-            // it. The cap that matters is the SHAPE of a card, and with five
-            // columns that shape is upright rather than square: 1.3 is tall enough
-            // to stack a number over a two-line name and still stop a hypothetical
-            // short vault from drawing towers.
-            float cellH = Mathf.Min(cellW * 1.30f, (JumpTop - RackTop - 26f) / Mathf.Max(1, rows));
+            // Five was right for a vault of twenty-five and it is wrong for the
+            // fifteen every vault holds: five across is three rows, the card is
+            // capped by its own shape at 142 units tall, and the rack ends two
+            // hundred units above the seed box. A quarter of this screen was a
+            // black band with nothing in it — the same fault the foot was moved
+            // to fix, reappearing above the foot instead of below it.
+            //
+            // Rack computes it instead, from the size of the vault and the space
+            // there is. See the note over it.
+            (int cols, float cellW, float cellH) = Rack(size, _grid.rect.width, JumpTop - RackTop - 26f);
+            int rows = Mathf.CeilToInt(size / (float)cols);
 
             for (int i = 0; i < size; i++)
             {
