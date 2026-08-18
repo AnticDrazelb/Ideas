@@ -294,6 +294,44 @@ static class CodeChecks
             "catalogue: {0} cubes, par {1}-{2}, {3} carry a trigger, {4} an everter, {5} a plate — stamp {6}",
             n, parMin, parMax, triggers, everters, plates, Catalogue.Stamp()));
 
+        // THE SHAPE OF THE LADDER, ON EVERY RUN, FOR FREE.
+        //
+        // Every cube above is already solved to check its par is a real minimum,
+        // so the curve costs one array. It is REPORTED rather than asserted, for
+        // the same reason the beatable gap above it is: a threshold on how much a
+        // vault may dip below the one before it would be inventing a design rule
+        // in a test file. But a re-cut that quietly flattens the back half is the
+        // kind of thing nobody sees until they play it, and this is the line that
+        // would have shown it.
+        //
+        // `ladder` is the full version — decision density, branching, depth, and
+        // the chance of parring a whole route by luck. This is its first column.
+        var vaultPar = new double[Vaults.LastBand + 1];
+        var vaultCount = new int[Vaults.LastBand + 1];
+        for (int i = 1; i <= n; i++)
+        {
+            if (!Catalogue.Has(i)) continue;
+            Level lv = Catalogue.Get(i);
+            if (lv == null) continue;
+            int band = Vaults.VaultOf(i);
+            if (band < 0 || band >= vaultPar.Length) continue;
+            vaultPar[band] += lv.par;
+            vaultCount[band]++;
+        }
+
+        var curve = new System.Text.StringBuilder("catalogue: mean par by vault");
+        int dips = 0;
+        double prevPar = -1;
+        for (int band = 0; band < vaultPar.Length; band++)
+        {
+            if (vaultCount[band] == 0) continue;
+            double mean = vaultPar[band] / vaultCount[band];
+            curve.Append("  ").Append(mean.ToString("0.0"));
+            if (prevPar >= 0 && mean < prevPar) { curve.Append('v'); dips++; }
+            prevPar = mean;
+        }
+        Console.WriteLine(curve.ToString() + (dips == 0 ? "" : "   (v = below the vault before it)"));
+
         Console.WriteLine(beatable == 0
             ? "catalogue: every cube's par is exactly its minimum — nothing on the ladder can be beaten"
             : "catalogue: " + beatable + " of " + n + " cubes can be beaten under par, by at most "

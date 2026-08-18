@@ -1004,7 +1004,14 @@ namespace Singularity.UI
 
             // the plate under both of them is the void, exactly as every other
             // screen's is — the pieces only ever ADD black over it
+            // EXPLICITLY A FLAT FILL. Ensure hands back whatever Image is already
+            // on the layer, and this used to BE the gradient — so leaving the
+            // sprite alone would tint an old ramp with the void colour instead of
+            // replacing it, which is a bug that only appears if this is ever
+            // called twice on one layer.
             Image own = Ensure<Image>(rt.gameObject);
+            own.sprite = null;
+            own.type = Image.Type.Simple;
             own.color = Palette.Void;
             own.raycastTarget = false;
         }
