@@ -104,6 +104,7 @@ public static class ForgeChecks
         TiltChecks.Run(Ok);
         ChapterChecks.Run(Ok);
         ProgressChecks.Run(Ok);
+        PanelChecks.Run(Ok);
         CoachChecks.Run(Ok);
         ClaimChecks.Run(Ok);
         TitleChecks.Run(Ok);

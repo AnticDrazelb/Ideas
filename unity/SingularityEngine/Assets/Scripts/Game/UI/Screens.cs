@@ -1263,17 +1263,6 @@ namespace Singularity.UI
             Toggle(panel, "i.depth", "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL",
                    () => Store.Data.depth, v => Store.Data.depth = v);
 
-            // ---- and the way out of the soft lock ---------------------------
-            //
-            // IT IS NOT DRAWN UNTIL THERE IS SOMETHING TO UNLOCK. On a first run
-            // the whole ladder is ahead of the player and a switch offering to
-            // open it is offering to spoil the thing they just started; after the
-            // machine has been finished it is the difference between showing
-            // somebody cube 150 and solving a hundred and forty-nine to get there.
-            // The row is built once like every other and shown by ShowCalibrate,
-            // because a panel rebuilt on open is a panel that loses its scroll.
-            _unlockRow = Toggle(panel, "i.togo", "UNSEAL CUBES", "EVERYTHING YOU HAVE SOLVED",
-                   () => Store.Data.unlocked, v => Store.Data.unlocked = v);
             // Reading through the old flag rather than migrating the save: anybody
             // who had haptics switched off has haptic 0 and a strength they set
             // before that, and the slider must show them OFF rather than the
@@ -1286,6 +1275,20 @@ namespace Singularity.UI
             Bar(panel, "i.bright", "BRIGHTNESS", "", 60, 160, () => Store.Data.bright, v => Store.Data.bright = v);
             Bar(panel, "i.contrast", "CONTRAST", "", 70, 150, () => Store.Data.contrast, v => Store.Data.contrast = v);
 
+            // ---- and the way out of the soft lock, LAST ---------------------
+            //
+            // IT IS NOT DRAWN UNTIL THERE IS SOMETHING TO UNLOCK. On a first run
+            // the whole ladder is ahead of the player and a switch offering to
+            // open it is offering to spoil the thing they just started.
+            //
+            // AND IT IS THE LAST ROW BECAUSE IT IS THE HIDDEN ONE. CalRows is the
+            // divisor for every row's height, so the list is eight tall whether or
+            // not this one is drawn; a hidden row in the MIDDLE would be a hole
+            // between DEPTH READOUT and HAPTICS, and a hidden row at the bottom is
+            // a little more air above the feet, which nobody reads as missing.
+            _unlockRow = Toggle(panel, "i.togo", "UNSEAL CUBES", "EVERYTHING YOU HAVE SOLVED",
+                   () => Store.Data.unlocked, v => Store.Data.unlocked = v);
+
             RectTransform feet = UiKit.Rect(L, "feet", new Vector2(0, 0), new Vector2(1, 0),
                                             new Vector2(40, FootFloor), new Vector2(-40, FootFloor + Access.TapTarget));
             Third(feet, 0, "MANUAL", ShowManual);
@@ -1295,11 +1298,19 @@ namespace Singularity.UI
 
         static int _calRow;
         /// <summary>
-        /// Seven, since haptics stopped being two rows. It is the divisor for the
-        /// row height, so it is not a comment about the list — it IS the list, and
-        /// a row added below without changing it draws on top of the last one.
+        /// EIGHT, AND THE COMMENT THAT USED TO BE HERE WAS RIGHT.
+        ///
+        /// It said: "it is the divisor for the row height, so it is not a comment
+        /// about the list — it IS the list, and a row added below without changing
+        /// it draws on top of the last one." UNSEAL CUBES was added and this was
+        /// left at seven, so CONTRAST drew through the feet — on a screen where the
+        /// bottom row is a slider somebody is meant to drag.
+        ///
+        /// So it is not written down twice any more. CalRow counts what it lays
+        /// out and LayoutChecks holds the result against the panel it has to fit
+        /// in and against the tap target every row owes a finger.
         /// </summary>
-        const int CalRows = 7;
+        public const int CalRows = 8;
 
         /// <summary>
         /// WHERE THE THREE WAYS OFF A SETTINGS SCREEN SIT, and how much air is

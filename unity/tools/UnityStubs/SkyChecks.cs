@@ -152,13 +152,36 @@ static class SkyChecks
 
             ok(red > 0f && red < full, "REDUCED does not sit between STILL and FULL for the sky");
 
-            // and the travel is small enough to be a background rather than a
-            // thing that moves: a twentieth of half the screen height
-            ok(full > 0.005f && full < 0.05f,
-               "the sky travels " + (full * 100f).ToString("0.0") + "% of the half-screen at full lean");
+            // ---- AND IN PIXELS, BECAUSE THAT IS THE ONLY UNIT THAT MEANS
+            // ANYTHING HERE.
+            //
+            // This asserted 0.005 < full < 0.05 — a band nobody had converted into
+            // a thing a person could see, and 0.03 sat comfortably inside it while
+            // being twenty-nine pixels at FULL LEAN and about nine in an ordinary
+            // hand. The check passed for two builds while the effect did not exist.
+            //
+            // The shader's uv runs -1..1 down the screen, so the whole height is
+            // 2.0 and a drift of `full` moves the near shell full/2 of the screen.
+            // On the shortest phone the layout supports that is 1920 tall.
+            const float RefHeightPx = 1920f;
+            float atFull = full * 0.5f * RefHeightPx;
 
-            Console.WriteLine("sky: the field travels " + (full * 100f).ToString("0.0") + "% at FULL, "
-                            + (red * 100f).ToString("0.0") + "% at REDUCED and nothing at STILL");
+            // a third of full deflection is what a phone held normally produces —
+            // Tilt re-centres on the pose, so the lean is what you just DID rather
+            // than how far from vertical you are
+            float inHand = atFull / 3f;
+
+            ok(atFull >= 60f,
+               "the sky moves " + atFull.ToString("0") + "px at full lean, which nobody will see");
+            ok(atFull <= 220f,
+               "the sky moves " + atFull.ToString("0") + "px at full lean, which is a foreground");
+            ok(inHand >= 20f,
+               "ordinary handling moves the sky " + inHand.ToString("0") + "px");
+
+            Console.WriteLine("sky: the field travels " + atFull.ToString("0")
+                            + "px at FULL on a 1920-tall phone and about " + inHand.ToString("0")
+                            + "px in the hand — " + (red / full * 100f).ToString("0")
+                            + "% of that at REDUCED, nothing at STILL");
         }
         finally { Store.Data.motion = saved; }
     }

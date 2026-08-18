@@ -35,12 +35,24 @@ namespace Singularity.Game
     public class Sky : MonoBehaviour
     {
         /// <summary>
-        /// HOW FAR THE FIELD TRAVELS AT FULL LEAN, as a fraction of half the
-        /// screen height. Three per cent: a movement you notice at the edge of
-        /// vision and never look at directly, which is the correct amount of
-        /// attention for a background to take.
+        /// HOW FAR THE FIELD TRAVELS AT FULL LEAN, in the shader's own uv, where
+        /// the whole screen height is 2.0. So the movement on glass is HALF this
+        /// as a fraction of the screen — which is the conversion nobody did.
+        ///
+        /// THREE PER CENT WAS INVISIBLE AND THE CHECK SAID IT WAS FINE. It
+        /// asserted the number sat between 0.005 and 0.05, a band with no meaning
+        /// attached to it, and never converted it to anything a person could see.
+        /// Three per cent of uv is 1.5% of the screen: twenty-nine pixels on a
+        /// 1920-tall phone AT FULL LEAN, and full lean is a fast twenty-two degree
+        /// tilt. Ordinary handling puts Tilt.Look around a third, which is NINE
+        /// PIXELS of movement on small dim points against black. The sensor was
+        /// working. The effect was not.
+        ///
+        /// Ten per cent is five per cent of the screen — about ninety pixels at
+        /// full lean and twenty to forty in the hand. Still a background, and now
+        /// a background that moves.
         /// </summary>
-        public const float Travel = 0.030f;
+        public const float Travel = 0.100f;
 
         /// <summary>
         /// The one area fill in the shader, and the number SkyChecks holds

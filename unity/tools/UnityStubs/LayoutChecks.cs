@@ -454,3 +454,40 @@ static class LayoutChecks
                         + Layout.CanvasScale.ToString("0.000") + " units per pixel");
     }
 }
+
+/// <summary>
+/// A SETTINGS PANEL HAS TO HOLD ITS OWN ROWS.
+///
+/// CalRows is the divisor for every row's height on CALIBRATE, and the comment
+/// over it said so: "it IS the list, and a row added below without changing it
+/// draws on top of the last one." A row was added below without changing it, and
+/// CONTRAST — a slider somebody is meant to DRAG — drew through the three buttons
+/// at the foot of the screen. Nothing failed. It shipped in a screenshot.
+///
+/// Two numbers decide it and neither was ever printed: how tall a row comes out,
+/// and whether that is still a finger. Access.TapTarget is the floor the whole
+/// product is built to; a settings row that goes under it is unusable by exactly
+/// the people the ACCESS screen exists for.
+/// </summary>
+static class PanelChecks
+{
+    public static void Run(Action<bool, string> ok)
+    {
+        // the panel, as BuildCalibrate lays it out: floor to 200 below the top
+        float floor = 62f + Access.TapTarget + 58f;
+        float panel = Layout.PlateHeight - floor - 200f;
+        float row = panel / Screens.CalRows;
+
+        ok(row >= Access.TapTarget,
+           "a calibrate row is " + row.ToString("0") + " units tall against a tap target of "
+           + Access.TapTarget);
+
+        // and the panel's own floor clears the feet it sits above
+        ok(floor >= 62f + Access.TapTarget,
+           "the calibrate panel overlaps the row of buttons under it");
+
+        Console.WriteLine("panel: calibrate is " + panel.ToString("0") + " units for "
+                        + Screens.CalRows + " rows — " + row.ToString("0")
+                        + " each against a " + Access.TapTarget + " tap target");
+    }
+}
