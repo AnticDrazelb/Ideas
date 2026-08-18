@@ -49,6 +49,7 @@ static class LayoutChecks
             foreach (Device d in Phones) Portrait(d, ok);
             Landscape(ok);
             Insets(ok);
+            Peek(ok);
         }
         finally
         {
@@ -110,6 +111,77 @@ static class LayoutChecks
         Console.WriteLine("layout: " + d.name + "  window " + ap.width.ToString("0") + "x" + ap.height.ToString("0")
                         + "  board fills " + (fx * 100f).ToString("0") + "% across, "
                         + (fy * 100f).ToString("0") + "% down");
+    }
+
+    /// <summary>
+    /// WHAT THE SQUARE WINDOW COSTS THE MATRIX, WHICH IS A COST I INTRODUCED.
+    ///
+    /// Holding to peek leans the solid over, and CameraRig.Room pulls the camera
+    /// back until the leaned solid fits the window. Against the old tall window
+    /// the height was never the binding constraint, so a lean cost whatever the
+    /// WIDTH demanded and nothing more. Against a square, the height binds too —
+    /// so the board visibly shrinks further when the player holds, and that is a
+    /// feel change rather than a bug.
+    ///
+    /// It is bounded rather than discovered later: a pull past about a third
+    /// would read as the game backing away from the player at the moment they
+    /// leaned in. The number is computed with Room's own arithmetic.
+    /// </summary>
+    static void Peek(Action<bool, string> ok)
+    {
+        Use(1440, 2960);
+        Rect ap = Layout.ApertureRect();
+        float screenH = Screen.height;
+        const int n = 5;
+
+        Rect board = Layout.BoardRect();
+        float shorter = Mathf.Max(1f, Mathf.Min(board.width, board.height));
+        float baseSize = n * 1.28f * screenH / (2f * shorter);
+
+        float Pull(Rect win, float size, float yaw, float pitch)
+        {
+            Quaternion r = Quaternion.AngleAxis(-yaw * Mathf.Rad2Deg, Vector3.up)
+                         * Quaternion.AngleAxis(pitch * Mathf.Rad2Deg, Vector3.right);
+            Vector3 rx = r * Vector3.right, ry = r * Vector3.up, rz = r * Vector3.forward;
+            float e = n * 0.5f * 1.04f;
+            float ex = e * (Mathf.Abs(rx.x) + Mathf.Abs(ry.x) + Mathf.Abs(rz.x));
+            float ey = e * (Mathf.Abs(rx.y) + Mathf.Abs(ry.y) + Mathf.Abs(rz.y));
+            float need = Mathf.Max(ex * screenH / win.width, ey * screenH / win.height);
+            return Mathf.Max(1f, need / size);
+        }
+
+        float rest = Pull(ap, baseSize, 0f, 0f);
+        float peek = Pull(ap, baseSize, CubeView.PeekYaw, CubeView.PeekPitch);
+        float worst = Pull(ap, baseSize, CubeView.PeekYaw, CubeView.PeekMaxPitch);
+
+        // AND THE SAME QUESTION OF THE WINDOW THIS REPLACED, because a number
+        // with nothing beside it cannot tell you whether it is a regression.
+        // The old window was the whole band between the two HUD bands, uncut —
+        // 1250 by 2075 on this display — and the cube was sized from its shorter
+        // side, which was the same width. So the only thing that changed for the
+        // matrix is how much HEIGHT the frame has, and the honest check is
+        // whether taking that height away costs the lean anything.
+        Rect tall = new Rect(ap.xMin, ap.center.y - 2035f * 0.5f, ap.width, 2035f);
+        float wasPeek = Pull(tall, baseSize, CubeView.PeekYaw, CubeView.PeekPitch);
+
+        ok(rest <= 1.001f, "the board does not fit its own window at rest — the camera pulls out by "
+                         + ((rest - 1f) * 100f).ToString("0") + "% before anything has moved");
+        // THE LEAN COSTS WHAT IT ALWAYS COST. The width was already the binding
+        // constraint at this pose, so squaring the window took away height the
+        // lean was not using. If that ever stops being true this fails, and the
+        // answer will be to give the window a little vertical slack rather than
+        // to discover it on a phone.
+        ok(peek <= wasPeek + 0.02f,
+           "squaring the window made the matrix pull out " + ((peek - 1f) * 100f).ToString("0")
+         + "% against the old window's " + ((wasPeek - 1f) * 100f).ToString("0")
+         + "% — the frame is now taking height the lean needs");
+        ok(worst <= 1.60f, "a full-pitch orbit pulls out " + ((worst - 1f) * 100f).ToString("0")
+                         + "%, which is the game backing away as the player leans in");
+
+        Console.WriteLine("layout: at rest the board fits its window exactly; matrix pulls out "
+                        + ((peek - 1f) * 100f).ToString("0") + "% against the old window's "
+                        + ((wasPeek - 1f) * 100f).ToString("0") + "%, and the furthest orbit "
+                        + ((worst - 1f) * 100f).ToString("0") + "%");
     }
 
     /// <summary>The same device on its side: the square is cut out of the height instead.</summary>

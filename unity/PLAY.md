@@ -82,13 +82,18 @@ None of these are code and none of them exist yet:
 | | |
 |---|---|
 | App icon | **done** — generated from the same palette, `Singularity → Regenerate App Icon` |
-| Feature graphic | 1024×500, required |
-| Phone screenshots | at least 2, and the game is worth screenshotting |
-| Short description | 80 characters |
-| Full description | 4000 characters |
+| Feature graphic | 1024×500, required — **specified** in `STORE.md`, still to be shot |
+| Phone screenshots | at least 2 — **five are specified**, in order of what each has to prove |
+| Short description | 80 characters — **written**, 74 of them |
+| Full description | 4000 characters — **written**, 3117 of them |
 
-The pitch is already written. It used to be printed under the title screen's
-masthead and is not any more — the screen says what the game is called, where
+The three that are words are in `STORE.md`, and `tools/type/listing.py` checks
+both lengths against Play's limits for the same reason `reflow.py` checks the
+prose boxes: a description truncated at four thousand characters loses its last
+paragraph on the store rather than here.
+
+The pitch is still the sentence the full description opens and closes on. It
+used to be printed under the title screen's masthead and is not any more — the screen says what the game is called, where
 you are in it, and then shows you the machine — but it is still the sentence:
 
 > You are a black hole inside a broken machine. Fold the engine until its

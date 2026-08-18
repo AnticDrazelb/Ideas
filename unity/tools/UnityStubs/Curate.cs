@@ -630,9 +630,45 @@ static class Curate
     /// would be a second definition of the ladder's own difficulty axis.
     /// </summary>
     public static double RouteOpen(Level lv, int par, out int points, out double depth)
+        => RouteOpen(lv, par, out points, out depth, out _);
+
+    /// <summary>
+    /// THE SAME WALK, ALSO REPORTING HOW MANY FOLDS THERE WERE TO CHOOSE FROM.
+    ///
+    /// routeOpen is a RATIO — the share of legal folds that keep par — and a ratio
+    /// cannot tell a corridor from a meadow. A cube where one fold is legal and it
+    /// keeps par scores 100%; so does a cube where four are legal and all four
+    /// keep par. The first is a forced sequence with nothing to get wrong and the
+    /// second is a board with no decisions on it, and this file already names both
+    /// as failures — "the same failure as a free opening wearing the opposite
+    /// mask" — while scoring them identically.
+    ///
+    /// The prune is what makes the difference matter. Taking footing away removes
+    /// legal folds, so a heavily pruned cube can walk its ratio UP without a
+    /// single decision being added. Anything drawing a conclusion from routeOpen
+    /// wants the branching factor beside it.
+    /// </summary>
+    public static double RouteOpen(Level lv, int par, out int points, out double depth,
+                                   out double meanLegal)
+        => RouteOpen(lv, par, out points, out depth, out meanLegal, out _);
+
+    /// <summary>
+    /// AND THE ONE THAT IS ACTUALLY DIFFICULTY: the chance of walking the whole
+    /// route on par by choosing at random at every fold.
+    ///
+    /// The ratio is per-decision and difficulty is not. A cube with three
+    /// decisions at 28% and a cube with ten at 40% have the ratio pointing the
+    /// wrong way and the second is far harder, because getting to the core on par
+    /// means getting EVERY one of them right: 0.28^3 is 2.2% and 0.40^10 is
+    /// 0.01%. That is the product of the two axes the ladder treats as separate,
+    /// and it is the number a player experiences as "can I still par this".
+    /// </summary>
+    public static double RouteOpen(Level lv, int par, out int points, out double depth,
+                                   out double meanLegal, out double blind)
     {
         points = 0;
-        double total = 0;
+        double total = 0, legalSum = 0;
+        blind = 1.0;
         SolveState at = Opened(lv);
         int left = par;
 
@@ -676,7 +712,22 @@ static class Curate
                 if (!haveNext) { next = cand; haveNext = true; }
             }
 
-            if (legal > 0) { total += onPar / (double)legal; points++; }
+            if (legal > 0)
+            {
+                total += onPar / (double)legal;
+                legalSum += legal;
+                points++;
+
+                // ONLY WHILE THE WALK STILL HAS A ROUTE. onPar reaches zero when
+                // this walk has lost the line rather than when the cube is
+                // impossibly tight — the enumeration is of landings reachable by a
+                // free walk, and a route whose next fold is not among them ends
+                // here. Multiplying by that zero reports a cube as infinitely hard
+                // when what happened is that the measurement stopped, which put
+                // eleven of vault VII's twenty-five below one in a trillion and
+                // made the vault look like a spike.
+                if (onPar > 0) blind *= onPar / (double)legal;
+            }
             if (!haveNext) break;
             at = next;
             worlds.Add(at.world);
@@ -688,6 +739,7 @@ static class Curate
         // is scored on the share of each it actually needed
         depth = 0.5 * Math.Min(1.0, (worlds.Count - 1) / 3.0)
               + 0.5 * Math.Min(1.0, (oris.Count - 1) / 6.0);
+        meanLegal = points == 0 ? 0.0 : legalSum / points;
         return points == 0 ? 1.0 : total / points;
     }
 

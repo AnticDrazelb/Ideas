@@ -292,7 +292,10 @@ public static class ForgeChecks
         // of something the game no longer draws.
         if (args.Length > 0 && args[0] == "ladder")
         {
-            if (args.Length > 1 && args[1] == "gate") LadderAudit.Gate(args); else LadderAudit.Run();
+            if (args.Length > 1 && args[1] == "gate") LadderAudit.Gate(args);
+            else if (args.Length > 1 && args[1] == "split") LadderAudit.Split(args);
+            else if (args.Length > 1 && args[1] == "spec") LadderAudit.Spec(args);
+            else LadderAudit.Run();
             return;
         }
         if (args.Length > 0 && args[0] == "content") { ContentAudit.Run(); return; }
