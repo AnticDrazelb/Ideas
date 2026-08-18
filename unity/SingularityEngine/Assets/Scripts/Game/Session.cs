@@ -145,7 +145,7 @@ namespace Singularity.Game
         /// <summary>Recompute everything the projection decides, after any settled change.</summary>
         public void Settle()
         {
-            surf = Projection.Project(N, lv.Eff(world), M, Everted);
+            surf = Projection.Project(N, lv.Eff(world), M);
             ComputeReach();
             On.Settled?.Invoke();
         }
@@ -508,7 +508,7 @@ namespace Singularity.Game
             // plate rather than become one by default.
             plateT = (world & Level.Plates) != 0 ? PlateMs : 0;
             lv.ClearEff();
-            surf = Projection.Project(N, lv.Eff(world), M, Everted);
+            surf = Projection.Project(N, lv.Eff(world), M);
             On.PlateFired?.Invoke(pos, bit);
             ComputeReach();
             On.Settled?.Invoke();
@@ -588,7 +588,7 @@ namespace Singularity.Game
             _lastPlateTick = -1;
             walking = null;      // any queued route dies with the world it was planned in
             lv.ClearEff();
-            surf = Projection.Project(N, lv.Eff(world), M, Everted);
+            surf = Projection.Project(N, lv.Eff(world), M);
             On.Reverted?.Invoke();
             ThrowToPlate();
             ComputeReach();

@@ -48,6 +48,35 @@ namespace Singularity.Core
     public static class Generator
     {
         public const int CapLocks = 3;
+
+        /// <summary>
+        /// THE COPY WAS TAKEN BEFORE THE CARVE, AND THE CARVE STILL ADDS CELLS.
+        ///
+        /// An everter's face array is filled from the primary's occupancy at the
+        /// start, but the primary carve may then place a cell in an empty column
+        /// to give itself footing — so by the end the two can disagree about
+        /// which cells exist, which is the one thing an everter must never do.
+        ///
+        /// Every such cell is mirrored in as BEDROCK. It cannot break the face
+        /// route, which is made of trace: the worst it does is put a dead square
+        /// on the everted board, and a dead square is what most of that board is.
+        /// The reverse cannot happen, because the face array is carved with
+        /// creation denied.
+        /// </summary>
+        static char[][] MirrorOccupancy(char[] vox, char[][] alts, bool locked)
+        {
+            if (!locked || alts == null) return alts;
+            foreach (char[] a in alts)
+            {
+                if (a == null) continue;
+                for (int i = 0; i < vox.Length && i < a.Length; i++)
+                {
+                    if (vox[i] != '.' && a[i] == '.') a[i] = '#';
+                    else if (vox[i] == '.' && a[i] != '.') a[i] = '.';
+                }
+            }
+            return alts;
+        }
         public const int GlyphFrom = 20;
 
         // ---- the difficulty contract ---------------------------------------
@@ -129,6 +158,23 @@ namespace Singularity.Core
         /// </summary>
         public static bool Carve(int n, char[] vox, Ori m, int u, int v, int? hintDepth,
                                  int world, Dictionary<int, char> lockMap, out Int3 result)
+            => Carve(n, vox, m, u, v, hintDepth, world, lockMap, true, out result);
+
+        /// <summary>
+        /// <paramref name="mayCreate"/> IS THE EVERTER'S WHOLE CONSTRAINT.
+        ///
+        /// The last thing this does, when a column has nothing in it at all, is
+        /// PLACE a cell — which is how the carve guarantees itself footing in
+        /// empty space. That is right for a solid being built and wrong for the
+        /// second array of an everter cube, where occupancy is the one thing that
+        /// must not move: a cell is turning to show a different face, so it has to
+        /// be there to turn. Denied, the face route is confined to cells the solid
+        /// already has, which is the point and is not a hardship — the inert
+        /// surface is 40.3 squares a cube and 39.5 of them are one joined region.
+        /// </summary>
+        public static bool Carve(int n, char[] vox, Ori m, int u, int v, int? hintDepth,
+                                 int world, Dictionary<int, char> lockMap, bool mayCreate,
+                                 out Int3 result)
         {
             result = default;
             var ev = new char[vox.Length];
@@ -142,12 +188,11 @@ namespace Singularity.Core
             //
             // So this is that comparison, term for term: a glyph beats a
             // non-glyph, and between two of the same kind the depth decides —
-            // NEAREST normally, FARTHEST when the polarity bit is set. That last
-            // clause is the whole of eversion and it is the only thing in this
-            // file that ever needed to know about it. Without it the generator
-            // could carve a plate but never an everter, which is why the voxel
-            // census across a hundred and twenty minted cubes read E:0.
-            bool evert = (world & Level.Everted) != 0;
+            // NEAREST, ALWAYS. This carried a second clause — farthest when the
+            // polarity bit was set — because eversion used to be a reversal of
+            // this comparison. It is a second ARRAY of types over the same cells
+            // now, so it arrives already resolved in `ev` and there is one rule
+            // here again. See Level.LayoutOf.
 
             int best = 0;
             bool bestGlyph = false;
@@ -166,7 +211,7 @@ namespace Singularity.Core
                         bool g = Level.IsGlyph(ev[id]);
                         bool win = !haveBw
                                 || (g && !bestGlyph)
-                                || (g == bestGlyph && (evert ? vw.z < best : vw.z > best));
+                                || (g == bestGlyph && vw.z > best);
                         if (!win) continue;
 
                         best = vw.z;
@@ -190,7 +235,9 @@ namespace Singularity.Core
 
             // Nothing in that column at all: place a cell at the hinted depth.
             // This is the one move that can hide something from another face,
-            // which is what the verify pass exists for.
+            // which is what the verify pass exists for — and the one move an
+            // everter's face array is not allowed to make.
+            if (!mayCreate) return false;
             int d = Math.Max(0, Math.Min(n - 1, hintDepth ?? (n >> 1)));
             Int3 wc = Projection.WorldOf(n, m, new Int3(u, v, d));
             int wi = Level.Vidx(n, wc);
@@ -218,6 +265,12 @@ namespace Singularity.Core
             char[][] alts = nLayouts > 1 ? new char[nLayouts - 1][] : null;
             for (int i = 0; alts != null && i < alts.Length; i++) alts[i] = new char[n * n * n];
 
+            bool lockOccupancy = opt.glyphSet != null && opt.glyphSet.IndexOf('E') >= 0;
+
+            // The face array may not invent cells; the primary still may. See the
+            // mayCreate overload of Carve.
+            bool MayCreate(int w) => !lockOccupancy || Level.LayoutOf(w) == 0;
+
             char[] Solid(int w)
             {
                 int L = Level.LayoutOf(w);
@@ -235,8 +288,19 @@ namespace Singularity.Core
             //
             // Guarded, so a single-layout cube draws exactly the numbers it drew
             // before this existed. Every cube already minted is byte-identical.
+            // AND AN EVERTER'S SECOND ARRAY IS NOT DRAWN, IT IS COPIED.
+            //
+            // A trigger exchanges the ground: its second solid is its own roll of
+            // the dice, so half the cells that were there are not, and the board's
+            // silhouette moves with them. An everter does not exchange anything —
+            // every cell stays exactly where it is and turns to show a different
+            // face — so the second array carries the SAME OCCUPANCY and differs
+            // only in what each cell is. Bedrock everywhere to begin with; the
+            // carve then lays the face route through it.
             for (int a = 0; alts != null && a < alts.Length; a++)
-                for (int i = 0; i < alts[a].Length; i++) alts[a][i] = rng.Next() < opt.density ? '#' : '.';
+                for (int i = 0; i < alts[a].Length; i++)
+                    alts[a][i] = lockOccupancy ? (vox[i] == '.' ? '.' : '#')
+                                               : (rng.Next() < opt.density ? '#' : '.');
 
             Ori m = Ori.Id;
             var path = new List<Int3>();
@@ -255,7 +319,7 @@ namespace Singularity.Core
 
             int u0 = 1 + (int)Math.Floor(rng.Next() * (n - 2));
             int v0 = 1 + (int)Math.Floor(rng.Next() * (n - 2));
-            if (!Carve(n, Solid(world), m, u0, v0, null, world, lockMap, out Int3 pos)) return null;
+            if (!Carve(n, Solid(world), m, u0, v0, null, world, lockMap, MayCreate(world), out Int3 pos)) return null;
             path.Add(pos);
 
             var order = new int[4];
@@ -269,7 +333,7 @@ namespace Singularity.Core
                 {
                     int u2 = vv.x + Turns.All[order[t]].dx, v2 = vv.y + Turns.All[order[t]].dy;
                     if (u2 < 0 || v2 < 0 || u2 >= n || v2 >= n) continue;
-                    if (!Carve(n, Solid(world), m, u2, v2, vv.z, world, lockMap, out Int3 nx)) continue;
+                    if (!Carve(n, Solid(world), m, u2, v2, vv.z, world, lockMap, MayCreate(world), out Int3 nx)) continue;
                     pos = nx; path.Add(pos);
                     return true;
                 }
@@ -316,7 +380,8 @@ namespace Singularity.Core
                     // and the landing cell has to exist in the world we just
                     // opened, or the walk continues from somewhere it is not
                     if (!Carve(n, Solid(world), m, Projection.ViewOf(n, m, pos).x,
-                               Projection.ViewOf(n, m, pos).y, null, world, lockMap, out Int3 kept))
+                               Projection.ViewOf(n, m, pos).y, null, world, lockMap,
+                               MayCreate(world), out Int3 kept))
                         return null;
                     pos = kept;
 
@@ -330,7 +395,7 @@ namespace Singularity.Core
                 int pick = (int)Math.Floor(rng.Next() * 4);
                 Ori m2 = Turns.All[pick].f(m);
                 Int3 lv2 = Projection.ViewOf(n, m2, pos);
-                if (!Carve(n, Solid(world), m2, lv2.x, lv2.y, null, world, lockMap, out Int3 lnd)) continue;
+                if (!Carve(n, Solid(world), m2, lv2.x, lv2.y, null, world, lockMap, MayCreate(world), out Int3 lnd)) continue;
                 m = m2; pos = lnd; path.Add(lnd);
             }
 
@@ -338,7 +403,8 @@ namespace Singularity.Core
 
             var lv = new Level
             {
-                n = n, vox = vox, alts = alts, start = path[0], goal = goal,
+                n = n, vox = vox, alts = MirrorOccupancy(vox, alts, lockOccupancy),
+                start = path[0], goal = goal,
                 glyphs = placed, lockMap = lockMap
             };
 

@@ -150,8 +150,7 @@ namespace Singularity.Core
                 // caching silently hands back another world's projection.
                 int k = oi * 32 + wd;
                 if (!projCache.TryGetValue(k, out var s))
-                    projCache[k] = s = Projection.Project(n, lv.Eff(wd), Turns.Oris[oi],
-                                                          (wd & Level.Everted) != 0);
+                    projCache[k] = s = Projection.Project(n, lv.Eff(wd), Turns.Oris[oi]);
                 return s;
             }
 

@@ -85,8 +85,8 @@ static class ArcChecks
     static bool LosesFooting(Level lv)
     {
         int n = lv.n;
-        Surf[] a = Projection.Project(n, lv.Eff(0), Turns.Oris[0], false);
-        Surf[] b = Projection.Project(n, lv.Eff(Level.Everted), Turns.Oris[0], true);
+        Surf[] a = Projection.Project(n, lv.Eff(0), Turns.Oris[0]);
+        Surf[] b = Projection.Project(n, lv.Eff(Level.Everted), Turns.Oris[0]);
         for (int u = 0; u < n; u++)
             for (int v = 0; v < n; v++)
                 if (Projection.Walkable(lv, a, u, v, 0) && !Projection.Walkable(lv, b, u, v, 0)) return true;
@@ -114,7 +114,7 @@ static class ArcChecks
             for (int pol = 0; pol < 2; pol++)
             {
                 int world = pol == 0 ? 0 : Level.Everted;
-                Surf[] surf = Projection.Project(n, lv.Eff(world), Turns.Oris[oi], pol != 0);
+                Surf[] surf = Projection.Project(n, lv.Eff(world), Turns.Oris[oi]);
                 for (int k = 0; k < n * n; k++)
                     if (surf[k].has && surf[k].t == 'E') return true;
             }

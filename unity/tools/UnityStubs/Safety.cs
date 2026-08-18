@@ -54,7 +54,7 @@ static class Safety
         outp.Clear();
         int n = lv.n;
         Ori m = Turns.Oris[s.ori];
-        Surf[] surf = Projection.Project(n, lv.Eff(s.world), m, (s.world & Level.Everted) != 0);
+        Surf[] surf = Projection.Project(n, lv.Eff(s.world), m);
         Int3 v = Projection.ViewOf(n, m, s.pos);
 
         for (int t = 0; t < 4; t++)

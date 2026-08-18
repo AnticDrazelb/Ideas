@@ -185,7 +185,7 @@ static class PeelProbe
             if (lv == null) continue;
             int n = lv.n;
             Surf[] near = Projection.Project(n, lv.Eff(0), Ori.Id);
-            Surf[] far = Projection.Project(n, lv.Eff(0), Ori.Id, true);
+            Surf[] far = Projection.Project(n, lv.Eff(Level.Everted), Ori.Id);
             int w = 0, same = 0, shown = 0;
             for (int u = 0; u < n; u++)
                 for (int v = 0; v < n; v++)

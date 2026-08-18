@@ -198,7 +198,34 @@ namespace Singularity.Core
         public const int Swapped = 8, Swapped2 = 16;
 
         /// <summary>Which solid a world selects: 0 for the first, 1..3 for the alternates.</summary>
-        public static int LayoutOf(int world) => ((world & Swapped) != 0 ? 1 : 0) | ((world & Swapped2) != 0 ? 2 : 0);
+        ///
+        /// THE EVERTER SELECTS ONE TOO, AND THAT IS THE WHOLE MECHANIC NOW.
+        ///
+        /// It used to flip a comparison — `evert ? d &lt; cur.d : d &gt; cur.d` — so a
+        /// column stopped showing its nearest solid cell and showed its farthest.
+        /// Nothing moved. Every square the player was looking at was replaced by a
+        /// cell from the other end of the solid, and the per-cell turn on screen
+        /// was a depiction of that rather than a thing happening to the machine.
+        ///
+        /// A cell is a small solid with six faces, and the one that matters is the
+        /// one pointing at the camera. An everter turns every cell in place, at
+        /// once, out of time with its neighbours, and a different face is now the
+        /// surface. That is a SECOND ARRAY OF TYPES over the same cells — which is
+        /// exactly what `alts` already is, and exactly what the trigger already
+        /// rides on — under one added constraint: OCCUPANCY IS LOCKED. A trigger
+        /// rearranges the ground and the silhouette moves with it; an everter
+        /// leaves every cell where it is, so the same cell still wins its column,
+        /// the board's shape holds still, and only the circuit drawn on it
+        /// rearranges. See FaceProbe for why that is the better read of the two:
+        /// the shipped everter offered 6.3 walkable squares of which 2.4 were
+        /// reachable, and the inert surface a face can be painted on is 40.3,
+        /// of which 39.5 are one joined region.
+        ///
+        /// It shares alts[0] with the trigger rather than taking a slot of its
+        /// own, because no cube carries both — the back half rotates one mechanic
+        /// at a time, and CodeChecks refuses a cube that carries an E and a T.
+        public static int LayoutOf(int world)
+            => ((world & (Swapped | Everted)) != 0 ? 1 : 0) | ((world & Swapped2) != 0 ? 2 : 0);
 
         public static int GlyphBit(char c) => c == 'A' ? 1 : c == 'B' ? 2 : c == 'E' ? Everted : c == 'T' ? Swapped : c == 'U' ? Swapped2 : 0;
         public static bool IsGlyph(char c) => c == 'A' || c == 'B' || c == 'E' || c == 'T' || c == 'U';
@@ -362,7 +389,20 @@ namespace Singularity.Core
         /// rule is what keeps a plate reachable in the world it is there to
         /// change, and eversion must not be allowed to bury one.
         /// </summary>
-        public static Surf[] Project(int n, char[] vox, Ori m, bool evert = false)
+        /// <summary>
+        /// THE COLLAPSE, AND IT HAS ONE RULE AGAIN.
+        ///
+        /// This took an `evert` flag that reversed the depth test, so the same
+        /// function answered two different questions about the same solid
+        /// depending on a bit its callers had to remember to pass. Every call site
+        /// that forgot got the near board for an everted world and no error
+        /// anywhere — Solver has a comment about exactly that costing a day.
+        ///
+        /// Eversion is a different ARRAY now rather than a different comparison,
+        /// so it arrives here already resolved: `Eff(world)` hands over the types
+        /// the faces are showing and this does what it always did with them.
+        /// </summary>
+        public static Surf[] Project(int n, char[] vox, Ori m)
         {
             var surf = new Surf[n * n];
             int nn = n * n;
@@ -379,7 +419,7 @@ namespace Singularity.Core
                 // A plate is carved clean through the rock, so it wins its column
                 // outright; among equals the nearer one wins as always.
                 if (!cur.has || (g && !Level.IsGlyph(cur.t))
-                    || (g == Level.IsGlyph(cur.t) && (evert ? d < cur.d : d > cur.d)))
+                    || (g == Level.IsGlyph(cur.t) && d > cur.d))
                 {
                     int yy = i / nn;
                     int rr = i - yy * nn;
@@ -437,7 +477,7 @@ namespace Singularity.Core
         /// </summary>
         public static bool Landing(Level lv, Ori m2, Int3 pos, int doorsOpen, int world, out Surf cell)
         {
-            Surf[] surf2 = Project(lv.n, lv.Eff(world), m2, (world & Level.Everted) != 0);
+            Surf[] surf2 = Project(lv.n, lv.Eff(world), m2);
             Int3 v = ViewOf(lv.n, m2, pos);
             return Walkable(lv, surf2, v.x, v.y, doorsOpen, out cell);
         }

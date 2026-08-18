@@ -218,8 +218,8 @@ static class ArcSearch
     static bool LosesFooting(Level lv)
     {
         int n = lv.n;
-        Surf[] a = Projection.Project(n, lv.Eff(0), Turns.Oris[0], false);
-        Surf[] b = Projection.Project(n, lv.Eff(Level.Everted), Turns.Oris[0], true);
+        Surf[] a = Projection.Project(n, lv.Eff(0), Turns.Oris[0]);
+        Surf[] b = Projection.Project(n, lv.Eff(Level.Everted), Turns.Oris[0]);
         for (int u = 0; u < n; u++)
             for (int v = 0; v < n; v++)
                 if (Projection.Walkable(lv, a, u, v, 0) && !Projection.Walkable(lv, b, u, v, 0))
