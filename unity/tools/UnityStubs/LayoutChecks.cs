@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using Singularity.Game;
+using Singularity.UI;
 
 /// <summary>
 /// THE WINDOW IS THE SHAPE OF THE THING IN IT, AND THAT IS A NUMBER.
@@ -50,6 +51,7 @@ static class LayoutChecks
             Landscape(ok);
             Insets(ok);
             Peek(ok);
+            BackButton(ok);
         }
         finally
         {
@@ -111,6 +113,48 @@ static class LayoutChecks
         Console.WriteLine("layout: " + d.name + "  window " + ap.width.ToString("0") + "x" + ap.height.ToString("0")
                         + "  board fills " + (fx * 100f).ToString("0") + "% across, "
                         + (fy * 100f).ToString("0") + "% down");
+    }
+
+    /// <summary>
+    /// THE BACK GESTURE REACHES EVERY SCREEN.
+    ///
+    /// Android's back arrives as KeyCode.Escape, and the one line reading it
+    /// opened the pause card while playing and did nothing anywhere else — so on
+    /// the manual, the vault rack, calibrate, access, the Forge and its editor a
+    /// back swipe got no response at all. That does not read as "not a control
+    /// here"; it reads as the app having hung, and it is the first thing an
+    /// Android reviewer tries.
+    ///
+    /// Screens.DecideBack is a pure function of what is on top of the stack, so
+    /// every screen's answer is assertable without building a canvas.
+    /// </summary>
+    static void BackButton(Action<bool, string> ok)
+    {
+        // nothing up: the caller opens the pause card, and this must not claim it
+        ok(Screens.DecideBack(null, false) == Screens.BackAct.None,
+           "back did something with an empty stack");
+
+        // every ordinary screen pops
+        foreach (string id in new[] { "manual", "vaults", "calibrate", "access", "pause", "plate", "forge" })
+            ok(Screens.DecideBack(id, false) == Screens.BackAct.Pop,
+               "back on the " + id + " screen does not go back");
+
+        // a finished cube has nowhere to go back TO — popping it drops the player
+        // onto the board they just collapsed, with nothing left to do on it
+        ok(Screens.DecideBack("win", false) == Screens.BackAct.Menu,
+           "back on the win card pops to the finished board");
+
+        // and the root asks before it takes you at your word
+        ok(Screens.DecideBack("title", false) == Screens.BackAct.Ask,
+           "back on the title leaves the game without asking");
+        ok(Screens.DecideBack("title", true) == Screens.BackAct.Leave,
+           "a second back press on the title does not leave");
+
+        ok(Screens.LeaveWindow >= 1.2f && Screens.LeaveWindow <= 4f,
+           "the window to confirm leaving is " + Screens.LeaveWindow + "s, which is not a human pause");
+
+        Console.WriteLine("layout: back pops every screen, goes to the front from a win card, and asks once "
+                        + "on the title before leaving");
     }
 
     /// <summary>

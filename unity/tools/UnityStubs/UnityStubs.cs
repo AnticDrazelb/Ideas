@@ -761,6 +761,14 @@ namespace UnityEngine
         public static int targetFrameRate { get; set; }
         public static bool isBatchMode => false;
         public static bool isPlaying => false;
+
+        /// <summary>
+        /// Declared so the back-button path type-checks here. A no-op is the
+        /// honest stub: nothing in this harness has an application to close, and
+        /// the DECISION that leads here is Screens.DecideBack, which is a pure
+        /// function and is asserted on its own.
+        /// </summary>
+        public static void Quit() { }
     }
 
     public static class QualitySettings { public static int vSyncCount { get; set; } }

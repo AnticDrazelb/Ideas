@@ -161,6 +161,114 @@ namespace Singularity.UI
             Show(Stack.Count > 0 ? Stack[Stack.Count - 1] : null);
         }
 
+        // ---- the back button --------------------------------------------------
+        //
+        // THERE IS A STACK AND NOTHING WAS ROUTED TO IT.
+        //
+        // Show pushes, Back pops, and the only caller either had was a button
+        // labelled BACK. Android's back gesture arrives as KeyCode.Escape, and the
+        // one line reading it did this:
+        //
+        //     if (Escape && !_screenUp && S.lv != null) ShowPause();
+        //
+        // — so back opened the pause card while playing and did NOTHING on every
+        // menu in the game. The manual, the vault rack, calibrate, access, the
+        // Forge and its editor: a player swiping back on any of them got no
+        // response at all, which on Android does not read as "that is not a
+        // control here", it reads as the app having hung.
+        //
+        // THE ROOT IS THE ONE THAT NEEDS A DECISION. Popping the title leaves an
+        // empty stack, which is a turning cube with no interface on it and no way
+        // out — so the title is where back means LEAVE. It asks first: a single
+        // press says so on the footer, a second inside two seconds takes it, and
+        // anything else cancels. Everything in this game is saved, so an accidental
+        // exit costs nothing but the animation — but a game that closes on one
+        // stray gesture feels careless, and the prompt is one label that already
+        // exists on that screen.
+        //
+        // AND A WON CUBE HAS NO BACK. Popping the win card would drop the player
+        // onto the board they have just finished, with the collapse over and
+        // nothing to do on it. Back there means the same thing MENU does.
+
+        static Text _foot;
+        const string FootLine = "DIAGNOSTIC BUILD · NO DEAD PIXELS";
+        static float _leaveAskedAt = -99f;
+
+        /// <summary>What a back press means, given what is on top of the stack.</summary>
+        public enum BackAct
+        {
+            /// <summary>Nothing is up; the caller decides (it opens the pause card).</summary>
+            None,
+            /// <summary>Pop one screen.</summary>
+            Pop,
+            /// <summary>A finished cube has no back — go to the front instead.</summary>
+            Menu,
+            /// <summary>The root. Offer to leave.</summary>
+            Ask,
+            /// <summary>Asked already, and recently. Close the application.</summary>
+            Leave
+        }
+
+        /// <summary>
+        /// THE DECISION, WITH NOTHING IN IT THAT NEEDS A CANVAS — so the harness
+        /// can assert what every screen does with a back press without building
+        /// one. Same reason Coach.Next is a pure function.
+        /// </summary>
+        public static BackAct DecideBack(string top, bool asking)
+        {
+            if (string.IsNullOrEmpty(top)) return BackAct.None;
+            if (top == "title") return asking ? BackAct.Leave : BackAct.Ask;
+            if (top == "win") return BackAct.Menu;
+            return BackAct.Pop;
+        }
+
+        /// <summary>How long the offer to leave stands.</summary>
+        public const float LeaveWindow = 2f;
+
+        /// <summary>
+        /// Handle a back press against whatever is on screen.
+        /// Returns true only when the caller should close the application.
+        /// </summary>
+        public static bool BackPressed()
+        {
+            string top = Stack.Count > 0 ? Stack[Stack.Count - 1] : null;
+            bool asking = Time.unscaledTime - _leaveAskedAt < LeaveWindow;
+
+            switch (DecideBack(top, asking))
+            {
+                case BackAct.Leave:
+                    return true;
+
+                case BackAct.Ask:
+                    _leaveAskedAt = Time.unscaledTime;
+                    if (_foot != null)
+                    {
+                        _foot.text = "PRESS BACK AGAIN TO LEAVE";
+                        _dir.StartCoroutine(RestoreFoot());
+                    }
+                    return false;
+
+                case BackAct.Menu:
+                    ShowTitle();
+                    return false;
+
+                case BackAct.Pop:
+                    Back();
+                    return false;
+
+                default:
+                    return false;
+            }
+        }
+
+        static System.Collections.IEnumerator RestoreFoot()
+        {
+            // the real clock, because the offer is a real two seconds however
+            // slowly the game happens to be running
+            yield return new WaitForSecondsRealtime(LeaveWindow);
+            if (_foot != null && Time.unscaledTime - _leaveAskedAt >= LeaveWindow) _foot.text = FootLine;
+        }
+
         internal static RectTransform Column(RectTransform parent, float top, float bottom)
             => UiKit.Rect(parent, "col", new Vector2(0, 0), new Vector2(1, 1),
                           new Vector2(40, bottom), new Vector2(-40, -top));
@@ -274,8 +382,8 @@ namespace Singularity.UI
 
             _playLabel = go.GetComponentInChildren<Text>();
 
-            UiKit.Label(L, "foot", "DIAGNOSTIC BUILD · NO DEAD PIXELS", 19, Palette.Dim, TextAnchor.LowerCenter,
-                        new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 40), new Vector2(0, 76));
+            _foot = UiKit.Label(L, "foot", FootLine, 19, Palette.Dim, TextAnchor.LowerCenter,
+                                new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 40), new Vector2(0, 76));
         }
 
         public static void ShowTitle()
@@ -301,6 +409,8 @@ namespace Singularity.UI
                 _resumeName.text = Vaults.LevelName(r) + (par >= 0 ? "  /  PAR " + par : "");
             }
             Stack.Clear();
+            _leaveAskedAt = -99f;
+            if (_foot != null) _foot.text = FootLine;
             Show("title");
             _dir.ShowAttract();
         }

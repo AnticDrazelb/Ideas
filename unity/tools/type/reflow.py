@@ -191,6 +191,12 @@ LABELS = [
     ("title quad · FORGE", "[ FORGE ]", 24, (625 - 96) / 2 - 6),
     # the same slot before the first cube is cleared — see Screens._makeQuad
     ("title quad · MANUAL", "[ MANUAL ]", 24, (625 - 96) / 2 - 6),
+
+    # THE FOOTER, WHICH HAS TWO TEXTS. The second is what a back press puts
+    # there while it asks whether you meant it — see Screens.BackPressed. It is
+    # the wider of the two and it is centred on the whole plate.
+    ("title foot · build", "DIAGNOSTIC BUILD · NO DEAD PIXELS", 19, 625),
+    ("title foot · leave", "PRESS BACK AGAIN TO LEAVE", 19, 625),
     ("title quad · CALIBRATE", "[ CALIBRATE ]", 24, (625 - 96) / 2 - 6),
 
     # CALIBRATE's own three-up feet, which are Bracketed and so carry them

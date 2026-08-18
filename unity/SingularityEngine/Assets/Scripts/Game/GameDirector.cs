@@ -870,7 +870,20 @@ namespace Singularity.Game
             // wire with no bloom is a hairline. See Bloom.Lift.
             Glow.Lift = View.GlassAmount;
 
-            if (Input.GetKeyDown(KeyCode.Escape) && !_screenUp && S.lv != null) Screens.ShowPause(this);
+            // THE BACK GESTURE, AND IT REACHES EVERY SCREEN NOW. This was
+            // `Escape && !_screenUp && S.lv != null` — so back opened the pause
+            // card while playing and did nothing at all on the manual, the vault
+            // rack, calibrate, access, the Forge or its editor. See
+            // Screens.BackPressed for what each of them does with it, and why the
+            // title asks before it takes you at your word.
+            //
+            // Not during the ending: the machine is coming apart on its own clock
+            // and there is nothing to go back to until it has.
+            if (Input.GetKeyDown(KeyCode.Escape) && !_ending)
+            {
+                if (!_screenUp && S.lv != null) Screens.ShowPause(this);
+                else if (Screens.BackPressed()) Application.Quit();
+            }
         }
 
         void OnApplicationPause(bool paused)
