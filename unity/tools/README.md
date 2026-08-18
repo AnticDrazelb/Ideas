@@ -24,6 +24,24 @@ needs a declaration adding, that is the point: the list should stay short.
 
 ### What it cannot do, learned the hard way
 
+**A hollow stub agrees with whatever it is asked.** `Color` and `ColorUtility`
+were the first two to be made real, and the section below says why. Four more
+followed, each found the same way — by a new check printing the number it was
+asserting on and the number being obviously impossible:
+
+| | found by | what it answered |
+|---|---|---|
+| `Rect` | LayoutChecks | threw its constructor arguments away; every rect was 0×0, so "is the window square" was `0 == 0` |
+| `Screen` | LayoutChecks | `width` and `height` were 0, so every layout assertion was arithmetic on nothing |
+| `Vector3` | TitleChecks | every operator answered `default`; `Cross` was zero and `normalized` returned the input unchanged |
+| `Quaternion` | TitleChecks | `AngleAxis` answered identity, so the attract cube filled **0%** of its band at every angle of a rotation that never happened |
+
+The rule that falls out of it: **a stub may answer nothing only while nothing
+reads the answer.** The moment a check does arithmetic on a type, that type has
+to be real, and the giveaway is always the same — print the quantity you are
+asserting on, and an impossible number tells you the stub is lying before the
+assertion does.
+
 **A stub proves the SHAPE of a call, never the EXISTENCE of the thing being
 called.** The first time this project was opened in a real editor, it failed to
 compile on two lines naming `IconKind.AdaptiveForeground` and
@@ -176,6 +194,9 @@ The default run asserts, in order:
 | check | what it will not let you break |
 |-------|-------------------------------|
 | `AccessChecks` | the board's band at every vault under every dichromacy; **AA on the shipped palette**, AAA reported |
+| `LayoutChecks` | the play window is the shape of the board, on six phone shapes and one turned one — and the stroke the HUD draws is the rect the camera frames against |
+| `CoachChecks` | first contact still teaches the walk before the fold, because the authored cubes still open on a step |
+| `TitleChecks` | the attract cube stays inside the band between the masthead and the controls at every angle of its drift, and the scrim is black over the type and clear over the machine |
 | `ChassisChecks` | the C# cut reproduces the shipped PNG byte for byte (needs `CHASSIS_RAW`) |
 | `SoundChecks` | the fader curve; that the loudest legal moment cannot clip; and that the ending — a vault crossing, the collapse and the engine coming apart, modelled with Synth's real envelopes — does not either |
 | `FilterChecks` | that the brightness/contrast quads still compute what the camera shader they replaced computed, at all 8181 slider positions × 256 input levels, with the blend hardware and its clamps written out |

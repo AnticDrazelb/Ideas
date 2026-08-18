@@ -1131,13 +1131,159 @@ It is a stroke and never a plate: the canvas is a screen-space overlay and draws
 after the camera, so anything filled would paint over the cube. The void inside
 it stays void.
 
+## First contact — the two verbs nobody taught
+
+The shipped web build showed the manual once, on the first press of PLAY:
+
+```js
+if(!store.taught){ store.taught = 1; save(); show('scManual'); return; }
+```
+
+The port dropped that line and kept the field. `taught` was declared in
+`SaveData` and read by **nothing**, so a player opening this game for the first
+time got a black square, four dim arrows and no sentence anywhere in the product
+saying that a swipe folds the world. Every other mechanic here is taught — the
+plate has a card, the matrix has its one nudge, the four cubes at 146–149 are
+unsolvable without their lesson. The two verbs the game is *made of* were the
+only two nobody taught.
+
+Restoring the web build's answer would put a wall of type between a player and
+the thing they opened, and the manual's own header says why that fails: nobody
+reads a manual in a puzzle game. So `Assets/Scripts/Game/UI/Coach.cs` applies the
+doctrine already written on the plate card — *teach it when it shows up, once, on
+the cube that has one, with the thing itself waiting behind the card* — to the
+verbs.
+
+**The order is a measurement, not a preference.** The obvious script opens with
+SWIPE TO FOLD, because folding is the idea. Solve the authored cubes and read the
+first act of each optimal line:
+
+```
+  cube 1  FOOTING     par 1   step-up   step-up  step-up  FOLD-left
+  cube 2  THE TURN    par 1   step-down FOLD-up  step-down
+  cube 3  BURIED      par 2   step-left step-up  FOLD-left …
+  cube 4  TWO FACES   par 2   step-left step-down FOLD-right …
+```
+
+All four open on a **step**. A coach that opens with the fold is teaching the
+second verb first and asking for a move the cube does not want yet. So the walk
+is taught at the start, and the fold is taught at the state where folding *is*
+the answer — a question the game can ask itself, because the solver is right
+there. `Session.Advice` is the hint without the charge, split out of `Hint` so a
+tutorial cannot bill a player three hints for reading it.
+
+**What retires a lesson is evidence, not exposure.** The bits are written when
+the player DOES the verb, so somebody who folds before being asked is never
+asked, and somebody who backs out mid-lesson gets it again rather than having
+spent it on a screen they left. A save that has ever cleared a cube starts
+retired — `reached > 1`, the same reading the title's fourth door uses, so "has
+never finished a cube" has one definition in this game rather than two.
+
+**It never takes the input.** Every graphic is `raycastTarget = false` and there
+is no dismiss button, because there is nothing to dismiss: the way out of the
+lesson is to do the thing, and a player who already knows does it inside a second
+and never reads a word.
+
+`CoachChecks` plays cube one and cube two through the real `Session`, one move at
+a time, and asks the coach what it would be showing at every state: TAP before
+the player has walked, SWIPE at the first state whose next act is a fold, silence
+on the daily, on a made cube, on practice, past cube two and over a win. The ring
+is placed 68 times across 71 states of the ten authored cubes and never lands on
+a glyph, a node or a lock — a tap onto a plate turns the board inside out for
+five seconds, which is the largest event in the game going off inside a sentence
+that says TAP TO MOVE. And neither coached cube carries a plate or an everter, so
+there is only ever one teacher talking.
+
+**The rules stopped being reachable only from inside the settings screen.** The
+pause card's link row carries MANUAL beside CALIBRATE — the pause card is where
+somebody goes when they are stuck, which is exactly when a reference is worth
+having — and the title's fourth door reads MANUAL until the first cube is
+cleared, FORGE ever after. A level editor with a verify pass and share codes is
+the least useful thing in this game to somebody who has not played it.
+
+## The window is the shape of the thing in it
+
+The play screen frames the board in a stroke and the camera contains the solid
+inside the same rectangle. On 1440×2960 that rectangle was **1250 by 2075 around
+a board 977 square**: 78% of its width and 47% of its height, with five hundred
+pixels of nothing above it and five hundred below.
+
+That is not air. It is a frame drawn around empty space, and the two read
+completely differently — a stroke says *this is the window*, and a window twice
+as tall as its contents says the contents failed to load. So the window is cut to
+the square its contents are, about the same centre. `Fit` sizes the cube from the
+shorter side and offsets it by the rect's centre, and this changes neither: **the
+board does not move and does not change size.** The stroke comes in to meet it,
+and the four fold marks that hang on it come in from the edges of the display to
+the edges of the board.
+
+It also makes a fold cost the same in both axes. `Room` contains the solid inside
+this rect and a solid mid-fold is root two wide, so against 1250×2075 a
+horizontal fold pulled the camera out 15% and a vertical fold pulled it out not
+at all — the height was never the binding constraint. Against a square they are
+the same 15%.
+
+**Two definitions of one rectangle went with it.** The HUD drew the stroke from
+its own sum of the two bands while the camera framed against `Layout`'s, and
+`Layout` converted units to pixels with `Min(w/720, h/1280)` while the canvas
+scaler uses the geometric mean of the same two ratios. On a 16:9 phone those
+agree to within a per cent, which is why nothing ever looked wrong. On 1440×2960
+they are **2.000 and 2.151**: the camera believed the readout ended thirty-six
+pixels above where the readout drew itself, and in landscape it fitted the cube
+to a rect that ran under both bands. `Layout.CanvasScale` is the scaler's own
+factor now, and `Layout.ApertureInsets` hands the HUD the same rectangle the
+camera frames against.
+
+`LayoutChecks` measures the fill on six real phone shapes and one turned one:
+**82–83% across and 81% down on every one**, and the stroke and the camera agree
+to half a pixel.
+
+## The front screen's one object
+
+The title draws the machine in the gap between a masthead and a block of
+controls. Three things have to agree about that gap and they were three different
+opinions.
+
+**The scrim was shaped for something that is not there.** Its clear window sat at
+0.46–0.56 of the plate — a tenth of it — because it had been tuned against the
+three-line pitch printed under the masthead. The pitch was deleted; the window
+never moved. The cube drawn under it is a fifth of the plate, so most of it was
+under black. It does not read as a grey smudge because it is dark. It reads that
+way because it is under a gradient shaped for a paragraph.
+
+And the stops were *fractions*, while everything they align with is a fixed
+offset from an edge — the masthead is 346 units down whatever the plate is, the
+controls are 452 units up from the floor. On a 20:9 phone the plate is a hundred
+units taller and every stop lands late. So the scrim is two pieces anchored to
+two edges with heights in units: black under the type, black over the controls,
+nothing in between, identical on every phone.
+
+**The camera was framing into the wrong rectangle.** The attract cube was fitted
+to the play window, whose centre is pulled down by two HUD bands that are not
+drawn on this screen at all — so the subject of the title sat seventy units low.
+And it was framed for a solid that turns through *every* angle, because the pose
+was a continuous yaw: a cube that presents its diagonal at some point in the
+cycle has to be framed for root three of its own width. Bounded to a
+three-quarter view that drifts rather than spins, the worst silhouette is root
+two — which is 27% more cube on a 20:9 phone, and the difference between a
+product shot and a screensaver.
+
+`TitleChecks` walks the entire drift cycle at four thousand samples through the
+camera's own containment arithmetic: the cube reaches **96% of its band at its
+widest** without crossing it. It measures the scrim on three phone shapes and
+requires over 0.60 of black across every line of type and under 0.02 across
+everything of the machine that is not deliberately behind the opaque control
+plates. On 16:9 the cube comes out 6% smaller than it was — it used to overflow
+ninety units into the controls by accident, which is now the allowance it is
+given on purpose, and it is fully in the clear instead of mostly under scrim.
+
 ## What is not here yet
 
 Three things, none of them rules.
 
 Everything else is here: the rules, the three verbs, the vault ladder, the daily
 and its streak, the Forge with its verify pass and share codes, the seed box,
-the manual, the plate lesson, calibrate (including the brightness and contrast
-filters), the win card, the attract cube, the arrive/leave transitions, the
-reveal sweep, the cage, the depth readout, the character, time bending, the
-particle work, audio, haptics, safe areas and persistence.
+the manual, the plate lesson, first contact, calibrate (including the brightness
+and contrast filters), the win card, the attract cube, the arrive/leave
+transitions, the reveal sweep, the cage, the depth readout, the character, time
+bending, the particle work, audio, haptics, safe areas and persistence.

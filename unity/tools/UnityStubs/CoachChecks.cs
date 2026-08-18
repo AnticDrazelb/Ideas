@@ -40,6 +40,7 @@ static class CoachChecks
         Played(ok, 2);
         Retires(ok);
         Elsewhere(ok);
+        Alone(ok);
         Ring(ok);
     }
 
@@ -126,6 +127,34 @@ static class CoachChecks
         ok(sawFold, name + ": the fold was never taught");
         Console.WriteLine("coach: " + name + " (cube " + level + ") teaches the walk at the start and the fold "
                         + "at the state where folding is the answer");
+    }
+
+    /// <summary>
+    /// ONE TEACHER AT A TIME.
+    ///
+    /// The plate has its own card and it fires on the first cube that carries
+    /// one; the matrix has its one nudge and it fires on the third. Both would
+    /// land on top of the coach if a plate or an everter ever appeared in the two
+    /// cubes it speaks on — a modal card over a prompt that is waiting for a
+    /// swipe, on somebody's first minute. The cubes are authored, so today they
+    /// do not; this is what stops a re-cut of vault I from changing that quietly.
+    /// </summary>
+    static void Alone(Action<bool, string> ok)
+    {
+        for (int level = 1; level <= Coach.LastCube; level++)
+        {
+            BakedLevel b = Baked.Levels[level - 1];
+            string vox = new string(b.ToLevel(level).vox);
+            ok(vox.IndexOfAny(new[] { 'A', 'B' }) < 0,
+               b.name + " carries a plate, so the plate card fires over the coach on cube " + level);
+            ok(vox.IndexOf('E') < 0,
+               b.name + " carries an everter, which is vault IX's lesson arriving on cube " + level);
+        }
+
+        // and the matrix nudge waits until the coach has finished
+        ok(3 > Coach.LastCube, "the matrix nudge fires on cube 3, which the coach is still speaking on");
+        Console.WriteLine("coach: neither cube it speaks on carries a plate or an everter, and the matrix "
+                        + "nudge waits until cube 3 — one teacher at a time");
     }
 
     /// <summary>Once both are proved, the coach is silent — on any cube, in any state.</summary>
