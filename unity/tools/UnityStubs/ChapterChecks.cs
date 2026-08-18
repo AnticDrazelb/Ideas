@@ -2,6 +2,7 @@ using System;
 using Singularity.Core;
 using Singularity.UI;
 
+using Singularity.Game;
 /// <summary>
 /// TEN WORDS, AND WHEN THEY ARE SAID.
 ///
@@ -37,7 +38,7 @@ static class ChapterChecks
         // hypothesis. A list that never returns to it spends that once. Three
         // numbers, four chapters apart, and the gap to the end shortening is the
         // only device on the list that can make somebody dread the last chapter.
-        ok(Chapters.Words[0] == "nine." && Chapters.Words[4] == "five." && Chapters.Words[8] == "one.",
+        ok(Chapters.Words[0] == "nine." && Chapters.Words[4] == "half." && Chapters.Words[8] == "one.",
            "the countdown does not land on chapters one, five and nine");
 
         // ---- fired on the last cube of a chapter, and nowhere else ------------
@@ -84,5 +85,49 @@ static class ChapterChecks
         var line = new System.Text.StringBuilder("chapter:");
         foreach (string w in Chapters.Words) line.Append(' ').Append(w.Length == 0 ? "—" : w);
         Console.WriteLine(line.ToString() + " " + Chapters.Farewell + " (the ending)");
+    }
+}
+
+/// <summary>
+/// FINISHING RELOCKS THE LADDER, and the ways that can go wrong are all quiet.
+///
+/// A soft lock only half the screens know about is a lock a player walks around
+/// by accident. A lock with no way out strands somebody who wants to show a
+/// friend the last cube. And an unlock switch that moves the frontier destroys
+/// the lock permanently the first time it is used, which nothing on screen would
+/// report — the player would simply find, months later, that finishing no longer
+/// did anything.
+/// </summary>
+static class ProgressChecks
+{
+    public static void Run(Action<bool, string> ok)
+    {
+        var save = Store.Data;
+        int reached = save.reached, runs = save.runs, unlocked = save.unlocked;
+
+        // ---- the gate is one question, asked one way ------------------------
+        save.unlocked = 0; save.reached = 20;
+        ok(Store.Open(20) && !Store.Open(21), "the frontier does not gate at reached");
+        save.unlocked = 1;
+        ok(Store.Open(Vaults.LastCube), "the unlock switch does not open the last cube");
+        save.unlocked = 0;
+
+        // ---- a finished machine is a fact about runs, not about reached ------
+        ok(!Vaults.Cleared(0), "a save that has never finished reads as finished");
+        ok(Vaults.Cleared(1), "a save that has finished once does not read as finished");
+        ok(Vaults.Resume(1) == 1, "a relocked ladder does not resume at cube one");
+
+        // ---- and the words are still there for the second run ---------------
+        //
+        // The chapter words are said once EVER rather than once a run. A machine
+        // that says nine again on the second lap is a machine repeating itself,
+        // and the countdown only lands the first time anyway.
+        int mask = 0;
+        foreach (int level in new[] { 15, 30, 45 }) mask = Chapters.Mark(mask, level);
+        ok(!Chapters.Due(15, false, false, mask), "a second run repeats the chapter words");
+
+        save.reached = reached; save.runs = runs; save.unlocked = unlocked;
+        Console.WriteLine("progress: the ladder gates at reached, relocks on the last cube, "
+                        + "and the switch opens it without moving the frontier");
     }
 }

@@ -98,7 +98,13 @@ namespace Singularity.Core
         /// </summary>
         public static int Resume(int reached) => reached < 1 ? 1 : reached > LastCube ? LastCube : reached;
 
-        public static bool Cleared(int reached) => reached > LastCube;
+        /// <summary>
+        /// HAS THE MACHINE EVER BEEN FINISHED, which is not a question about
+        /// `reached` any more. Finishing relocks the ladder and hands it back at
+        /// cube one, so a save that has been to the core looks exactly like a save
+        /// that has not — except for this. See Store.runs.
+        /// </summary>
+        public static bool Cleared(int runs) => runs > 0;
 
         /// <summary>
         /// THE LAST VAULT, AND THERE IS ONE OF THOSE NOW TOO.

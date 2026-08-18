@@ -23,10 +23,15 @@ namespace Singularity.UI
     /// yet, and it retroactively changes what the vault list means. The draft this
     /// came from opened on it and never returned to it — which spends the good
     /// part once, because a reader forms a hypothesis at "nine" and has it dropped
-    /// at "again". So the count comes back at five and at one, four chapters
-    /// apart, and the gap closing is the whole reason it is worth doing: a
-    /// countdown is the only device on this list that can make somebody DREAD the
-    /// last one.
+    /// at "again". So the count comes back at the middle and at one, and the gap
+    /// closing is the whole reason it is worth doing: a countdown is the only
+    /// device on this list that can make somebody DREAD the last one.
+    ///
+    /// The middle one is `half.` rather than `five.` because it is still a count —
+    /// the player is told where they are — and it is also the only word on the
+    /// list that says something a number cannot. Five is a fact. Half is a
+    /// position, and it lands on the chapter where the plates arrive and the game
+    /// stops being about the collapse alone.
     ///
     /// ---- AND THE VOCABULARY TURNS ONCE ------------------------------------
     ///
@@ -57,7 +62,7 @@ namespace Singularity.UI
             "again.",     // II   FOOTING — the quiet rule, made loud
             "error.",     // III  DISTANT NEIGHBOURS — two decks touching is a fault
             "loop.",      // IV   NODES AND LOCKS
-            "five.",      // V    EMBERFALL
+            "half.",      // V    EMBERFALL — a count, and a statement
             "invert.",    // VI   SUBSTRATE — the plate that opens the solid
             "delete.",    // VII  THE FAR SIDE
             "lost.",      // VIII THRESHOLD — the first word that is a feeling

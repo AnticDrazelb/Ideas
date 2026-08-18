@@ -390,13 +390,19 @@ namespace Singularity.UI
         public static void ShowTitle()
         {
             int r = Vaults.Resume(Store.Data.reached);
-            bool done = Vaults.Cleared(Store.Data.reached);
+            bool done = Vaults.Cleared(Store.Data.runs);
             // A machine that has never been started is INITIALISED, not continued.
-            // And one that has been taken all the way to the core is neither: the
-            // button still plays, but it is offering the last cube back rather
-            // than pretending there is a next one.
+            //
+            // AND ONE THAT HAS BEEN FINISHED IS NEITHER. It used to read THE CORE,
+            // because a finished save sat past the last cube and the button was
+            // offering it back. Finishing relocks the ladder now and hands it over
+            // at cube one, so the button is genuinely starting again — and AGAIN
+            // is the honest word for that, as well as being the one the second
+            // chapter says. INITIALISE would be a lie to somebody who has already
+            // been to the core.
             if (_playLabel != null)
-                _playLabel.text = done ? "[ THE CORE ]" : r <= 1 ? "[ INITIALISE ]" : "[ CONTINUE ]";
+                _playLabel.text = done && r <= 1 ? "[ AGAIN ]"
+                                : r <= 1 ? "[ INITIALISE ]" : "[ CONTINUE ]";
             if (_makeQuad != null)
                 UiKit.SetLabel(_makeQuad, BeforeTheFirstClear ? "MANUAL" : "FORGE");
 
@@ -597,7 +603,7 @@ namespace Singularity.UI
                 return;
             }
 
-            bool earned = level <= Store.Data.reached;
+            bool earned = Store.Open(level);
             _jumpMsg.text = "";
             Show(null);
             _dir.Play(level, earned ? LoadKind.Vault : LoadKind.Practice);
@@ -689,7 +695,7 @@ namespace Singularity.UI
                     new Vector2(cx / (float)cols + nudge, 1f), new Vector2((cx + 1f) / cols + nudge, 1f),
                     new Vector2(6, -(cy + 1) * cellH + 6), new Vector2(-6, -cy * cellH - 6));
 
-                bool reached = level <= Store.Data.reached;
+                bool reached = Store.Open(level);
                 bool cleared = Store.TryBest(level, out int best);
                 bool ranked = Store.TryPar(level, out int par) && cleared;
 
@@ -1227,10 +1233,22 @@ namespace Singularity.UI
             // it, which is also how somebody finds a screen they did not know
             // the game had.
             Link(panel, "i.fx", "ACCESS", "MOTION · LIGHT · CONTRAST · WORDS", ShowAccess);
-            Toggle(panel, "i.togo", "FOLDS TO GO", "CYAN: PERFECT LINE · RUST: YOU SLIPPED",
+            Toggle(panel, "i.togo", "FOLDS TO GO", "CYAN: PERFECT · RUST: YOU SLIPPED",
                    () => Store.Data.togo, v => Store.Data.togo = v);
             Toggle(panel, "i.depth", "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL",
                    () => Store.Data.depth, v => Store.Data.depth = v);
+
+            // ---- and the way out of the soft lock ---------------------------
+            //
+            // IT IS NOT DRAWN UNTIL THERE IS SOMETHING TO UNLOCK. On a first run
+            // the whole ladder is ahead of the player and a switch offering to
+            // open it is offering to spoil the thing they just started; after the
+            // machine has been finished it is the difference between showing
+            // somebody cube 150 and solving a hundred and forty-nine to get there.
+            // The row is built once like every other and shown by ShowCalibrate,
+            // because a panel rebuilt on open is a panel that loses its scroll.
+            _unlockRow = Toggle(panel, "i.togo", "ALL CUBES OPEN", "JUMP TO ANY CUBE · BESTS COUNT",
+                   () => Store.Data.unlocked, v => Store.Data.unlocked = v);
             // Reading through the old flag rather than migrating the save: anybody
             // who had haptics switched off has haptic 0 and a strength they set
             // before that, and the slider must show them OFF rather than the
@@ -1305,7 +1323,7 @@ namespace Singularity.UI
             return r;
         }
 
-        static void Toggle(RectTransform panel, string icon, string label, string hint,
+        static RectTransform Toggle(RectTransform panel, string icon, string label, string hint,
                            System.Func<int> get, System.Action<int> set)
         {
             RectTransform r = CalRow(panel, icon, label, hint, true);
@@ -1317,6 +1335,7 @@ namespace Singularity.UI
                 return v != 0;
             }, new Vector2(1, 0.5f), new Vector2(1, 0.5f),
                 new Vector2(-108, -Access.TapTarget * 0.5f), new Vector2(-18, Access.TapTarget * 0.5f));
+            return r;
         }
 
         static void Bar(RectTransform panel, string icon, string label, string hint,
@@ -1366,7 +1385,14 @@ namespace Singularity.UI
             UiKit.Link(slot, "open", "OPEN", act, 20, Palette.Ink);
         }
 
-        public static void ShowCalibrate() => Show("calibrate");
+        static RectTransform _unlockRow;
+
+        public static void ShowCalibrate()
+        {
+            if (_unlockRow != null)
+                _unlockRow.gameObject.SetActive(Vaults.Cleared(Store.Data.runs));
+            Show("calibrate");
+        }
 
         // ---- access ----------------------------------------------------------
         //

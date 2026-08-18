@@ -371,10 +371,13 @@ static class CodeChecks
         ok(strayed == 0, strayed + " saved progress values resume outside cube 1.." + Vaults.LastCube);
         ok(offLadder == 0, offLadder + " saved progress values resume onto a cube the catalogue does not hold");
 
-        // and the finished flag is the one thing that reads past the end, so it
-        // has to be true THERE and nowhere earlier
-        ok(!Vaults.Cleared(Vaults.LastCube) && Vaults.Cleared(Vaults.LastCube + 1),
-           "the machine reads as finished at the wrong cube");
+        // AND THE FINISHED FLAG IS NO LONGER A QUESTION ABOUT `reached`. It used
+        // to be the one value that read past the end — a save at LastCube + 1 had
+        // finished — and finishing now RELOCKS the ladder and hands it back at
+        // cube one, so a finished save and a fresh one have the same `reached` and
+        // differ only in `runs`. See Store.runs and ProgressChecks.
+        ok(!Vaults.Cleared(0) && Vaults.Cleared(1),
+           "the machine reads as finished on the wrong number of runs");
 
         // THE TWENTY VAULTS TILE THE FIVE HUNDRED EXACTLY.
         //

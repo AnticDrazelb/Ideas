@@ -516,7 +516,33 @@ namespace Singularity.Game
                 // and the par it was scored against, which the vault grid rates it by
                 Store.SetPar(S.levelNo, S.lv.par);
                 if (!Store.TryTimeBest(S.levelNo, out long tb) || ms < tb) Store.SetTimeBest(S.levelNo, ms);
-                if (S.levelNo + 1 > Store.Data.reached) { Store.Data.reached = S.levelNo + 1; Store.Save(); }
+                // ---- AND FINISHING SENDS YOU BACK TO THE START ---------------
+                //
+                // The ladder relocks. Not a reset — every best, every par and
+                // every time survives, and `runs` remembers that the machine has
+                // been taken to the core — but the cubes are handed back one at a
+                // time, from one, the way they were the first time. The last thing
+                // the machine says is goodbye and the second chapter's word is
+                // `again.`; this is the game agreeing with them.
+                //
+                // Calibrate carries the way out, for somebody who wants to go
+                // straight back to a late cube. See Store.unlocked.
+                if (S.levelNo >= Vaults.LastCube)
+                {
+                    Store.Data.runs++;
+                    Store.Data.reached = 1;
+                    Store.Save();
+                }
+                // THE FRONTIER MOVES ONE CUBE AT A TIME, and only from itself.
+                // This was `levelNo + 1 > reached`, which is the same statement
+                // while nothing can be played out of order — and is not, with the
+                // unlock switch on, where clearing cube 140 would have jumped the
+                // frontier past a hundred and thirty-nine cubes nobody solved.
+                else if (S.levelNo == Store.Data.reached)
+                {
+                    Store.Data.reached = S.levelNo + 1;
+                    Store.Save();
+                }
                 // and there is no cube after the last one to cut. Asking for it
                 // would put the generator to work on a five hundred and first that
                 // is not in the ladder and is not supposed to exist.

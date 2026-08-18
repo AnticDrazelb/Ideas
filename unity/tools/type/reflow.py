@@ -208,6 +208,16 @@ LABELS = [
     ("title quad · CALIBRATE", "[ CALIBRATE ]", 24, (625 - 96) / 2 - 6),
 
     # CALIBRATE's own three-up feet, which are Bracketed and so carry them
+    # THE HINT UNDER EVERY CALIBRATE ROW, AND NOBODY HAD EVER MEASURED ONE.
+    # The panel is the plate less its own 28 a side; a wide hint runs from 58 to
+    # 0.72 of that, which is 352 units, and it does not wrap — a hint that does
+    # not fit is a hint with its last words missing and nothing on screen saying
+    # so. FOLDS TO GO shipped at 388.
+    ("cal hint · FOLDS TO GO", "CYAN: PERFECT · RUST: YOU SLIPPED", 17, 0.72 * (625 - 56) - 58),
+    ("cal hint · DEPTH", "DISTANCE PRINTED ON EVERY CELL", 17, 0.72 * (625 - 56) - 58),
+    ("cal hint · ACCESS", "MOTION · LIGHT · CONTRAST · WORDS", 17, 0.72 * (625 - 56) - 58),
+    ("cal hint · ALL CUBES OPEN", "JUMP TO ANY CUBE · BESTS COUNT", 17, 0.72 * (625 - 56) - 58),
+
     ("calibrate foot · MANUAL", "[ MANUAL ]", 24, (625 - 80) / 3 - 12),
     ("calibrate foot · BACK", "[ BACK ]", 24, (625 - 80) / 3 - 12),
     ("calibrate foot · MENU", "[ MENU ]", 24, (625 - 80) / 3 - 12),
@@ -248,7 +258,7 @@ LABELS = [
     ("chapter · again", "again.", 52, 960),
     ("chapter · error", "error.", 52, 960),
     ("chapter · loop", "loop.", 52, 960),
-    ("chapter · five", "five.", 52, 960),
+    ("chapter · half", "half.", 52, 960),
     ("chapter · invert", "invert.", 52, 960),
     ("chapter · delete", "delete.", 52, 960),
     ("chapter · lost", "lost.", 52, 960),

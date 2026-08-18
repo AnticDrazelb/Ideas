@@ -46,6 +46,30 @@ namespace Singularity.Game
         /// See UI/Chapters — going back for a par must not replay it.
         /// </summary>
         public int saidChapter = 0;
+
+        /// <summary>
+        /// HOW MANY TIMES THE MACHINE HAS BEEN TAKEN TO THE CORE.
+        ///
+        /// This used to be readable off `reached` — a save past the last cube had
+        /// finished — and that stopped being true the moment finishing SENDS YOU
+        /// BACK. The two facts are different: `reached` is how far along this run
+        /// you are, `runs` is whether the machine has ever been finished at all,
+        /// and only the second one should change what the title offers.
+        /// </summary>
+        public int runs = 0;
+
+        /// <summary>
+        /// THE WAY OUT OF THE SOFT LOCK, and it is a setting rather than a reward.
+        ///
+        /// Finishing relocks the ladder and hands it back at cube one, which is
+        /// the right default — the machine says goodbye and starts again, and
+        /// chapter II's word is `again.` for a reason. It is the wrong ONLY
+        /// option: somebody who finished last month and wants to show a friend
+        /// cube 150 should not have to solve a hundred and forty-nine cubes to get
+        /// there. So Calibrate carries a switch, and it appears once there is
+        /// something to unlock.
+        /// </summary>
+        public int unlocked = 0;
         public int buzz = 100, bright = 100, contrast = 100;
 
         // ---- access ---------------------------------------------------------
@@ -286,6 +310,18 @@ namespace Singularity.Game
         /// "once" true — a migration that runs every load is a setting the player
         /// cannot change.
         /// </summary>
+        /// <summary>
+        /// IS THIS CUBE OPEN — playable as a vault run, with its best recorded?
+        ///
+        /// One place, because there were two: the seed box asked one way and the
+        /// rack asked another, and a soft lock that only half the screens know
+        /// about is a lock a player walks around by accident. A cube past the
+        /// frontier is still PLAYABLE — it always was — it is played as practice,
+        /// which records nothing.
+        /// </summary>
+        public static bool Open(int level)
+            => Data.unlocked != 0 || level <= Data.reached;
+
         static void Migrate()
         {
             // EVERY LAUNCH, NOT ONCE — this one is not a version step, it is a
@@ -293,6 +329,18 @@ namespace Singularity.Game
             // has cleared a cube has been past the two the coach speaks on, and
             // must never be handed a tutorial on their four-hundredth. See Coach.
             Data.taught = Singularity.UI.Coach.Migrate(Data.taught, Data.reached);
+
+            // A SAVE THAT FINISHED UNDER THE OLD RULE HAS FINISHED. It stored
+            // `reached` one past the last cube, which is a state the ladder no
+            // longer has: finishing now records a run and hands the ladder back at
+            // one. Read the old fact, write the new one, and the player lands
+            // where a player finishing today would.
+            if (Data.reached > Singularity.Core.Vaults.LastCube)
+            {
+                if (Data.runs < 1) Data.runs = 1;
+                Data.reached = 1;
+                Save();
+            }
 
             if (Data.v >= 1) return;
             // EFFECTS OFF MEANT BOTH LESS MOVEMENT AND LESS LIGHT, and it still

@@ -133,7 +133,13 @@ namespace Singularity.Game
             // every player and every device pays identically.
             SolveClock.Reset();
 
-            if (how == LoadKind.Vault && levelNo > Store.Data.reached)
+            // AND UNLOCKING EVERYTHING MUST NOT SPEND THE LADDER. With the
+            // switch on, every cube loads as a vault run — so opening 140 would
+            // otherwise drag the frontier to 140 and the soft lock would be gone
+            // for good the first time somebody looked at a late cube. The switch
+            // decides what is PLAYABLE; only playing forward decides what is
+            // reached.
+            if (how == LoadKind.Vault && levelNo > Store.Data.reached && Store.Data.unlocked == 0)
             {
                 Store.Data.reached = levelNo;
                 Store.Save();

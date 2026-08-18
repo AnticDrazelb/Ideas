@@ -103,6 +103,7 @@ public static class ForgeChecks
         SkyChecks.Run(Ok);
         TiltChecks.Run(Ok);
         ChapterChecks.Run(Ok);
+        ProgressChecks.Run(Ok);
         CoachChecks.Run(Ok);
         ClaimChecks.Run(Ok);
         TitleChecks.Run(Ok);
