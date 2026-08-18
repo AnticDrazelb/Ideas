@@ -38,6 +38,11 @@ namespace UnityEngine
         public static implicit operator Vector2(Vector3 v) => new Vector2(v.x, v.y);
     }
 
+    /// <summary>
+    /// REAL ARITHMETIC, for the reason written over Color: every operator here
+    /// used to answer <c>default</c>, so a check that asked how wide a rotated
+    /// solid is got zero and agreed with whatever it was comparing against.
+    /// </summary>
     public struct Vector3
     {
         public float x, y, z;
@@ -47,28 +52,101 @@ namespace UnityEngine
         public static Vector3 up => new Vector3(0, 1, 0);
         public static Vector3 right => new Vector3(1, 0, 0);
         public static Vector3 forward => new Vector3(0, 0, 1);
-        public Vector3 normalized => this;
         public float sqrMagnitude => x * x + y * y + z * z;
-        public float magnitude => 0;
-        public static Vector3 Cross(Vector3 a, Vector3 b) => default;
-        public static float Dot(Vector3 a, Vector3 b) => 0;
-        public static Vector3 operator +(Vector3 a, Vector3 b) => default;
-        public static Vector3 operator -(Vector3 a, Vector3 b) => default;
-        public static Vector3 operator -(Vector3 a) => default;
-        public static Vector3 operator *(Vector3 a, float f) => default;
-        public static Vector3 operator *(float f, Vector3 a) => default;
+        public float magnitude => (float)Math.Sqrt(sqrMagnitude);
+        public Vector3 normalized
+        {
+            get
+            {
+                float m = magnitude;
+                // Unity's own: a vector too short to have a direction has none,
+                // rather than an infinity in every component
+                return m < 1e-5f ? zero : new Vector3(x / m, y / m, z / m);
+            }
+        }
+        public static Vector3 Cross(Vector3 a, Vector3 b)
+            => new Vector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+        public static float Dot(Vector3 a, Vector3 b) => a.x * b.x + a.y * b.y + a.z * b.z;
+        public static Vector3 operator +(Vector3 a, Vector3 b) => new Vector3(a.x + b.x, a.y + b.y, a.z + b.z);
+        public static Vector3 operator -(Vector3 a, Vector3 b) => new Vector3(a.x - b.x, a.y - b.y, a.z - b.z);
+        public static Vector3 operator -(Vector3 a) => new Vector3(-a.x, -a.y, -a.z);
+        public static Vector3 operator *(Vector3 a, float f) => new Vector3(a.x * f, a.y * f, a.z * f);
+        public static Vector3 operator *(float f, Vector3 a) => a * f;
         public static implicit operator Vector3(Vector2 v) => new Vector3(v.x, v.y, 0);
+        public override string ToString() => "(" + x + ", " + y + ", " + z + ")";
     }
 
+    /// <summary>
+    /// REAL, AND THE THIRD ONE THIS HARNESS HAS HAD TO LEARN THE LESSON ON.
+    ///
+    /// The title's attract pose is a quaternion and the camera decides how big
+    /// the cube may be by summing the rotated basis — so an AngleAxis answering
+    /// identity turns "does the machine stay inside the band between the masthead
+    /// and the controls" into a statement about a cube that never turns. It
+    /// passed, at 0% of the band, which is the giveaway a hollow stub always
+    /// leaves if anybody prints the number it is asserting on.
+    /// </summary>
     public struct Quaternion
     {
-        public static Quaternion identity => default;
-        public static Quaternion LookRotation(Vector3 f, Vector3 u) => default;
-        public static Quaternion AngleAxis(float a, Vector3 axis) => default;
-        public static Quaternion Euler(float x, float y, float z) => default;
-        public static Quaternion Euler(Vector3 e) => default;
-        public static Quaternion operator *(Quaternion a, Quaternion b) => default;
-        public static Vector3 operator *(Quaternion a, Vector3 v) => default;
+        public float x, y, z, w;
+        public Quaternion(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; }
+        public static Quaternion identity => new Quaternion(0, 0, 0, 1);
+
+        public static Quaternion AngleAxis(float degrees, Vector3 axis)
+        {
+            Vector3 a = axis.normalized;
+            float h = degrees * 0.5f * (float)Math.PI / 180f;
+            float s = (float)Math.Sin(h);
+            return new Quaternion(a.x * s, a.y * s, a.z * s, (float)Math.Cos(h));
+        }
+
+        /// <summary>Unity's order: Z, then X, then Y, applied to the same frame.</summary>
+        public static Quaternion Euler(float x, float y, float z)
+            => AngleAxis(y, Vector3.up) * AngleAxis(x, Vector3.right) * AngleAxis(z, Vector3.forward);
+        public static Quaternion Euler(Vector3 e) => Euler(e.x, e.y, e.z);
+
+        public static Quaternion LookRotation(Vector3 f, Vector3 u)
+        {
+            Vector3 z = f.normalized;
+            if (z.sqrMagnitude < 1e-10f) return identity;
+            Vector3 xa = Vector3.Cross(u, z).normalized;
+            Vector3 ya = Vector3.Cross(z, xa);
+            float t = xa.x + ya.y + z.z;
+            if (t > 0f)
+            {
+                float s = (float)Math.Sqrt(t + 1f) * 2f;
+                return new Quaternion((ya.z - z.y) / s, (z.x - xa.z) / s, (xa.y - ya.x) / s, s * 0.25f);
+            }
+            if (xa.x > ya.y && xa.x > z.z)
+            {
+                float s = (float)Math.Sqrt(1f + xa.x - ya.y - z.z) * 2f;
+                return new Quaternion(s * 0.25f, (xa.y + ya.x) / s, (z.x + xa.z) / s, (ya.z - z.y) / s);
+            }
+            if (ya.y > z.z)
+            {
+                float s = (float)Math.Sqrt(1f + ya.y - xa.x - z.z) * 2f;
+                return new Quaternion((xa.y + ya.x) / s, s * 0.25f, (ya.z + z.y) / s, (z.x - xa.z) / s);
+            }
+            float s2 = (float)Math.Sqrt(1f + z.z - xa.x - ya.y) * 2f;
+            return new Quaternion((z.x + xa.z) / s2, (ya.z + z.y) / s2, s2 * 0.25f, (xa.y - ya.x) / s2);
+        }
+
+        public static Quaternion operator *(Quaternion a, Quaternion b)
+            => new Quaternion(a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+                              a.w * b.y + a.y * b.w + a.z * b.x - a.x * b.z,
+                              a.w * b.z + a.z * b.w + a.x * b.y - a.y * b.x,
+                              a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z);
+
+        public static Vector3 operator *(Quaternion q, Vector3 v)
+        {
+            // v + 2w(q x v) + 2(q x (q x v)) — the usual expansion, and it is
+            // exact for a unit quaternion, which every one this makes is
+            Vector3 u = new Vector3(q.x, q.y, q.z);
+            Vector3 t = Vector3.Cross(u, v) * 2f;
+            return v + t * q.w + Vector3.Cross(u, t);
+        }
+
+        public override string ToString() => "(" + x + ", " + y + ", " + z + ", " + w + ")";
     }
 
     /// <summary>

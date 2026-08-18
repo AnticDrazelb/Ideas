@@ -75,6 +75,48 @@ namespace Singularity.Game
         // ---- live view state (driven by the session and the input router) ----
         public float peekYaw, peekPitch, peekAmt;
 
+        // ---- the attract pose -------------------------------------------------
+        //
+        // A POSE, NOT A TUMBLE, AND THE SIZE IS THE ARGUMENT.
+        //
+        // This used to be a continuous yaw — a full revolution every twenty-one
+        // seconds — with the pitch rocking through twenty-two degrees under it. A
+        // solid turning through every angle presents its DIAGONAL at some point in
+        // the cycle, so it has to be framed for root three of its own width, and
+        // the front screen has one band to give it: whatever the masthead and the
+        // controls leave, which is about a third of the plate. Framed for the
+        // worst angle, the cube was drawn at little more than half the size the
+        // band could hold, on the one screen where it is the subject.
+        //
+        // Bounded, the worst silhouette is root two and it comes at forty-five
+        // degrees, which is inside the swing. That is the whole difference: same
+        // band, same containment argument, a cube half again as big — and a
+        // composed three-quarter view rather than whatever angle the clock
+        // happened to stop at, which is the difference between a product shot and
+        // a screensaver. It still moves; it breathes rather than spins.
+        //
+        // Every number here is asserted against the band it has to stay inside —
+        // see TitleChecks, which runs this exact function and the camera's own
+        // containment arithmetic over the whole cycle.
+
+        /// <summary>The three-quarter view the machine is presented in.</summary>
+        public const float AttractYaw = 34f, AttractPitch = 23f;
+
+        /// <summary>How far either angle drifts either side of it, and how slowly.</summary>
+        public const float AttractYawSwing = 15f, AttractPitchSwing = 6f;
+        public const float AttractYawHz = 0.055f, AttractPitchHz = 0.083f;
+
+        /// <summary>
+        /// The pose at a time, and it is a pure function of one — so the check can
+        /// walk the entire cycle rather than trusting a comment about it.
+        /// </summary>
+        public static Quaternion AttractPose(float t)
+        {
+            float yaw = AttractYaw + Mathf.Sin(t * AttractYawHz * 2f * Mathf.PI) * AttractYawSwing;
+            float pitch = AttractPitch + Mathf.Sin(t * AttractPitchHz * 2f * Mathf.PI) * AttractPitchSwing;
+            return Quaternion.AngleAxis(yaw, Vector3.up) * Quaternion.AngleAxis(pitch, Vector3.right);
+        }
+
         // ---- eversion ---------------------------------------------------------
         //
         // THE RENDERER AND THE RULES HAVE TO STAY THE SAME STATEMENT. That is the
@@ -713,9 +755,7 @@ namespace Singularity.Game
             if (attract)
             {
                 _attractT += Time.unscaledDeltaTime;
-                live = Quaternion.AngleAxis(_attractT * 17f, Vector3.up)
-                     * Quaternion.AngleAxis(Mathf.Sin(_attractT * 0.41f) * 22f, Vector3.right)
-                     * live;
+                live = AttractPose(_attractT) * live;
             }
 
             cube.rotation = live * baseRot;

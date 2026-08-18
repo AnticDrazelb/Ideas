@@ -63,6 +63,35 @@ namespace Singularity.Game
         public const float TopBand = 162f, BottomBand = 128f;
 
         /// <summary>
+        /// THE TITLE'S OWN TWO BANDS, and they are not the HUD's.
+        ///
+        /// The front screen reserves a masthead — wordmark, the vault and cube it
+        /// will resume, and the rule that closes them — and a block of controls
+        /// stacked up from the floor. What is left between the two is the only
+        /// place the machine itself can be, and it is the one thing on that screen
+        /// worth looking at.
+        ///
+        /// They live here rather than as literals in Screens because three
+        /// separate things have to agree about them: the screen that draws the
+        /// masthead, the scrim that has to be clear where the cube is, and the
+        /// camera that frames the cube into the gap. They were literals, the scrim
+        /// was a gradient tuned by eye against a paragraph that has since been
+        /// deleted, and the camera had never heard of either.
+        /// </summary>
+        public const float TitleMastBottom = 346f;
+
+        /// <summary>The controls, measured up from the plate's floor. See Screens.BuildTitle.</summary>
+        public const float TitleFootTop = 452f;
+
+        /// <summary>
+        /// How far the title's scrim takes to get the black off the type, at each
+        /// end. The machine may not stand inside it — a cube under a gradient is
+        /// the smudge the whole restaging is about — so the band it is framed into
+        /// starts past it. See UiKit.Stage.
+        /// </summary>
+        public const float TitleScrimRamp = 30f;
+
+        /// <summary>
         /// THE HOUSING IS NOT ONE NUMBER ANY MORE.
         ///
         /// It was, while it was drawn: a border you could make as thick as you
@@ -169,6 +198,54 @@ namespace Singularity.Game
             return new Rect(b.xMin + ix, b.yMin + iy,
                             Mathf.Max(1f, b.width - ix * 2f),
                             Mathf.Max(1f, b.height - iy * 2f));
+        }
+
+        /// <summary>
+        /// WHERE THE MACHINE GOES ON THE FRONT SCREEN — the gap between the
+        /// masthead and the controls, which is a different rectangle from the
+        /// play window and was being framed with the play window's centre.
+        ///
+        /// The attract cube was fitted to <see cref="BoardRect"/>, whose centre is
+        /// pulled down by the HUD's two bands being different heights — bands that
+        /// are not even drawn on this screen. So the one object the title is about
+        /// sat seventy units low, crowding the primary and leaving a hole under
+        /// the rule.
+        /// </summary>
+        /// <summary>
+        /// How far the machine is allowed to stand BEHIND the controls.
+        ///
+        /// The four buttons and the primary are opaque plates — Palette.Panel is
+        /// #0d1117 at full alpha — so a solid passing behind them is occluded
+        /// rather than muddled, and the scrim over that band is opaque too, so it
+        /// cannot peek through the gutters between them either. It already did
+        /// this: framed into the play window at the old margin, the tumbling cube
+        /// reached ninety units past the top of the control block on a 16:9 phone.
+        /// That was an accident of two rectangles disagreeing. This is the same
+        /// composition on purpose, and the same number, so the front screen does
+        /// not get SMALLER on the phone it was composed against.
+        /// </summary>
+        public const float TitleBehind = 90f;
+
+        public static Rect TitleRect()
+        {
+            Rect g = GlassRect();
+            float s = CanvasScale;
+
+            // The top is the masthead plus the scrim's ramp: the machine may not
+            // stand where the type is, and it may not stand in the gradient that
+            // gets the black off the type either — a cube under a ramp is the
+            // smudge this whole change is about.
+            float top = (TitleMastBottom + TitleScrimRamp) * s;
+            float bottom = (TitleFootTop - TitleBehind) * s;
+
+            // A SHORT DEVICE STILL GETS A BAND. The masthead and the controls are
+            // fixed heights and the plate is not, so on the shortest phone this
+            // has to answer is a sliver — and a sliver is still where the cube
+            // goes. It is never allowed to invert, which would put the cube behind
+            // the wordmark.
+            float h = Mathf.Max(120f * s, g.height - top - bottom);
+            float y = g.yMin + Mathf.Max(0f, g.height - top - h);
+            return new Rect(g.xMin, y, g.width, h);
         }
 
         /// <summary>

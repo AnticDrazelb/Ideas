@@ -302,6 +302,13 @@ namespace Singularity.Game
         /// dead board of whatever was last played. Showing the title is what asks
         /// for it now, so there is no way to arrive at that screen without it.
         /// </summary>
+        /// <summary>
+        /// Root two is the worst silhouette a bounded three-quarter pose presents;
+        /// the rest is air, so a corner never touches the rule above it or the
+        /// primary below. TitleChecks walks the whole cycle against this number.
+        /// </summary>
+        public const float AttractMargin = 1.53f;
+
         public void ShowAttract()
         {
             if (View.attract) return;      // already turning; do not reload under it
@@ -323,11 +330,21 @@ namespace Singularity.Game
             Rig.Pull = 0f;
             View.Rebuild(true);
             View.SkipWave();
-            // A LOT MORE MARGIN THAN A PLAYED BOARD GETS. The attract cube is
-            // scenery on a screen whose job is words: at play margin it filled the
-            // frame and the pitch was printed over the top of it. Sized to sit in
-            // the band the title's gradient deliberately leaves clear.
-            Rig.Fit(S.N, 2.30f);
+            // INTO THE BAND THE TITLE ACTUALLY LEAVES, AND FILLING IT.
+            //
+            // This was Fit(N, 2.30) — the play window, with enough margin that a
+            // freely tumbling cube never showed its diagonal past the gradient's
+            // clear stripe. Two things were wrong with that and both were stale.
+            // The window it framed into is the HUD's, whose two bands are
+            // different heights and are not drawn on this screen at all, so the
+            // subject of the title sat seventy units low. And the margin was
+            // paying for a full tumble AND for a paragraph of pitch that has since
+            // been deleted from the screen.
+            //
+            // The band is Layout's now, the pose is bounded, and the margin is the
+            // root two a bounded pose actually needs plus air. See CubeView's
+            // attract constants and TitleChecks.
+            Rig.FitTo(Layout.TitleRect(), S.N, AttractMargin);
             _fx.SetBoard(S.N);
         }
 

@@ -78,9 +78,19 @@ namespace Singularity.Game
         /// and fits to whichever of its sides is smaller — landscape is not a
         /// special case, it is the same question with a different answer.
         /// </summary>
-        public void Fit(int n, float margin = 1.28f)
+        public void Fit(int n, float margin = 1.28f) => FitTo(Layout.BoardRect(), n, margin);
+
+        /// <summary>
+        /// FIT INTO A NAMED RECTANGLE, because the game has two of them.
+        ///
+        /// The play window is the square the HUD's stroke is drawn around. The
+        /// title's is the gap between the masthead and the controls, which is a
+        /// different shape in a different place — and the attract cube was being
+        /// framed with the play window's centre, so it sat low on the one screen
+        /// where it is the subject rather than the board.
+        /// </summary>
+        public void FitTo(Rect board, int n, float margin)
         {
-            Rect board = Layout.BoardRect();
             float screenH = Mathf.Max(1f, Screen.height);
 
             // the cube needs this many world units across, allowing for the fact

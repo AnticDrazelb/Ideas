@@ -938,44 +938,103 @@ namespace Singularity.UI
         /// tasteful — the two zero-alpha stops in the middle are what make it a
         /// stage instead of a tint.
         /// </summary>
-        public static Image Stage(RectTransform rt)
+        /// <summary>
+        /// THE TITLE'S SCRIM, AND IT IS TWO PIECES ANCHORED TO TWO EDGES.
+        ///
+        /// It was one gradient stretched over the whole plate, with its stops
+        /// written as FRACTIONS. Everything it has to line up with is a fixed
+        /// offset from an edge — the masthead is 346 units down whatever the plate
+        /// is, the controls are 452 units up from the floor — so on any plate that
+        /// is not the reference 1127.5 the ramp drifts away from the two things it
+        /// exists to sit between. On a 20:9 phone the plate is a hundred units
+        /// taller and every stop lands late.
+        ///
+        /// And the stops themselves were tuned against a three-line PITCH that has
+        /// since been deleted from the screen, which left the clear stripe a tenth
+        /// of the plate tall with a cube a fifth of the plate drawn under it. That
+        /// is the whole reason the machine reads as a grey smudge on the front
+        /// screen: it is not dark, it is under a scrim shaped for a paragraph that
+        /// is not there.
+        ///
+        /// Anchored, it cannot drift: a piece at the top as tall as the masthead
+        /// plus its ramp, a piece at the floor as tall as the controls plus theirs,
+        /// and nothing in between. Every phone gets the same black under the same
+        /// type and the same clear across the same band.
+        /// </summary>
+        /// <summary>Where the last line of masthead type ends — the cube name's baseline box.</summary>
+        public const float StageTypeBottom = 322f;
+
+        /// <summary>
+        /// The alpha of the top piece, as a function of units down from the plate's
+        /// top edge. Opaque over the type, then off across the ramp.
+        /// </summary>
+        public static float StageTopAlpha(float down)
         {
-            const int N = 256;
+            float clear = Layout.TitleMastBottom + Layout.TitleScrimRamp;
+            if (down >= clear) return 0f;
+            if (down <= StageTypeBottom) return Mathf.Lerp(0.96f, 0.92f, Mathf.Clamp01(down / StageTypeBottom));
+            return Mathf.Lerp(0.92f, 0f, Mathf.InverseLerp(StageTypeBottom, clear, down));
+        }
+
+        /// <summary>The bottom piece, as a function of units UP from the plate's floor.</summary>
+        public static float StageBottomAlpha(float up)
+        {
+            float clear = Layout.TitleFootTop + Layout.TitleScrimRamp;
+            if (up >= clear) return 0f;
+            if (up <= Layout.TitleFootTop) return Mathf.Lerp(1f, 0.90f, Mathf.Clamp01(up / Layout.TitleFootTop));
+            return Mathf.Lerp(0.90f, 0f, Mathf.InverseLerp(Layout.TitleFootTop, clear, up));
+        }
+
+        /// <summary>
+        /// The scrim the front screen is composed on: black under the masthead,
+        /// black over the controls, and the machine in the clear between them.
+        /// </summary>
+        public static void Stage(RectTransform rt)
+        {
+            float topH = Layout.TitleMastBottom + Layout.TitleScrimRamp;
+            float botH = Layout.TitleFootTop + Layout.TitleScrimRamp;
+
+            Piece(rt, "stageTop", true, topH, d => StageTopAlpha(d * topH));
+            Piece(rt, "stageBottom", false, botH, u => StageBottomAlpha(u * botH));
+
+            // the plate under both of them is the void, exactly as every other
+            // screen's is — the pieces only ever ADD black over it
+            Image own = Ensure<Image>(rt.gameObject);
+            own.color = Palette.Void;
+            own.raycastTarget = false;
+        }
+
+        static void Piece(RectTransform parent, string name, bool top, float height,
+                          System.Func<float, float> alphaAt)
+        {
+            const int N = 128;
             var tex = new Texture2D(1, N, TextureFormat.RGBA32, false)
             {
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Bilinear,
-                name = "stage"
+                name = name
             };
-
-            // position down the screen -> alpha of black
-            // The clear window sits LOWER than the original's, because this port
-            // prints two extra lines at the top — the vault and the cube it will
-            // resume — and the pitch underneath them was landing at a third of the
-            // way down, where the old ramp had already gone transparent. Type over
-            // an unscrimmed turning cube is type nobody can read.
-            float[] stopAt = { 0f, 0.18f, 0.36f, 0.46f, 0.56f, 0.66f, 0.76f, 1f };
-            float[] stopA  = { 0.96f, 0.88f, 0.16f, 0f, 0f, 0.34f, 0.90f, 1f };
 
             var px = new Color32[N];
             for (int i = 0; i < N; i++)
             {
-                float t = i / (float)(N - 1);
-                float down = 1f - t;                 // texture row 0 is the BOTTOM
-                int s = 0;
-                while (s < stopAt.Length - 2 && down > stopAt[s + 1]) s++;
-                float k = Mathf.InverseLerp(stopAt[s], stopAt[s + 1], down);
-                float a = Mathf.Lerp(stopA[s], stopA[s + 1], k);
-                px[i] = new Color32(0, 0, 0, (byte)Mathf.RoundToInt(Mathf.Clamp01(a) * 255f));
+                // texture row 0 is the BOTTOM of the quad; both functions are
+                // written in terms of distance from their own anchored edge
+                float fromEdge = top ? 1f - i / (float)(N - 1) : i / (float)(N - 1);
+                px[i] = new Color32(0, 0, 0, (byte)Mathf.RoundToInt(Mathf.Clamp01(alphaAt(fromEdge)) * 255f));
             }
             tex.SetPixels32(px);
             tex.Apply(false, true);
 
-            Image img = Ensure<Image>(rt.gameObject);
+            RectTransform rt = top
+                ? Rect(parent, name, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -height), Vector2.zero)
+                : Rect(parent, name, new Vector2(0, 0), new Vector2(1, 0), Vector2.zero, new Vector2(0, height));
+
+            var img = rt.gameObject.AddComponent<Image>();
             img.sprite = Sprite.Create(tex, new UnityEngine.Rect(0, 0, 1, N), new Vector2(0.5f, 0.5f), 100f);
             img.type = Image.Type.Simple;
             img.color = Color.white;
-            return img;
+            img.raycastTarget = false;
         }
 
         /// <summary>
