@@ -214,12 +214,13 @@ LABELS = [
     ("pause link · MANUAL", "MANUAL", 20, (625 - 144) / 2),
     ("pause link · CALIBRATE", "CALIBRATE", 20, (625 - 144) / 2),
 
-    # THE COACH'S TWO LINES, under the window rather than on it. The box is the
-    # aperture's own width, and the aperture is a SQUARE cut out of the glass now
-    # — so the narrowest it ever gets is the tallest phone, where the square is
-    # limited by a width the chassis has already taken 95 units out of. 21:9 at
-    # 1080x2520 is the worst of the shapes LayoutChecks measures: 862 pixels at
-    # 1.7185 units per pixel, less the stroke's own inset, is 470.
+    # THE COACH'S TWO LINES, inside the window at the bottom of it. The box is
+    # the aperture's own width, and the aperture is cut to the BOARD across — it
+    # runs the full band down, but never wider than the square the cube fills —
+    # so the narrowest it ever gets is the tallest phone, where that width is
+    # what the chassis has already taken 95 units out of. 21:9 at 1080x2520 is
+    # the worst of the shapes LayoutChecks measures: 862 pixels at 1.7185 units
+    # per pixel, less the stroke's own inset, is 470.
     ("coach · TAP TO MOVE", "TAP TO MOVE", 22, 470),
     ("coach · SWIPE TO FOLD", "SWIPE TO FOLD", 22, 470),
 

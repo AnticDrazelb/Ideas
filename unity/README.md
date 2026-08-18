@@ -1203,42 +1203,83 @@ having — and the title's fourth door reads MANUAL until the first cube is
 cleared, FORGE ever after. A level editor with a verify pass and share codes is
 the least useful thing in this game to somebody who has not played it.
 
-## The window is the shape of the thing in it
+## The window is as wide as the board and as tall as the band
 
-The play screen frames the board in a stroke and the camera contains the solid
-inside the same rectangle. On 1440×2960 that rectangle was **1250 by 2075 around
-a board 977 square**: 78% of its width and 47% of its height, with five hundred
-pixels of nothing above it and five hundred below.
+The play screen frames the board in a stroke, and the camera holds the solid
+inside a rectangle. On 1440×2960 that rectangle was **1250 by 2075 around a board
+977 square**: 78% of its width and 47% of its height, with five hundred pixels of
+nothing above it and five hundred below.
 
 That is not air. It is a frame drawn around empty space, and the two read
 completely differently — a stroke says *this is the window*, and a window twice
-as tall as its contents says the contents failed to load. So the window is cut to
-the square its contents are, about the same centre. `Fit` sizes the cube from the
-shorter side and offsets it by the rect's centre, and this changes neither: **the
-board does not move and does not change size.** The stroke comes in to meet it,
-and the four fold marks that hang on it come in from the edges of the display to
-the edges of the board.
+as tall as its contents says the contents failed to load. So the window was cut
+to the square its contents are, about the same centre.
 
-It also makes a fold cost the same in both axes. `Room` contains the solid inside
-this rect and a solid mid-fold is root two wide, so against 1250×2075 a
-horizontal fold pulled the camera out 15% and a vertical fold pulled it out not
-at all — the height was never the binding constraint. Against a square they are
-the same 15%.
+**And that traded one kind of unaccounted-for space for another.** The five
+hundred pixels stopped being inside the frame and became four hundred *outside*
+it at each end: a band of case under the rule that closes the readout with
+nothing in it, and another over MENU / UNDO / HINT. The housing is a photograph
+of an instrument, and an instrument does not have gaps between its window and its
+chrome that nothing explains.
 
-**Two definitions of one rectangle went with it.** The HUD drew the stroke from
-its own sum of the two bands while the camera framed against `Layout`'s, and
-`Layout` converted units to pixels with `Min(w/720, h/1280)` while the canvas
-scaler uses the geometric mean of the same two ratios. On a 16:9 phone those
-agree to within a per cent, which is why nothing ever looked wrong. On 1440×2960
-they are **2.000 and 2.151**: the camera believed the readout ended thirty-six
-pixels above where the readout drew itself, and in landscape it fitted the cube
-to a rect that ran under both bands. `Layout.CanvasScale` is the scaler's own
-factor now, and `Layout.ApertureInsets` hands the HUD the same rectangle the
-camera frames against.
+So the cut is in **one axis, not two**: to the board across, to the whole band
+down. The stroke's top lands ten units under the readout's rule and its bottom
+ten units over the control band — `Layout.ApertureY`, the inset it already had at
+the sides — so the window *meets* the chrome instead of floating between two
+helpings of it.
+
+**The board does not move and does not change size.** `Fit` sizes the cube from
+the shorter side of the rect and offsets it by the rect's centre. The shorter
+side is still the width, and taking the height out to the full band about its own
+centre does not move the centre. What changed is where the stroke is drawn, and
+where the four fold marks hanging on it sit.
+
+**A fold still costs the same in both axes,** because the camera is not contained
+by the window any more. `Room` works against `Layout.ContainRect` — the square
+inside the stroke, which is the aperture the camera used to be given, to the
+pixel. Containing against the tall window would give a vertical fold all the room
+it wants while a horizontal one still paid 15%, and a solid that turns both ways
+should not provoke a different framing depending which way. The extra height is
+headroom, not slack.
+
+**Landscape is not a special case, it is the same rule with the other answer.**
+Turned, the bands bind the *height* — 488 against 2756 of free width — so the
+shorter side is the height, the width is cut to it, and the window comes out the
+square it already was. Same for a 4:3 tablet. The plate this gives back only ever
+exists when the long axis is the one the bands are measured on, which is the
+shape a phone is held in.
+
+**Four lines of type came inside with it.** The plate clock, the sound caption,
+the toast and the coach's line all lived in the dead plate; there is none, so
+they hang on the stroke's inner edge, past the fold marks, in the band between
+the stroke and the board. `LayoutChecks.Stack` is what says that band is big
+enough — 175 to 304 units on the phone shapes against a stack of 112 up and 124
+down — and what states plainly that on a square window there is no band and they
+share the window with the board, which is what they did before this.
+
+**The four fold marks are on the frame now, not beside it.** They sat half a tap
+target — forty-four units — in from the stroke, because the mark and the
+pressable plate were one position and the plate is the thing that has to fit
+inside the housing. Twenty-nine clear units inside a stroke is not a mark on a
+frame, it is four things floating in a window. The arrow sits six units off the
+stroke; the plate keeps its own seat, and the glyph is offset back out to the
+edge inside it, so turning assist on moves a hit target and nothing you are
+looking at.
+
+**Two definitions of one rectangle went with the original change.** The HUD drew
+the stroke from its own sum of the two bands while the camera framed against
+`Layout`'s, and `Layout` converted units to pixels with `Min(w/720, h/1280)`
+while the canvas scaler uses the geometric mean of the same two ratios. On a 16:9
+phone those agree to within a per cent, which is why nothing ever looked wrong.
+On 1440×2960 they are **2.000 and 2.151**: the camera believed the readout ended
+thirty-six pixels above where the readout drew itself, and in landscape it fitted
+the cube to a rect that ran under both bands. `Layout.CanvasScale` is the
+scaler's own factor now, and `Layout.ApertureInsets` hands the HUD the same
+rectangle the camera frames against.
 
 `LayoutChecks` measures the fill on six real phone shapes and one turned one:
-**82–83% across and 81% down on every one**, and the stroke and the camera agree
-to half a pixel.
+**82–83% across** on every one, the stroke reaching the chrome at both ends to
+within a unit, and the stroke and the camera agreeing to half a pixel.
 
 ## The front screen's one object
 

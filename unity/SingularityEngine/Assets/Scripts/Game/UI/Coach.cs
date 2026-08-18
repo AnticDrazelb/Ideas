@@ -293,6 +293,15 @@ namespace Singularity.UI
         /// <summary>Restated only when the state changes, because Advice runs a solver.</summary>
         long _stamp = long.MinValue;
 
+        /// <summary>
+        /// How far the line's box stands above the stroke's inner edge, and how
+        /// tall it is. The foot is the HUD's own first clear unit — the line and
+        /// the four fold marks are the same kind of thing on the same frame — and
+        /// the height is public because the toast stacks on top of it and the two
+        /// must not be able to drift into each other. See Hud.MarkBand.
+        /// </summary>
+        public const float LineFoot = Hud.MarkBand, LineHeight = 38f;
+
         public Coach(RectTransform aperture)
         {
             _root = UiKit.Rect(aperture, "coach", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
@@ -306,14 +315,20 @@ namespace Singularity.UI
             _ring = UiKit.Icon(_root, "ring", Palette.Arc, 64f, new Vector2(0.5f, 0.5f), Vector2.zero);
             _arrow = UiKit.Icon(_root, "arrow", Palette.RustHi, 44f, new Vector2(0.5f, 0.5f), Vector2.zero);
 
-            // ONE LINE, UNDER THE WINDOW. Not a card, not a panel and not over the
-            // board: the thing being talked about is the board, and a coach that
-            // covers its own subject is a worse teacher than no coach. It sits in
-            // the gap the square window opened up between the aperture and the
-            // bottom band — see Layout.
+            // ONE LINE, UNDER THE BOARD. Not a card, not a panel and not over the
+            // cube: the thing being talked about is the board, and a coach that
+            // covers its own subject is a worse teacher than no coach.
+            //
+            // IT USED TO BE UNDER THE WINDOW, in the gap the square aperture left
+            // between itself and the control band. That gap is window now — the
+            // stroke runs from the readout's rule to the controls — so twenty-six
+            // units below the frame is on top of MENU, UNDO and HINT. It moves to
+            // the same side of the line: inside the stroke, past the down fold's
+            // arrow, and still well below the cube, which is fitted inside the
+            // square with 1.28 of margin and never reaches down this far.
             _line = UiKit.Label(_root, "line", "", 22, Palette.Ink, TextAnchor.UpperCenter,
                                 new Vector2(0, 0), new Vector2(1, 0),
-                                new Vector2(0, -64), new Vector2(0, -26));
+                                new Vector2(0, LineFoot), new Vector2(0, LineFoot + LineHeight));
         }
 
         /// <summary>

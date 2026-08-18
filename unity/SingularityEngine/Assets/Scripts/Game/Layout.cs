@@ -135,15 +135,21 @@ namespace Singularity.Game
         public static float PlateHeight => RefHeight - ChassisTop - ChassisBottom;
 
         /// <summary>
-        /// THE APERTURE — the window the board is framed in, and now the rect the
-        /// board has to stay INSIDE.
+        /// THE APERTURE'S OWN INSET — how far the stroke stands off whatever it is
+        /// hung on, at the sides and at the ends.
         ///
         /// These two numbers were literals in Hud, where they drew a stroke, and
         /// the camera had never heard of them: it fitted the cube to the whole
         /// board rect, so the moment a fold turned the solid past square it grew
         /// wider than its own frame and crossed the line that is supposed to be
-        /// the edge of the window. One definition, two consumers — the stroke and
-        /// the camera cannot disagree about where the window is.
+        /// the edge of the window. One definition, three consumers now — the
+        /// stroke, the rect the camera contains the solid inside, and the four
+        /// fold marks that hang on the stroke's inner edge.
+        ///
+        /// The vertical one is also the whole of the gap at the top and bottom of
+        /// the play screen: ten units of case between the stroke and the rule that
+        /// closes the readout, and ten between the stroke and the control band.
+        /// See <see cref="Window"/>.
         /// </summary>
         public const float ApertureX = 16f, ApertureY = 10f;
 
@@ -199,15 +205,7 @@ namespace Singularity.Game
                             Mathf.Max(1f, safe.height - top - bottom));
         }
 
-        public static Rect ApertureRect()
-        {
-            Rect b = BoardRect();
-            float s = CanvasScale;
-            float ix = ApertureX * s, iy = ApertureY * s;
-            return new Rect(b.xMin + ix, b.yMin + iy,
-                            Mathf.Max(1f, b.width - ix * 2f),
-                            Mathf.Max(1f, b.height - iy * 2f));
-        }
+        public static Rect ApertureRect() => Inset(BoardRect());
 
         /// <summary>
         /// WHERE THE MACHINE GOES ON THE FRONT SCREEN — the gap between the
@@ -303,44 +301,143 @@ namespace Singularity.Game
                                  Mathf.Max(1f, g.width),
                                  Mathf.Max(1f, g.height - top - bottom));
 
-            return Square(free);
+            return Window(free);
         }
 
         /// <summary>
-        /// THE WINDOW IS THE SHAPE OF THE THING IN IT.
+        /// THE WINDOW IS AS WIDE AS THE BOARD AND AS TALL AS THE BAND.
         ///
-        /// Everything above measures the space the board is ALLOWED, and that
-        /// space is whatever the housing and the two bands leave — on a 20:9
-        /// phone, 1250 by 2075. The board is a square fitted to the shorter of
-        /// those two, so it came out 977 across and 977 tall: 78% of the window's
-        /// width and 47% of its height, with five hundred pixels of nothing above
-        /// it and five hundred below.
+        /// Everything above measures the space the board is ALLOWED, and on a
+        /// 20:9 phone that space is 1236 by 2008. The board is a square fitted to
+        /// the shorter of those, so it is 1236 either way.
         ///
-        /// That is not empty space, it is a FRAME DRAWN AROUND EMPTY SPACE, and
-        /// the two read completely differently. The aperture is a stroke that says
-        /// "this is the window"; a window twice as tall as its contents says the
-        /// contents failed to load. Every screenshot of the play screen showed a
-        /// small game inside a large case.
+        /// The window used to be cut to that square, in both axes. That fixed a
+        /// real thing — a frame twice as tall as its contents reads as contents
+        /// that failed to load, not as air — and it paid for it with two bands of
+        /// dead plate: about four hundred pixels under the rule that closes the
+        /// readout, and four hundred more over the three controls, each a stretch
+        /// of case with nothing in it and no edge to say why. The housing is a
+        /// photograph of an instrument, and an instrument does not have
+        /// unaccounted-for gaps between its window and its chrome.
         ///
-        /// So the window is cut to the square its contents are, about the same
-        /// centre. THE BOARD DOES NOT MOVE AND DOES NOT CHANGE SIZE — Fit sizes
-        /// the cube from the SHORTER side and offsets it by the rect's CENTRE, and
-        /// this changes neither. The only thing that changes is where the stroke
-        /// is drawn, and the four fold marks that hang on it, which come in from
-        /// the edges of the display to the edges of the board where they belong.
+        /// So the cut is in ONE axis now, not two: to the board across, and to
+        /// the whole band down. The stroke's top lands <see cref="ApertureY"/>
+        /// under the readout's rule and its bottom the same distance over the
+        /// control band — the inset it already has at the sides — so the window
+        /// MEETS the chrome instead of floating between two helpings of it.
         ///
-        /// It also makes a fold cost the same in both axes. Room() contains the
-        /// solid inside this rect, and a solid mid-fold is root two wide: against
-        /// a window 1250 by 2075 a horizontal fold pulled the camera out 15% and a
-        /// vertical fold pulled it out not at all, because the height was never
-        /// the binding constraint. Against a square they are the same 15%. The
-        /// gesture is symmetric, so the framing it provokes should be.
+        /// THE BOARD DOES NOT MOVE AND DOES NOT CHANGE SIZE. Fit sizes the cube
+        /// from the SHORTER side of this rect and offsets it by the rect's CENTRE.
+        /// The shorter side is still the width, and taking the height out to the
+        /// full band about its own centre does not move the centre. The cube is
+        /// the same cube in the same place; what changed is where the stroke is
+        /// drawn and where the four fold marks hanging on it sit.
+        ///
+        /// AND THE FOLD STILL COSTS THE SAME IN BOTH AXES, because the camera is
+        /// not contained by this rect — see <see cref="ContainRect"/>. That was
+        /// the square's second argument and it is the one that had nothing to do
+        /// with dead plate, so it is kept rather than spent.
+        ///
+        /// LANDSCAPE IS NOT A SPECIAL CASE, it is the same rule with the other
+        /// answer. Turned, the bands bind the HEIGHT — 488 against 2756 of free
+        /// width — so the shorter side is the height, the width is cut to it, and
+        /// the window comes out the square it already was. The plate this gives
+        /// back is only ever there when the long axis is the one the bands are
+        /// measured on, which is the shape the game is held in.
         /// </summary>
-        static Rect Square(Rect r)
+        static Rect Window(Rect r)
         {
-            float side = Mathf.Max(1f, Mathf.Min(r.width, r.height));
+            float w = Mathf.Max(1f, Mathf.Min(r.width, r.height));
+            float h = Mathf.Max(1f, r.height);
             Vector2 c = r.center;
+            return new Rect(c.x - w * 0.5f, c.y - h * 0.5f, w, h);
+        }
+
+        /// <summary>
+        /// THE SQUARE THE BOARD ACTUALLY OCCUPIES, concentric with the window.
+        ///
+        /// The window is the stroke; this is the shape of the thing inside it. On
+        /// a phone the two differ by the eight hundred pixels of height the window
+        /// took back, and something still has to know the smaller number —
+        /// CameraRig.Fit sizes the cube from the shorter side of the window, and
+        /// this is the square that side describes.
+        /// </summary>
+        public static Rect BoardSquare()
+        {
+            Rect w = BoardRect();
+            float side = Mathf.Max(1f, Mathf.Min(w.width, w.height));
+            Vector2 c = w.center;
             return new Rect(c.x - side * 0.5f, c.y - side * 0.5f, side, side);
+        }
+
+        /// <summary>
+        /// WHERE THE SOLID HAS TO STAY, WHICH IS NO LONGER THE WHOLE WINDOW.
+        ///
+        /// CameraRig.Room pulls the camera back until the leaned or mid-fold solid
+        /// fits inside a rectangle. That rectangle was the aperture, and while the
+        /// aperture was square the two questions had one answer. They do not any
+        /// more: containing against the tall window would make a horizontal fold
+        /// cost fifteen per cent and a vertical one cost nothing, because the
+        /// height would never be the binding constraint again. A solid is as tall
+        /// as it is wide and it turns both ways; the framing it provokes should
+        /// not care which way.
+        ///
+        /// So the camera holds it inside the SQUARE, inset exactly as the stroke
+        /// is inset, and the height the window gained is headroom rather than
+        /// slack. This rect is the aperture the camera used to be given, to the
+        /// pixel — nothing about how it moves has changed — and it is inside the
+        /// stroke by construction, so containing against it still guarantees the
+        /// thing the stroke exists to promise: the cube does not cross the line.
+        /// </summary>
+        public static Rect ContainRect() => Inset(BoardSquare());
+
+        /// <summary>
+        /// HOW MUCH ROOM THE CAMERA LEAVES ROUND THE CUBE, and it lives here
+        /// rather than in CameraRig's signature because the HUD now has to know
+        /// it. Fit sizes the solid so that n * this many world units span the
+        /// shorter side of the window, which is the same as saying the drawn cube
+        /// is 1/1.28 of that side and the rest is air.
+        ///
+        /// It was a default argument on Fit and nothing else could see it, which
+        /// was fine while the only thing inside the window was the board. Four
+        /// lines of type live in there now.
+        /// </summary>
+        public const float FitMargin = 1.28f;
+
+        /// <summary>
+        /// THE BAND BETWEEN THE STROKE AND THE BOARD, in canvas units, at each of
+        /// the window's two ends.
+        ///
+        /// This is the space the window took back, and it is where the plate
+        /// clock, the caption, the toast and the coach's line go — so it is worth
+        /// a number rather than an eyeball. It is symmetric because Fit centres
+        /// the cube on the rect's centre and this is cut about the same one.
+        ///
+        /// On a phone it is a hundred and seventy units and the stack is a
+        /// hundred and twelve. On a 4:3 tablet the bands bind the HEIGHT, the
+        /// window is square, and it is seventy — see LayoutChecks.Stack, which is
+        /// where that difference is stated rather than discovered.
+        /// </summary>
+        public static float ClearBand()
+        {
+            Rect w = BoardRect();
+            float shorter = Mathf.Max(1f, Mathf.Min(w.width, w.height));
+            float drawn = shorter / FitMargin;
+            return Mathf.Max(0f, (w.height - drawn) * 0.5f) / Mathf.Max(0.0001f, CanvasScale);
+        }
+
+        /// <summary>
+        /// The stroke's own inset, applied to a rect. One definition, two callers
+        /// — the window the player sees and the square the camera works against —
+        /// so the two cannot disagree about how thick the frame is.
+        /// </summary>
+        static Rect Inset(Rect b)
+        {
+            float s = CanvasScale;
+            float ix = ApertureX * s, iy = ApertureY * s;
+            return new Rect(b.xMin + ix, b.yMin + iy,
+                            Mathf.Max(1f, b.width - ix * 2f),
+                            Mathf.Max(1f, b.height - iy * 2f));
         }
     }
 }

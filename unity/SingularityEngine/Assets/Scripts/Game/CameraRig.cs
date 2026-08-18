@@ -78,7 +78,7 @@ namespace Singularity.Game
         /// and fits to whichever of its sides is smaller — landscape is not a
         /// special case, it is the same question with a different answer.
         /// </summary>
-        public void Fit(int n, float margin = 1.28f) => FitTo(Layout.BoardRect(), n, margin);
+        public void Fit(int n, float margin = Layout.FitMargin) => FitTo(Layout.BoardRect(), n, margin);
 
         /// <summary>
         /// FIT INTO A NAMED RECTANGLE, because the game has two of them.
@@ -222,11 +222,16 @@ namespace Singularity.Game
                 float ex = e * (Mathf.Abs(rx.x) + Mathf.Abs(ry.x) + Mathf.Abs(rz.x));
                 float ey = e * (Mathf.Abs(rx.y) + Mathf.Abs(ry.y) + Mathf.Abs(rz.y));
 
-                Rect ap = Layout.ApertureRect();
+                // THE SQUARE, NOT THE STROKE. The window is taller than the board
+                // now — it runs from the readout's rule to the control band — and
+                // containing against that would give a vertical fold all the room
+                // it wants while a horizontal one still pays. See
+                // Layout.ContainRect: this is the rect the aperture used to be.
+                Rect ap = Layout.ContainRect();
                 float screenH = Mathf.Max(1f, Screen.height);
 
                 // orthographicSize is half the world height of the WHOLE screen, so
-                // the aperture only sees the fraction of it that it covers
+                // the window only sees the fraction of it that it covers
                 float need = Mathf.Max(ex * screenH / ap.width, ey * screenH / ap.height);
                 want = Mathf.Max(1f, need / _baseSize);
             }

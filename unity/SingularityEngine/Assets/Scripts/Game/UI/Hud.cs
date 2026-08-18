@@ -214,8 +214,14 @@ namespace Singularity.UI
             // board. So it is a bar, at the top edge, draining.
             _plateBar = UiKit.Panel(_root, "plateBar", Palette.Rust,
                                     new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -6), new Vector2(0, 0));
-            _plateClock = UiKit.Label(_root, "plateClock", "", 22, Palette.RustHi, TextAnchor.UpperCenter,
-                                      new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -190), new Vector2(0, -166));
+            // AND IT IS INSIDE THE WINDOW NOW, because the band it used to sit in
+            // is gone. It hung between the readout's rule and the top of the old
+            // square aperture; the stroke reaches the rule now, so the place left
+            // for it is under the stroke, past the fold mark. On the aperture, so
+            // it goes where the window goes. See MarkBand.
+            _plateClock = UiKit.Label(_aperture, "plateClock", "", 22, Palette.RustHi, TextAnchor.UpperCenter,
+                                      new Vector2(0, 1), new Vector2(1, 1),
+                                      new Vector2(0, -(MarkBand + ClockHeight)), new Vector2(0, -MarkBand));
             _plateBar.gameObject.SetActive(false);
 
             // ---- the four folds, at the four edges ----------------------------
@@ -247,8 +253,8 @@ namespace Singularity.UI
             // something floating beside it.
             for (int t = 0; t < 4; t++)
             {
-                _ticks[t] = Tick("tick" + t, FoldAnchor[t], FoldOffset[t], FoldSpin[t]);
-                _foldBtns[t] = FoldButton("fold" + t, t, FoldAnchor[t], FoldOffset[t], FoldSpin[t]);
+                _ticks[t] = Tick("tick" + t, FoldAnchor[t], FoldMark[t], FoldSpin[t]);
+                _foldBtns[t] = FoldButton("fold" + t, t, FoldAnchor[t], FoldSlot[t], FoldMark[t], FoldSpin[t]);
             }
             RefreshAssist();
 
@@ -265,8 +271,15 @@ namespace Singularity.UI
             // for anyone who cannot read the ramp at all, it is the only way.
             _depthRoot = UiKit.Rect(_root, "depth", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-            _toast = UiKit.Label(_root, "toast", "", 26, Palette.Ink, TextAnchor.LowerCenter,
-                                 new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 140), new Vector2(0, 220));
+            // THE SAME MOVE AT THE OTHER END. The toast sat 140 units up from the
+            // glass, which was the dead plate over the control band; that plate is
+            // window now and 140 is under the down fold's arrow. It goes above the
+            // coach's line, in the band between the marks and the board — the cube
+            // is fitted inside the square with Layout.FitMargin to spare, and
+            // LayoutChecks.Stack is what says that band is big enough.
+            _toast = UiKit.Label(_aperture, "toast", "", 26, Palette.Ink, TextAnchor.LowerCenter,
+                                 new Vector2(0, 0), new Vector2(1, 0),
+                                 new Vector2(0, ToastFoot), new Vector2(0, ToastFoot + ToastBox));
             _toast.color = new Color(1, 1, 1, 0);
 
             // THE CAPTION SITS UNDER THE PLATE CLOCK, NOT UNDER THE TOAST.
@@ -276,17 +289,18 @@ namespace Singularity.UI
             // would make each look like an interruption of the other. It goes
             // just below the top rule for the same reason the plate clock does:
             // the eyes are on the board, and that is the nearest edge to them.
-            _caption = UiKit.Label(_root, "caption", "", 19, Palette.Dim, TextAnchor.UpperCenter,
-                                   new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -232), new Vector2(0, -196));
+            _caption = UiKit.Label(_aperture, "caption", "", 19, Palette.Dim, TextAnchor.UpperCenter,
+                                   new Vector2(0, 1), new Vector2(1, 1),
+                                   new Vector2(0, -(CaptionTop + CaptionHeight)), new Vector2(0, -CaptionTop));
             _caption.color = new Color(1, 1, 1, 0);
         }
 
-        Button FoldButton(string name, int turn, Vector2 anchor, Vector2 offset, float spin)
+        Button FoldButton(string name, int turn, Vector2 anchor, Vector2 seat, Vector2 mark, float spin)
         {
             float H = Access.TapTarget * 0.5f;
             RectTransform slot = UiKit.Rect(_aperture, name, anchor, anchor,
-                                            new Vector2(offset.x - H, offset.y - H),
-                                            new Vector2(offset.x + H, offset.y + H));
+                                            new Vector2(seat.x - H, seat.y - H),
+                                            new Vector2(seat.x + H, seat.y + H));
 
             // The plate is a hit target rather than a picture: the ARROW is the
             // picture, and it is the same arrow the passive tick draws. A bracketed
@@ -303,9 +317,16 @@ namespace Singularity.UI
             Transform label = b.transform.Find("label");
             if (label != null) Object.Destroy(label.gameObject);
 
-            Image mark = UiKit.Icon((RectTransform)b.transform, "arrow", Palette.Rust,
-                                    30f, new Vector2(0.5f, 0.5f), Vector2.zero);
-            mark.rectTransform.localEulerAngles = new Vector3(0f, 0f, spin);
+            // AND THE ARROW SITS WHERE THE PASSIVE ONE SITS, which is not the
+            // middle of its own plate. The plate is eighty-eight units of thumb
+            // and has to stay inside the housing; the arrow is a mark on the
+            // stroke and belongs against it. Offsetting the glyph by the
+            // difference puts the two modes' arrows at the same point on the
+            // screen, so turning assist on moves a hit target and nothing the
+            // player is looking at.
+            Image glyph = UiKit.Icon((RectTransform)b.transform, "arrow", Palette.Rust,
+                                     FoldIcon, new Vector2(0.5f, 0.5f), mark - seat);
+            glyph.rectTransform.localEulerAngles = new Vector3(0f, 0f, spin);
             return b;
         }
 
@@ -314,12 +335,66 @@ namespace Singularity.UI
         static readonly Vector2[] FoldAnchor =
             { new Vector2(0, 0.5f), new Vector2(1, 0.5f), new Vector2(0.5f, 1), new Vector2(0.5f, 0) };
 
+        /// <summary>The fold arrow's box, in canvas units. The glyph draws to its edges.</summary>
+        public const float FoldIcon = 30f;
+
         /// <summary>
-        /// Inward from the aperture's own edge by half a tap target, so the
-        /// pressable arrow sits entirely inside the housing and the passive one
-        /// sits exactly where it will be.
+        /// THE FIRST CLEAR UNIT INSIDE THE STROKE, at either end.
+        ///
+        /// Four lines used to live in the dead plate outside the window — the
+        /// plate clock and the sound caption above it, the toast and the coach's
+        /// line below — and there is no dead plate any more. So they come inside,
+        /// and inside starts past the fold mark: the arrow's centre is FoldEdge in
+        /// and its glyph reaches half a box either side of that. Plus eight, which
+        /// is the air between a mark and a word.
+        ///
+        /// MEASURED FROM THE STROKE RATHER THAN FROM THE GLASS, and hung on the
+        /// aperture rather than on the root, so the whole stack travels with the
+        /// window when the display turns or the bands change height. The numbers
+        /// under it were glass-relative literals, which is the same second
+        /// definition of the window that the stroke itself used to have.
         /// </summary>
-        static readonly Vector2[] FoldOffset =
+        public const float MarkBand = FoldEdge + FoldIcon * 0.5f + 8f;
+
+        /// <summary>The plate clock's line, and the caption's under it.</summary>
+        public const float ClockHeight = 24f, CaptionGap = 8f, CaptionHeight = 36f;
+        public const float CaptionTop = MarkBand + ClockHeight + CaptionGap;
+
+        /// <summary>
+        /// The toast's foot, up from the stroke: past the coach's line, which is
+        /// the one thing between it and the down fold's arrow. The box above it is
+        /// slack for a second line — the text is set from the BOTTOM.
+        /// </summary>
+        public const float ToastFoot = MarkBand + Coach.LineHeight + 8f, ToastBox = 80f;
+
+        /// <summary>
+        /// HOW FAR THE ARROW'S CENTRE STANDS IN FROM THE APERTURE'S EDGE.
+        ///
+        /// It was half a tap target — forty-four units — because the mark and the
+        /// pressable plate were one position, and the plate is what has to fit.
+        /// That put the arrow twenty-nine clear units inside the stroke, floating
+        /// in the window rather than sitting on the frame, and reading as four
+        /// things beside the board instead of four marks on it.
+        ///
+        /// Half the glyph plus six, so the arrow's tip stands off the stroke by
+        /// the width of the stroke and no more. The plate keeps its own number —
+        /// see FoldSlot — and the glyph is offset back out to here inside it.
+        /// </summary>
+        public const float FoldEdge = FoldIcon * 0.5f + 6f;
+
+        /// <summary>Where the arrow is drawn: against the inside of the stroke, at each edge.</summary>
+        static readonly Vector2[] FoldMark =
+        {
+            new Vector2(FoldEdge, 0), new Vector2(-FoldEdge, 0),
+            new Vector2(0, -FoldEdge), new Vector2(0, FoldEdge)
+        };
+
+        /// <summary>
+        /// Where the assisted fold's HIT PLATE sits: in from the aperture's edge by
+        /// half a tap target, so an eighty-eight unit target is entirely inside the
+        /// housing rather than half of it on the bezel.
+        /// </summary>
+        static readonly Vector2[] FoldSlot =
         {
             new Vector2(Access.TapTarget * 0.5f, 0), new Vector2(-Access.TapTarget * 0.5f, 0),
             new Vector2(0, -Access.TapTarget * 0.5f), new Vector2(0, Access.TapTarget * 0.5f)
@@ -329,7 +404,7 @@ namespace Singularity.UI
         Image Tick(string name, Vector2 anchor, Vector2 offset, float spin)
         {
             Image i = UiKit.Icon(_aperture, "arrow", new Color(Palette.Rust.r, Palette.Rust.g, Palette.Rust.b, 0.30f),
-                                 30f, anchor, offset);
+                                 FoldIcon, anchor, offset);
             i.gameObject.name = name;
             // the glyph is drawn pointing up; every other direction is that one turned
             i.rectTransform.localEulerAngles = new Vector3(0f, 0f, spin);
