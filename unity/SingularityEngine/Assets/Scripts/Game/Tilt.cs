@@ -47,6 +47,19 @@ namespace Singularity.Game
         static Vector2 _rest, _raw;
         static bool _seeded;
 
+        /// <summary>Consecutive frames the fused gravity channel has answered nothing.</summary>
+        static int _silent;
+
+        /// <summary>
+        /// Below this a reading is the sensor declining rather than a pose. Real
+        /// gravity is always about one; a fifth of that is not a lean, it is a
+        /// channel that is not there.
+        /// </summary>
+        const float Dead = 0.04f;
+
+        /// <summary>Frames of silence before the fused channel is given up on.</summary>
+        const int GiveUp = 20;
+
         /// <summary>
         /// How far a lean has to go to read as full deflection. A quarter of a
         /// right angle: enough that an ordinary shift in a chair moves the sky
@@ -65,6 +78,12 @@ namespace Singularity.Game
 
         /// <summary>How hard the reading itself is filtered, per second.</summary>
         const float Smooth = 7.0f;
+
+        static Vector3 Read()
+        {
+            try { return _gyro ? Input.gyro.gravity : Input.acceleration; }
+            catch { return Vector3.zero; }
+        }
 
         static void Open()
         {
@@ -89,18 +108,45 @@ namespace Singularity.Game
         {
             if (!_tried) Open();
 
-            Vector3 g;
-            try
+            // Unity's gravity vectors point DOWN in device space, so a phone held
+            // upright reads about (0, -1, 0) either way.
+            Vector3 g = Read();
+
+            // ---- AND A CHANNEL THAT WILL NOT ANSWER IS NOT A DEVICE THAT WON'T --
+            //
+            // `Input.gyro.gravity` is FUSED: Android synthesises it from the gyro
+            // and the accelerometer together, and on a good many handsets that
+            // report supportsGyroscope == true it answers a flat zero — the
+            // hardware is there, the fusion is not. This latched `_gyro` once at
+            // startup and never looked again, so those phones took the dead branch
+            // on every frame for the whole session: the sky nailed to the middle
+            // of the screen, with a perfectly good accelerometer next to it that
+            // was never asked.
+            //
+            // A ZERO IS UNAMBIGUOUS, which is what makes the demotion safe.
+            // Gravity has a magnitude of one whichever way a phone is held — face
+            // up, edge on, upside down — so no pose reads zero. A zero is the
+            // channel declining to answer, and the only question left is whether
+            // the other one will.
+            //
+            // It waits a few frames because enabling the gyro is not instant:
+            // Unity returns zero for the first reads on a device whose fusion is
+            // perfectly good, and demoting on frame one would give every phone the
+            // noisier sensor forever.
+            if (_gyro && g.sqrMagnitude < Dead)
             {
-                // Unity's gravity vectors point DOWN in device space, so a phone
-                // held upright reads about (0, -1, 0) either way.
-                g = _gyro ? Input.gyro.gravity : Input.acceleration;
+                if (++_silent >= GiveUp && Input.acceleration.sqrMagnitude >= Dead)
+                {
+                    _gyro = false;
+                    _seeded = false;
+                    g = Read();
+                }
             }
-            catch { g = Vector3.zero; }
+            else _silent = 0;
 
             // A dead sensor answers exactly zero, and so does an editor with no
             // device attached. One length check tells both from a real reading.
-            if (g.sqrMagnitude < 0.04f)
+            if (g.sqrMagnitude < Dead)
             {
                 Live = false;
                 Look = Vector2.MoveTowards(Look, Vector2.zero, dt * 2f);
@@ -130,6 +176,7 @@ namespace Singularity.Game
         public static void Recentred()
         {
             _seeded = false;
+            _silent = 0;
             Look = Vector2.zero;
         }
     }

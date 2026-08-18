@@ -30,13 +30,27 @@ namespace UnityEngine
         public static Vector2 zero => default;
         public static Vector2 one => new Vector2(1, 1);
         public float sqrMagnitude => x * x + y * y;
-        public float magnitude => 0;
+        public float magnitude => (float)Math.Sqrt(x * x + y * y);
         public static Vector2 operator -(Vector2 a, Vector2 b) => new Vector2(a.x - b.x, a.y - b.y);
         public static Vector2 operator +(Vector2 a, Vector2 b) => new Vector2(a.x + b.x, a.y + b.y);
         public static Vector2 operator *(Vector2 a, float f) => new Vector2(a.x * f, a.y * f);
         public static Vector2 operator /(Vector2 a, float f) => new Vector2(a.x / f, a.y / f);
-        public static Vector2 Lerp(Vector2 a, Vector2 b, float t) => default;
-        public static Vector2 MoveTowards(Vector2 a, Vector2 b, float d) => default;
+        // REAL, AND THE REASON IS TILT. These two answered `default`, so every
+        // filter written with them collapsed to zero in the harness — which is
+        // how Tilt's whole body passed a check run without ever producing a
+        // number. Same lesson as the operators below.
+        public static Vector2 Lerp(Vector2 a, Vector2 b, float t)
+        {
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            return new Vector2(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
+        }
+        public static Vector2 MoveTowards(Vector2 a, Vector2 b, float d)
+        {
+            Vector2 to = b - a;
+            float m = to.magnitude;
+            if (m <= d || m == 0f) return b;
+            return new Vector2(a.x + to.x / m * d, a.y + to.y / m * d);
+        }
         public static implicit operator Vector2(Vector3 v) => new Vector2(v.x, v.y);
     }
 
@@ -770,8 +784,15 @@ namespace UnityEngine
         // THE TWO SENSORS THE SKY PARALLAXES ON. Both are declared because the
         // engine has both and Tilt reads whichever the device answers — see the
         // note there on why it is gravity rather than rotation rate.
-        public static Gyroscope gyro => default;
-        public static Vector3 acceleration => default;
+        // A HOLLOW STUB IS A CHECK THAT CANNOT FAIL, and these two were hollow.
+        // `gyro` returned null and `acceleration` returned zero, so every line of
+        // Tilt below the sensor read had never been executed by anything — which
+        // is how a device that answers zero on one channel and perfectly well on
+        // the other shipped as "the sky does not move". Same lesson as Rect,
+        // Screen, Vector3 and Quaternion before them: the harness only proves the
+        // code it can actually run.
+        public static Gyroscope gyro { get; } = new Gyroscope();
+        public static Vector3 acceleration { get; set; }
     }
 
     /// <summary>
@@ -782,7 +803,7 @@ namespace UnityEngine
     public class Gyroscope
     {
         public bool enabled { get; set; }
-        public Vector3 gravity => default;
+        public Vector3 gravity { get; set; }
     }
 
     public struct Touch { public Vector2 position => default; public TouchPhase phase => default; }
@@ -867,7 +888,7 @@ namespace UnityEngine
     public static class SystemInfo
     {
         public static DeviceType deviceType => default;
-        public static bool supportsGyroscope => false;
+        public static bool supportsGyroscope { get; set; }
     }
     public enum DeviceType { Unknown, Handheld, Console, Desktop }
     public static class Handheld { public static void Vibrate() { } }

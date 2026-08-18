@@ -101,6 +101,7 @@ public static class ForgeChecks
         ClockChecks.Run(Ok);
         LayoutChecks.Run(Ok);
         SkyChecks.Run(Ok);
+        TiltChecks.Run(Ok);
         CoachChecks.Run(Ok);
         ClaimChecks.Run(Ok);
         TitleChecks.Run(Ok);

@@ -33,6 +33,7 @@
     <Compile Include="ClockChecks.cs" />
     <Compile Include="LayoutChecks.cs" />
     <Compile Include="SkyChecks.cs" />
+    <Compile Include="TiltChecks.cs" />
     <Compile Include="CoachChecks.cs" />
     <Compile Include="TitleChecks.cs" />
     <Compile Include="LadderAudit.cs" />
