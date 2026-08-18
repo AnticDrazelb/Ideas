@@ -426,14 +426,14 @@ namespace Singularity.UI
             RectTransform L = Layer("vaults");
             Solid(L);
 
-            // It says "VAULT I" here and "VAULT VIII · SINGULARITY" by the end, in
+            // It says "VAULT I" here and "VAULT X · SINGULARITY" by the end, in
             // a gap fixed by the two arrows either side of it — so it shrinks to
             // fit rather than sliding underneath them. See UiKit.Fit.
             _vaultName = UiKit.Fit(
                 UiKit.Label(L, "vaultName", "VAULT I", 32, Palette.Ink, TextAnchor.MiddleCenter,
                             new Vector2(0, 1), new Vector2(1, 1), new Vector2(120, -140), new Vector2(-120, -80)), 18);
 
-            // AND BOTH ARROWS STOP. The rack is twenty vaults wide and neither end
+            // AND BOTH ARROWS STOP. The rack is `RankedVaults` wide and neither end
             // of it is a suggestion: past the last one VaultName starts inventing
             // titles for bands that hold no cubes. The buttons are kept and made
             // INERT at the ends rather than hidden, because a control that vanishes
@@ -565,21 +565,23 @@ namespace Singularity.UI
             //
             // So each cube gets a card: its number, its name, and how well it went.
             //
-            // FIVE ACROSS AND FIVE DOWN, WHICH IS WHAT TWENTY-FIVE ASKS FOR.
+            // FIVE ACROSS, AND THE ROWS FOLLOW FROM THE CHAPTER.
             //
-            // It was three, chosen for a ladder whose early vaults held ten. Every
-            // vault holds twenty-five now, and three columns is NINE ROWS: the
-            // height between the heading and the seed box divides to sixty-nine
-            // units against a hundred and eighty-two of width, and a card at 0.38
-            // does not read as a tile in a rack, it reads as a bar in a chart. It
+            // It was three columns, chosen for a ladder whose early vaults held
+            // ten. At the twenty-five-cube vault that was NINE ROWS: the height
+            // between the heading and the seed box divides to sixty-nine units
+            // against a hundred and eighty-two of width, and a card at 0.38 does
+            // not read as a tile in a rack, it reads as a bar in a chart. It
             // wasted the height twice over, because the cards were capped by the
             // WIDTH long before they had spent it — a hundred and sixty units of
             // black sat under the last row.
             //
-            // Five divides twenty-five exactly, so there is no ragged last row at
-            // all, and the cell comes out a hundred and nine by a hundred and
-            // twenty-five: a portrait card that fills both axes of the space it is
-            // given. The names go to two lines to pay for it — see below.
+            // Five divides both twenty-five and the fifteen a chapter holds now,
+            // so there is no ragged last row at either size. `rows` is computed
+            // rather than written down, and the height cap below is what stops a
+            // three-row rack from drawing towers: the cell settles at a hundred
+            // and nine by a hundred and forty-two, a portrait card that fills the
+            // width it is given. The names go to two lines to pay for it.
             const int cols = 5;
             int rows = Mathf.CeilToInt(size / (float)cols);
             float cellW = _grid.rect.width / cols;

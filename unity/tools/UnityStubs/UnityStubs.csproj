@@ -37,6 +37,8 @@
     <Compile Include="LadderAudit.cs" />
     <Compile Include="PeelProbe.cs" />
     <Compile Include="FaceProbe.cs" />
+    <Compile Include="Claims.cs" />
+    <Compile Include="ClaimChecks.cs" />
     <Compile Include="Curate.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Game/**/*.cs" />

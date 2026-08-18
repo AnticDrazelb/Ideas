@@ -789,9 +789,11 @@ because the generator builds names out of word lists nobody thinks to check.
 `VAULT 45 · EMBER SPINE`: a made-up name over a hundred and fifty cards, none of
 which is a cube, drawn four rows deep into each other. `Vaults.LastBand` is the
 stop, both arrows go inert at the ends rather than vanishing, and a sweep proves
-the twenty vaults tile 1..500 exactly — every vault starting where the last one
-ended, every cube in the catalogue, the last one landing on 500. The numerals
-stopped at XII too, so the last eight vaults read `VAULT 13` through `VAULT 20`.
+the vaults tile the whole ladder exactly — every vault starting where the last
+one ended, every cube in the catalogue, the last one landing on `LastCube`. The
+numerals stopped at XII too, so any vault past the twelfth read as an arabic
+number; the ladder is ten chapters now (see `CURRICULUM.md`) and the sweep is
+what keeps that claim true after a re-cut rather than at the time one was made.
 
 ### A rect with negative height
 
@@ -816,7 +818,7 @@ that works while shouting beats a screen that is silently absent.
 
 ## The ending
 
-Cube 500 does not exit. Everything the ordinary exit does is wrong for the last
+The last cube does not exit. Everything the ordinary exit does is wrong for the last
 one: the throw says *and now the next one*, the card asks a question, and the
 vault chime congratulates you on a boundary you are not crossing.
 
@@ -827,7 +829,7 @@ picture closes in on the one square you reached. What goes away is everything
 | | |
 |---|---|
 | **close** | 2.4s. The instrument and the camera move together, so the screen does not empty and *then* move — one gesture, ending with a cell alone in the dark. `UiKit.Dim` fades every canvas the kit ever made; `CubeView.Dim` takes the deck, the schematic, the cage and every glyph down as one; `CameraRig.Close` aims at the goal cell and drops the aperture to a sixth. |
-| **grow** | 2.2s. The singularity has spent five hundred cubes being the smallest thing on the board and stops being small. White, because every other colour in this palette means something and none of them mean this. Cubed easing: slow, then not slow — a star does not swell at a constant rate. |
+| **grow** | 2.2s. The singularity has spent the whole ladder being the smallest thing on the board and stops being small. White, because every other colour in this palette means something and none of them mean this. Cubed easing: slow, then not slow — a star does not swell at a constant rate. |
 | **blow** | One frame with everything on it, then 0.55s of front. The shockwave is the ring the ordinary exits gave up; it was competing with debris there and here there is nothing for it to compete with. |
 | **black** | 3s. Not a fade to a menu — a stop. The only silence in this game longer than the collapse's fifth of a second, and the whole reason the ending reads as one. |
 

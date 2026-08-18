@@ -45,17 +45,22 @@ static class Curate
 {
     // ---- the ladder ------------------------------------------------------
     //
-    // TWENTY VAULTS OF TWENTY-FIVE. A vault is the unit a player finishes in a
-    // sitting and the unit the vault list shows as one rack, and twenty-five is
-    // three columns by nine rows minus two — the shape that grid already draws
-    // best.
+    // TEN CHAPTERS OF FIFTEEN. A chapter is the unit a player finishes in a
+    // sitting and the unit the vault list shows as one rack, and fifteen is five
+    // columns by three rows — the shape that grid already draws best, with no
+    // ragged last row.
     //
-    // WHAT EACH VAULT IS FOR. The first four teach the four verbs; nothing after
-    // vault VII introduces anything at all. That is deliberate and it is the
-    // shape of every puzzle game worth the comparison: the vocabulary is small
-    // and closed early, and the remaining three hundred and fifty cubes are
-    // recombination under rising pressure. A game that is still teaching you a
-    // new rule at cube four hundred has not found its idea.
+    // WHAT EACH CHAPTER IS FOR, and it is written down twice: as the spec below
+    // and as a CLAIM per slot, which is the thing ClaimChecks re-proves on every
+    // run. Chapters I-III teach the collapse itself, IV-VIII introduce the four
+    // verbs one at a time, and nothing after VIII introduces anything at all.
+    // That is deliberate and it is the shape of every puzzle game worth the
+    // comparison: the vocabulary is small and closed early, and the last thirty
+    // cubes are recombination under rising pressure. A game that is still
+    // teaching you a new rule at cube a hundred and thirty has not found its
+    // idea.
+    //
+    // See CURRICULUM.md for the chapter table and Claims.cs for the vocabulary.
 
     public struct Vault
     {
@@ -67,6 +72,24 @@ static class Curate
         public string set;            // which world-changers it may carry: "A", "AB", "E", "ABE"
         public double openMax;        // most of the opening folds that may keep par
         public string teaches;
+
+        /// <summary>
+        /// WHAT EACH SLOT IN THIS CHAPTER IS FOR, one entry per band of slots.
+        ///
+        /// A vault is fifteen cubes and this is the argument each of them makes.
+        /// The scorer's proxies still choose BETWEEN candidates that qualify; a
+        /// claim decides whether a candidate qualifies at all. See Claims and
+        /// CURRICULUM.md.
+        /// </summary>
+        public Claims.Claim[] claims;
+
+        /// <summary>The claim for the slot at <paramref name="within"/>, of fifteen.</summary>
+        public Claims.Claim ClaimAt(int within)
+        {
+            if (claims == null || claims.Length == 0) return Claims.Of(Claims.Kind.None);
+            int i = within * claims.Length / Math.Max(1, PerVault);
+            return claims[Math.Min(claims.Length - 1, Math.Max(0, i))];
+        }
     }
 
     // THE PAR BANDS ARE WHAT THE PRUNE CAN REACH, WHICH IS NOT WHAT THE CARVE
@@ -92,137 +115,97 @@ static class Curate
     // orientation group at all.
     public static readonly Vault[] Ladder =
     {
-        // ---- the verbs, one at a time ------------------------------------
-        V("CALIBRATION", 5, 2, 4, 0, 0, null,  1.00, "the fold, the walk, the core"),
-        V("REFRACTION",  5, 3, 5, 0, 0, null,  0.80, "folds that cost you the route"),
-        V("INVERSION",   6, 3, 6, 1, 0, null,  0.70, "nodes and the locks they open"),
-        V("ENTROPY",     6, 4, 6, 1, 0, null,  0.62, "two pairs, and the order between them"),
-        V("EMBERFALL",   6, 4, 7, 0, 1, "A",   0.58, "the plate: two worlds, one board"),
-        V("SUBSTRATE",   6, 4, 7, 1, 1, "B",   0.54, "the other plate, which opens the solid"),
-        V("THE FAR SIDE",7, 5, 8, 0, 1, "E",   0.50, "the everter: the column shows its far cell"),
-        V("THRESHOLD",   7, 5, 8, 0, 1, "T",   0.48, "the trigger: the board itself is exchanged"),
+        // ---- I. THE COLLAPSE — fold, walk, core -------------------------------
+        // The first cubes show a way out you cannot walk to, which is the whole
+        // game in one screen. Nothing here carries anything.
+        V("THE COLLAPSE", 5, 1, 4, 0, 0, null, 1.00, "the fold, the walk, the core",
+          C(Claims.Kind.MustFold),
+          C(Claims.Kind.SoleOpening),
+          C(Claims.Kind.Detour)),
 
-        // ---- and then nothing new, for three hundred cubes -------------------
+        // ---- II. FOOTING — where you stand decides which folds you have -------
         //
-        // ONE MECHANIC A CUBE, MOSTLY, WHICH IS THE OPPOSITE OF WHAT I PLANNED.
+        // TEACH THE RULE, THEN CLOSE ON WHAT IT COSTS — and the order is not a
+        // matter of taste. FootingGated says exactly one fold is legal, which
+        // makes the cube a CORRIDOR at its opening: there is one thing to do and
+        // it cannot be got wrong. Two thirds of the chapter cut that way measured
+        // EASIER than the tutorial chapter before it — 1 in 16 against 1 in 27 on
+        // the chance of parring a route by luck — and a ladder with a step back in
+        // it at chapter two is a ladder a player learns not to trust.
         //
-        // The plan was to layer everything from vault VIII and let the
-        // combinations carry three hundred cubes. Four probes said no, and then a
-        // whole five-hundred-slot cut of the layered ladder said it again, against
-        // the rotating one, slot for slot:
-        //
-        //     vault           layered par/route/depth   rotating
-        //     SALT REACH        7.4  38.4%  55.3%      7.8  28.4%  64.0%
-        //     THE HOLLOW        7.3  40.1%  61.7%      8.6  28.9%  64.3%
-        //     COPPER MARCH      8.2  37.4%  57.7%     10.0  35.6%  66.7%
-        //     TIDE WELL         8.3  41.6%  61.3%     10.4  35.5%  65.7%
-        //
-        // Rotating wins par at every back-half vault by one to two, wins the route
-        // measure everywhere, and wins depth almost everywhere — while carrying
-        // one world-changer instead of three and taking a third of the time to
-        // cut. Layered live-glyph ratios ran 1.6 to 2.4 of 2 to 3; rotating is 1
-        // of 1.
-        //
-        // Every time a second world-changer went in, the first stopped mattering.
-        // The carve has one route and it can only run through so many worlds
-        // before the extra ones are scenery, and scenery is worse than absence
-        // because the player is shown a thing that turns out not to be there.
-        //
-        // So the back half rotates rather than stacks. A vault is one mechanic at
-        // a time, at rising size and tightening decision density, and the pairs
-        // that do appear are the two that measured cleanest together.
-        //
-        // AND THE EVERTER IS DOWN TO TWO VAULTS, on the first cut's own numbers.
-        // Of the four it had, GLASS SPINE came back with 0.4 live layers of 1 and
-        // the worst route figure in the ladder at 44.8%, and COPPER MARCH with
-        // 0.5 — better than half their everters were sitting in cubes no solution
-        // touched. The trigger vaults next to them ran 60 to 66% depth against the
-        // everter vaults' 38 to 43. GLASS SPINE is cut, which is also what lands
-        // this on five hundred rather than five hundred and twenty-five, and
-        // COPPER MARCH becomes a trigger vault. THE FAR SIDE keeps the everter
-        // because that is where it is taught, and two more carry it afterwards.
-        // ---- TWELVE VAULTS, AND THE LADDER STOPS AT THREE HUNDRED -------------
-        //
-        // This was twenty vaults and five hundred cubes. The cap came down for a
-        // reason worth writing next to the list: the safety gate above rejects
-        // any cube a player can brick, and a gate that rejects candidates is only
-        // survivable if the slot has candidates to spare. Five hundred slots at
-        // sixty candidates each was already falling back on out-of-band cubes
-        // before the gate existed — a re-cut measured 32 of them under their own
-        // vault's floor. Two hundred fewer slots and a bigger pool per slot is
-        // the same generator asked an easier question, and a ladder that is
-        // shorter and honest beats one that is long and padded.
-        //
-        // WHICH FOUR SURVIVE THE BACK HALF is chosen on continuity rather than on
-        // which cubes were best. Board size has to climb without a gap — the
-        // teaching set ends at n=7, so the mastery vaults run 8, 8, 9, 9, and
-        // dropping straight to FROST GATE would have skipped n=8 entirely. Par
-        // bands rise monotonically.
-        //
-        // What goes: REVENANT, COLD FORGE, THE CANT, BONE WORKS, THE HOLLOW,
-        // FROST GATE, SHALE KEEP, TIDE WELL. Their mechanics are all still taught
-        // in the first eight.
-        //
-        // AND THE TWO PAIRINGS WENT WITH THEM, WHICH IS A REVERSAL.
-        //
-        // These four were not all triggers: ASH TERRACE was specified as the
-        // plate-under-trigger pair and SINGULARITY as the everter-with-trigger
-        // pair, "so both combinations that measured cleanest together still
-        // appear after they are taught." That sentence was written against the
-        // layered-versus-rotating comparison above, which measured PAIRS against
-        // STACKS OF THREE. It was never asked whether a pair beats a single.
-        //
-        // It does not. `ladder spec` cuts pools for a vault's own hardest slots
-        // under each spec it could have — same size, same par band, same seeds —
-        // and reports the chance of parring the whole route by choosing at random
-        // at every fold, which is the two difficulty axes compounded:
-        //
-        //     SINGULARITY, n=9        raw              every layer load-bearing
-        //       E  x1     par 1.90    1 in 9           2 of 39    1 in 2
-        //       T  x1     par 3.48    1 in 220        34 of 40    1 in 314
-        //       ET x2     par 2.97    1 in 24         15 of 38    1 in 57
-        //
-        //     ASH TERRACE, n=8
-        //       A  x1     par 2.47    1 in 17
-        //       T  x1     par 3.30    1 in 135
-        //       AT x2     par 2.28    1 in 17
-        //
-        // A single trigger is nine times the raw material of the everter pair and
-        // eight times the plate pair. AND IT IS NOT THAT THE SECOND ONE IS DEAD:
-        // the right-hand column keeps only the candidates where EVERY layer
-        // changes par on its own, and a pair whose both halves are load-bearing
-        // is still five and a half times weaker than one trigger. So the fix is
-        // not a gate on live layers. Two world-changers make each other smaller
-        // even when both are working, which is the rotation argument holding one
-        // level deeper than it was originally made.
-        //
-        // The everter is the sharpest case. At n=9 only two candidates in
-        // thirty-nine come back with a live one — it is on the board and the
-        // solution does not touch it, which is this file's own definition of
-        // scenery, and "scenery is worse than absence because the player is shown
-        // a thing that turns out not to be there." Dropping it from the finale
-        // removes scenery rather than variety. It keeps THE FAR SIDE, at n=7,
-        // where it measurably works.
-        //
-        // These were also the only two vaults in the ladder that measured EASIER
-        // than the vault before them.
-        V("SALT REACH",  8, 6, 10, 1, 1, "T", 0.40, ""),
-        V("ASH TERRACE", 8, 7, 12, 1, 1, "T", 0.32, ""),
-        V("COPPER MARCH",9, 8, 13, 1, 1, "T", 0.28, ""),
-        V("SINGULARITY", 9, 9, 15, 2, 1, "T", 0.22, ""),
+        // So the corridor teaches and FalseFloor closes. It is the same rule seen
+        // from the other end — the fold you CAN take is the one that removes the
+        // ground you were counting on — and because it does not pin the opening to
+        // a single legal fold, the chapter ends on a decision rather than on an
+        // instruction.
+        V("FOOTING", 5, 2, 5, 0, 0, null, 0.85, "the fold you cannot take",
+          C(Claims.Kind.FootingGated),
+          C(Claims.Kind.FootingGated),
+          C(Claims.Kind.FalseFloor)),
+
+        // ---- III. DISTANT NEIGHBOURS — the collapse's one gift ----------------
+        V("DISTANT NEIGHBOURS", 6, 3, 6, 0, 0, null, 0.78, "far apart, and touching",
+          C(Claims.Kind.DistantNeighbours, 3),
+          C(Claims.Kind.DistantNeighbours, 3),
+          C(Claims.Kind.FalseFloor)),
+
+        // ---- IV. NODES AND LOCKS — and the order between them -----------------
+        V("NODES AND LOCKS", 6, 3, 7, 1, 0, null, 0.70, "the key behind the door",
+          C(Claims.Kind.RequiresKey),
+          C(Claims.Kind.RequiresKey),
+          C(Claims.Kind.FalseFloor)),
+
+        // ---- V. EMBERFALL — the plate ----------------------------------------
+        V("EMBERFALL", 6, 4, 8, 1, 1, "A", 0.62, "two worlds, one board",
+          C(Claims.Kind.RequiresGlyph),
+          C(Claims.Kind.RequiresGlyph),
+          C(Claims.Kind.FootingGated)),
+
+        // ---- VI. SUBSTRATE — the other plate ----------------------------------
+        V("SUBSTRATE", 7, 5, 9, 1, 1, "B", 0.56, "the plate that opens the solid",
+          C(Claims.Kind.RequiresGlyph),
+          C(Claims.Kind.DistantNeighbours, 4),
+          C(Claims.Kind.FalseFloor)),
+
+        // ---- VII. THE FAR SIDE — the everter ---------------------------------
+        // The four searched cubes live at the head of this chapter, in Baked.Arc.
+        V("THE FAR SIDE", 7, 5, 10, 0, 1, "E", 0.50, "every cell turns",
+          C(Claims.Kind.RequiresGlyph),
+          C(Claims.Kind.FalseFloor),
+          C(Claims.Kind.RequiresGlyph)),
+
+        // ---- VIII. THRESHOLD — the trigger ------------------------------------
+        V("THRESHOLD", 8, 6, 11, 1, 1, "T", 0.44, "the board itself is exchanged",
+          C(Claims.Kind.RequiresGlyph),
+          C(Claims.Kind.FalseFloor),
+          C(Claims.Kind.RequiresGlyph)),
+
+        // ---- IX. ASH TERRACE — nothing new, everything at once ----------------
+        V("ASH TERRACE", 8, 7, 12, 1, 1, "T", 0.36, "",
+          C(Claims.Kind.RequiresGlyph),
+          C(Claims.Kind.FootingGated),
+          C(Claims.Kind.RequiresGlyph)),
+
+        // ---- X. SINGULARITY — the last fifteen --------------------------------
+        V("SINGULARITY", 9, 8, 14, 2, 1, "T", 0.28, "",
+          C(Claims.Kind.RequiresGlyph),
+          C(Claims.Kind.FootingGated),
+          C(Claims.Kind.DistantNeighbours, 4)),
     };
+
+    static Claims.Claim C(Claims.Kind k, int arg = 0) => Claims.Of(k, arg);
 
     /// <summary>Public so ArcSearch can cut its candidates to a real vault spec.</summary>
     public static Vault V(string name, int n, int lo, int hi, int locks, int glyphs, string set,
-                   double openMax, string teaches)
+                   double openMax, string teaches, params Claims.Claim[] claims)
         => new Vault
         {
             name = name, n = n, parLo = lo, parHi = hi, locks = locks,
             glyphs = glyphs, kinds = set == null ? 0 : set.Length, set = set,
-            openMax = openMax, teaches = teaches
+            openMax = openMax, teaches = teaches, claims = claims
         };
 
-    public const int PerVault = 25;
+    public const int PerVault = 15;
     public static int Total => Ladder.Length * PerVault;
 
     /// <summary>How many candidates a slot looks at before it settles.</summary>
@@ -371,9 +354,25 @@ static class Curate
         // shortlist instead — a quarter, a half, three quarters, all of it — and
         // the scorer picks the amount of pruning as well as the cube. Nothing
         // about the pass changed; it is asked a different question.
-        Cand best = asIs;
-        for (int i = 0; i < shortlist; i++)
+        // AND IF THE SHORTLIST HAS NO CLAIM-MAKER IN IT, KEEP READING.
+        //
+        // The shortlist is ten and the pool is two hundred, so raising the budget
+        // could never fix a slot that failed its claim: the extra hundred and
+        // ninety candidates changed which ten were shortlisted and were never
+        // themselves asked the question. Eight slots came out of a 200-candidate
+        // run without their argument for exactly that reason, and every one of
+        // them would have come out of an 800-candidate run without it too.
+        //
+        // So the shortlist is the budget for CHOOSING and the pool is the budget
+        // for FINDING. Ten candidates are always examined, and the search runs on
+        // through the rest of the pool only while nothing has made the claim —
+        // which costs nothing on a slot that succeeds early and is thorough on
+        // the handful that do not.
+        Cand best = null, fallback = asIs;
+        for (int i = 0; i < pool.Count; i++)
         {
+            if (i >= shortlist && best != null) break;
+
             Cand c = pool[i];
             double frac = Depths[i % Depths.Length];
             if (frac > 0.0)
@@ -393,6 +392,26 @@ static class Curate
             c.routeOpen = RouteOpen(c.lv, c.par, out c.points, out c.depth);
             c.score = Value(c, parLo, v.parHi, openMax, v);
 
+            // AND A CUBE THAT DOES NOT MAKE ITS SLOT'S CLAIM IS NOT A CANDIDATE.
+            //
+            // This is a gate for the same reason Safety is one. Everything the
+            // scorer weighs is a matter of degree — a little loose at the opening,
+            // a fold outside the band, still the best thing available. A claim is
+            // not a degree: the cube either cannot be finished without its
+            // mechanic or it can, and there is no amount of decision density that
+            // makes a cube be about something it is not about.
+            //
+            // It is asked AFTER the prune, because the prune changes the answer:
+            // taking footing away is exactly what turns a cube that merely allows
+            // its mechanic into one that requires it.
+            Claims.Claim claim = v.ClaimAt(within);
+            bool makesClaim = true;
+            if (claim.kind != Claims.Kind.None)
+            {
+                SolveResult sr = Solver.Solve(c.lv, v.parHi);
+                makesClaim = sr.ok && Claims.Holds(claim, c.lv, sr);
+            }
+
             // A CUBE THAT CAN BE BRICKED IS NOT A CANDIDATE, AT ANY SCORE.
             //
             // This is a gate and not a term in Value on purpose. Everything else
@@ -404,15 +423,22 @@ static class Curate
             // anything. See Safety: 134 of the shipped 500 fail this.
             if (!Safety.Audit(c.lv).Ok) continue;
 
-            if (best == null || c.score > best.score) best = c;
-            continue;
-            c.par = Tighten(c.lv, c.par, (int)Math.Ceiling(c.spare * frac));
-            c.steps = c.lv.steps;
-            Measure(c, spec);
-            c.score = Value(c, parLo, v.parHi, openMax, v);
-            if (best == null || c.score > best.score) best = c;
+            // A CLAIM IS A PREFERENCE WITH TEETH, NOT A WALL.
+            //
+            // It was a hard gate and it left fourteen slots of a hundred and fifty
+            // empty — seven of them in one chapter. A hole in the ladder is worse
+            // than a cube that makes a weaker argument: the player meets the hole,
+            // and nobody ever meets the claim. So the claim decides between
+            // candidates that qualify and a cube that misses it is kept only when
+            // nothing in the pool made it, which the check run then reports by
+            // name rather than leaving to be discovered.
+            if (makesClaim)
+            {
+                if (best == null || c.score > best.score) best = c;
+            }
+            else if (fallback == null || c.score > fallback.score) fallback = c;
         }
-        return best;
+        return best ?? fallback;
     }
 
     /// <summary>
@@ -734,7 +760,7 @@ static class Curate
         // board on the same solid, and an ORIENTATION other than the one you were
         // handed, which is a different face of it. A route that never leaves
         // either is a puzzle played entirely on the picture it opened with, and
-        // that is what a five-hundred cube ladder cannot be three hundred of.
+        // a hundred and fifty cubes is not enough room for many of those.
         var worlds = new HashSet<int> { at.world };
         var oris = new HashSet<int> { at.ori };
 
@@ -780,8 +806,8 @@ static class Curate
                 // free walk, and a route whose next fold is not among them ends
                 // here. Multiplying by that zero reports a cube as infinitely hard
                 // when what happened is that the measurement stopped, which put
-                // eleven of vault VII's twenty-five below one in a trillion and
-                // made the vault look like a spike.
+                // eleven of one vault's twenty-five below one in a trillion and
+                // made a teaching vault look like a spike.
                 if (onPar > 0) blind *= onPar / (double)legal;
             }
             if (!haveNext) break;

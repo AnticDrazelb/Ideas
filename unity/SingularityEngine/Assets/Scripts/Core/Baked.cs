@@ -68,8 +68,16 @@ namespace Singularity.Core
     /// </summary>
     public static class Baked
     {
-        /// <summary>The first cube of vault IX, where eversion is introduced.</summary>
-        public const int ArcStart = 146;
+        /// <summary>
+        /// The head of THE FAR SIDE, where the everter is introduced.
+        ///
+        /// This was 146 — the first four of a vault IX that no longer exists. The
+        /// ladder is ten chapters of fifteen now and the everter's chapter opens
+        /// at ninety-one, so that is where the four cubes that teach it go. A
+        /// teaching cube in the wrong chapter is a cube teaching a mechanic the
+        /// player met sixty levels ago.
+        /// </summary>
+        public const int ArcStart = 91;
 
         /// <summary>
         /// EVERSION, IN FOUR CUBES. Introduce, complicate, bound, invert.

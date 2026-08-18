@@ -78,10 +78,11 @@ namespace Singularity.Core
         /// second solid dropped on the floor. Nothing threw. Layouts fell to 1,
         /// Eff fell back to `vox` for the swapped world exactly as it is written
         /// to for a cube that has one solid, and the trigger became a glyph that
-        /// toggles a bit and changes nothing. On cube 300 it moved 357 cells
-        /// before the clone and 0 after.
+        /// toggles a bit and changes nothing. On the last cube of the ladder
+        /// it moved 357 cells before the clone and 0 after.
         ///
-        /// It was 125 of the 300 cubes — every single one carrying a trigger,
+        /// It was 125 of the 300 cubes then in the catalogue — every one
+        /// carrying a trigger,
         /// the last cube in the game among them — unsolvable in the hand while
         /// every check in the harness called them solvable, because every check
         /// solved the Level the catalogue decoded and the game plays a copy.

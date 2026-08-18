@@ -395,8 +395,8 @@ static class CodeChecks
             if (Vaults.RomanOf(b).IndexOfAny("0123456789".ToCharArray()) >= 0) gaps++;
         }
         ok(gaps == 0, gaps + " vaults start in the wrong place or have no numeral");
-        ok(missing == 0, missing + " cubes across the twenty vaults are not in the catalogue");
+        ok(missing == 0, missing + " cubes across the ladder are not in the catalogue");
         ok(at - 1 == Vaults.LastCube,
-           "the twenty vaults cover " + (at - 1) + " cubes and the catalogue holds " + Vaults.LastCube);
+           "the chapters cover " + (at - 1) + " cubes and the ladder ends at " + Vaults.LastCube);
     }
 }

@@ -8,10 +8,11 @@ using Singularity.Game;
 ///
 /// `content` mints cubes from the generator and audits those. That was the whole
 /// ladder once and it is not any more: `Bootstrap` loads `catalogue.txt` and
-/// `LevelSupply` serves it, so the first three hundred cubes — every cube most
-/// players will ever see — are the CURATED ones, chosen out of thousands of
-/// candidates against a per-vault spec and then pruned. The generator is what
-/// happens after cube three hundred.
+/// `LevelSupply` serves it, so all hundred and fifty cubes — every cube any
+/// player will ever see outside the daily — are the CURATED ones, chosen out of
+/// thousands of candidates against a per-chapter spec, pruned, and gated on a
+/// CLAIM about what the cube is for. The generator survives for the daily and
+/// nothing else.
 ///
 /// The distinction matters because the design argument written against the
 /// generator's numbers reads as a verdict on the game. It says par asymptotes
@@ -61,11 +62,11 @@ static class LadderAudit
     /// THE GATE A VAULT IS ACTUALLY CUT TO, WHICH IS NOT THE NUMBER IN THE TABLE.
     ///
     /// Pick relaxes it across a vault — `openMax + (1 - openMax) * (1 - t) * 0.35`
-    /// — so the first cube of a vault is a way in and the twenty-fifth is the
-    /// hardest thing in it. Comparing a vault's MEAN against the table's value
-    /// compares it against the tightest cube's gate and reports misses that are
-    /// not misses. This is the mean of the gate over the twenty-five slots, which
-    /// is the thing a vault mean can honestly be held to.
+    /// — so the first cube of a chapter is a way in and the last is the hardest
+    /// thing in it. Comparing a chapter's MEAN against the table's value compares
+    /// it against the tightest cube's gate and reports misses that are not
+    /// misses. This is the mean of the gate over the chapter's slots, which is the
+    /// thing a chapter mean can honestly be held to.
     /// </summary>
     static double EffectiveGate(int band)
     {

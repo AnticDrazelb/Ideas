@@ -8,7 +8,12 @@ dotnet run --project unity/tools/UnityStubs content    # par, openings, the curv
 dotnet run --project unity/tools/UnityStubs buried     # what the solid is hiding
 dotnet run --project unity/tools/UnityStubs gravity    # what a fall rule would cut
 dotnet run --project unity/tools/UnityStubs arc        # search for teaching cubes
+dotnet run --project unity/tools/UnityStubs ladder     # what actually ships
 ```
+
+The ladder is a hundred and fifty hand-cut cubes in ten chapters, and nothing
+after them but the daily. `CURRICULUM.md` is the design document for it; this
+file is the measurement.
 
 ---
 
@@ -77,28 +82,39 @@ their difficulty, so vaults 16 through 30 are fifteen vaults of the same cube.
 dotnet run --project unity/tools/UnityStubs ladder    # what actually ships
 ```
 
-`Bootstrap` loads `catalogue.txt` and `LevelSupply` serves it, so the first three
-hundred cubes — every cube most players will ever see — are **curated**: chosen
-out of a pool per slot against a per-vault spec, pruned, and safety-audited. The
-generator is what happens after cube three hundred. `content` audits the
-generator; `ladder` audits what ships, through `LevelSupply.Get`, so the fourteen
-authored cubes are the authored ones.
+`Bootstrap` loads `catalogue.txt` and `LevelSupply` serves it, so **all hundred
+and fifty cubes** — every cube any player will ever see outside the daily — are
+curated: chosen out of a pool per slot against a per-chapter spec, pruned,
+safety-audited, and gated on a CLAIM about what the cube is for. The generator
+survives for the daily and nothing else. `content` audits the generator; `ladder`
+audits what ships, through `LevelSupply.Get`, so the fourteen authored cubes are
+the authored ones.
+
+See `CURRICULUM.md` for the ten chapters and what each one is arguing.
 
 ```
-vault  cubes   n   par  keep-par  folds/pt  depth   par by luck
-I       25  5.3   2.96       36%       8.4     22%       1 in 48
-II      25  5.0   4.00       36%       4.4     28%       1 in 90
-III     25  6.0   4.20       37%       8.2     29%      1 in 125
-IV      25  6.0   5.00       44%       5.4     31%      1 in 128
-V       25  6.0   5.00       39%      14.3     49%      1 in 343
-VI      25  6.0   4.48       37%      10.1     44%      1 in 396
-VII     25  7.0   6.28       30%       9.1     58%   1 in 12,168
-VIII    25  7.0   6.28       30%       9.8     58%   1 in 10,920
-IX      25  8.0   7.76       34%       8.8     64%   1 in 39,723
-X       25  8.0   8.44       35%       8.2     65%   1 in 30,925
-XI      25  9.0   9.20       39%       6.8     65%   1 in 72,000
-XII     25  9.0  10.04       40%       7.6     65%  1 in 197,741
+vault  cubes   n   par  keep-par  folds/pt  depth   par by luck   carries
+I       15  5.5   2.40       31%       9.7     19%       1 in 27   0A 0E 0T 5N
+II      15  5.0   3.40       42%       5.9     23%       1 in 32   0A 0E 0T 0N
+III     15  6.0   3.53       41%       8.5     27%       1 in 31   0A 0E 0T 0N
+IV      15  6.0   4.47       45%       5.0     32%       1 in 73   0A 0E 0T 15N
+V       15  6.0   5.27       39%      14.3     47%      1 in 288   15A 0E 0T 15N
+VI      15  7.0   5.47       36%       9.1     53%    1 in 2,178   15A 0E 0T 15N
+VII     15  6.7   5.73       33%      11.4     53%    1 in 8,415   0A 15E 0T 0N
+VIII    15  8.0   8.67       34%       8.9     67%   1 in 58,080   0A 0E 15T 15N
+IX      15  8.0   8.80       34%       9.2     65%   1 in 77,112   0A 0E 15T 15N
+X       15  9.0   9.13       38%       9.5     67%   1 in 72,107   0A 0E 15T 15N
 ```
+
+**No chapter is more than 1.6x easier than the one before it**, which is the
+audit's own gate and the first time the ladder has cleared it. One reorder bought
+that: FOOTING was cut as `FootingGated / FalseFloor / FootingGated` and came out
+at 1 in 16, *easier than the tutorial chapter*, because `FootingGated` means
+exactly one fold is legal and a cube with one legal fold is a corridor at its
+opening — there is one thing to do and it cannot be got wrong. Cut as
+`FootingGated / FootingGated / FalseFloor` the corridor teaches and the
+consequence closes, and the chapter goes to 1 in 32 with its mean par up from 2.9
+to 3.4.
 
 **"Par by luck" is the column that means anything, and it took three tries to
 measure.** It is the chance of parring the WHOLE route by choosing at random at
@@ -120,11 +136,14 @@ looked like a finding:
   cube in five vaults was invisible.
 
 **So the headline of §1 is false of the shipped game.** Par does not asymptote at
-5.8 and stop: it climbs from 2.96 to 10.04, board size goes 5 to 9, depth goes
-22% to 65%, and the chance of parring a route by luck falls from 1 in 48 to 1 in
-197,741 — four orders of magnitude. The curation fixed the thing this section was
-written to complain about. The section stays because it is still true of cubes
-301 and up.
+5.8 and stop: it climbs from 2.40 to 9.13, board size goes 5 to 9, depth goes 19%
+to 67%, and the chance of parring a route by luck falls from 1 in 27 to 1 in
+72,107 — nearly four orders of magnitude. The curation fixed the thing this
+section was written to complain about, and the section now describes nothing that
+ships: the ladder ends at a hundred and fifty and the seed box ends with it, so
+there are no cubes past the catalogue for the generator's flat tail to be the
+difficulty of. It survives for the daily, where one cube a day drawn from a fixed
+distribution is exactly the right shape.
 
 ### What replaced it is a different flat line, and this one is load-bearing
 
@@ -135,10 +154,10 @@ cube where every opening fold keeps par and one where four in five throw the
 route away."
 
 The gate falls **5.0 points a vault**. The cubes it was supposed to select
-**rise 0.1 points a vault** — 28% in vault I, 40% in vault XII, wandering
+**rise 0.1 points a vault** — 28% in the first vault, 40% in the last, wandering
 between with no trend at all. Decision density is not the back half's difficulty
 axis in the shipped ladder, whatever the ladder was designed around; par, size
-and depth carry every bit of it, and vault XII ends the game on the *widest*
+and depth carry every bit of it, and the finale ends the game on the *widest*
 opening decisions in it rather than the tightest.
 
 **And it is not a scoring bug.** The obvious suspicion is that the 900-point
@@ -148,7 +167,7 @@ are innocent: the shortlist comes out at 28% against its pool's 33%, so it is
 slightly *better* than what it was drawn from.
 
 ```sh
-dotnet run --project unity/tools/UnityStubs ladder gate      # cube 300's slot
+dotnet run --project unity/tools/UnityStubs ladder gate      # the last slot
 ```
 
 The answer is a conflict between the two axes:
@@ -218,15 +237,15 @@ measurably works.
 doing anything.** THE FAR SIDE measured 1 in 192 with the old everter — softer
 than the vault before it and sixty times softer than the one after — because a
 reversed depth test mostly gave the route a board it did not need. With the
-faces turning it measures **1 in 12,168**, which lands it exactly where a vault
-between VI and VIII should be. Nothing about its spec changed. The mechanic
-started working and the difficulty followed.
+faces turning it measures **1 in 8,415** at chapter VII, which lands it exactly
+where a chapter between VI and VIII should be. Nothing about its spec changed.
+The mechanic started working and the difficulty followed.
 
-**Both vaults now carry one trigger, and the back half climbs:**
+**The last three chapters each carry one trigger, and the back half climbs:**
 
 ```
-   VIII  1 in 10,920     XI   1 in 72,000
-   IX    1 in 39,723     XII  1 in 197,741    <- the finale, and now the hardest
+   VII   1 in 8,415      IX   1 in 77,112
+   VIII  1 in 58,080     X    1 in 72,107    <- the finale
 ```
 
 The re-cut also found that **the shipped catalogue was not reproducible from the
@@ -236,12 +255,29 @@ before this. It is reproducible now, and `catalogue: mean par by vault` prints
 the curve on every check run so the next drift is visible the day it happens.
 
 **The gate is still missed, and that is now a documented disagreement rather than
-a bug.** Decision density does not tighten across the ladder — 36% in vault I,
-40% in vault XII, the gate falling five points a vault underneath it. Par, board
+a bug.** Decision density does not tighten across the ladder — 31% in chapter I,
+38% in chapter X, the gate falling six points a chapter underneath it. Par, board
 size and depth carry all of the difficulty. The honest reading is that `openMax`
 describes an axis this generator does not supply, and the two remaining options
 are to drop it from the argument or to fix it upstream in §2: the carve is a
 single self-avoiding path, so par is protected by starving the board.
+
+**What replaced it as the per-cube axis is the CLAIM.** `openMax` was the only
+thing in the cutter that said what a cube should be *like* rather than how big or
+how long, and it did not work. A claim says what a cube is *for* — neutralise its
+mechanic and it has no route; take the key away and the lock never opens; the
+route walks between two squares touching on screen and four cells apart in the
+solid — and unlike a gate on a ratio it is not a matter of degree. All 136 cut
+cubes make theirs, re-proved on every check run against the board `LevelSupply`
+actually hands over, so a cube that quietly stops arguing is a failed build.
+
+Getting there needed one fix in the cutter that a bigger budget would never have
+found. `Pick` mints 200 candidates and shortlists ten, and the claim was tested
+only on the ten — so eight slots came out of a 200-candidate run without their
+argument, and would have come out of an 800-candidate run without it too. The
+shortlist is the budget for CHOOSING; it was never the budget for FINDING. Those
+are separate now: ten candidates are always examined, and the search reads on
+through the rest of the pool only while nothing has made the claim.
 
 
 ---
