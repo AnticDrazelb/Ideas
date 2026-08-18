@@ -85,27 +85,46 @@ generator; `ladder` audits what ships, through `LevelSupply.Get`, so the fourtee
 authored cubes are the authored ones.
 
 ```
-vault  cubes   n   par  (lo-hi)  steps/fold  keep-par   gate   depth
-I       25  5.3   2.80      1-4        1.5        28%   100%     22%
-II      25  5.0   3.80      3-7        1.0        39%    84%     28%
-III     25  6.0   4.32      3-7        1.1        30%    75%     31%
-IV      25  6.0   5.04      4-9        0.9        40%    69%     33%
-V       25  6.0   5.24      4-7        1.8        35%    65%     51%
-VI      25  6.0   4.76      2-7        1.4        34%    62%     44%
-VII     25  7.0   5.92      4-8        1.0        40%    59%     44%
-VIII    25  7.0   7.00      6-8        1.8        28%    57%     63%
-IX      25  8.0   8.56     7-10        1.9        29%    51%     65%
-X       25  8.0   8.36     7-11        2.6        34%    44%     71%
-XI      25  9.0   9.88     8-12        1.8        32%    41%     65%
-XII     25  9.0   9.76     8-18        1.3        40%    36%     60%
+vault  cubes   n   par  keep-par  folds/pt  depth   par by luck
+I       25  5.3   2.96       36%       8.4     22%       1 in 48
+II      25  5.0   4.00       36%       4.4     28%       1 in 90
+III     25  6.0   4.20       37%       8.2     29%      1 in 125
+IV      25  6.0   5.00       44%       5.4     31%      1 in 128
+V       25  6.0   5.00       39%      14.3     49%      1 in 343
+VI      25  6.0   4.60       35%       9.7     44%      1 in 396
+VII     25  7.0   6.36       45%       5.7     43%      1 in 192
+VIII    25  7.0   6.28       30%       9.8     58%   1 in 10,920
+IX      25  8.0   7.76       34%       8.8     64%   1 in 39,723
+X       25  8.0   8.44       35%       8.2     65%   1 in 30,925
+XI      25  9.0   9.20       39%       6.8     65%   1 in 72,000
+XII     25  9.0  10.04       40%       7.6     65%  1 in 197,741
 ```
 
+**"Par by luck" is the column that means anything, and it took three tries to
+measure.** It is the chance of parring the WHOLE route by choosing at random at
+every fold — the product of the per-decision ratios rather than their average —
+because difficulty is not a property of one decision. A cube with three
+decisions at 28% and one with ten at 40% have the ratio pointing one way and the
+puzzle pointing hard the other.
+
+The three wrong turns are worth recording, because each produced a number that
+looked like a finding:
+
+- **The ratio cannot tell a corridor from a meadow.** One legal fold that keeps
+  par scores the same 100% as four that do. `RouteOpen` reports the branching
+  factor beside it now: 4 to 14 landings per decision, so these are meadows.
+- **A walk that loses its line was reported as infinite difficulty** rather than
+  as unmeasured, which put eleven of one vault's twenty-five below one in a
+  trillion and made a teaching vault look like a spike.
+- **The audit read only `vox`, and a trigger cube is two solids.** Half of every
+  cube in five vaults was invisible.
+
 **So the headline of §1 is false of the shipped game.** Par does not asymptote at
-5.8 and stop: it climbs from 2.80 to 9.76, a factor of three and a half, board
-size goes 5 to 9, and depth — the share of the solve that happens in a world or a
-face the opening board cannot show you — goes 22% to 60%, peaking at 71%. The
-curation fixed the thing this section was written to complain about. The section
-stays because it is still true of cubes 301 and up.
+5.8 and stop: it climbs from 2.96 to 10.04, board size goes 5 to 9, depth goes
+22% to 65%, and the chance of parring a route by luck falls from 1 in 48 to 1 in
+197,741 — four orders of magnitude. The curation fixed the thing this section was
+written to complain about. The section stays because it is still true of cubes
+301 and up.
 
 ### What replaced it is a different flat line, and this one is load-bearing
 
@@ -148,16 +167,73 @@ the opening figure from 29% to 15% and worsens the route figure from 32% to
 44%."* The gate is not missed because a scorer lost a vote. It is missed because
 the ladder asks for two things the carve cannot supply at once.
 
-That leaves three honest options and they are a design decision rather than a
-tuning one:
+### What was actually wrong, and it was not the gate
 
-1. **Lower the late par bands** so the prune is not needed, and let decision
-   density actually carry the back half — which is what §1's own theory says
-   should happen, applied.
-2. **Keep par climbing** and drop the decision gate from the argument, since it
-   is not doing the work the doc claims for it.
-3. **Fix it upstream**, which is §2: the carve is a single self-avoiding path, so
-   par is being protected by starving the board. Every symptom here is that one.
+The gate is a symptom. The ladder used to end like this:
+
+```
+   VIII  1 in 37,074      XI   1 in 900,000
+   IX    1 in 315,592     XII  1 in 10,752      <- the finale
+```
+
+**The last vault was the third easiest of the back half** — softer than the vault
+that introduces the trigger, a hundred cubes earlier. A game that ends on its
+easiest hard cubes has no ending.
+
+Two vaults were specified to carry a PAIR of world-changers rather than one:
+ASH TERRACE as "a plate under a trigger", SINGULARITY as "the everter with a
+trigger", on the grounds that both combinations measured cleanest together. They
+were also the two vaults that measured easier than the vault before them.
+
+That sentence was written against the comparison in `Curate` that measured pairs
+against stacks of three. Nobody had asked whether a pair beats a *single*.
+
+```sh
+dotnet run --project unity/tools/UnityStubs ladder spec 11    # SINGULARITY's own slots
+```
+
+```
+                     raw                 every layer load-bearing
+  E  x1   par 1.90   1 in 9              2 of 39    1 in 2
+  T  x1   par 3.48   1 in 220           34 of 40    1 in 314
+  ET x2   par 2.97   1 in 24            15 of 38    1 in 57
+```
+
+A single trigger is **nine times** the raw material of the pair the vault shipped
+with, at the same size, the same par band and the same seeds. And the right-hand
+column is the part that settles it: keeping only candidates where *every* layer
+changes par on its own, a working pair is **still five and a half times weaker**
+than one trigger. So it is not that the second mechanic is dead scenery and a
+gate on live layers would fix it — two world-changers make each other smaller
+even when both are doing work. That is `Curate`'s rotation argument holding one
+level deeper than it was originally made.
+
+The everter is the sharpest case: at n=9 only two candidates in thirty-nine come
+back with a live one. It is on the board and the solution does not touch it,
+which is this file's own definition of scenery — so dropping it from the finale
+removes scenery rather than variety. It keeps THE FAR SIDE at n=7, where it
+measurably works.
+
+**Both vaults now carry one trigger, and the back half climbs:**
+
+```
+   VIII  1 in 10,920     XI   1 in 72,000
+   IX    1 in 39,723     XII  1 in 197,741    <- the finale, and now the hardest
+```
+
+The re-cut also found that **the shipped catalogue was not reproducible from the
+source that claims to cut it** — every vault came back different, not just the
+two whose spec changed, so the file had drifted from the code at some point
+before this. It is reproducible now, and `catalogue: mean par by vault` prints
+the curve on every check run so the next drift is visible the day it happens.
+
+**The gate is still missed, and that is now a documented disagreement rather than
+a bug.** Decision density does not tighten across the ladder — 36% in vault I,
+40% in vault XII, the gate falling five points a vault underneath it. Par, board
+size and depth carry all of the difficulty. The honest reading is that `openMax`
+describes an axis this generator does not supply, and the two remaining options
+are to drop it from the argument or to fix it upstream in §2: the carve is a
+single self-avoiding path, so par is protected by starving the board.
 
 
 ---

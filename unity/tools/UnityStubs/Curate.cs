@@ -157,18 +157,59 @@ static class Curate
         // which cubes were best. Board size has to climb without a gap — the
         // teaching set ends at n=7, so the mastery vaults run 8, 8, 9, 9, and
         // dropping straight to FROST GATE would have skipped n=8 entirely. Par
-        // bands rise monotonically. And the four are not all triggers: ASH
-        // TERRACE is the plate-under-trigger pair and SINGULARITY is the
-        // everter-with-trigger pair, so both combinations that measured cleanest
-        // together still appear after they are taught.
+        // bands rise monotonically.
         //
         // What goes: REVENANT, COLD FORGE, THE CANT, BONE WORKS, THE HOLLOW,
         // FROST GATE, SHALE KEEP, TIDE WELL. Their mechanics are all still taught
-        // in the first eight and all still practised in the last four.
-        V("SALT REACH",  8, 6, 10, 1, 1, "T",  0.40, ""),
-        V("ASH TERRACE", 8, 7, 12, 1, 2, "AT", 0.32, "a plate under a trigger"),
-        V("COPPER MARCH",9, 8, 13, 1, 1, "T",  0.28, ""),
-        V("SINGULARITY", 9, 9, 15, 2, 2, "ET", 0.22, ""),
+        // in the first eight.
+        //
+        // AND THE TWO PAIRINGS WENT WITH THEM, WHICH IS A REVERSAL.
+        //
+        // These four were not all triggers: ASH TERRACE was specified as the
+        // plate-under-trigger pair and SINGULARITY as the everter-with-trigger
+        // pair, "so both combinations that measured cleanest together still
+        // appear after they are taught." That sentence was written against the
+        // layered-versus-rotating comparison above, which measured PAIRS against
+        // STACKS OF THREE. It was never asked whether a pair beats a single.
+        //
+        // It does not. `ladder spec` cuts pools for a vault's own hardest slots
+        // under each spec it could have — same size, same par band, same seeds —
+        // and reports the chance of parring the whole route by choosing at random
+        // at every fold, which is the two difficulty axes compounded:
+        //
+        //     SINGULARITY, n=9        raw              every layer load-bearing
+        //       E  x1     par 1.90    1 in 9           2 of 39    1 in 2
+        //       T  x1     par 3.48    1 in 220        34 of 40    1 in 314
+        //       ET x2     par 2.97    1 in 24         15 of 38    1 in 57
+        //
+        //     ASH TERRACE, n=8
+        //       A  x1     par 2.47    1 in 17
+        //       T  x1     par 3.30    1 in 135
+        //       AT x2     par 2.28    1 in 17
+        //
+        // A single trigger is nine times the raw material of the everter pair and
+        // eight times the plate pair. AND IT IS NOT THAT THE SECOND ONE IS DEAD:
+        // the right-hand column keeps only the candidates where EVERY layer
+        // changes par on its own, and a pair whose both halves are load-bearing
+        // is still five and a half times weaker than one trigger. So the fix is
+        // not a gate on live layers. Two world-changers make each other smaller
+        // even when both are working, which is the rotation argument holding one
+        // level deeper than it was originally made.
+        //
+        // The everter is the sharpest case. At n=9 only two candidates in
+        // thirty-nine come back with a live one — it is on the board and the
+        // solution does not touch it, which is this file's own definition of
+        // scenery, and "scenery is worse than absence because the player is shown
+        // a thing that turns out not to be there." Dropping it from the finale
+        // removes scenery rather than variety. It keeps THE FAR SIDE, at n=7,
+        // where it measurably works.
+        //
+        // These were also the only two vaults in the ladder that measured EASIER
+        // than the vault before them.
+        V("SALT REACH",  8, 6, 10, 1, 1, "T", 0.40, ""),
+        V("ASH TERRACE", 8, 7, 12, 1, 1, "T", 0.32, ""),
+        V("COPPER MARCH",9, 8, 13, 1, 1, "T", 0.28, ""),
+        V("SINGULARITY", 9, 9, 15, 2, 1, "T", 0.22, ""),
     };
 
     static Vault V(string name, int n, int lo, int hi, int locks, int glyphs, string set,
