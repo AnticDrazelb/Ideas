@@ -172,6 +172,7 @@ BOXES = [
 # produced the slot rather than a number copied out of it.
 #
 #   name, text, point size, slot width
+CAL_PANEL = 625 - 2 * 28                 # the plate, less the CALIBRATE panel inset
 ACCESS_PANEL = 625 - 2 * 28              # the plate, less the ACCESS panel inset
 ACCESS_STOPS = ACCESS_PANEL * (1 - 0.58) - 18   # `steps` runs 0.58 -> 1, less 18
 ACCESS_SLOT = ACCESS_STOPS / 3 - 6       # worst case: the middle one loses both gutters
@@ -225,6 +226,89 @@ LABELS = [
     ("jump msg · stops at", "THE CATALOGUE STOPS AT 150", 18, 625 - 2 * 40),
     ("jump msg · sealed", "CUBE 150 IS SEALED", 18, 625 - 2 * 40),
     ("jump msg · not open", "CUBE 150 IS NOT OPEN YET", 18, 625 - 2 * 40),
+
+    # ---- EVERY ROW OF CALIBRATE AND ACCESS ------------------------------
+    #
+    # tools/type/coverage.py reads the UI source and lists the strings this file
+    # has never seen. It found FORTY-FIVE, which is how a calibrate hint came to
+    # print off the end of a panel and stay there for two builds. These are the
+    # rows: the label box runs from 58 to 0.62 of the panel on CALIBRATE and 0.55
+    # on ACCESS, because the access rows carry three named stops rather than a
+    # switch and the control's shadow is wider.
+    ("cal label · SOUND", "SOUND", 21, 0.62 * CAL_PANEL - 58),
+    ("cal label · ACCESS", "ACCESS", 21, 0.62 * CAL_PANEL - 58),
+    ("cal label · FOLDS TO GO", "FOLDS TO GO", 21, 0.62 * CAL_PANEL - 58),
+    ("cal label · DEPTH READOUT", "DEPTH READOUT", 21, 0.62 * CAL_PANEL - 58),
+    ("cal label · HAPTICS", "HAPTICS", 21, 0.62 * CAL_PANEL - 58),
+    ("cal label · BRIGHTNESS", "BRIGHTNESS", 21, 0.62 * CAL_PANEL - 58),
+    ("cal label · CONTRAST", "CONTRAST", 21, 0.62 * CAL_PANEL - 58),
+    ("cal label · UNSEAL CUBES", "UNSEAL CUBES", 21, 0.62 * CAL_PANEL - 58),
+
+    # a Bar passes wideHint false, so its hint stops at 0.30 — a quarter of the
+    # room a Toggle's hint gets, and the one row nobody would think to check
+    ("cal hint · HAPTICS", "0 IS OFF", 17, 0.30 * CAL_PANEL - 58),
+
+    ("acc label · LEGIBILITY", "LEGIBILITY", 21, 0.55 * CAL_PANEL - 58),
+    ("acc label · CAPTIONS", "CAPTIONS", 21, 0.55 * CAL_PANEL - 58),
+    ("acc label · FOLD BUTTONS", "FOLD BUTTONS", 21, 0.55 * CAL_PANEL - 58),
+    ("acc label · DEPTH READOUT", "DEPTH READOUT", 21, 0.55 * CAL_PANEL - 58),
+    ("acc hint · LEGIBILITY", "EVERY LABEL AT 7:1", 17, 0.72 * CAL_PANEL - 58),
+    ("acc hint · CAPTIONS", "EVERY CUE, IN WORDS", 17, 0.72 * CAL_PANEL - 58),
+    ("acc hint · FOLD BUTTONS", "FOUR ARROWS · NO SWIPE NEEDED", 17, 0.72 * CAL_PANEL - 58),
+    ("acc hint · DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL", 17, 0.72 * CAL_PANEL - 58),
+
+    # ---- THE WORDMARK, which is the largest type in the product ----------
+    #
+    # Sixty-six points across the full plate, and the one string a player sees
+    # before anything else. It comes out at 436 of 625, so the name could take
+    # another fifteen characters before it broke — which is worth knowing rather
+    # than assuming, because it is the string nobody would think to check and the
+    # one everybody sees.
+    ("title · SINGULARITY", "SINGULARITY", 66, 625),
+    ("title · ENGINE", "ENGINE", 66, 625),
+    ("forge · heading", "FORGE", 34, 625 - 2 * 40),
+
+    # ---- the headings both screens open on -------------------------------
+    ("calibrate · title", "CALIBRATE", 44, 625 - 2 * 40),
+    ("calibrate · sub", "TUNE THE INSTRUMENT", 20, 625 - 2 * 40),
+    ("access · sub", "SIGHT · SOUND · HAND", 20, 625 - 2 * 40),
+    ("plate teach · eyebrow", "A NEW COMPONENT", 20, 625 - 2 * 40),
+    ("plate teach · h", "PLATES", 44, 625 - 2 * 40),
+    ("vaults · title", "VAULTS", 32, 625 - 240),
+    ("vaults · name", "VAULT I", 32, 625 - 240),
+
+    # ---- THE PRIMARY BUTTONS, which are the ones that read [ WIPE DEC ----
+    #
+    # A bracketed label is drawn with its brackets, so the string measured has to
+    # carry them: [ MENU ] is nine characters and MENU is four.
+    ("plate teach · STEP ON IT", "[ STEP ON IT ]", 28, 625 - 120),
+    ("manual · GOT IT", "[ GOT IT ]", 28, 625 - 120),
+    ("pause · RESUME", "[ RESUME ]", 28, 625 - 120),
+    ("win · NEXT", "[ NEXT ]", 28, 625 - 2 * 84),
+    ("win · RETRY FOR PAR", "RETRY FOR PAR", 21, 625 - 2 * 84),
+    ("win · AT PAR", "AT PAR", 21, 625 - 2 * 84),
+    ("win · VAULT SOLVED", "VAULT SOLVED", 21, 625 - 2 * 84),
+    ("seed box · GO", "[ GO ]", 24, 120),
+
+    # ---- THE HUD, WHICH HAS THE LEAST ROOM OF ANY SCREEN -----------------
+    #
+    # Three buttons across the whole plate, ten units of gutter each side, at the
+    # kit's default size. They are pressed more than everything else in the game
+    # put together and they are the only controls with a board above them.
+    ("hud · MENU", "[ MENU ]", 24, 625 / 3 - 20),
+    ("hud · UNDO", "[ UNDO ]", 24, 625 / 3 - 20),
+    ("hud · HINT", "[ HINT ]", 24, 625 / 3 - 20),
+    ("hud · TO GO", "TO GO", 21, 120),
+
+    # ---- and the forge ----------------------------------------------------
+    #
+    # NEW CUBE is HALF the bottom bar rather than a third of a band, and measuring
+    # it against a third reported an overflow that was not there. A wrong measure
+    # is worse than none: it teaches you to distrust the tool.
+    ("forge · DECK 1 / 5", "DECK 1 / 5", 24, 200),
+    ("forge · NEW CUBE", "[ NEW CUBE ]", 24, (625 - 100) * 0.5 - 7),
+    ("forge · LOAD", "[ LOAD ]", 24, 152.6),
+    ("forge · PLAY", "[ PLAY ]", 24, 545 / 3 - 8),
 
     ("calibrate foot · MANUAL", "[ MANUAL ]", 24, (625 - 80) / 3 - 12),
     ("calibrate foot · BACK", "[ BACK ]", 24, (625 - 80) / 3 - 12),
