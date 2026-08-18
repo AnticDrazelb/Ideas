@@ -60,6 +60,14 @@ namespace Singularity.Game
         // canvas scaler works in.
 
         public const float RefWidth = 720f, RefHeight = 1280f;
+
+        /// <summary>
+        /// The scaler's match, and the exponent <see cref="CanvasScale"/> raises
+        /// each ratio to. UiKit.Canvas reads it rather than repeating it — one
+        /// number, so the pixel arithmetic in this file cannot describe a canvas
+        /// the game is not drawing on.
+        /// </summary>
+        public const float CanvasMatch = 0.5f;
         public const float TopBand = 162f, BottomBand = 128f;
 
         /// <summary>
@@ -162,7 +170,8 @@ namespace Singularity.Game
             {
                 float w = Screen.width, h = Screen.height;
                 if (w <= 0f || h <= 0f) return 1f;
-                return Mathf.Sqrt((w / RefWidth) * (h / RefHeight));
+                // Unity's own: pow(w/rw, 1-m) * pow(h/rh, m)
+                return Mathf.Pow(w / RefWidth, 1f - CanvasMatch) * Mathf.Pow(h / RefHeight, CanvasMatch);
             }
         }
 

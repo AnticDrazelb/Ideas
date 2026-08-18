@@ -140,9 +140,14 @@ namespace Singularity.UI
             c.sortingOrder = order;
             var s = go.GetComponent<CanvasScaler>();
             s.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            s.referenceResolution = new Vector2(720, 1280);
+            // THE SAME TWO NUMBERS LAYOUT CONVERTS WITH, and the same match.
+            // Layout.CanvasScale reproduces this scaler's factor in order to put a
+            // pixel rectangle and a canvas rectangle in the same frame; if the pair
+            // here and the pair there can drift, that arithmetic is a guess. They
+            // cannot: there is one of each.
+            s.referenceResolution = new Vector2(Layout.RefWidth, Layout.RefHeight);
             s.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            s.matchWidthOrHeight = 0.5f;
+            s.matchWidthOrHeight = Layout.CanvasMatch;
             // ONLY WHILE THE GAME IS RUNNING. DontDestroyOnLoad is meaningless
             // outside play mode — there is no load to survive — and Unity says so
             // with a warning every time. The edit-mode preview builds these same

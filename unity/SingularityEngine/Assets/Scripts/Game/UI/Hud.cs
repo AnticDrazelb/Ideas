@@ -201,7 +201,11 @@ namespace Singularity.UI
             _vault = UiKit.Label(top, "vault", "", 20, Palette.Dim, TextAnchor.MiddleRight,
                                  new Vector2(0.5f, 0), new Vector2(1, 0.45f), Vector2.zero, new Vector2(-28, 0));
 
-            UiKit.Rule(_root, 1f).rectTransform.anchoredPosition = new Vector2(0, -162);
+            // LAYOUT'S NUMBER, NOT A COPY OF IT. This rule closes the top band and
+            // the camera frames the board against the same band, so a literal here
+            // is the second definition that the aperture used to have — change one
+            // and the readout draws a line where the board now starts.
+            UiKit.Rule(_root, 1f).rectTransform.anchoredPosition = new Vector2(0, -Layout.TopBand);
 
             // ---- the plate clock ---------------------------------------------
             //
@@ -250,7 +254,7 @@ namespace Singularity.UI
 
             // ---- bottom band ---------------------------------------------------
             RectTransform bot = UiKit.Rect(_root, "barBot", new Vector2(0, 0), new Vector2(1, 0),
-                                           new Vector2(0, 0), new Vector2(0, 128));
+                                           new Vector2(0, 0), new Vector2(0, Layout.BottomBand));
             Third(bot, 0, "MENU", () => Screens.ShowPause(_dir));
             Third(bot, 1, "UNDO", () => { if (_dir.S.Undo()) Sfx.I.Undo(); else Toast("NOTHING TO UNDO"); });
             Third(bot, 2, "HINT", DoHint);
