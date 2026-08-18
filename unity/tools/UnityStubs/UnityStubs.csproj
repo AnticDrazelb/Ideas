@@ -34,6 +34,7 @@
     <Compile Include="LayoutChecks.cs" />
     <Compile Include="CoachChecks.cs" />
     <Compile Include="TitleChecks.cs" />
+    <Compile Include="LadderAudit.cs" />
     <Compile Include="Curate.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Game/**/*.cs" />

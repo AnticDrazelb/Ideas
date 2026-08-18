@@ -420,6 +420,30 @@ static class Curate
     /// Stage one: is this a cube at all, and does it solve? No opinion about par,
     /// because the prune has not run yet and par is what the prune changes.
     /// </summary>
+    /// <summary>
+    /// A raw candidate's LEVEL, for the audit that asks what a pool looks like
+    /// rather than which cube wins it. The same seed, the same spec and the same
+    /// carve the cut uses — a second way of making a candidate would measure a
+    /// pool the ladder was never chosen from.
+    /// </summary>
+    public static Level RoughLevel(uint seed, Vault v, int level, int parLo, out double stageOne)
+    {
+        stageOne = double.MinValue;
+        Spec spec = SpecOf(v, level, parLo);
+        Cand c = Rough(seed, spec, level);
+        if (c == null) return null;
+
+        // exactly what Pick scores it with in stage one, which is to say with
+        // routeOpen still at the 1.0 nobody has measured yet
+        Measure(c, spec);
+        double openMax = v.openMax + (1.0 - v.openMax) * 0.35;
+        stageOne = Value(c, v.parLo, v.parHi, openMax, v);
+        return c.lv;
+    }
+
+    /// <summary>How many of the pool Pick prunes and re-scores. See Shortlist.</summary>
+    public static int ShortlistSize => Shortlist;
+
     static Cand Rough(uint seed, Spec spec, int level)
     {
         Level lv = Generator.Generate(seed, spec);
@@ -595,7 +619,17 @@ static class Curate
     /// only the shortlist is walked — and this time the arithmetic has been done
     /// rather than guessed.
     /// </summary>
-    static double RouteOpen(Level lv, int par, out int points, out double depth)
+    /// <summary>
+    /// PUBLIC BECAUSE THE AUDIT MUST ASK THE SAME QUESTION THE SCORER ASKED.
+    ///
+    /// The share of legal folds that keep par, measured at every fold along the
+    /// route rather than only the first, and enumerated from everywhere the free
+    /// walk reaches rather than from the landing cell — both of which the comment
+    /// inside says why. LadderAudit reports the shipped ladder against the same
+    /// `openMax` these vaults were cut to, and a second implementation of this
+    /// would be a second definition of the ladder's own difficulty axis.
+    /// </summary>
+    public static double RouteOpen(Level lv, int par, out int points, out double depth)
     {
         points = 0;
         double total = 0;

@@ -71,6 +71,94 @@ with a hard maximum of ten folds that is never approached in practice.
 `VaultSize` grows the *number* of cubes per vault (25 + 5b) but nothing grows
 their difficulty, so vaults 16 through 30 are fifteen vaults of the same cube.
 
+### Everything above is about the GENERATOR, and the generator is no longer the ladder
+
+```sh
+dotnet run --project unity/tools/UnityStubs ladder    # what actually ships
+```
+
+`Bootstrap` loads `catalogue.txt` and `LevelSupply` serves it, so the first three
+hundred cubes — every cube most players will ever see — are **curated**: chosen
+out of a pool per slot against a per-vault spec, pruned, and safety-audited. The
+generator is what happens after cube three hundred. `content` audits the
+generator; `ladder` audits what ships, through `LevelSupply.Get`, so the fourteen
+authored cubes are the authored ones.
+
+```
+vault  cubes   n   par  (lo-hi)  steps/fold  keep-par   gate   depth
+I       25  5.3   2.80      1-4        1.5        28%   100%     22%
+II      25  5.0   3.80      3-7        1.0        39%    84%     28%
+III     25  6.0   4.32      3-7        1.1        30%    75%     31%
+IV      25  6.0   5.04      4-9        0.9        40%    69%     33%
+V       25  6.0   5.24      4-7        1.8        35%    65%     51%
+VI      25  6.0   4.76      2-7        1.4        34%    62%     44%
+VII     25  7.0   5.92      4-8        1.0        40%    59%     44%
+VIII    25  7.0   7.00      6-8        1.8        28%    57%     63%
+IX      25  8.0   8.56     7-10        1.9        29%    51%     65%
+X       25  8.0   8.36     7-11        2.6        34%    44%     71%
+XI      25  9.0   9.88     8-12        1.8        32%    41%     65%
+XII     25  9.0   9.76     8-18        1.3        40%    36%     60%
+```
+
+**So the headline of §1 is false of the shipped game.** Par does not asymptote at
+5.8 and stop: it climbs from 2.80 to 9.76, a factor of three and a half, board
+size goes 5 to 9, and depth — the share of the solve that happens in a world or a
+face the opening board cannot show you — goes 22% to 60%, peaking at 71%. The
+curation fixed the thing this section was written to complain about. The section
+stays because it is still true of cubes 301 and up.
+
+### What replaced it is a different flat line, and this one is load-bearing
+
+`Curate`'s own argument for the back half is that par runs into a ceiling the
+orientation group imposes, so **decision density** carries the rest: `openMax`
+falls from 1.00 to 0.20 across the ladder, which is "the difference between a
+cube where every opening fold keeps par and one where four in five throw the
+route away."
+
+The gate falls **5.0 points a vault**. The cubes it was supposed to select
+**rise 0.1 points a vault** — 28% in vault I, 40% in vault XII, wandering
+between with no trend at all. Decision density is not the back half's difficulty
+axis in the shipped ladder, whatever the ladder was designed around; par, size
+and depth carry every bit of it, and vault XII ends the game on the *widest*
+opening decisions in it rather than the tightest.
+
+**And it is not a scoring bug.** The obvious suspicion is that the 900-point
+`routeOpen` term is being outvoted, or that the shortlist — which is chosen
+before `routeOpen` is measured — selects against it. Both were measured and both
+are innocent: the shortlist comes out at 28% against its pool's 33%, so it is
+slightly *better* than what it was drawn from.
+
+```sh
+dotnet run --project unity/tools/UnityStubs ladder gate      # cube 300's slot
+```
+
+The answer is a conflict between the two axes:
+
+```
+  candidates that solve      58 of 60
+  inside the gate            19 of 58  (33%)
+  in the par band UNPRUNED    0 of 58
+  in the band AND the gate    0
+```
+
+**Nothing is both.** The carve cannot reach a par of twelve at n=9 on its own —
+zero of fifty-eight candidates land in the band — so the cut must prune to get
+there, and `Pick`'s own comment records what pruning costs: *"pruning improves
+the opening figure from 29% to 15% and worsens the route figure from 32% to
+44%."* The gate is not missed because a scorer lost a vote. It is missed because
+the ladder asks for two things the carve cannot supply at once.
+
+That leaves three honest options and they are a design decision rather than a
+tuning one:
+
+1. **Lower the late par bands** so the prune is not needed, and let decision
+   density actually carry the back half — which is what §1's own theory says
+   should happen, applied.
+2. **Keep par climbing** and drop the decision gate from the argument, since it
+   is not doing the work the doc claims for it.
+3. **Fix it upstream**, which is §2: the carve is a single self-avoiding path, so
+   par is being protected by starving the board. Every symptom here is that one.
+
 
 ---
 

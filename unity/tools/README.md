@@ -187,7 +187,16 @@ dotnet run --project tools/UnityStubs content     # par, openings, the difficult
 dotnet run --project tools/UnityStubs buried      # what the solid hides, and what eversion buys
 dotnet run --project tools/UnityStubs gravity     # what a fall rule would cut from the walk graph
 dotnet run --project tools/UnityStubs arc         # search for cubes that provably teach a mechanic
+dotnet run --project tools/UnityStubs ladder     # the SHIPPED ladder, vault by vault
+dotnet run --project tools/UnityStubs ladder gate # why the last vault misses its own gate
 ```
+
+`content` and `ladder` are not two views of one thing. `content` mints cubes from
+the generator; `ladder` reads what `LevelSupply` actually serves, which for the
+first three hundred cubes is the curated catalogue and the fourteen authored
+cubes. Every conclusion in `DESIGN.md §1` was drawn from `content` and several of
+them are false of the shipped game — see the section that says so, and prefer
+`ladder` for any claim about what a player climbs.
 
 The default run asserts, in order:
 
