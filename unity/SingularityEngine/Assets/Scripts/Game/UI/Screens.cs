@@ -603,10 +603,31 @@ namespace Singularity.UI
                 return;
             }
 
-            bool earned = Store.Open(level);
+            // ---- AND A CUBE YOU HAVE NOT REACHED IS SHUT ---------------------
+            //
+            // This used to hand the cube over as PRACTICE — playable, with nothing
+            // recorded — which meant the ladder had no lock on it at all: type any
+            // number and the cube arrives. A gate that lets everybody through is a
+            // gate nobody notices, and it made the relock after finishing
+            // meaningless, because everything was open the whole time anyway.
+            //
+            // TWO REFUSALS, BECAUSE THEY ARE DIFFERENT FACTS. A cube nobody has
+            // reached is ahead of the player. A cube they solved and cannot open
+            // is sealed — the machine has taken it back — and the word says that
+            // without saying where the key is, because finding the switch is the
+            // joke.
+            if (!Store.Open(level))
+            {
+                _jumpMsg.text = Store.EverCleared(level)
+                              ? "CUBE " + level + " IS SEALED"
+                              : "CUBE " + level + " IS NOT OPEN YET";
+                _jumpMsg.color = Palette.Fault;
+                return;
+            }
+
             _jumpMsg.text = "";
             Show(null);
-            _dir.Play(level, earned ? LoadKind.Vault : LoadKind.Practice);
+            _dir.Play(level, LoadKind.Vault);
         }
 
         static void OpenVaults()
@@ -719,8 +740,12 @@ namespace Singularity.UI
                 int lv = level;
                 var btn = UiKit.Bracketed(slot, "b", "", () =>
                 {
+                    // A LOCKED CARD IS INERT, not a door to a practice run. It is
+                    // already drawn in Dim2 and it already reads as unavailable;
+                    // opening the cube anyway was the screen contradicting itself.
+                    if (!reached) return;
                     Show(null);
-                    _dir.Play(lv, reached ? LoadKind.Vault : LoadKind.Practice);
+                    _dir.Play(lv, LoadKind.Vault);
                 }, 1);
 
                 // Bracketed gives every control the same plate and edge; a card that
@@ -1247,7 +1272,7 @@ namespace Singularity.UI
             // somebody cube 150 and solving a hundred and forty-nine to get there.
             // The row is built once like every other and shown by ShowCalibrate,
             // because a panel rebuilt on open is a panel that loses its scroll.
-            _unlockRow = Toggle(panel, "i.togo", "ALL CUBES OPEN", "JUMP TO ANY CUBE · BESTS COUNT",
+            _unlockRow = Toggle(panel, "i.togo", "UNSEAL CUBES", "EVERYTHING YOU HAVE SOLVED",
                    () => Store.Data.unlocked, v => Store.Data.unlocked = v);
             // Reading through the old flag rather than migrating the save: anybody
             // who had haptics switched off has haptic 0 and a strength they set

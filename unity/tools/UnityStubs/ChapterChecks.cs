@@ -108,8 +108,29 @@ static class ProgressChecks
         // ---- the gate is one question, asked one way ------------------------
         save.unlocked = 0; save.reached = 20;
         ok(Store.Open(20) && !Store.Open(21), "the frontier does not gate at reached");
+
+        // A CUBE NOBODY HAS SOLVED STAYS SHUT, SWITCH OR NO SWITCH. This is the
+        // line between a lock with a key and no lock at all: the switch gives
+        // back what a save has earned, it does not hand out the ladder.
+        int probe = 21;
+        bool had = Store.EverCleared(probe);
         save.unlocked = 1;
-        ok(Store.Open(Vaults.LastCube), "the unlock switch does not open the last cube");
+        ok(!Store.Open(probe) || had,
+           "the switch opens a cube that has never been cleared");
+
+        if (!had)
+        {
+            // ---- and the joke: solved, past the frontier, and shut -----------
+            Store.SetBest(probe, 4);
+            ok(Store.Open(probe), "a solved cube stays shut with the switch on");
+            save.unlocked = 0;
+            ok(!Store.Open(probe), "the relock does not seal a cube that has been solved");
+            // and the save is put back the way it was found: this wrote a best
+            // for a cube nobody solved, and a later check reading it would be
+            // reading this one's leftovers.
+            Store.Load();
+            save = Store.Data;
+        }
         save.unlocked = 0;
 
         // ---- a finished machine is a fact about runs, not about reached ------
@@ -126,8 +147,9 @@ static class ProgressChecks
         foreach (int level in new[] { 15, 30, 45 }) mask = Chapters.Mark(mask, level);
         ok(!Chapters.Due(15, false, false, mask), "a second run repeats the chapter words");
 
+        save = Store.Data;
         save.reached = reached; save.runs = runs; save.unlocked = unlocked;
-        Console.WriteLine("progress: the ladder gates at reached, relocks on the last cube, "
-                        + "and the switch opens it without moving the frontier");
+        Console.WriteLine("progress: a cube past the frontier is shut rather than practice; "
+                        + "finishing relocks to cube one; the switch gives back only what was solved");
     }
 }

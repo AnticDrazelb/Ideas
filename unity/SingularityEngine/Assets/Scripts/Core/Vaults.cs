@@ -128,8 +128,17 @@ namespace Singularity.Core
         /// gets the ending — INCLUDING A PRACTICE RUN, and that is the part that
         /// was wrong.
         ///
-        /// Practice is what the seed box gives you for a cube past `reached`, and
-        /// suppressing the ending there had two costs. The small one is that a
+        /// Practice USED TO BE what the seed box gave you for a cube past
+        /// `reached` — the ladder had no lock on it, so any number typed in
+        /// arrived as an unrecorded run. It is shut now: a cube ahead of the
+        /// player is refused, and a cube they solved is refused too once the
+        /// machine has been finished and taken the ladder back. Reaching the last
+        /// cube to see the ending means reaching it, or turning UNSEAL CUBES on in
+        /// Calibrate, which only ever gives back cubes this save has a best for.
+        ///
+        /// The argument below is kept because it is still the rule — whoever is
+        /// standing on the last cube gets the ending — and because suppressing it
+        /// for practice had two costs. The small one is that a
         /// player who types 150 to look at the last cube solves it and gets the
         /// ordinary throw and a card offering them cube a hundred and fifty-one.
         /// The large one is that TYPING 150 IS HOW ANYBODY TESTS THIS — it is the

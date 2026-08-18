@@ -320,7 +320,22 @@ namespace Singularity.Game
         /// which records nothing.
         /// </summary>
         public static bool Open(int level)
-            => Data.unlocked != 0 || level <= Data.reached;
+        {
+            // The frontier of the run you are on, which on a first run is every
+            // cube you have cleared plus the one in front of you.
+            if (level <= Data.reached) return true;
+
+            // AND WHAT YOU EARNED, GIVEN BACK. The switch does not hand out cubes
+            // nobody has solved — it restores access to the ones this save already
+            // has a best for, which is why it is useless on a first run and why it
+            // is not a cheat on any run. Finishing the machine relocks the ladder
+            // to cube one; this is the sentence that makes that a joke rather than
+            // a hundred and forty-nine cubes of homework.
+            return Data.unlocked != 0 && TryBest(level, out _);
+        }
+
+        /// <summary>Has this cube ever been cleared, on any run?</summary>
+        public static bool EverCleared(int level) => TryBest(level, out _);
 
         static void Migrate()
         {

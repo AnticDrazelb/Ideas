@@ -216,7 +216,15 @@ LABELS = [
     ("cal hint · FOLDS TO GO", "CYAN: PERFECT · RUST: YOU SLIPPED", 17, 0.72 * (625 - 56) - 58),
     ("cal hint · DEPTH", "DISTANCE PRINTED ON EVERY CELL", 17, 0.72 * (625 - 56) - 58),
     ("cal hint · ACCESS", "MOTION · LIGHT · CONTRAST · WORDS", 17, 0.72 * (625 - 56) - 58),
-    ("cal hint · ALL CUBES OPEN", "JUMP TO ANY CUBE · BESTS COUNT", 17, 0.72 * (625 - 56) - 58),
+    ("cal hint · UNSEAL CUBES", "EVERYTHING YOU HAVE SOLVED", 17, 0.72 * (625 - 56) - 58),
+
+    # WHAT THE SEED BOX SAYS WHEN IT WILL NOT OPEN A CUBE. One line, no wrap, the
+    # width of the plate less the box's own inset. The longest is the three-digit
+    # form of the longer refusal, because a player types 100 far more often than
+    # they type 7.
+    ("jump msg · stops at", "THE CATALOGUE STOPS AT 150", 18, 625 - 2 * 40),
+    ("jump msg · sealed", "CUBE 150 IS SEALED", 18, 625 - 2 * 40),
+    ("jump msg · not open", "CUBE 150 IS NOT OPEN YET", 18, 625 - 2 * 40),
 
     ("calibrate foot · MANUAL", "[ MANUAL ]", 24, (625 - 80) / 3 - 12),
     ("calibrate foot · BACK", "[ BACK ]", 24, (625 - 80) / 3 - 12),
