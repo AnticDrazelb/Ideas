@@ -307,6 +307,7 @@ public static class ForgeChecks
         if (args.Length > 0 && args[0] == "peel") { PeelProbe.Run(); return; }
         if (args.Length > 0 && args[0] == "buried") { BuriedProbe.Run(); return; }
         if (args.Length > 0 && args[0] == "arc") { ArcSearch.Run(); return; }
+        if (args.Length > 0 && args[0] == "finale") { Finale.Run(args); return; }
         if (args.Length > 0 && args[0] == "claims") { ClaimProbe.Run(); return; }
         if (args.Length > 0 && args[0] == "curate") { Curate.Run(args); return; }
         if (args.Length > 0 && args[0] == "finish") { FinishChecks.Trace(args); return; }

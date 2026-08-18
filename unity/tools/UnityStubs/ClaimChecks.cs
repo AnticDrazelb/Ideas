@@ -132,6 +132,15 @@ static class ClaimChecks
                         + " to par by luck; the hardest in the ladder is cube " + worstAt
                         + " at 1 in " + (worst <= 0 ? "?" : (1.0 / worst).ToString("#,0"))
                         + (worstAt == Vaults.LastCube ? " — the same cube"
-                                                      : " — NOT the same cube, and the re-cut is what fixes that"));
+                                                      : " — NOT the same cube"));
+
+        // AND IT IS A GATE NOW, NOT A NOTE. This printed the gap for two commits
+        // while it was being closed from the cutting end, because a check that
+        // fails for a known reason on every run is a check people learn to read
+        // past. It is closed, so it asserts: a re-cut regenerates the whole
+        // catalogue and would put the hardest cube back wherever the seeds fell,
+        // and `finale apply` is the one command that fixes it.
+        ok(worstAt == Vaults.LastCube,
+           "cube " + worstAt + " is harder than the last cube — run `finale apply`");
     }
 }
