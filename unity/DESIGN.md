@@ -91,8 +91,8 @@ II      25  5.0   4.00       36%       4.4     28%       1 in 90
 III     25  6.0   4.20       37%       8.2     29%      1 in 125
 IV      25  6.0   5.00       44%       5.4     31%      1 in 128
 V       25  6.0   5.00       39%      14.3     49%      1 in 343
-VI      25  6.0   4.60       35%       9.7     44%      1 in 396
-VII     25  7.0   6.36       45%       5.7     43%      1 in 192
+VI      25  6.0   4.48       37%      10.1     44%      1 in 396
+VII     25  7.0   6.28       30%       9.1     58%   1 in 12,168
 VIII    25  7.0   6.28       30%       9.8     58%   1 in 10,920
 IX      25  8.0   7.76       34%       8.8     64%   1 in 39,723
 X       25  8.0   8.44       35%       8.2     65%   1 in 30,925
@@ -213,6 +213,14 @@ back with a live one. It is on the board and the solution does not touch it,
 which is this file's own definition of scenery — so dropping it from the finale
 removes scenery rather than variety. It keeps THE FAR SIDE at n=7, where it
 measurably works.
+
+**And the everter vault was a hole in the ladder because its mechanic was not
+doing anything.** THE FAR SIDE measured 1 in 192 with the old everter — softer
+than the vault before it and sixty times softer than the one after — because a
+reversed depth test mostly gave the route a board it did not need. With the
+faces turning it measures **1 in 12,168**, which lands it exactly where a vault
+between VI and VIII should be. Nothing about its spec changed. The mechanic
+started working and the difficulty followed.
 
 **Both vaults now carry one trigger, and the back half climbs:**
 
