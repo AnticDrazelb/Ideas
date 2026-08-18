@@ -48,7 +48,59 @@ it a gate rather than an intention. All of them are measured on the board as
 | `Detour` | the first fold of the optimal line moves the core further away on screen |
 | `RequiresGlyph` | demote the plate and drop the second solid, and the cube has no route at all |
 | `RequiresKey` | take the key away and the lock never opens — the node is load-bearing |
+| `Revisit(k)` | the route stands on one cell in k different states — same ground, changed underneath |
 | `OrderGated` | two folds legal at the start where one order keeps par and the other loses it |
+| `HoldTheGlyph` | walking onto the mechanic before folding throws the route away |
+| `BlindGoal` | the core is in the solid but not on the opening board — the first fold is taken blind |
+| `FiresTwice` | the optimal line changes world twice: one press is not enough |
+
+### Asking the catalogue before cutting against it
+
+```sh
+dotnet run --project unity/tools/UnityStubs claims
+```
+
+Two claims had already been written into the ladder and taken back out of it, and
+both failures had the same shape: a sentence that sounded like a good argument for
+a cube, gated on, and only then discovered to describe almost nothing. Both were
+caught *after* a cut, from a check run reporting failures by the dozen.
+
+That is an expensive way to learn a claim is empty, and it is avoidable — the
+cubes are already sitting in the catalogue, so any claim can be asked of them
+before a single slot is cut against it. `claims` does that:
+
+```
+claim                   I   II  III   IV    V   VI  VII VIII   IX    X   all
+HoldTheGlyph            0    0    0    0    0    0    0    1    1    0   2/150
+FiresTwice              0    0    0    0    0    0    0    0    0    0   0/150
+Revisit(2)             11   12   10   13   15   14   14   14   14   15  132/150
+Revisit(3)              2    0    2    1    1    5    0    4    1    4  20/150
+Revisit(4)              0    0    0    0    0    1    0    1    0    0   2/150
+BlindGoal              12   14   15   14   11   15    9   14   13   13  130/150
+OrderGated              1    1    2    0    1    1    0    1    1    0   8/150
+SoleOpening             6    1    2    3    2    1    7    5    3    2  32/150
+Detour                  7    6    9    8    8    7    5    5    3    3  61/150
+RequiresGlyph           0    0    0    0   15   15   12   15   15   15  87/150
+```
+
+**Three claims were written for the back half and all three failed this table.**
+`FiresTwice` holds on nothing at all — the solver never re-presses a plate,
+because par is a minimum and going back through costs steps, so the plate card's
+"tap it again to press it again" describes something no cube in the game requires.
+`HoldTheGlyph` holds on two cubes in a hundred and fifty: a plate toggles, so
+firing it early is almost always recoverable by firing it again. `Revisit(2)` and
+`BlindGoal` fail in the opposite direction — 88% and 87% — which is not a claim,
+it is a description of the genre.
+
+What survived was `Revisit(3)`: one cell, stood on in three different orientations
+or worlds, 13% of the existing ladder. That is a real argument and there is enough
+material to cut against it.
+
+**And the useful finding was not about the new claims at all.** The back half was
+monotonous because *six of the nine claims already in the vocabulary were sitting
+unused*. `SoleOpening` holds on 21% of the ladder and was assigned to nothing that
+ships; `Detour` holds on 41% and had five slots. The problem was never a shortage
+of things to say.
 
 ### Two claims that were written and then withdrawn
 
@@ -88,12 +140,19 @@ one claim.
 | II | FOOTING | 16–30 | 5 | 2–5 | 0.85 | `FootingGated` | `FootingGated` | `FalseFloor` |
 | III | DISTANT NEIGHBOURS | 31–45 | 6 | 3–6 | 0.78 | `DistantNeighbours(3)` | `DistantNeighbours(3)` | `FalseFloor` |
 | IV | NODES AND LOCKS | 46–60 | 6 | 3–7 | 0.70 | `RequiresKey` | `RequiresKey` | `FalseFloor` |
-| V | EMBERFALL | 61–75 | 6 | 4–8 | 0.62 | `RequiresGlyph` | `RequiresGlyph` | `FootingGated` |
-| VI | SUBSTRATE | 76–90 | 7 | 5–9 | 0.56 | `RequiresGlyph` | `DistantNeighbours(4)` | `FalseFloor` |
-| VII | THE FAR SIDE | 91–105 | 7 | 5–10 | 0.50 | `RequiresGlyph` | `FalseFloor` | `RequiresGlyph` |
-| VIII | THRESHOLD | 106–120 | 8 | 6–11 | 0.44 | `RequiresGlyph` | `FalseFloor` | `RequiresGlyph` |
-| IX | ASH TERRACE | 121–135 | 8 | 7–12 | 0.36 | `RequiresGlyph` | `FootingGated` | `RequiresGlyph` |
-| X | SINGULARITY | 136–150 | 9 | 8–14 | 0.28 | `RequiresGlyph` | `FootingGated` | `DistantNeighbours(4)` |
+| V | EMBERFALL | 61–75 | 6 | 4–8 | 0.62 | `RequiresGlyph` | `Detour` | `SoleOpening` |
+| VI | SUBSTRATE | 76–90 | 7 | 5–9 | 0.56 | `RequiresGlyph` | `DistantNeighbours(4)` | `Revisit(3)` |
+| VII | THE FAR SIDE | 91–105 | 7 | 5–10 | 0.50 | `RequiresGlyph` | `FalseFloor` | `Detour` |
+| VIII | THRESHOLD | 106–120 | 8 | 6–11 | 0.44 | `RequiresGlyph` | `Revisit(3)` | `SoleOpening` |
+| IX | ASH TERRACE | 121–135 | 8 | 7–12 | 0.36 | `RequiresGlyph` | `FootingGated` | `Revisit(3)` |
+| X | SINGULARITY | 136–150 | 9 | 8–14 | 0.28 | `RequiresGlyph` | `SoleOpening` | `Revisit(3)` |
+
+**Every chapter that carries a mechanic opens on `RequiresGlyph` and then stops
+talking about it.** The first fifth proves the thing is load-bearing — take it
+away and there is no route — which is the floor a glyph cube has to clear, not a
+chapter's argument. The other two fifths are about the route. Cut the other way
+round, with `RequiresGlyph` on ten of the eighteen fifths in chapters V–X, the
+back half was ninety cubes making one point at increasing board sizes.
 
 ### I · THE COLLAPSE — 1–15, n=5
 *Fold, walk, core. Everything that lines up, touches.*

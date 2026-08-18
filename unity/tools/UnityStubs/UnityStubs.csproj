@@ -38,6 +38,7 @@
     <Compile Include="PeelProbe.cs" />
     <Compile Include="FaceProbe.cs" />
     <Compile Include="Claims.cs" />
+    <Compile Include="ClaimProbe.cs" />
     <Compile Include="ClaimChecks.cs" />
     <Compile Include="Curate.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Core/**/*.cs" />

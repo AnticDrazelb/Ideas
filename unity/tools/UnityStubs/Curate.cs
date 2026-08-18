@@ -158,39 +158,51 @@ static class Curate
         // ---- V. EMBERFALL — the plate ----------------------------------------
         V("EMBERFALL", 6, 4, 8, 1, 1, "A", 0.62, "two worlds, one board",
           C(Claims.Kind.RequiresGlyph),
-          C(Claims.Kind.RequiresGlyph),
-          C(Claims.Kind.FootingGated)),
+          C(Claims.Kind.Detour),
+          C(Claims.Kind.SoleOpening)),
 
         // ---- VI. SUBSTRATE — the other plate ----------------------------------
         V("SUBSTRATE", 7, 5, 9, 1, 1, "B", 0.56, "the plate that opens the solid",
           C(Claims.Kind.RequiresGlyph),
           C(Claims.Kind.DistantNeighbours, 4),
-          C(Claims.Kind.FalseFloor)),
+          C(Claims.Kind.Revisit, 3)),
 
         // ---- VII. THE FAR SIDE — the everter ---------------------------------
         // The four searched cubes live at the head of this chapter, in Baked.Arc.
         V("THE FAR SIDE", 7, 5, 10, 0, 1, "E", 0.50, "every cell turns",
           C(Claims.Kind.RequiresGlyph),
           C(Claims.Kind.FalseFloor),
-          C(Claims.Kind.RequiresGlyph)),
+          C(Claims.Kind.Detour)),
 
         // ---- VIII. THRESHOLD — the trigger ------------------------------------
         V("THRESHOLD", 8, 6, 11, 1, 1, "T", 0.44, "the board itself is exchanged",
           C(Claims.Kind.RequiresGlyph),
-          C(Claims.Kind.FalseFloor),
-          C(Claims.Kind.RequiresGlyph)),
+          C(Claims.Kind.Revisit, 3),
+          C(Claims.Kind.SoleOpening)),
 
         // ---- IX. ASH TERRACE — nothing new, everything at once ----------------
         V("ASH TERRACE", 8, 7, 12, 1, 1, "T", 0.36, "",
           C(Claims.Kind.RequiresGlyph),
           C(Claims.Kind.FootingGated),
-          C(Claims.Kind.RequiresGlyph)),
+          C(Claims.Kind.Revisit, 3)),
 
         // ---- X. SINGULARITY — the last fifteen --------------------------------
+        // SOLE OPENING SHOULD CLOSE THE GAME, AND IT DOES NOT YET. `blind` is the
+        // product of the per-decision ratios along the route, and SoleOpening is
+        // the one claim that pins a decision directly — exactly one of the legal
+        // opening folds keeps par, so the first term in that product is as small
+        // as the board allows. Cut the way it stands, the hardest cube chapter X
+        // produced was 145, sitting in the middle fifth where nobody arrives last.
+        //
+        // The order below is the order the SHIPPED CATALOGUE was cut in, and it
+        // stays that way until the two are changed together: a claim table that
+        // disagrees with the text asset is eight red cubes in ClaimChecks saying
+        // a cube stopped making an argument, when what happened is that somebody
+        // moved the argument. Swap these two lines and re-cut in the same commit.
         V("SINGULARITY", 9, 8, 14, 2, 1, "T", 0.28, "",
           C(Claims.Kind.RequiresGlyph),
-          C(Claims.Kind.FootingGated),
-          C(Claims.Kind.DistantNeighbours, 4)),
+          C(Claims.Kind.SoleOpening),
+          C(Claims.Kind.Revisit, 3)),
     };
 
     static Claims.Claim C(Claims.Kind k, int arg = 0) => Claims.Of(k, arg);
@@ -228,6 +240,15 @@ static class Curate
         public double fill;
         public string id;
         public double score;
+
+        /// <summary>
+        /// The chance of parring the WHOLE route by choosing at random at every
+        /// fold — the product of the per-decision ratios rather than their mean.
+        /// Lower is harder. This is the column the ladder audit reports and the
+        /// only one a player experiences directly, and it is what the last slot of
+        /// a chapter is chosen on. See Pick.
+        /// </summary>
+        public double blind = 1.0;
     }
 
     public static void Run(string[] args)
@@ -264,6 +285,7 @@ static class Curate
             });
 
         Console.WriteLine();
+        Sequence(chosen);
         Report(chosen, taken, sw);
         Emit(chosen);
     }
@@ -279,6 +301,29 @@ static class Curate
         Vault v = Ladder[slot / PerVault];
         int level = slot + 1;
         int within = slot % PerVault;
+
+        // ---- THE LAST FIVE CUBES IN THE GAME ARE CUT DIFFERENTLY -------------
+        //
+        // Everywhere else a slot mints its budget, shortlists ten and takes the
+        // best-scoring cube that makes its claim, and that is right: a chapter
+        // needs cubes sitting in a range, not fifteen attempts at a maximum.
+        //
+        // The finale is the one place where it is wrong. Somebody arriving at cube
+        // 150 has solved a hundred and forty-nine, the ending fires on it, and it
+        // has one job. So the last fifth mints FIVE TIMES the material, reads all
+        // of it rather than stopping at the first candidate that argues, and picks
+        // on `blind` — the chance of parring the whole route by luck — instead of
+        // on the general score.
+        //
+        // AND THE FIRST VERSION OF THIS DID NOT WORK, for a reason worth keeping.
+        // It changed the selection rule without changing the pool: the hardest
+        // thing in two hundred candidates, of which the claim gate leaves about
+        // twenty-six, is not hard. Cube 150 came out at 1 in 36,100 while cube 133
+        // — chosen on plain score, from an ordinary slot — was 1 in 6,569,136. A
+        // better question asked of the same small pool gets a better answer to the
+        // wrong problem. The material is the problem.
+        bool finale = slot >= Total - PerVault / 3;
+        if (finale) budget *= 5;
 
         // The band tightens across a vault, so the twenty-fifth cube of a vault
         // is the hardest thing in it and the first is a way in.
@@ -368,10 +413,29 @@ static class Curate
         // through the rest of the pool only while nothing has made the claim —
         // which costs nothing on a slot that succeeds early and is thorough on
         // the handful that do not.
+        // A SLOT PICKS THE BEST CUBE. WHERE IT GOES IS DECIDED AFTERWARDS.
+        //
+        // The first attempt at "the last cube must be the hardest" was made here,
+        // by choosing the final slot of each chapter on `blind` rather than on
+        // `score`. It made things worse and the reason is worth keeping: a slot's
+        // pool is minted from that slot's spec, so choosing the hardest thing IN
+        // IT still only searches one slot's material — and because the claim gate
+        // runs first, it searches the hardest thing in the 13% of that pool which
+        // also makes the slot's claim. Cube 150 came out at 1 in 36,100 while cube
+        // 133, chosen on plain score, was 1 in 6,569,136. SINGULARITY's mean par
+        // fell from 9.1 to 8.4 paying for it, and the run took twenty-five minutes
+        // instead of nine.
+        //
+        // Ordering is not a selection problem. See Sequence, below Emit.
+        // The finale reads a deep slice of its much larger pool; everywhere else
+        // ten candidates are examined and the search runs on only while nothing
+        // has made the claim.
+        int examine = finale ? Math.Min(pool.Count, 200) : shortlist;
+
         Cand best = null, fallback = asIs;
         for (int i = 0; i < pool.Count; i++)
         {
-            if (i >= shortlist && best != null) break;
+            if (i >= examine && best != null) break;
 
             Cand c = pool[i];
             double frac = Depths[i % Depths.Length];
@@ -389,7 +453,7 @@ static class Curate
             // figure from 29% to 15% and worsens the route figure from 32% to 44%
             // — so every run before this one was tuned on a signal pointing the
             // wrong way.
-            c.routeOpen = RouteOpen(c.lv, c.par, out c.points, out c.depth);
+            c.routeOpen = RouteOpen(c.lv, c.par, out c.points, out c.depth, out _, out c.blind);
             c.score = Value(c, parLo, v.parHi, openMax, v);
 
             // AND A CUBE THAT DOES NOT MAKE ITS SLOT'S CLAIM IS NOT A CANDIDATE.
@@ -434,12 +498,20 @@ static class Curate
             // name rather than leaving to be discovered.
             if (makesClaim)
             {
-                if (best == null || c.score > best.score) best = c;
+                if (best == null || Beats(c, best, finale)) best = c;
             }
-            else if (fallback == null || c.score > fallback.score) fallback = c;
+            else if (fallback == null || Beats(c, fallback, finale)) fallback = c;
         }
         return best ?? fallback;
     }
+
+    /// <summary>
+    /// Which of two candidates a slot would rather have: the best-scoring one
+    /// everywhere, and on the last five cubes in the game simply the hardest to
+    /// par by luck. `blind` is a probability, so smaller is harder.
+    /// </summary>
+    static bool Beats(Cand a, Cand b, bool finale)
+        => finale ? a.blind < b.blind : a.score > b.score;
 
     /// <summary>
     /// How much of a cube's spare footing each shortlist slot is allowed to take.
@@ -1091,6 +1163,50 @@ static class Curate
     /// not a binary, because a catalogue you cannot read in a diff is a catalogue
     /// whose changes nobody can see.
     /// </summary>
+    /// <summary>
+    /// A CHAPTER CLIMBS, AND THE GAME ENDS ON ITS HARDEST CUBE.
+    ///
+    /// Every slot has been cut against a spec that tightens across its chapter —
+    /// parLo rises, openMax falls — and every audit this project has ever printed
+    /// said a chapter "opens on its easiest cube and closes on its hardest".
+    /// Nothing enforced it. The carve does not honour a band it cannot reach, so
+    /// what a slot actually returns is the best cube available to it, and the
+    /// order fifteen of those come out in is the order the seeds happened to fall.
+    /// Cube 150 was the easiest thing in SINGULARITY by par, and the hardest cube
+    /// in the game was 133.
+    ///
+    /// So the cubes are SORTED, and what makes that legitimate rather than a
+    /// shuffle is the claim assignment: a chapter's fifteen slots are three
+    /// fifths, each with its own claim, and sorting happens strictly INSIDE a
+    /// fifth. Every cube keeps the argument it was cut for and lands next to the
+    /// four cubes making the same one. What changes is only which of those five
+    /// the player meets first.
+    ///
+    /// The measure is `blind` — the chance of parring the whole route by choosing
+    /// at random at every fold — because that is the one number a player
+    /// experiences directly, and because sorting on par alone would put a long
+    /// forced corridor after a short sharp cube and call it progress.
+    /// </summary>
+    static void Sequence(Cand[] chosen)
+    {
+        int fifth = PerVault / 3;
+        for (int start = 0; start + fifth <= chosen.Length; start += fifth)
+        {
+            var run = new List<Cand>();
+            for (int i = start; i < start + fifth; i++)
+                if (chosen[i] != null) run.Add(chosen[i]);
+            if (run.Count < 2) continue;
+
+            // hardest last: blind is a probability, so descending order is
+            // ascending difficulty
+            run.Sort((a, b) => b.blind.CompareTo(a.blind));
+
+            int at = 0;
+            for (int i = start; i < start + fifth; i++)
+                if (chosen[i] != null) chosen[i] = run[at++];
+        }
+    }
+
     static void Emit(Cand[] chosen)
     {
         string dir = Repo.ResourceDir ?? Path.Combine("unity", "SingularityEngine", "Assets", "Resources");

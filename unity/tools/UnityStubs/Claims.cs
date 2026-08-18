@@ -50,6 +50,47 @@ static class Claims
         RequiresKey,
         /// <summary>Two opening folds where one order keeps par and the other loses it.</summary>
         OrderGated,
+
+        // ---- and the three that are about the ROUTE rather than the opening ----
+        //
+        // Everything above is a statement about the board as it is handed over, or
+        // about one fold taken from it. They are cheap and they are real, but they
+        // share a ceiling: a claim that only looks at the opening cannot say what
+        // a cube is like to PLAY, and the back half of the ladder is where that
+        // stops being good enough. Forty-six cubes cut against RequiresGlyph is
+        // forty-six cubes proving their mechanic is load-bearing — which is the
+        // floor every glyph cube should clear, not a chapter's argument.
+        //
+        // These three read the optimal line itself.
+
+        /// <summary>
+        /// FIRING IT AT THE FIRST OPPORTUNITY THROWS THE ROUTE AWAY. The glyph is
+        /// standing there, you can walk to it, and touching it now costs you the
+        /// cube. The obvious move is wrong, which is the difference between a
+        /// puzzle and a search.
+        /// </summary>
+        HoldTheGlyph,
+
+        /// <summary>
+        /// ONE PRESS IS NOT ENOUGH — the optimal line changes world at least
+        /// twice. The plate card says "tap it again to press it again" and until
+        /// now nothing in the ladder required anybody to.
+        /// </summary>
+        FiresTwice,
+
+        /// <summary>
+        /// THE SAME CELL, IN k DIFFERENT STATES. The route comes back to ground it
+        /// has already stood on and the ground has changed underneath it — the one
+        /// thing this game can do that a flat puzzle cannot.
+        /// </summary>
+        Revisit,
+
+        /// <summary>
+        /// YOU CANNOT SEE WHERE YOU ARE GOING. The core is in the solid but it is
+        /// not the cell winning its column, so the opening board does not show it
+        /// anywhere: the first fold is taken blind.
+        /// </summary>
+        BlindGoal,
     }
 
     public readonly struct Claim
@@ -166,8 +207,91 @@ static class Claims
         };
     }
 
+    /// <summary>
+    /// THE STATE THE CUBE IS HANDED OVER IN, AND THE START CELL COUNTS.
+    ///
+    /// This used to be pos/ori and three zeroes, which is right for almost every
+    /// cube and wrong for the ones that begin ON something: a start cell that is a
+    /// node is a key already held, and one that is a glyph is a world already
+    /// fired. Curate has had this right in `Opened` all along and the claims kept
+    /// their own shorter, wronger copy — so on those cubes every claim built on it
+    /// was reasoning about a board the player never sees.
+    /// </summary>
     static SolveState Opening(Level lv)
-        => new SolveState { pos = lv.start, ori = Turns.OriIndex(Ori.Id), kmask = 0, doors = 0, world = 0 };
+    {
+        var s = new SolveState { pos = lv.start, ori = Turns.OriIndex(Ori.Id), kmask = 0, doors = 0, world = 0 };
+        int k = lv.KeyIndexAt(lv.start);
+        if (k >= 0) s.kmask = 1 << k;
+        s.world = lv.GlyphAt(lv.start);
+        return s;
+    }
+
+    /// <summary>
+    /// ONE STEP, BY THE SAME RULES THE SOLVER STEPPED BY — the cell that wins the
+    /// column in this fold, a door consumed if one is held, a key picked up, and
+    /// the world flipped by whatever the cell turns out to be.
+    /// </summary>
+    static bool Step(Level lv, SolveState from, int dir, out SolveState to)
+    {
+        to = from;
+        int n = lv.n;
+        Ori m = Turns.Oris[from.ori];
+        Surf[] surf = Projection.Project(n, lv.Eff(from.world), m);
+        Int3 v = Projection.ViewOf(n, m, from.pos);
+
+        int u2 = v.x + Turns.All[dir].dx, w2 = v.y + Turns.All[dir].dy;
+        if (u2 < 0 || w2 < 0 || u2 >= n || w2 >= n) return false;
+        Surf cell = surf[u2 * n + w2];
+        if (!cell.has || !Level.IsWalkType(cell.t)) return false;
+
+        int doors = from.doors, kmask = from.kmask;
+        int di = lv.DoorIndexAt(cell.w);
+        if (di >= 0 && (doors & (1 << di)) == 0)
+        {
+            if (Popcount(kmask) - Popcount(doors) < 1) return false;
+            doors |= 1 << di;
+        }
+        int ki = lv.KeyIndexAt(cell.w);
+        if (ki >= 0) kmask |= 1 << ki;
+
+        to = new SolveState
+        {
+            pos = cell.w, ori = from.ori, kmask = kmask, doors = doors,
+            world = from.world ^ Level.GlyphBit(cell.t),
+        };
+        return true;
+    }
+
+    static int Popcount(int v) { int c = 0; while (v != 0) { c += v & 1; v >>= 1; } return c; }
+
+    /// <summary>
+    /// EVERY STATE THE OPTIMAL LINE PASSES THROUGH, the opening included.
+    ///
+    /// The header of this file says a claim that replayed the route would cost
+    /// more than the search it filters. That was an estimate and it was wrong by a
+    /// wide margin: a replay is one projection per act — twenty of them on the
+    /// longest cube in the game — against a solve that expands thousands of
+    /// states. The three claims that use it are the cheapest in the file.
+    /// </summary>
+    static List<SolveState> Route(Level lv, SolveResult sol)
+    {
+        var path = new List<SolveState> { Opening(lv) };
+        if (sol.line == null) return path;
+
+        SolveState s = path[0];
+        foreach (Act a in sol.line)
+        {
+            if (a.isTurn)
+            {
+                SolveState? next = AfterFold(lv, s, a.dir);
+                if (next == null) return path;
+                s = next.Value;
+            }
+            else if (!Step(lv, s, a.dir, out s)) return path;
+            path.Add(s);
+        }
+        return path;
+    }
 
     // ---- and whether a cube makes its claim --------------------------------
 
@@ -187,6 +311,10 @@ static class Claims
             case Kind.RequiresGlyph: return RequiresGlyph(lv);
             case Kind.RequiresKey: return RequiresKey(lv);
             case Kind.OrderGated: return OrderGated(lv, sol);
+            case Kind.HoldTheGlyph: return HoldTheGlyph(lv, sol, c.arg);
+            case Kind.FiresTwice: return FiresTwice(lv, sol);
+            case Kind.Revisit: return Revisit(lv, sol, Math.Max(2, c.arg));
+            case Kind.BlindGoal: return BlindGoal(lv);
         }
         return false;
     }
@@ -364,6 +492,117 @@ static class Claims
                 if (keptAB == 1 && keptBA == 0) return true;
             }
         return false;
+    }
+
+    // ---- and the three that read the line ----------------------------------
+
+    /// <summary>
+    /// TOUCH IT NOW AND YOU HAVE LOST THE CUBE.
+    ///
+    /// Every state a free walk from the opening can reach WITHOUT folding is
+    /// enumerated; the ones where the world has changed are the glyphs the player
+    /// can get to before they have done anything. If solving from any of those
+    /// still comes in on par, the mechanic is safe to press on sight and the cube
+    /// is not asking a question about it. The claim holds only when every one of
+    /// them loses.
+    ///
+    /// It has to be every one, and it has to be reachable BEFORE a fold, because
+    /// that is the state a player is actually in when the temptation is there. A
+    /// glyph four folds deep is not the obvious move.
+    ///
+    /// Note this is not "you must never fire it" — the route almost always fires
+    /// it later. It is "not from here, not yet", which is a thing a player learns
+    /// by losing a cube to it once and never forgets.
+    /// </summary>
+    static bool HoldTheGlyph(Level lv, SolveResult sol, int mode)
+    {
+        SolveState open = Opening(lv);
+        var fired = new List<SolveState>();
+        foreach (SolveState st in Walk(lv, open))
+            if (st.world != open.world) fired.Add(st);
+
+        if (fired.Count == 0) return false;          // nothing to be tempted by
+
+        int lost = 0;
+        foreach (SolveState st in fired)
+        {
+            SolveResult r = Solver.Solve(lv, sol.turns, st);
+            if (!(r.ok && r.turns <= sol.turns)) lost++;
+        }
+
+        // mode 0: EVERY temptation loses — the glyph must be held, full stop.
+        // mode 1: at least one does — there is a trap on the board, and telling it
+        //         from the safe one is the cube's question.
+        return mode == 0 ? lost == fired.Count : lost > 0;
+    }
+
+    /// <summary>
+    /// THE CORE IS NOT ON THE OPENING BOARD. It is in the solid, but something
+    /// nearer the camera wins its column, so there is nowhere on screen to aim at
+    /// and the first fold is taken on faith.
+    /// </summary>
+    static bool BlindGoal(Level lv)
+    {
+        Surf[] s = Board(lv, Ori.Id, 0);
+        Int3 g = Projection.ViewOf(lv.n, Ori.Id, lv.goal);
+        if (g.x < 0 || g.y < 0 || g.x >= lv.n || g.y >= lv.n) return true;
+        Surf cell = s[g.x * lv.n + g.y];
+        return !(cell.has && cell.w == lv.goal);
+    }
+
+    /// <summary>
+    /// ONE PRESS IS NOT ENOUGH. The optimal line's world changes at least twice,
+    /// so the cube cannot be finished by firing the thing once and walking out —
+    /// you go through, and you come back through.
+    /// </summary>
+    static bool FiresTwice(Level lv, SolveResult sol)
+    {
+        List<SolveState> path = Route(lv, sol);
+        int changes = 0;
+        for (int i = 1; i < path.Count; i++)
+            if (path[i].world != path[i - 1].world) changes++;
+        return changes >= 2;
+    }
+
+    /// <summary>
+    /// THE SAME CELL, TWICE, FACING A DIFFERENT WAY.
+    ///
+    /// A route that stands on a cell it has already stood on is only interesting
+    /// if something about it changed, so the pair has to differ in ORIENTATION or
+    /// in WORLD — the same ground seen down a different axis, or the same ground
+    /// with the lattice inverted under it. Standing on a cell twice in the same
+    /// state is a route that wasted a step, and the solver does not produce those.
+    /// </summary>
+    static bool Revisit(Level lv, SolveResult sol, int k)
+    {
+        List<SolveState> path = Route(lv, sol);
+        var states = new Dictionary<Int3, HashSet<int>>();
+        foreach (SolveState st in path)
+        {
+            if (!states.TryGetValue(st.pos, out HashSet<int> set))
+                states[st.pos] = set = new HashSet<int>();
+            set.Add(st.ori * 64 + st.world);
+            if (set.Count >= k) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// EVERY STATE A FREE WALK REACHES from here — no folding, and the world
+    /// flipping under the player's feet as they cross whatever is on the floor.
+    /// </summary>
+    static List<SolveState> Walk(Level lv, SolveState from)
+    {
+        int n = lv.n;
+        var seen = new HashSet<long> { Solver.StateKey(n, from) };
+        var q = new List<SolveState> { from };
+
+        for (int i = 0; i < q.Count; i++)
+            for (int t = 0; t < 4; t++)
+                if (Step(lv, q[i], t, out SolveState ns) && seen.Add(Solver.StateKey(n, ns)))
+                    q.Add(ns);
+
+        return q;
     }
 
     /// <summary>1 if folding a then b keeps par, 0 if it does not, -1 if b has no footing.</summary>

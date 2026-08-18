@@ -223,6 +223,17 @@ LABELS = [
     ("coach · TAP TO MOVE", "TAP TO MOVE", 22, 470),
     ("coach · SWIPE TO FOLD", "SWIPE TO FOLD", 22, 470),
 
+    # AND THE FOUR THE COACH SAYS ABOUT THE WORLD'S VERBS. These are longer than
+    # the two gestures by some way — THE BOARD IS EXCHANGED is twenty-two
+    # characters against SWIPE TO FOLD's thirteen — and they share the gesture
+    # lines' box, which is one line tall and does not wrap. At 0.6em a monospace
+    # glyph is 13.2 units at this size, so the longest is 290 against 470: room,
+    # but not so much of it that the next line somebody writes is safe unmeasured.
+    ("coach · NODE", "THE NODE OPENS THE LOCK", 22, 470),
+    ("coach · SUBSTRATE", "THIS PLATE OPENS THE SOLID", 22, 470),
+    ("coach · EVERTER", "EVERY CELL TURNS", 22, 470),
+    ("coach · TRIGGER", "THE BOARD IS EXCHANGED", 22, 470),
+
     # THE FORGE'S TEN TOOLS. Five columns of a 545-unit band, four units of
     # margin each side — a hundred and one units apiece, and [ WIPE DECK ] is a
     # hundred and nine. It printed [ WIPE DEC and this list is why it will not

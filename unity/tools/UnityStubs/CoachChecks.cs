@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Singularity.Core;
 using Singularity.Game;
 using Singularity.UI;
@@ -42,6 +43,128 @@ static class CoachChecks
         Elsewhere(ok);
         Alone(ok);
         Ring(ok);
+        WorldVerbs(ok);
+    }
+
+    /// <summary>
+    /// THE FOUR THE COACH USED TO LEAVE UNTAUGHT, MEASURED ON THE SHIPPED LADDER.
+    ///
+    /// The node and its lock, the second plate, the everter and the trigger are
+    /// rules, not gestures — none of them is guessable from the art, and until
+    /// now the only one with any teaching at all was the plate, which has a card.
+    /// The other three arrived by chapter position and hope.
+    ///
+    /// No lesson names a cube number, so what this proves is that the ladder and
+    /// the coach agree WITHOUT one: for each verb it finds the first cube in the
+    /// catalogue that carries it, and asserts the lesson fires exactly there, is
+    /// silent on every cube before it, and has a square on the board to ring.
+    /// Re-cut the catalogue into a different order and this check moves with it;
+    /// re-cut it so a verb never appears at all and this check fails, which is the
+    /// point.
+    /// </summary>
+    static void WorldVerbs(Action<bool, string> ok)
+    {
+        string path = Repo.Resource("catalogue.txt");
+        if (System.IO.File.Exists(path)) Catalogue.Load(System.IO.File.ReadAllText(path));
+
+        var verbs = new (int bit, Coach.Lesson lesson, string name)[]
+        {
+            (Coach.LearnedNode,      Coach.Lesson.Node,      "the node and its lock"),
+            (Coach.LearnedSubstrate, Coach.Lesson.Substrate, "the plate that opens the solid"),
+            (Coach.LearnedEverter,   Coach.Lesson.Everter,   "the everter"),
+            (Coach.LearnedTrigger,   Coach.Lesson.Trigger,   "the trigger"),
+        };
+
+        // ---- where the ladder actually introduces each one -------------------
+        var firstAt = new int[verbs.Length];
+        for (int level = 1; level <= Vaults.LastCube; level++)
+        {
+            Level lv = LevelSupply.Get(level);
+            if (lv == null) continue;
+            int carries = Coach.Carries(lv, true);
+            for (int i = 0; i < verbs.Length; i++)
+                if (firstAt[i] == 0 && (carries & verbs[i].bit) != 0) firstAt[i] = level;
+        }
+
+        for (int i = 0; i < verbs.Length; i++)
+        {
+            ok(firstAt[i] > 0, "nothing in the ladder carries " + verbs[i].name
+                             + ", so its lesson can never fire");
+            if (firstAt[i] == 0) continue;
+
+            // it has somewhere to put the ring, on the board as that cube opens
+            Level lv = LevelSupply.Get(firstAt[i]);
+            var s0 = new Session();
+            s0.Load(lv, firstAt[i], LoadKind.Vault);
+            ok(Coach.MarkAt(s0, verbs[i].lesson, out int _, out int __),
+               "the coach has nothing to ring for " + verbs[i].name + " on cube " + firstAt[i]);
+
+            // a save that has already cleared this cube is never told about it
+            int carried = Coach.Carries(lv, true);
+            ok((Coach.RetireSeen(0, firstAt[i], firstAt[i] + 1, carried) & verbs[i].bit) != 0,
+               "a save that has cleared cube " + firstAt[i] + " is still going to be taught " + verbs[i].name);
+            ok(Coach.RetireSeen(0, firstAt[i], firstAt[i], carried) == 0,
+               "a player arriving at cube " + firstAt[i] + " for the first time was retired past "
+               + verbs[i].name);
+        }
+
+        // ---- AND THE PLAYER WALKS THE LADDER, WHICH IS THE REAL QUESTION -----
+        //
+        // Asking each cube in isolation is asking the wrong thing, and the first
+        // version of this check did: cube 76 introduces the second plate AND
+        // carries a lock, so put to it cold it answers "the node" — correctly, and
+        // meaninglessly, because nobody arrives at cube 76 without having met one.
+        // What has to hold is the SEQUENCE. So a player is walked from cube one to
+        // the end, learning each verb on the cube that shows it, and every lesson
+        // the coach gives along the way is recorded.
+        var spoken = new List<(int level, Coach.Lesson lesson)>();
+        int held = Coach.LearnedAll;
+        for (int level = Coach.LastCube + 1; level <= Vaults.LastCube; level++)
+        {
+            Level lv = LevelSupply.Get(level);
+            if (lv == null) continue;
+            Coach.Lesson want = Coach.Next(held, LoadKind.Vault, level, false, false,
+                                           Coach.Carries(lv, true));
+            if (want == Coach.Lesson.None) continue;
+            spoken.Add((level, want));
+            foreach (var v in verbs) if (want == v.lesson) held |= v.bit;
+        }
+
+        ok(spoken.Count == verbs.Length,
+           "the coach gives " + spoken.Count + " world-verb lessons across the ladder, not " + verbs.Length);
+
+        for (int i = 0; i < verbs.Length && i < spoken.Count; i++)
+        {
+            ok(spoken[i].lesson == verbs[i].lesson,
+               "lesson " + (i + 1) + " on the way up is " + spoken[i].lesson
+               + ", where the ladder introduces " + verbs[i].name + " first");
+            ok(spoken[i].level == firstAt[i],
+               verbs[i].name + " is taught on cube " + spoken[i].level
+               + " and first carried on cube " + firstAt[i]);
+        }
+
+        // ---- the plate card and the second plate never speak at once ---------
+        //
+        // PLATES has a full screen of its own, shown on the first cube carrying
+        // either kind. A chapter-VI cube reached before that screen has been seen
+        // would otherwise get the card AND a line about the second plate, in the
+        // same breath, about two different plates.
+        int both = 0;
+        for (int level = 1; level <= Vaults.LastCube; level++)
+        {
+            Level lv = LevelSupply.Get(level);
+            if (lv != null && (Coach.Carries(lv, false) & Coach.LearnedSubstrate) != 0) both++;
+        }
+        ok(both == 0, both + " cubes would show the plate card and the second-plate line together");
+
+        var line = new System.Text.StringBuilder("coach: taught where the ladder introduces them —");
+        for (int i = 0; i < verbs.Length; i++)
+            line.Append(i == 0 ? " " : ", ").Append(verbs[i].name).Append(" at ").Append(firstAt[i]);
+        Console.WriteLine(line.ToString());
+        Console.WriteLine("coach: " + Coach.LineFor(Coach.Lesson.Node) + " / "
+                        + Coach.LineFor(Coach.Lesson.Substrate) + " / "
+                        + Coach.LineFor(Coach.Lesson.Everter) + " / "
+                        + Coach.LineFor(Coach.Lesson.Trigger));
     }
 
     /// <summary>
@@ -87,7 +210,8 @@ static class CoachChecks
 
             Coach.Lesson want = Coach.Next(taught, s.kind, s.levelNo, s.won,
                                            (taught & Coach.LearnedFold) == 0
-                                           && (taught & Coach.LearnedStep) != 0 && a.isTurn);
+                                           && (taught & Coach.LearnedStep) != 0 && a.isTurn,
+                                           Coach.Carries(s.lv, true));
 
             if ((taught & Coach.LearnedStep) == 0)
             {
@@ -162,7 +286,7 @@ static class CoachChecks
     {
         for (int level = 1; level <= 3; level++)
             foreach (bool fold in new[] { true, false })
-                ok(Coach.Next(Coach.LearnedAll, LoadKind.Vault, level, false, fold) == Coach.Lesson.None,
+                ok(Coach.Next(Coach.LearnedAll, LoadKind.Vault, level, false, fold, 0) == Coach.Lesson.None,
                    "the coach speaks again on cube " + level + " after both verbs are proved");
 
         ok(Coach.Migrate(0, 4) == Coach.LearnedAll, "a save that has cleared cubes is not migrated to taught");
@@ -170,10 +294,18 @@ static class CoachChecks
         ok(Coach.Migrate(Coach.LearnedStep, 1) == Coach.LearnedStep, "migration overwrote a real bit");
 
         // and half a lesson is remembered as half a lesson
-        ok(Coach.Next(Coach.LearnedStep, LoadKind.Vault, 1, false, true) == Coach.Lesson.Fold,
+        ok(Coach.Next(Coach.LearnedStep, LoadKind.Vault, 1, false, true, 0) == Coach.Lesson.Fold,
            "a player who has walked but never folded is not offered the fold");
-        ok(Coach.Next(Coach.LearnedStep, LoadKind.Vault, 1, false, false) == Coach.Lesson.None,
+        ok(Coach.Next(Coach.LearnedStep, LoadKind.Vault, 1, false, false, 0) == Coach.Lesson.None,
            "the fold is being taught at a state where folding is not the answer");
+
+        // AND FIRST CONTACT IS NEVER SHARED WITH A WORLD VERB. A cube one that
+        // somehow carried a lock would otherwise be teaching the walk and the node
+        // in the same breath, on the first screen anybody ever sees.
+        ok(Coach.Next(0, LoadKind.Vault, 1, false, true, Coach.LearnedNode) == Coach.Lesson.Step,
+           "a world verb outranks the walk on the first cube");
+        ok(Coach.Next(Coach.LearnedAll, LoadKind.Vault, 1, false, true, Coach.LearnedNode) == Coach.Lesson.None,
+           "the coach teaches a world verb inside first contact");
         Console.WriteLine("coach: both verbs proved retires it for good, and a save past cube one starts retired");
     }
 
@@ -184,15 +316,16 @@ static class CoachChecks
     static void Elsewhere(Action<bool, string> ok)
     {
         foreach (LoadKind k in new[] { LoadKind.Daily, LoadKind.Made, LoadKind.Practice })
-            ok(Coach.Next(0, k, 1, false, true) == Coach.Lesson.None,
-               "the coach speaks on a " + k + " cube");
+            foreach (int carries in new[] { 0, Coach.LearnedEverter, Coach.LearnedTrigger })
+                ok(Coach.Next(0, k, 1, false, true, carries) == Coach.Lesson.None,
+                   "the coach speaks on a " + k + " cube");
 
-        ok(Coach.Next(0, LoadKind.Vault, Coach.LastCube + 1, false, true) == Coach.Lesson.None,
-           "the coach is still speaking on cube " + (Coach.LastCube + 1));
-        ok(Coach.Next(0, LoadKind.Vault, 1, true, true) == Coach.Lesson.None,
+        ok(Coach.Next(0, LoadKind.Vault, Coach.LastCube + 1, false, true, 0) == Coach.Lesson.None,
+           "the coach is still teaching the verbs on cube " + (Coach.LastCube + 1));
+        ok(Coach.Next(0, LoadKind.Vault, 1, true, true, Coach.LearnedEverter) == Coach.Lesson.None,
            "the coach speaks over a won cube");
         Console.WriteLine("coach: silent on the daily, on a made cube, on practice, past cube "
-                        + Coach.LastCube + ", and over a win");
+                        + Coach.LastCube + " for the two verbs, and over a win");
     }
 
     /// <summary>

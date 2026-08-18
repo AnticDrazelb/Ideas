@@ -172,6 +172,8 @@ namespace Singularity.Game
                 _fx.NodeTaken(At(cell));
                 _orb.SetMood("happy", 900f);
                 TimeBend.Hitstop(30f);
+                // taking one is the lesson; see Coach
+                Coach.Learned(Coach.LearnedNode);
             };
 
             S.On.FoldLanded = t =>
@@ -223,6 +225,14 @@ namespace Singularity.Game
 
             S.On.PlateFired = (cell, bit) =>
             {
+                // AND THE SAME RULE FOR THE THREE THE BOARD DOES TO YOU. The bit
+                // says which, so one handler retires all three and nothing here
+                // has to know what chapter it is. Plate A is absent on purpose —
+                // it has a card of its own, above.
+                if (bit == 2) Coach.Learned(Coach.LearnedSubstrate);
+                else if (bit == Level.Everted) Coach.Learned(Coach.LearnedEverter);
+                else if (bit == Level.Swapped || bit == Level.Swapped2) Coach.Learned(Coach.LearnedTrigger);
+
                 // AN EVERTER IS NOT A PLATE AND MUST NOT FEEL LIKE ONE.
                 //
                 // A plate changes the BOARD — every trace goes dead, every dead
