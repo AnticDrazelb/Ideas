@@ -238,6 +238,23 @@ LABELS = [
     # lines' box, which is one line tall and does not wrap. At 0.6em a monospace
     # glyph is 13.2 units at this size, so the longest is 290 against 470: room,
     # but not so much of it that the next line somebody writes is safe unmeasured.
+    # THE TEN WORDS, AT FIFTY-TWO POINTS. Nothing else is on that screen, so the
+    # measure is the whole plate less sixty units of margin each side — 1080 units
+    # at the canvas width this kit lays out in. They are short and the size is
+    # large, which is exactly the pairing that stops being safe without warning:
+    # at 0.6em a monospace glyph is 31.2 units here, so an eight-character word is
+    # 250 of 960. Room, and measured rather than assumed.
+    ("chapter · nine", "nine.", 52, 960),
+    ("chapter · again", "again.", 52, 960),
+    ("chapter · error", "error.", 52, 960),
+    ("chapter · loop", "loop.", 52, 960),
+    ("chapter · five", "five.", 52, 960),
+    ("chapter · invert", "invert.", 52, 960),
+    ("chapter · delete", "delete.", 52, 960),
+    ("chapter · lost", "lost.", 52, 960),
+    ("chapter · one", "one.", 52, 960),
+    ("chapter · goodbye", "goodbye.", 52, 960),
+
     ("coach · NODE", "THE NODE OPENS THE LOCK", 22, 470),
     ("coach · SUBSTRATE", "THIS PLATE OPENS THE SOLID", 22, 470),
     ("coach · EVERTER", "EVERY CELL TURNS", 22, 470),

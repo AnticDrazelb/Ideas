@@ -40,6 +40,12 @@ namespace Singularity.Game
         public int reached = 1;
         public int sound = 1, haptic = 1, fx = 1, togo = 1, depth = 0;
         public int taught = 0, sawPlate = 0, sawPeek = 0, peekHinted = 0, taughtForge = 0;
+
+        /// <summary>
+        /// One bit a chapter: the word the machine says after it has been said.
+        /// See UI/Chapters — going back for a par must not replay it.
+        /// </summary>
+        public int saidChapter = 0;
         public int buzz = 100, bright = 100, contrast = 100;
 
         // ---- access ---------------------------------------------------------

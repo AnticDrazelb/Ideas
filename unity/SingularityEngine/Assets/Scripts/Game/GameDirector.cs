@@ -668,6 +668,8 @@ namespace Singularity.Game
             // ShowTitle starts the attract cube itself — asking twice is how the
             // second call ends up being the one that matters.
             public void Title() => Screens.ShowTitle();
+
+            public void Say(string word) => Screens.ShowChapterWord(word, null);
         }
 
         /// <summary>
@@ -859,6 +861,12 @@ namespace Singularity.Game
 
             // measured, not guessed: see PerfWatch
             PerfWatch.Tick(dt);
+
+            // THE WORD AFTER A CHAPTER, on the unscaled clock. The bent clock
+            // belongs to the board and there is no board on that screen — a
+            // hitstop still decaying from the collapse would otherwise stretch the
+            // typing. See UI/Chapters.
+            Screens.TickChapter(Time.unscaledDeltaTime);
 
             if (S.lv != null)
             {

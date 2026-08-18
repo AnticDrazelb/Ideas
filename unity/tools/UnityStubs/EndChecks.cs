@@ -57,6 +57,11 @@ static class EndChecks
         public void Input(bool on) { input.Add(on); log.Add(on ? "input on" : "input off"); }
         public void Clear() { clears++; log.Add("clear"); }
         public void Title() { titles++; log.Add("title"); }
+
+        public string said = null;
+        public int saidAtFrame = -1;
+        public int frame;
+        public void Say(string word) { said = word; saidAtFrame = frame; log.Add("say:" + word); }
     }
 
     public static void Run(Action<bool, string> ok)
@@ -75,6 +80,7 @@ static class EndChecks
             {
                 if (!seq.MoveNext()) { finished = true; break; }
                 frames++;
+                p.frame = frames;
             }
         }
         catch (Exception e) { threw = e.ToString(); }
@@ -89,6 +95,26 @@ static class EndChecks
         Console.WriteLine(string.Format(
             "ending: ran to the end in {0} frames — {1:0.00}s of a {2:0.00}s sequence, " +
             "{3} blobs, {4} rings, {5} bangs", frames, seconds, want, p.blob.Count, p.rings.Count, p.sparks));
+
+        // ---- AND THE LAST WORD, INSIDE THE LAST SILENCE ---------------------
+        //
+        // Nine chapters each get a word after them and the tenth does not, because
+        // this sequence says it instead. Two things have to hold: it is said, and
+        // it is said with enough black left to finish typing. A farewell cut off
+        // by the title coming back on is worse than no farewell.
+        ok(p.said == Singularity.UI.Chapters.Farewell,
+           "the ending says " + (p.said == null ? "nothing" : "\"" + p.said + "\"")
+           + " rather than " + Singularity.UI.Chapters.Farewell);
+
+        float saidAt = p.saidAtFrame / 60f;
+        float left = seconds - saidAt;
+        float needs = Singularity.UI.Chapters.Seconds(Singularity.UI.Chapters.Farewell);
+        ok(p.saidAtFrame >= 0 && left >= needs,
+           "the last word needs " + needs.ToString("0.00") + "s and the black leaves it "
+           + left.ToString("0.00") + "s");
+        Console.WriteLine("ending: \"" + Singularity.UI.Chapters.Farewell + "\" types in "
+                        + needs.ToString("0.00") + "s inside " + left.ToString("0.00")
+                        + "s of silence, and no chapter interstitial competes with it");
 
         // a frame either side, because each phase's loop runs one frame past its
         // own boundary before the test fails

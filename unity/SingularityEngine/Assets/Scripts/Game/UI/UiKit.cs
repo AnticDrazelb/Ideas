@@ -22,6 +22,21 @@ namespace Singularity.UI
     public static class UiKit
     {
         /// <summary>
+        /// DID SOMEBODY JUST TOUCH THE SCREEN, ANYWHERE.
+        ///
+        /// Not a button and not a raycast — a screen with nothing on it to press
+        /// still has to be dismissible, and the chapter word is the one screen in
+        /// the game that draws no way out. Mouse is here for the editor; on a
+        /// phone only the first branch ever answers.
+        /// </summary>
+        public static bool AnyPress()
+        {
+            for (int i = 0; i < Input.touchCount; i++)
+                if (Input.GetTouch(i).phase == TouchPhase.Began) return true;
+            return Input.GetMouseButtonDown(0);
+        }
+
+        /// <summary>
         /// NEVER ?? OR ?. AGAINST A UnityEngine.Object. THIS IS NOT STYLE.
         ///
         /// Unity overloads operator== so that a reference to a destroyed or absent

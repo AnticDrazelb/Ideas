@@ -66,6 +66,13 @@ namespace Singularity.Game
         void Input(bool on);
         void Clear();
         void Title();
+
+        /// <summary>
+        /// One word, typed, on the black. The ending does not wait on it — the
+        /// silence below is already long enough to hold it, and a sequence that
+        /// blocked on a screen a touch can dismiss would have two clocks.
+        /// </summary>
+        void Say(string word);
     }
 
     /// <summary>
@@ -188,6 +195,13 @@ namespace Singularity.Game
             s.Board(0f);
             s.Rumble(0f);
             s.Clear();
+
+            // AND THE MACHINE SAYS THE LAST THING. Nine chapters have each had one
+            // word after them; this is the tenth, and it is here rather than in
+            // front of the last chapter because an interstitial before this
+            // sequence would compete with a beat that is already tuned. It types
+            // itself inside the silence — see UI/Chapters.
+            s.Say(Singularity.UI.Chapters.Farewell);
             for (float t = 0f; t < Black; t += s.Dt) yield return null;
 
             // and the instrument comes back on with the title behind it

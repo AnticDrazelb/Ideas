@@ -30,6 +30,7 @@ namespace Singularity.UI
             BuildVaults();
             BuildManual();
             BuildPlateTeach();
+            BuildChapter();
             BuildPause();
             BuildCalibrate();
             BuildAccess();
@@ -1108,6 +1109,77 @@ namespace Singularity.UI
 
         public static void ShowPlateTeach() => Show("plate");
 
+        // ---- the word after a chapter ----------------------------------------
+        //
+        // ONE WORD ON A BLACK SCREEN, TYPED. Nothing else is on it — no heading, no
+        // chapter number, no button. A caption would make it a card and a button
+        // would make it a step; it is neither, it is the machine saying something
+        // and then not being there any more.
+        //
+        // It is also the only screen in the game with no way out drawn on it,
+        // which is deliberate and is why it must never need one: it leaves on its
+        // own after a beat, and a touch anywhere takes it early. See Chapters.
+
+        static Text _chapterWord;
+        static string _chapterFull = "";
+        static float _chapterT;
+        static System.Action _chapterThen;
+
+        static void BuildChapter()
+        {
+            RectTransform L = Layer("chapter");
+            Solid(L);
+
+            // CENTRED ON THE PLATE, not on the aperture. There is no board behind
+            // this and nothing to sit beside, so the word goes in the middle of the
+            // screen the way a word alone in the dark should.
+            _chapterWord = UiKit.Label(L, "word", "", 52, Palette.Ink, TextAnchor.MiddleCenter,
+                                       new Vector2(0, 0.5f), new Vector2(1, 0.5f),
+                                       new Vector2(60, -70), new Vector2(-60, 70));
+        }
+
+        /// <summary>
+        /// Put the word up and call `then` when it has been read — by the clock or
+        /// by a touch. The caller does not need to know which.
+        /// </summary>
+        public static void ShowChapterWord(string word, System.Action then)
+        {
+            _chapterFull = word ?? "";
+            _chapterThen = then;
+            _chapterT = 0f;
+            _chapterWord.text = "";
+            Show("chapter");
+        }
+
+        public static bool ChapterUp => _chapterFull.Length > 0;
+
+        /// <summary>
+        /// Pumped from GameDirector's own Update on the UNSCALED clock, because the
+        /// bent clock belongs to the board and there is no board here.
+        /// </summary>
+        public static void TickChapter(float dt)
+        {
+            if (!ChapterUp) return;
+            _chapterT += dt;
+
+            int chars = Mathf.Clamp(
+                Mathf.FloorToInt((_chapterT - Chapters.Lead) / Chapters.PerChar),
+                0, _chapterFull.Length);
+            _chapterWord.text = _chapterFull.Substring(0, chars);
+
+            bool touched = _chapterT > Chapters.DeafFor && UiKit.AnyPress();
+            if (touched || _chapterT >= Chapters.Seconds(_chapterFull)) CloseChapter();
+        }
+
+        static void CloseChapter()
+        {
+            System.Action then = _chapterThen;
+            _chapterFull = "";
+            _chapterThen = null;
+            Show(null);
+            then?.Invoke();
+        }
+
         // ---- calibrate -------------------------------------------------------
         //
         // YOU CALIBRATE AN INSTRUMENT; YOU READ A MANUAL. These were the wrong way
@@ -1585,8 +1657,20 @@ namespace Singularity.UI
             RectTransform go = _winNextRow;
             _winNext = UiKit.Bracketed(go, "next", "NEXT", () =>
             {
+                // AND IF THAT CUBE ENDED A CHAPTER, THE MACHINE HAS SOMETHING TO
+                // SAY FIRST. It goes between the card and the next board rather
+                // than over the win: the card is about the cube just solved and
+                // the word is about the fifteen of them.
+                int at = _dir.S.levelNo;
+                if (Chapters.Due(at, _dir.S.IsDaily, _dir.S.IsMade, Store.Data.saidChapter))
+                {
+                    Store.Data.saidChapter = Chapters.Mark(Store.Data.saidChapter, at);
+                    Store.Save();
+                    ShowChapterWord(Chapters.WordAfter(at), () => _dir.Play(at + 1));
+                    return;
+                }
                 Show(null);
-                _dir.Play(_dir.S.levelNo + 1);
+                _dir.Play(at + 1);
             }, 28, true);
 
             // The rest are text. They are ways OUT of this card rather than things
