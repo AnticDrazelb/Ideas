@@ -167,7 +167,34 @@ namespace Singularity.Game
             // has set "reduce motion" at the OS level has already told every app
             // they open how much shake they want, and making them find a switch
             // to say it again is not a preference, it is a tax.
-            if (!had) Data.fx = SystemInfo.deviceType == DeviceType.Handheld ? 1 : 1;
+            //
+            // AND NOW IT ACTUALLY ASKS. This was
+            //
+            //     Data.fx = SystemInfo.deviceType == DeviceType.Handheld ? 1 : 1;
+            //
+            // whose two branches are the same number, so the conditional decided
+            // nothing and the device was never consulted. See Platform: on Android
+            // the question is the animator duration scale, and zero is how a
+            // person says stop moving things.
+            //
+            // ONLY MOTION. The legacy `fx` bit seeded both motion and light
+            // together because it used to be one switch, and that conflation is
+            // exactly what the access pass split apart: shake and a bent clock are
+            // vestibular, sparks and a full-screen flash are photosensitive, and
+            // an animation-scale of zero is a statement about the first only.
+            // Migrate still reads `fx` for saves written before the split.
+            if (!had)
+            {
+                Data.fx = 1;
+                if (Platform.AnimationsOff) Data.motion = (int)Access.MotionLevel.Reduced;
+
+                // A SAVE WITH NO HISTORY HAS NOTHING TO MIGRATE, and saying so is
+                // what stops the migration below from overwriting the line above:
+                // it reads the legacy `fx` bit, finds the 1 that was just written,
+                // and sets motion back to Full. Migration is for saves written
+                // before the split, and this one was written after it.
+                Data.v = 1;
+            }
 
             Migrate();
 

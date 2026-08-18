@@ -53,6 +53,39 @@ static class SaveChecks
         ok(Store.LoadedFrom == Store.Origin.Fresh,
            "a clean install did not report itself as fresh, it said " + Store.LoadedFrom);
         ok(Store.Data.reached == 1, "a clean install did not start at vault one");
+        ok(Store.Data.motion == (int)Access.MotionLevel.Full,
+           "a clean install on an ordinary device did not start at full motion");
+        ok(Store.Data.light == (int)Access.LightLevel.Full,
+           "a clean install did not start at full light");
+
+        // ---- a clean install on a phone that has asked for stillness ---------
+        //
+        // The line that seeds this used to be `Data.fx = deviceType == Handheld
+        // ? 1 : 1`, whose branches are the same number — so the comment above it
+        // promised to respect the device's own reduce-motion setting and the code
+        // never asked. It asks now, and this is the difference between the two.
+        //
+        // AND ONLY MOTION MOVES. An animation scale of zero is a vestibular
+        // statement; sparks and the full-screen flash answer to a different
+        // person, and the access pass exists because those two were one switch.
+        Platform.Override(true);
+        PlayerPrefs.Wipe();
+        Relaunch();
+        ok(Store.Data.motion == (int)Access.MotionLevel.Reduced,
+           "a device with its animations switched off still got full motion");
+        ok(Store.Data.light == (int)Access.LightLevel.Full,
+           "a device with its animations switched off also lost its light, which is a different criterion");
+
+        // and a choice already made is never overridden by the platform
+        Store.Data.motion = (int)Access.MotionLevel.Full;
+        Store.Flush();
+        Relaunch();
+        ok(Store.Data.motion == (int)Access.MotionLevel.Full,
+           "the platform's preference overrode a choice the player had already made");
+        Platform.Override(false);
+
+        PlayerPrefs.Wipe();
+        Relaunch();
 
         // ---- the ordinary case ----------------------------------------------
         Store.Data.reached = 12;

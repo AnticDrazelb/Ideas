@@ -277,7 +277,14 @@ static class CodeChecks
             parMax = Math.Max(parMax, lv.par);
             if (!ids.Add(Catalogue.All[i - 1].id)) dupes++;
 
+            // EVERY SOLID, NOT JUST THE FIRST. A trigger cube is two solids and
+            // the board is exchanged between them, so a glyph that lives only in
+            // the second one is invisible to a census of `vox`. This reported
+            // vault X as carrying no plates at all against a spec that asks for a
+            // plate under a trigger.
             string vx = new string(lv.vox);
+            if (lv.alts != null)
+                foreach (char[] a in lv.alts) if (a != null) vx += new string(a);
             if (vx.IndexOf('T') >= 0 || vx.IndexOf('U') >= 0) triggers++;
             if (vx.IndexOf('E') >= 0) everters++;
             if (vx.IndexOf('A') >= 0 || vx.IndexOf('B') >= 0) plates++;

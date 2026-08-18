@@ -339,7 +339,8 @@ static class LadderAudit
             v.kinds = set.Length;
 
             var blinds = new List<double>();
-            double par = 0; int made = 0;
+            var liveOnly = new List<double>();
+            double par = 0, livePar = 0; int made = 0, liveMade = 0;
 
             // the last five slots of the vault, which are the hardest it asks for
             for (int within = Curate.PerVault - 2; within < Curate.PerVault; within++)
@@ -351,7 +352,8 @@ static class LadderAudit
                 for (int i = 0; i < budget; i++)
                 {
                     uint seed = unchecked((uint)(level * 2654435761u) ^ (uint)(i * 40503u) ^ 0x5eed1eu);
-                    Level lv = Curate.RoughLevel(seed, v, level, parLo, out _);
+                    Level lv = Curate.RoughLevel(seed, v, level, parLo, out _,
+                                                 out int layers, out int live);
                     if (lv == null) continue;
                     SolveResult r = Solver.Solve(lv, 40);
                     if (!r.ok) continue;
@@ -359,6 +361,14 @@ static class LadderAudit
                     blinds.Add(blind);
                     par += r.turns;
                     made++;
+
+                    // AND THE SAME CUBES AGAIN, KEEPING ONLY THE ONES WHERE EVERY
+                    // WORLD-CHANGER IS LOAD-BEARING. The rotation argument is that
+                    // a second mechanic makes the first stop mattering; if that is
+                    // what is happening, then the pairs where BOTH still matter
+                    // should be the hard ones, and the fix is a gate on live
+                    // layers rather than taking the mechanic away.
+                    if (layers > 0 && live >= layers) { liveOnly.Add(blind); livePar += r.turns; liveMade++; }
                 }
             }
 
@@ -367,7 +377,10 @@ static class LadderAudit
                             + made.ToString().PadLeft(4) + " candidates   par "
                             + (made > 0 ? (par / made).ToString("0.00") : "-").PadLeft(5)
                             + "   par by luck 1 in "
-                            + (made > 0 ? (1.0 / Median(blinds)).ToString("#,0") : "-"));
+                            + (made > 0 ? (1.0 / Median(blinds)).ToString("#,0") : "-").PadLeft(9)
+                            + "     every layer live: " + liveMade.ToString().PadLeft(3) + "   par "
+                            + (liveMade > 0 ? (livePar / liveMade).ToString("0.00") : "-").PadLeft(5)
+                            + "   1 in " + (liveMade > 0 ? (1.0 / Median(liveOnly)).ToString("#,0") : "-"));
         }
 
         Console.WriteLine();

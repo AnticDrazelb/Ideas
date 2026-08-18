@@ -427,8 +427,13 @@ static class Curate
     /// pool the ladder was never chosen from.
     /// </summary>
     public static Level RoughLevel(uint seed, Vault v, int level, int parLo, out double stageOne)
+        => RoughLevel(seed, v, level, parLo, out stageOne, out _, out _);
+
+    public static Level RoughLevel(uint seed, Vault v, int level, int parLo, out double stageOne,
+                                   out int layers, out int liveLayers)
     {
         stageOne = double.MinValue;
+        layers = liveLayers = 0;
         Spec spec = SpecOf(v, level, parLo);
         Cand c = Rough(seed, spec, level);
         if (c == null) return null;
@@ -436,6 +441,8 @@ static class Curate
         // exactly what Pick scores it with in stage one, which is to say with
         // routeOpen still at the 1.0 nobody has measured yet
         Measure(c, spec);
+        layers = c.layers;
+        liveLayers = c.liveLayers;
         double openMax = v.openMax + (1.0 - v.openMax) * 0.35;
         stageOne = Value(c, v.parLo, v.parHi, openMax, v);
         return c.lv;
