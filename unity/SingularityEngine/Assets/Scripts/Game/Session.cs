@@ -724,18 +724,37 @@ namespace Singularity.Game
 
         // ---- the hint -------------------------------------------------------
 
-        /// <summary>The first move of an optimal line from here, and nothing more.</summary>
-        public bool Hint(out Act act)
+        /// <summary>
+        /// The first move of an optimal line from here, and nothing more —
+        /// WITHOUT SPENDING ANYTHING.
+        ///
+        /// Split out of <see cref="Hint"/> because the hint is two separate
+        /// things wearing one name: the search, and the charge for it. The coach
+        /// needs the first and must not make the second — a player being taught
+        /// which way a fold goes has not asked for a hint and must not be billed
+        /// three of them for reading the tutorial. Nothing here writes to the
+        /// session, which is what makes it safe to ask from anywhere.
+        /// </summary>
+        public bool Advice(out Act act, int budget = 40)
         {
             act = Act.None;
-            if (lv == null || won || hintsLeft <= 0) return false;
-            SolveResult r = Solver.Solve(lv, 40, new SolveState
+            if (lv == null || won) return false;
+            SolveResult r = Solver.Solve(lv, budget, new SolveState
             {
                 pos = pos, ori = Turns.OriIndex(M), kmask = kmask, doors = doors, world = world
             });
             if (!r.ok || !r.hasFirst) return false;
-            hintsLeft--;
             act = r.first;
+            return true;
+        }
+
+        /// <summary>The same answer, charged for.</summary>
+        public bool Hint(out Act act)
+        {
+            act = Act.None;
+            if (hintsLeft <= 0) return false;
+            if (!Advice(out act)) return false;
+            hintsLeft--;
             return true;
         }
 

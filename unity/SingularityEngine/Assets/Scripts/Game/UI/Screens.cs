@@ -166,14 +166,14 @@ namespace Singularity.UI
                           new Vector2(40, bottom), new Vector2(-40, -top));
 
         /// <summary>One of the four quiet destinations under the primary: 0,1 top row; 2,3 bottom.</summary>
-        static void Quad(RectTransform col, int i, string label, System.Action act)
+        static Button Quad(RectTransform col, int i, string label, System.Action act)
         {
             float x = i % 2, y = i / 2;
             float top = -(UiKit.PrimaryH + 16f + y * (UiKit.BtnH + 12f));
             RectTransform r = UiKit.Rect(col, label,
                 new Vector2(x * 0.5f, 1), new Vector2((x + 1) * 0.5f, 1),
                 new Vector2(x == 0 ? 0 : 6, top - UiKit.BtnH), new Vector2(x == 0 ? -6 : 0, top));
-            UiKit.Bracketed(r, label, label, act, 24);
+            return UiKit.Bracketed(r, label, label, act, 24);
         }
 
         internal static void Row(RectTransform col, int slot, int of, string label, System.Action act, bool primary = false)
@@ -187,6 +187,31 @@ namespace Singularity.UI
         // ---- title ----------------------------------------------------------
 
         static Text _playLabel, _resumeName, _resumeVault;
+
+        /// <summary>
+        /// THE FOURTH DOOR ANSWERS TO WHO IS STANDING AT IT.
+        ///
+        /// The front door offered DAILY, VAULTS, FORGE and CALIBRATE, and the
+        /// rules were behind none of them — the manual was reachable only from
+        /// inside the settings screen, which nobody guesses. Meanwhile a level
+        /// editor with a verify pass and share codes is the least useful thing in
+        /// this game to somebody who has not yet finished a cube: it is a tool for
+        /// making the thing they have not played.
+        ///
+        /// So for exactly as long as the save has never cleared anything, this
+        /// slot is MANUAL. The first clear turns it into FORGE and it never turns
+        /// back — the same reading of `reached` the coach migrates on, so "has
+        /// never finished a cube" has one definition in this game rather than two.
+        /// </summary>
+        static Button _makeQuad;
+
+        static bool BeforeTheFirstClear => Store.Data.reached <= 1;
+
+        static void OpenForgeOrManual()
+        {
+            if (BeforeTheFirstClear) ShowManual();
+            else ForgeScreens.OpenShelf();
+        }
 
         static void BuildTitle()
         {
@@ -244,7 +269,7 @@ namespace Singularity.UI
 
             Quad(col, 0, "DAILY", () => { Show(null); _dir.Play(Daily.SpecLevel, LoadKind.Daily); });
             Quad(col, 1, "VAULTS", OpenVaults);
-            Quad(col, 2, "FORGE", ForgeScreens.OpenShelf);
+            _makeQuad = Quad(col, 2, "FORGE", OpenForgeOrManual);
             Quad(col, 3, "CALIBRATE", ShowCalibrate);
 
             _playLabel = go.GetComponentInChildren<Text>();
@@ -263,6 +288,8 @@ namespace Singularity.UI
             // than pretending there is a next one.
             if (_playLabel != null)
                 _playLabel.text = done ? "[ THE CORE ]" : r <= 1 ? "[ INITIALISE ]" : "[ CONTINUE ]";
+            if (_makeQuad != null)
+                UiKit.SetLabel(_makeQuad, BeforeTheFirstClear ? "MANUAL" : "FORGE");
 
             int band = Vaults.VaultOf(r);
             if (_resumeVault != null)
@@ -789,12 +816,22 @@ namespace Singularity.UI
                 return r;
             }
 
-            // ONE LINK, CENTRED, AND FURTHEST FROM THE THUMB. It was a pair —
-            // BOARDS beside CALIBRATE — and the boards screen is gone, so the
-            // survivor takes the whole row rather than sitting in the left half of
-            // a row built for two.
+            // TWO LINKS, AND THE RULES ARE THE ONE THAT MATTERS.
+            //
+            // This was CALIBRATE alone, and the manual was reachable only from
+            // inside it — the front door offers DAILY, VAULTS, FORGE and
+            // CALIBRATE, so a player wanting to know what a plate does had to
+            // guess that the rules live behind the settings. Nobody guesses that.
+            //
+            // The pause card is where somebody goes when they are stuck, which is
+            // exactly when a reference is worth having, so this is the right two
+            // taps: MENU, then MANUAL. The row was built for a pair once and lost
+            // one; it has a pair again.
             RectTransform links = Up("links", Access.TapTarget, 18f);
-            UiKit.Link(links, "calibrate", "CALIBRATE", ShowCalibrate, 20);
+            RectTransform manSlot = UiKit.Rect(links, "m", new Vector2(0, 0), new Vector2(0.5f, 1), Vector2.zero, Vector2.zero);
+            UiKit.Link(manSlot, "manual", "MANUAL", ShowManual, 20);
+            RectTransform calSlot = UiKit.Rect(links, "c", new Vector2(0.5f, 0), Vector2.one, Vector2.zero, Vector2.zero);
+            UiKit.Link(calSlot, "calibrate", "CALIBRATE", ShowCalibrate, 20);
 
             RectTransform three = Up("three", Access.TapTarget, 26f);
             Third(three, 0, "RESET", () => { Show(null); _dir.Play(_dir.S.levelNo, _dir.S.kind, _dir.S.madeKey); });

@@ -110,15 +110,87 @@ namespace Singularity.Game
         /// </summary>
         public const float ApertureX = 16f, ApertureY = 10f;
 
+        /// <summary>
+        /// THE SCALE THE INTERFACE IS ACTUALLY DRAWN AT, AND IT WAS NOT THIS.
+        ///
+        /// Everything in this file converts canvas units to pixels, and it used
+        /// <c>Min(w/720, h/1280)</c> to do it. The canvas does not: <see
+        /// cref="UiKit.Canvas"/> sets <c>MatchWidthOrHeight</c> to 0.5, which is
+        /// the GEOMETRIC MEAN of the two ratios, and Unity computes it as
+        /// <c>pow(w/rw, 1-m) * pow(h/rh, m)</c>.
+        ///
+        /// On a 16:9 phone the two answers are within a per cent of each other,
+        /// which is why nothing ever looked wrong. On 1440x2960 they are 2.000 and
+        /// 2.151 — seven and a half per cent apart — so the camera believed the
+        /// readout ended thirty-six pixels above where the readout drew itself,
+        /// and every band in here was measured against a ruler the interface was
+        /// not using. Two definitions of one number is the bug; this is the
+        /// number, and the min is gone.
+        /// </summary>
+        public static float CanvasScale
+        {
+            get
+            {
+                float w = Screen.width, h = Screen.height;
+                if (w <= 0f || h <= 0f) return 1f;
+                return Mathf.Sqrt((w / RefWidth) * (h / RefHeight));
+            }
+        }
+
+        /// <summary>
+        /// The glass: the safe area, less the overscan, less the housing. Every
+        /// other rectangle in this file is cut out of this one, and it is exactly
+        /// the rect the HUD's own root occupies — which is what lets the stroke
+        /// and the camera be told about the window in the same sentence.
+        /// </summary>
+        public static Rect GlassRect()
+        {
+            Rect safe = Screen.safeArea;
+            if (safe.width <= 0f || safe.height <= 0f)
+                safe = new Rect(0, 0, Mathf.Max(1, Screen.width), Mathf.Max(1, Screen.height));
+
+            int ov = OverscanPixels;
+            float s = CanvasScale;
+            float left = ChassisLeft * s + ov;
+            float right = ChassisRight * s + ov;
+            float top = ChassisTop * s + ov;
+            float bottom = ChassisBottom * s + ov;
+
+            return new Rect(safe.xMin + left, safe.yMin + bottom,
+                            Mathf.Max(1f, safe.width - left - right),
+                            Mathf.Max(1f, safe.height - top - bottom));
+        }
+
         public static Rect ApertureRect()
         {
             Rect b = BoardRect();
-            float s = Mathf.Min(Screen.width / RefWidth, Screen.height / RefHeight);
-            if (s <= 0f) s = 1f;
+            float s = CanvasScale;
             float ix = ApertureX * s, iy = ApertureY * s;
             return new Rect(b.xMin + ix, b.yMin + iy,
                             Mathf.Max(1f, b.width - ix * 2f),
                             Mathf.Max(1f, b.height - iy * 2f));
+        }
+
+        /// <summary>
+        /// THE WINDOW, SAID IN THE UNITS THE HUD BUILDS IN — insets into the
+        /// glass, so the stroke can be hung on the same rectangle the camera is
+        /// framing against instead of on a second guess at it.
+        ///
+        /// The stroke used to be four constants: the two bands and the two
+        /// aperture insets, written straight into the RectTransform. That was one
+        /// definition of the window in Hud and another in Layout, and the README
+        /// says why that is the one thing this rect must not have — the camera
+        /// contains the solid inside ITS window, and anything it does not know
+        /// about is a line the cube can cross.
+        /// </summary>
+        public static void ApertureInsets(out float left, out float bottom, out float right, out float top)
+        {
+            Rect g = GlassRect(), a = ApertureRect();
+            float s = Mathf.Max(0.0001f, CanvasScale);
+            left = (a.xMin - g.xMin) / s;
+            bottom = (a.yMin - g.yMin) / s;
+            right = (g.xMax - a.xMax) / s;
+            top = (g.yMax - a.yMax) / s;
         }
 
         /// <summary>
@@ -133,24 +205,56 @@ namespace Singularity.Game
         /// </summary>
         public static Rect BoardRect()
         {
-            Rect safe = Screen.safeArea;
-            int ov = OverscanPixels;
+            Rect g = GlassRect();
+            float s = CanvasScale;
 
-            // the bands are authored against the reference height and scale with
-            // whatever the canvas scaler is doing, which is the shorter axis
-            float scale = Mathf.Min(Screen.width / RefWidth, Screen.height / RefHeight);
-            if (scale <= 0f) scale = 1f;
+            // the two bands are the space the HUD occupies, measured from the
+            // glass — see the note above this method
+            float top = TopBand * s;
+            float bottom = BottomBand * s;
 
-            float top = (TopBand + ChassisTop) * scale + ov;
-            float bottom = (BottomBand + ChassisBottom) * scale + ov;
-            float left = ChassisLeft * scale + ov;
-            float right = ChassisRight * scale + ov;
+            Rect free = new Rect(g.xMin, g.yMin + bottom,
+                                 Mathf.Max(1f, g.width),
+                                 Mathf.Max(1f, g.height - top - bottom));
 
-            return new Rect(
-                safe.xMin + left,
-                safe.yMin + bottom,
-                Mathf.Max(1f, safe.width - left - right),
-                Mathf.Max(1f, safe.height - top - bottom));
+            return Square(free);
+        }
+
+        /// <summary>
+        /// THE WINDOW IS THE SHAPE OF THE THING IN IT.
+        ///
+        /// Everything above measures the space the board is ALLOWED, and that
+        /// space is whatever the housing and the two bands leave — on a 20:9
+        /// phone, 1250 by 2075. The board is a square fitted to the shorter of
+        /// those two, so it came out 977 across and 977 tall: 78% of the window's
+        /// width and 47% of its height, with five hundred pixels of nothing above
+        /// it and five hundred below.
+        ///
+        /// That is not empty space, it is a FRAME DRAWN AROUND EMPTY SPACE, and
+        /// the two read completely differently. The aperture is a stroke that says
+        /// "this is the window"; a window twice as tall as its contents says the
+        /// contents failed to load. Every screenshot of the play screen showed a
+        /// small game inside a large case.
+        ///
+        /// So the window is cut to the square its contents are, about the same
+        /// centre. THE BOARD DOES NOT MOVE AND DOES NOT CHANGE SIZE — Fit sizes
+        /// the cube from the SHORTER side and offsets it by the rect's CENTRE, and
+        /// this changes neither. The only thing that changes is where the stroke
+        /// is drawn, and the four fold marks that hang on it, which come in from
+        /// the edges of the display to the edges of the board where they belong.
+        ///
+        /// It also makes a fold cost the same in both axes. Room() contains the
+        /// solid inside this rect, and a solid mid-fold is root two wide: against
+        /// a window 1250 by 2075 a horizontal fold pulled the camera out 15% and a
+        /// vertical fold pulled it out not at all, because the height was never
+        /// the binding constraint. Against a square they are the same 15%. The
+        /// gesture is symmetric, so the framing it provokes should be.
+        /// </summary>
+        static Rect Square(Rect r)
+        {
+            float side = Mathf.Max(1f, Mathf.Min(r.width, r.height));
+            Vector2 c = r.center;
+            return new Rect(c.x - side * 0.5f, c.y - side * 0.5f, side, side);
         }
     }
 }

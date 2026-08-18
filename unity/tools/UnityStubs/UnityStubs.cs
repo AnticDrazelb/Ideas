@@ -134,18 +134,33 @@ namespace UnityEngine
                            (byte)Math.Round(Mathf.Clamp01(c.a) * 255f));
     }
 
+    /// <summary>
+    /// REAL, FOR THE SAME REASON MATHF AND COLOR ARE.
+    ///
+    /// This threw away its own constructor arguments and answered zero to every
+    /// question, which is harmless exactly as long as nothing reads the answer.
+    /// Layout is arithmetic ON rectangles — the glass, the window, the insets the
+    /// stroke is hung from — so a hollow Rect turns "is the window square" into
+    /// 0 == 0, and a check that passes for that reason is worse than no check.
+    /// Unity's own semantics: x and y are the MINIMUM corner, and xMax is x plus
+    /// the width, so a negative width is allowed and is a rect that is inside out.
+    /// </summary>
     public struct Rect
     {
-        public Rect(float x, float y, float w, float h) { this.x = 0; this.y = 0; }
+        public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; }
         public float x; public float y;
-        public float width => 0; public float height => 0;
-        public Vector2 center => default;
-        public float xMin => 0; public float xMax => 0;
-        public float yMin => 0; public float yMax => 0;
-        public static bool operator ==(Rect a, Rect b) => true;
-        public static bool operator !=(Rect a, Rect b) => false;
-        public override bool Equals(object o) => true;
-        public override int GetHashCode() => 0;
+        public float width; public float height;
+        public Vector2 center => new Vector2(x + width * 0.5f, y + height * 0.5f);
+        public float xMin => x; public float xMax => x + width;
+        public float yMin => y; public float yMax => y + height;
+        public static bool operator ==(Rect a, Rect b)
+            => a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height;
+        public static bool operator !=(Rect a, Rect b) => !(a == b);
+        public override bool Equals(object o) => o is Rect r && this == r;
+        public override int GetHashCode()
+            => x.GetHashCode() ^ (y.GetHashCode() << 2) ^ (width.GetHashCode() >> 2) ^ (height.GetHashCode() >> 1);
+        public override string ToString()
+            => "(x:" + x + ", y:" + y + ", width:" + width + ", height:" + height + ")";
     }
 
     /// Mathf is implemented for real rather than stubbed. Everywhere else a stub
@@ -178,6 +193,9 @@ namespace UnityEngine
         public static int Clamp(int v, int a, int b) => v < a ? a : v > b ? b : v;
         public static float Clamp01(float v) => v < 0 ? 0 : v > 1 ? 1 : v;
         public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
+        /// <summary>Unity's own: t wrapped into [0, length), and never negative.</summary>
+        public static float Repeat(float t, float length)
+            => Clamp(t - (float)Math.Floor(t / length) * length, 0f, length);
         public static float MoveTowards(float a, float b, float d)
             => Math.Abs(b - a) <= d ? b : a + Math.Sign(b - a) * d;
         public static float Pow(float a, float b) => (float)Math.Pow(a, b);
@@ -615,12 +633,21 @@ namespace UnityEngine
         public static float realtimeSinceStartup => 0;
     }
 
+    /// <summary>
+    /// SETTABLE, AND THAT IS THE POINT. These were three expression-bodied
+    /// properties answering zero, which is harmless while nothing reads them and
+    /// a landmine the moment something does — Layout is arithmetic ON these
+    /// numbers, so a Screen that always answers zero turns "is the window square
+    /// on a 20:9 phone" into a comparison of two zeroes, which passes and means
+    /// nothing. Same reason Mathf and Color are real here. The defaults are still
+    /// zero, so nothing that does not set them can tell the difference.
+    /// </summary>
     public static class Screen
     {
-        public static int width => 0;
-        public static int height => 0;
+        public static int width { get; set; }
+        public static int height { get; set; }
         public static SleepTimeout sleepTimeout { get; set; }
-        public static Rect safeArea => default;
+        public static Rect safeArea { get; set; }
         public static bool fullScreen => true;
         public static void SetResolution(int w, int h, bool fs) { }
     }

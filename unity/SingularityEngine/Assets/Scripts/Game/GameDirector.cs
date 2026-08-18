@@ -149,6 +149,9 @@ namespace Singularity.Game
                 _fx.Land(At(cell), Palette.GridHi);
                 _orb.Hop();
                 _orb.SetMood("land", 260f);
+                // WHAT RETIRES THE LESSON IS THE PLAYER DOING IT. Not the prompt
+                // being shown, not a card being dismissed — see Coach.
+                Coach.Learned(Coach.LearnedStep);
             };
 
             S.On.DoorOpened = (cell, i) =>
@@ -188,6 +191,7 @@ namespace Singularity.Game
                 TimeBend.Hitstop(52f);
                 View.Rebuild();
                 View.RestartReveal();
+                Coach.Learned(Coach.LearnedFold);
             };
 
             S.On.FoldRefused = t =>
@@ -806,6 +810,11 @@ namespace Singularity.Game
             {
                 _lastW = Screen.width;
                 _lastH = Screen.height;
+                // the window is a square cut out of the glass, so it is a
+                // different rectangle in a different aspect — the stroke and the
+                // four fold marks that hang on it are re-cut before the camera is
+                // re-fitted to them
+                Hud.Relayout();
                 if (S.lv != null) { Rig.Fit(S.N); _fx.SetBoard(S.N); }
             }
 
@@ -825,6 +834,7 @@ namespace Singularity.Game
                 View.Apply(Rig.cam);
                 Hud.Tick(dt, S);
                 Hud.TickDepth(S, Rig.cam, View);
+                Hud.TickCoach(S, Rig.cam, View, dt);
                 // AND THE SINGULARITY STOPS BEING A DOT. The finale grows a white
                 // giant out of the cell the orb is standing on; leaving the orb
                 // drawn puts a black disc in the middle of the star.

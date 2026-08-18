@@ -32,6 +32,9 @@ namespace Singularity.UI
         readonly List<Text> _depthPool = new List<Text>();
         RectTransform _depthRoot;
 
+        /// <summary>The two verbs, taught once, on the cube that needs them. See Coach.</summary>
+        public Coach Coach { get; private set; }
+
         float _toastT, _flashT, _flashDur, _vig, _capT;
 
         /// <summary>Whole seconds last printed on the plate clock; -1 means the clock is off.</summary>
@@ -117,14 +120,27 @@ namespace Singularity.UI
             // sixteen units in from the glass, and the bands are already measured
             // from it — this rect is a child of a root that is inset by the case,
             // so nothing here counts the bezel a second time
+            //
+            // AND THE FOUR NUMBERS COME FROM LAYOUT NOW, not from the two bands
+            // and the two insets added up here. They used to be the same sum on
+            // both sides, which is not the same thing as one definition: the
+            // camera contains the solid inside ITS window, so a stroke drawn from
+            // a private copy of the arithmetic is a line the cube can cross
+            // without anything noticing. See Layout.ApertureInsets.
+            Layout.ApertureInsets(out float apL, out float apB, out float apR, out float apT);
             _aperture = UiKit.Rect(_root, "aperture", new Vector2(0, 0), new Vector2(1, 1),
-                                   new Vector2(Layout.ApertureX, Layout.BottomBand + Layout.ApertureY),
-                                   new Vector2(-Layout.ApertureX, -(Layout.TopBand + Layout.ApertureY)));
+                                   new Vector2(apL, apB), new Vector2(-apR, -apT));
             var apEdge = _aperture.gameObject.AddComponent<Image>();
             apEdge.sprite = UiKit.RoundLine;
             apEdge.type = Image.Type.Sliced;
             apEdge.color = UiKit.Edge;
             apEdge.raycastTarget = false;
+
+            // ON THE APERTURE, because everything it points at is in the window:
+            // the ring lands on a square of the board and the swipe travels across
+            // it. Built here rather than last so it draws UNDER the readout — a
+            // prompt is the quietest thing on the screen, not the loudest.
+            Coach = new Coach(_aperture);
 
             // ---- top band ----------------------------------------------------
             RectTransform top = UiKit.Rect(_root, "barTop", new Vector2(0, 1), new Vector2(1, 1),
@@ -372,6 +388,21 @@ namespace Singularity.UI
             }
         }
 
+        /// <summary>
+        /// THE WINDOW MOVES WHEN THE DISPLAY CHANGES SHAPE, and until it was a
+        /// square it did not have to: four constant insets are the same four
+        /// constants in any aspect. A square cut out of the glass is not — its
+        /// side is the shorter of two things that both changed — so the one rect
+        /// every fold mark hangs on has to be re-cut when the device turns.
+        /// </summary>
+        public void Relayout()
+        {
+            if (_aperture == null) return;
+            Layout.ApertureInsets(out float l, out float b, out float r, out float t);
+            _aperture.offsetMin = new Vector2(l, b);
+            _aperture.offsetMax = new Vector2(-r, -t);
+        }
+
         public void Toast(string msg)
         {
             _toast.text = msg.ToUpperInvariant();
@@ -606,6 +637,15 @@ namespace Singularity.UI
         /// screen. The labels are pooled and only ever repositioned, because this
         /// runs every frame while it is on.
         /// </summary>
+        /// <summary>
+        /// The coach rides with the depth pass because it needs the same two
+        /// things — the camera and the view — to put a mark on a square of the
+        /// board, and because both are the parts of the readout that are about
+        /// the CELLS rather than about the run.
+        /// </summary>
+        public void TickCoach(Session s, Camera cam, CubeView view, float dt)
+            => Coach?.Tick(s, cam, view, dt);
+
         public void TickDepth(Session s, Camera cam, CubeView view)
         {
             bool on = Store.Data.depth != 0 && s?.lv != null && !s.won;

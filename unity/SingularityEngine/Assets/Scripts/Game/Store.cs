@@ -255,6 +255,12 @@ namespace Singularity.Game
         /// </summary>
         static void Migrate()
         {
+            // EVERY LAUNCH, NOT ONCE — this one is not a version step, it is a
+            // reading of the save that is true whenever it is asked. A player who
+            // has cleared a cube has been past the two the coach speaks on, and
+            // must never be handed a tutorial on their four-hundredth. See Coach.
+            Data.taught = Singularity.UI.Coach.Migrate(Data.taught, Data.reached);
+
             if (Data.v >= 1) return;
             // EFFECTS OFF MEANT BOTH LESS MOVEMENT AND LESS LIGHT, and it still
             // means both — it splits into two settings that start where it left

@@ -189,6 +189,8 @@ LABELS = [
     ("title quad · DAILY", "[ DAILY ]", 24, (625 - 96) / 2 - 6),
     ("title quad · VAULTS", "[ VAULTS ]", 24, (625 - 96) / 2 - 6),
     ("title quad · FORGE", "[ FORGE ]", 24, (625 - 96) / 2 - 6),
+    # the same slot before the first cube is cleared — see Screens._makeQuad
+    ("title quad · MANUAL", "[ MANUAL ]", 24, (625 - 96) / 2 - 6),
     ("title quad · CALIBRATE", "[ CALIBRATE ]", 24, (625 - 96) / 2 - 6),
 
     # CALIBRATE's own three-up feet, which are Bracketed and so carry them
@@ -200,6 +202,20 @@ LABELS = [
     ("pause · RESET", "[ RESET ]", 24, (625 - 144) / 3 - 12),
     ("pause · VAULTS", "[ VAULTS ]", 24, (625 - 144) / 3 - 12),
     ("pause · MENU", "[ MENU ]", 24, (625 - 144) / 3 - 12),
+
+    # and its two links, which share the row half and half — MANUAL was added
+    # because the rules were reachable only from inside the settings screen
+    ("pause link · MANUAL", "MANUAL", 20, (625 - 144) / 2),
+    ("pause link · CALIBRATE", "CALIBRATE", 20, (625 - 144) / 2),
+
+    # THE COACH'S TWO LINES, under the window rather than on it. The box is the
+    # aperture's own width, and the aperture is a SQUARE cut out of the glass now
+    # — so the narrowest it ever gets is the tallest phone, where the square is
+    # limited by a width the chassis has already taken 95 units out of. 21:9 at
+    # 1080x2520 is the worst of the shapes LayoutChecks measures: 862 pixels at
+    # 1.7185 units per pixel, less the stroke's own inset, is 470.
+    ("coach · TAP TO MOVE", "TAP TO MOVE", 22, 470),
+    ("coach · SWIPE TO FOLD", "SWIPE TO FOLD", 22, 470),
 
     # THE FORGE'S TEN TOOLS. Five columns of a 545-unit band, four units of
     # margin each side — a hundred and one units apiece, and [ WIPE DECK ] is a

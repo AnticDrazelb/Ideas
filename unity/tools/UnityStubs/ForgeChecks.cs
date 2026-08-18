@@ -99,6 +99,8 @@ public static class ForgeChecks
         EndChecks.Run(Ok);
         EndChecks.Reach(Ok);
         ClockChecks.Run(Ok);
+        LayoutChecks.Run(Ok);
+        CoachChecks.Run(Ok);
         FinishChecks.Run(Ok);
         Numbers();
 

@@ -31,6 +31,8 @@
     <Compile Include="Safety.cs" />
     <Compile Include="FinishChecks.cs" />
     <Compile Include="ClockChecks.cs" />
+    <Compile Include="LayoutChecks.cs" />
+    <Compile Include="CoachChecks.cs" />
     <Compile Include="Curate.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Core/**/*.cs" />
     <Compile Include="../../SingularityEngine/Assets/Scripts/Game/**/*.cs" />

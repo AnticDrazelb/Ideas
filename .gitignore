@@ -1,4 +1,5 @@
 node_modules/
+package-lock.json
 turnkey/tools/shot-*.png
 turnkey/tools/genlog.txt
 turnkey/tools/core-inline.js
