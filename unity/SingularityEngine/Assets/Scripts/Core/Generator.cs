@@ -158,22 +158,31 @@ namespace Singularity.Core
         /// </summary>
         public static bool Carve(int n, char[] vox, Ori m, int u, int v, int? hintDepth,
                                  int world, Dictionary<int, char> lockMap, out Int3 result)
-            => Carve(n, vox, m, u, v, hintDepth, world, lockMap, true, out result);
+            => Carve(n, vox, m, u, v, hintDepth, world, lockMap, null, out result);
 
         /// <summary>
-        /// <paramref name="mayCreate"/> IS THE EVERTER'S WHOLE CONSTRAINT.
+        /// <paramref name="mirror"/> IS THE EVERTER'S WHOLE CONSTRAINT.
         ///
         /// The last thing this does, when a column has nothing in it at all, is
         /// PLACE a cell — which is how the carve guarantees itself footing in
-        /// empty space. That is right for a solid being built and wrong for the
-        /// second array of an everter cube, where occupancy is the one thing that
-        /// must not move: a cell is turning to show a different face, so it has to
-        /// be there to turn. Denied, the face route is confined to cells the solid
-        /// already has, which is the point and is not a hardship — the inert
-        /// surface is 40.3 squares a cube and 39.5 of them are one joined region.
+        /// empty space. On an everter cube that breaks the one invariant the
+        /// mechanic has: a cell is turning to show a different face, so both
+        /// arrays have to agree about which cells exist.
+        ///
+        /// The first attempt at this simply DENIED the creation on the face
+        /// array, confining the second route to cells the solid already had. The
+        /// inert surface is forty squares a cube, so that sounded generous, and
+        /// the yield was three cubes in four thousand six hundred attempts — the
+        /// route does not want just any cells, it wants the ones in its way.
+        ///
+        /// So the creation is allowed and MIRRORED instead. A cell placed in one
+        /// array appears in the other as bedrock, and occupancy stays locked by
+        /// construction rather than by refusal. It cannot break the other board:
+        /// the column it fills was empty there too, so nothing was standing on it,
+        /// and a dead square is what most of that board is anyway.
         /// </summary>
         public static bool Carve(int n, char[] vox, Ori m, int u, int v, int? hintDepth,
-                                 int world, Dictionary<int, char> lockMap, bool mayCreate,
+                                 int world, Dictionary<int, char> lockMap, char[] mirror,
                                  out Int3 result)
         {
             result = default;
@@ -237,12 +246,13 @@ namespace Singularity.Core
             // This is the one move that can hide something from another face,
             // which is what the verify pass exists for — and the one move an
             // everter's face array is not allowed to make.
-            if (!mayCreate) return false;
             int d = Math.Max(0, Math.Min(n - 1, hintDepth ?? (n >> 1)));
             Int3 wc = Projection.WorldOf(n, m, new Int3(u, v, d));
             int wi = Level.Vidx(n, wc);
             if (lockMap != null && lockMap.TryGetValue(wi, out char had2) && had2 != want) return false;
             vox[wi] = want;
+            // and the other face gains the same cell, as bedrock — see mirror
+            if (mirror != null && wi < mirror.Length && mirror[wi] == '.') mirror[wi] = '#';
             if (lockMap != null) lockMap[wi] = want;
             result = wc;
             return true;
@@ -267,9 +277,13 @@ namespace Singularity.Core
 
             bool lockOccupancy = opt.glyphSet != null && opt.glyphSet.IndexOf('E') >= 0;
 
-            // The face array may not invent cells; the primary still may. See the
-            // mayCreate overload of Carve.
-            bool MayCreate(int w) => !lockOccupancy || Level.LayoutOf(w) == 0;
+            // WHICH ARRAY HAS TO BE KEPT IN STEP with the one being carved. Null
+            // on every cube that is not an everter, so nothing else changes.
+            char[] Mirror(int w)
+            {
+                if (!lockOccupancy || alts == null || alts.Length == 0) return null;
+                return Level.LayoutOf(w) > 0 ? vox : alts[0];
+            }
 
             char[] Solid(int w)
             {
@@ -319,7 +333,7 @@ namespace Singularity.Core
 
             int u0 = 1 + (int)Math.Floor(rng.Next() * (n - 2));
             int v0 = 1 + (int)Math.Floor(rng.Next() * (n - 2));
-            if (!Carve(n, Solid(world), m, u0, v0, null, world, lockMap, MayCreate(world), out Int3 pos)) return null;
+            if (!Carve(n, Solid(world), m, u0, v0, null, world, lockMap, Mirror(world), out Int3 pos)) return null;
             path.Add(pos);
 
             var order = new int[4];
@@ -333,7 +347,7 @@ namespace Singularity.Core
                 {
                     int u2 = vv.x + Turns.All[order[t]].dx, v2 = vv.y + Turns.All[order[t]].dy;
                     if (u2 < 0 || v2 < 0 || u2 >= n || v2 >= n) continue;
-                    if (!Carve(n, Solid(world), m, u2, v2, vv.z, world, lockMap, MayCreate(world), out Int3 nx)) continue;
+                    if (!Carve(n, Solid(world), m, u2, v2, vv.z, world, lockMap, Mirror(world), out Int3 nx)) continue;
                     pos = nx; path.Add(pos);
                     return true;
                 }
@@ -368,7 +382,18 @@ namespace Singularity.Core
                     // A TRIGGER EXISTS IN EVERY SOLID. It is what makes the swap a
                     // door rather than a cliff: two triggers toggling two bits give
                     // four boards reachable in any order and leavable the same way.
-                    if ((kind == 'T' || kind == 'U') && alts != null)
+                    //
+                    // AND SO DOES AN EVERTER, for a reason that is even sharper.
+                    // The cell you are standing on is the one turning; if it is
+                    // not walkable on the other face you are standing on nothing
+                    // the instant the turn lands, and the route dies there. This
+                    // condition read 'T' and 'U' only, so an everter was written
+                    // into the primary and left as bedrock in the face array —
+                    // and every single everter cube failed to mint. Four thousand
+                    // six hundred and eighty of four thousand six hundred and
+                    // eighty, which is the kind of number that looks like a
+                    // yield problem right up until you print it.
+                    if ((kind == 'T' || kind == 'U' || kind == 'E') && alts != null)
                     {
                         vox[gi] = kind;
                         foreach (char[] a in alts) a[gi] = kind;
@@ -381,7 +406,7 @@ namespace Singularity.Core
                     // opened, or the walk continues from somewhere it is not
                     if (!Carve(n, Solid(world), m, Projection.ViewOf(n, m, pos).x,
                                Projection.ViewOf(n, m, pos).y, null, world, lockMap,
-                               MayCreate(world), out Int3 kept))
+                               Mirror(world), out Int3 kept))
                         return null;
                     pos = kept;
 
@@ -395,7 +420,7 @@ namespace Singularity.Core
                 int pick = (int)Math.Floor(rng.Next() * 4);
                 Ori m2 = Turns.All[pick].f(m);
                 Int3 lv2 = Projection.ViewOf(n, m2, pos);
-                if (!Carve(n, Solid(world), m2, lv2.x, lv2.y, null, world, lockMap, MayCreate(world), out Int3 lnd)) continue;
+                if (!Carve(n, Solid(world), m2, lv2.x, lv2.y, null, world, lockMap, Mirror(world), out Int3 lnd)) continue;
                 m = m2; pos = lnd; path.Add(lnd);
             }
 

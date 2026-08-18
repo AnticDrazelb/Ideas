@@ -212,7 +212,8 @@ static class Curate
         V("SINGULARITY", 9, 9, 15, 2, 1, "T", 0.22, ""),
     };
 
-    static Vault V(string name, int n, int lo, int hi, int locks, int glyphs, string set,
+    /// <summary>Public so ArcSearch can cut its candidates to a real vault spec.</summary>
+    public static Vault V(string name, int n, int lo, int hi, int locks, int glyphs, string set,
                    double openMax, string teaches)
         => new Vault
         {
@@ -431,7 +432,14 @@ static class Curate
             glyphs = v.glyphs,
             glyphKinds = v.kinds,
             glyphSet = v.set,
-            layouts = v.set != null && v.set.IndexOf('T') >= 0 ? 2 : 1,
+            // TWO SOLIDS FOR AN EVERTER TOO, and that is new. A trigger needed a
+            // second array because it exchanges the ground. An everter needs one
+            // because it turns every cell to show another face, and a face is a
+            // second array of types over the same cells — see Level.LayoutOf. It
+            // was 'T' alone here, so an everter spec minted a cube with nowhere
+            // for its other face to live and the glyph did nothing but win its
+            // own column.
+            layouts = v.set != null && (v.set.IndexOf('T') >= 0 || v.set.IndexOf('E') >= 0) ? 2 : 1,
             // a cube may carry a trigger and a plate; it never carries two triggers
 
             turns = Math.Min(11, 3 + v.parHi),

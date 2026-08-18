@@ -12,10 +12,23 @@ namespace Singularity.Core
         public readonly Int3 start, goal;
         public readonly Int3[] keys, doors;
 
-        public BakedLevel(int n, string name, int par, string vox, Int3 start, Int3 goal, Int3[] keys, Int3[] doors)
+        /// <summary>
+        /// THE OTHER FACE, and null on every cube that does not turn.
+        ///
+        /// An everter is a second array of types over the same cells — see
+        /// Level.LayoutOf — so a cube that teaches one cannot be written down as a
+        /// single voxel string. The four at 146-149 could not be stored at all
+        /// until this existed: the search emitted them, the paste block dropped
+        /// their other half, and every lesson they were found for evaporated.
+        /// </summary>
+        public readonly string voxB;
+
+        public BakedLevel(int n, string name, int par, string vox, Int3 start, Int3 goal,
+                          Int3[] keys, Int3[] doors, string voxB = null)
         {
             this.n = n; this.name = name; this.par = par; this.vox = vox;
             this.start = start; this.goal = goal; this.keys = keys; this.doors = doors;
+            this.voxB = voxB;
         }
 
         public Level ToLevel(int level)
@@ -30,6 +43,7 @@ namespace Singularity.Core
                 doors = new List<Int3>(doors),
                 par = par,
                 level = level,
+                voxB = voxB?.ToCharArray(),
                 band = Vaults.VaultOf(level),
                 name = name,
                 authored = true
@@ -81,30 +95,22 @@ namespace Singularity.Core
         /// </summary>
         public static readonly BakedLevel[] Arc =
         {
-            new BakedLevel(
-                n: 6, name: "THE FAR SIDE", par: 3,
-                vox: ".#..####....##.#.####.###E..###.##.#.#.#.....#.#.#...##..#...+..##.....#.+.....##.......###.##....##.#......#..##+..#..##.########.#..#..#.#.##.+#...+##.....#.##.#..#.##.#.#..#...#..##.....#.#.#.###..###..#+#+.++.#..",
-                start: new Int3(1, 1, 4), goal: new Int3(1, 2, 0),
-                keys: new Int3[0],
-                doors: new Int3[0]),
-            new BakedLevel(
-                n: 6, name: "TWO SHADOWS", par: 2,
-                vox: "..#.+#..#...#..#+...#...++..#+.+.#...#...##...E#.####..........+..+##.###.##.##+#.#...##.+...#+...+...#.#..#####.......#....##..####.###..+.+##.#..###+#.##....###.##.+#+..#.#.++#.######....#.#+..#.#.#..#...+.#..+..#.",
-                start: new Int3(2, 3, 5), goal: new Int3(4, 0, 0),
-                keys: new Int3[0],
-                doors: new Int3[0]),
-            new BakedLevel(
-                n: 6, name: "NOTHING UNDERNEATH", par: 3,
-                vox: ".#..####....##.#.####.###E..###.++.#.#.#.....#.#.#...##..#...+..+#.....#.+.....##.......###.##....##.#......+..##+..#..+#.########.#..#..#.#.##.+#...+#+.....#.##.+..#.#+.#.#..#...#..##.....+.#.#.###..+##..++#+.++.#..",
-                start: new Int3(1, 1, 4), goal: new Int3(1, 2, 0),
-                keys: new Int3[0],
-                doors: new Int3[0]),
-            new BakedLevel(
-                n: 6, name: "TURNED INSIDE OUT", par: 3,
-                vox: "#.#.#.#A...#.....##..#.#..#.##.###...##.#.##..#.###.+..##.#.#.###.#...#.##++.+##+....##.##.#+...#...#.#...#.#..#+..#.+...#.#.#..+..#..+#..E#+##.#+..#...+########......+.+...#.#......+##.#+#.###.####..#.......#..+..##",
-                start: new Int3(3, 2, 0), goal: new Int3(1, 1, 3),
-                keys: new[] { new Int3(1, 4, 4) },
-                doors: new[] { new Int3(2, 2, 1) }),
+            new BakedLevel(6, "THE FAR SIDE", 2, "#.#.#.E.##..#..#..#+#.+.+.##..+..###+.####...+#.#+....####.+.#..++#.++.#++#.##++.#.###.##...###+##+..+...#....#...#..####..#.+..+#..##.#+.#...#+#..##.#####..#.#....##.#..#####.####..###..##.######...#.##...#####.##.#",
+                new Int3(2, 3, 3), new Int3(0, 0, 4),
+                new Int3[0], new Int3[0],
+                "#.+.#.E.+#..+..#..+##.#.+.+#..#..####.####...##.#+....####.#.#..###.+#.####.###+.#.###.##...######+..#...+....#...#..####..#.#..+#..##.+#.#...###..##.#+++#..+.#....##.#..#####.+###..++#..+#.###+++...#.##...#####.##.#"),
+            new BakedLevel(6, "TWO SHADOWS", 2, "###.#..#.##+...##....##.......###....#.####.#.###.####.######..#++..#.......+..#...#.##.#####.#+...+..#..++.+#.####..###.#..##.###.#+##.#+.#..+#....+.++##.+..##.###.+.##.#.+.#.#.E.+.#.+.#.##.+.....####.++#+....##..++",
+                new Int3(4, 3, 5), new Int3(0, 3, 0),
+                new Int3[0], new Int3[0],
+                "###.#..#.###...##....++.......###....#.####.#.###.+##+.#+##+#..+++..#.......#..+...#.+#.##+##.##...#..#..##.++.####..###.#..##.##+.####.##.#..++....#.####.#..##.###.+.##.#.#.#.#.E.#.#.#.#.##.#.....####.####....##..+#"),
+            new BakedLevel(6, "NOTHING UNDERNEATH", 2, "+.#.+.E.##..#..#..++#.+.+.##..+..###+.####...+#.#+....####.+.#..++#.++.#++#.##++.#.###.##...###+##+..+...#....#...#..####..#.+..+#..##.#+.#...#+#..##.#####..#.#....##.#..#####.####..###..##.######...#.##...#####.##.#",
+                new Int3(2, 3, 3), new Int3(0, 0, 4),
+                new Int3[0], new Int3[0],
+                "#.+.#.E.+#..+..#..+##.#.+.+#..#..####.####...##.#+....####.#.#..###.+#.####.###+.#.###.##...######+..#...+....#...#..####..#.#..+#..##.+#.#...###..##.#+++#..+.#....##.#..#####.+###..++#..+#.###+++...#.##...#####.##.#"),
+            new BakedLevel(6, "TURNED INSIDE OUT", 2, ".+++++.####+.+#..#....##+..###+.###.#...#+#.#+..+###.E...+#+.+.+....+..##...##..###.....#..+#...+.#.##+++#.#.##.....###.###.######.##.##...+..###.###.##.##...#..###.##.#.###.###.#..##..###..#...#####+###.##.####..###",
+                new Int3(3, 1, 4), new Int3(3, 0, 0),
+                new Int3[0], new Int3[0],
+                ".##++#.###++.##..+....++#..##+#.###.#...+##.#+..####.E...###.#.+....#..##...++..#++.....+..##...#.#.######.#.##.....###.###.+#####.##.##...#..###.###.##.##...#..###.##.#.###.###.#..##..###..#...#########.##.####..###")
         };
 
         /// <summary>

@@ -30,13 +30,22 @@ static class ArcChecks
             ok(with.turns == b.par,
                b.name + " claims par " + b.par + " and solves in " + with.turns);
 
-            // the control: the same solid, everter demoted to plain trace
+            // THE CONTROL IS THE SAME CUBE WITH ITS OTHER FACE TAKEN AWAY.
+            //
+            // It used to demote the everter to plain trace, which under the old
+            // rule was the whole difference. It is not any more: an everter is a
+            // second ARRAY of types over the same cells, and demoting the glyph
+            // changes which cell wins its column — so that control measured the
+            // glyph's precedence and not the mechanic. Nulling `alts` leaves
+            // every cell, every type and the everter itself exactly where they
+            // are and removes only the ability to turn.
             Level flat = lv.Clone();
-            bool hadEverter = false;
-            for (int c = 0; c < flat.vox.Length; c++)
-                if (flat.vox[c] == 'E') { flat.vox[c] = '+'; hadEverter = true; }
+            bool hadEverter = new string(lv.vox).IndexOf('E') >= 0;
+            bool hadFace = lv.alts != null && lv.alts.Length > 0 && lv.alts[0] != null;
+            flat.alts = null;
             flat.ClearEff();
             ok(hadEverter, b.name + " has no everter in it — it cannot be teaching eversion");
+            ok(hadFace, b.name + " has no second face, so its everter turns nothing");
             SolveResult without = Solver.Solve(flat, 12);
 
             switch (i)

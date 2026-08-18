@@ -33,7 +33,7 @@ static class ArcSearch
 
         var found = new Dictionary<int, string>();
         var codes = new Dictionary<int, string>();
-        int examined = 0, placements = 0;
+        int examined = 0, placements = 0, nullMint = 0, nullAlts = 0;
 
         // BUDGETED, because the honest search is 400 solids by 35 placements by
         // three solves and that is forty thousand searches over a 24-orientation,
@@ -42,40 +42,56 @@ static class ArcSearch
         // than a nine-cube that merely allows it.
         const int Budget = 12;
 
-        for (int level = 11; level <= 160 && found.Count < 4; level++)
+        // MINTED WITH A FACE ARRAY, WHICH IS THE WHOLE POINT AND WAS THE BUG.
+        //
+        // This used to mint an ordinary solid and drop an 'E' onto one of its
+        // trace cells. Under the old rule that was enough: eversion was a
+        // reversal of the depth test, so any solid could be everted. It is a
+        // SECOND ARRAY of types now, and SpecFor never asks for one — so every
+        // "lesson" this found was the glyph winning its own column by precedence
+        // and nothing to do with turning a face. Two of them printed, and both
+        // were fiction.
+        //
+        // So the cubes are cut the way the ladder cuts an everter vault, through
+        // Curate's own spec, which now asks for two layouts when the set carries
+        // an E. The carve then lays a route through BOTH boards and places the
+        // everter where the route crosses between them.
+        var spec = Curate.V("THE FAR SIDE", 6, 2, 8, 0, 1, "E", 0.60, "");
+
+        for (int level = 11; level <= 400 && found.Count < 4; level++)
         {
-            Level src = Generator.Mint(level);
-            if (src == null || src.n > 6) continue;
             examined++;
-
-            SolveResult plain = Solver.Solve(src, 12);
-            if (!plain.ok) continue;
-
-            int tried = 0;
-            for (int i = 0; i < src.vox.Length && tried < Budget; i++)
+            for (int i = 0; i < Budget && found.Count < 4; i++)
             {
-                if (src.vox[i] != '+') continue;
-                if (src.Vidx(src.start) == i || src.Vidx(src.goal) == i) continue;
-                tried++; placements++;
+                uint seed = unchecked((uint)(level * 2654435761u) ^ (uint)(i * 40503u) ^ 0xfaceu);
+                Level lv = Curate.RoughLevel(seed, spec, level, spec.parLo, out _);
+                if (lv == null) { nullMint++; continue; }
+                if (lv.alts == null || lv.alts.Length == 0 || lv.alts[0] == null) { nullAlts++; continue; }
+                placements++;
 
-                Level lv = src.Clone();
-                lv.vox[i] = 'E';
-                lv.ClearEff();
                 SolveResult with = Solver.Solve(lv, 12);
                 if (!with.ok) continue;
 
+                // A LESSON IS ALSO A CUBE, AND A CUBE THAT SOLVES IN NO FOLDS IS
+                // NOT ONE. The first run of this printed CHOOSE THE SHADOW at
+                // "par 1 -> 0" — a board you can walk to the core on without
+                // folding once, which teaches the far side by not needing it.
+                // Two folds is the floor for something a vault opens on.
+                if (with.turns < 2) continue;
+
+                // THE CONTROL IS THE SAME CUBE WITH ITS OTHER FACE TAKEN AWAY.
+                //
+                // Not the everter demoted to trace — that changes which cell wins
+                // the column and measures the glyph rather than the mechanic.
+                // Nulling `alts` leaves every cell, every type and the everter
+                // itself exactly where they are, and removes only the ability to
+                // turn: the difference between the two answers is the face turn
+                // and nothing else.
                 Level flat = lv.Clone();
-                flat.vox[i] = '+';
+                flat.alts = null;
                 flat.ClearEff();
                 SolveResult without = Solver.Solve(flat, 12);
 
-                // LESSON ONE HAS TO BE SCULPTED, NOT SPRINKLED. Dropping an
-                // everter onto a cube that already works cannot make it
-                // impossible without one — so if the control still solves, take
-                // trace away until only the everted route survives. That is what
-                // a puzzle author actually does: remove everything the intended
-                // solution does not need, and what is left can only be solved the
-                // intended way.
                 if (without.ok && !found.ContainsKey(1))
                 {
                     Level carved = Sculpt(lv);
@@ -89,18 +105,21 @@ static class ArcSearch
                     }
                 }
 
-                int lesson = Classify(lv, with, without);
-                if (lesson == 0 || found.ContainsKey(lesson)) continue;
+                for (int lesson = 2; lesson <= 4; lesson++)
+                {
+                    if (found.ContainsKey(lesson)) continue;
+                    if (!Makes(lesson, lv, with, without)) continue;
 
-                found[lesson] = Describe(lesson, level, i, without, with);
-                codes[lesson] = ShareCode.Encode(lv);
-                Console.WriteLine(found[lesson]);
-                Console.WriteLine("     " + codes[lesson]);
-                break;
+                    found[lesson] = Describe(lesson, level, i, without, with);
+                    codes[lesson] = ShareCode.Encode(lv);
+                    Console.WriteLine(found[lesson]);
+                    Console.WriteLine("     " + codes[lesson]);
+                    break;
+                }
             }
         }
 
-        Console.WriteLine();
+        Console.WriteLine("   mint returned null " + nullMint + ", no face array " + nullAlts);
         Console.WriteLine("examined " + examined + " solids, " + placements + " everter placements, found "
                           + found.Count + " of the 4 lessons");
         Console.WriteLine();
@@ -112,23 +131,37 @@ static class ArcSearch
     /// wins: a cube that is impossible without the mechanic is a better first
     /// lesson than one that is merely cheaper with it.
     /// </summary>
-    static int Classify(Level lv, SolveResult with, SolveResult without)
+    /// <summary>
+    /// DOES THIS CUBE MAKE LESSON <paramref name="lesson"/>? Asked one lesson at
+    /// a time rather than as a first-match cascade.
+    ///
+    /// It was a cascade — return 1, else 2, else 3, else 4 — and lesson three is
+    /// common: on a face everter almost every cube has SOME square that is trace
+    /// on one face and bedrock on the other. So three matched first on nearly
+    /// everything and four was unreachable, and four thousand three hundred and
+    /// ninety placements found three lessons and could never have found the
+    /// fourth. A cube is allowed to teach more than one thing; the search just
+    /// needs to be asked about each.
+    /// </summary>
+    static bool Makes(int lesson, Level lv, SolveResult with, SolveResult without)
     {
-        // 1. UNSOLVABLE WITHOUT IT.
-        if (!without.ok) return 1;
+        switch (lesson)
+        {
+            // 1. UNSOLVABLE WITHOUT IT.
+            case 1: return !without.ok;
 
-        // 2. CHEAPER EVERTED — a decision rather than a gate.
-        if (with.turns < without.turns) return 2;
+            // 2. CHEAPER EVERTED — a decision rather than a gate.
+            case 2: return without.ok && with.turns < without.turns;
 
-        // 3. THE FLOOR CAN GO. Somewhere on the starting board is a square that
-        //    is walkable now and is not walkable once everted.
-        if (LosesFooting(lv)) return 3;
+            // 3. THE FLOOR CAN GO. Somewhere on the starting board is a square
+            //    that is walkable now and is not once the faces have turned.
+            case 3: return without.ok && LosesFooting(lv);
 
-        // 4. A FOLD THAT NEEDS A POLARITY. From the start, a fold that is refused
-        //    upright and permitted everted, or the other way round.
-        if (PolarityGatesAFold(lv)) return 4;
-
-        return 0;
+            // 4. A FOLD THAT NEEDS A FACE. Somewhere you can stand on both, a
+            //    fold that one face permits and the other refuses.
+            case 4: return without.ok && PolarityGatesAFold(lv);
+        }
+        return false;
     }
 
     static readonly string[] ArcNames =
@@ -155,7 +188,10 @@ static class ArcSearch
                 "new BakedLevel({0}, \"{1}\", {2}, \"{3}\",", lv.n, ArcNames[i], r.turns, new string(lv.vox)));
             Console.WriteLine(string.Format("    new Int3({0}, {1}, {2}), new Int3({3}, {4}, {5}),",
                 lv.start.x, lv.start.y, lv.start.z, lv.goal.x, lv.goal.y, lv.goal.z));
-            Console.WriteLine("    " + Pts(lv.keys) + ", " + Pts(lv.doors) + "),");
+            // AND THE OTHER FACE. Without it the paste block emits half a cube and
+            // every lesson it was found for evaporates on arrival.
+            Console.WriteLine("    " + Pts(lv.keys) + ", " + Pts(lv.doors)
+                            + (lv.voxB == null ? "" : ",\n    \"" + new string(lv.voxB) + "\"") + "),");
         }
     }
 
@@ -172,10 +208,16 @@ static class ArcSearch
     }
 
     /// <summary>The same solid with every everter demoted to ordinary trace — the control.</summary>
+    /// <summary>
+    /// The cube with its other face taken away — the everter still there, still
+    /// walkable, still winning its column, and simply unable to turn anything.
+    /// This used to demote the glyph to trace, which measured the glyph's
+    /// precedence rather than the mechanic.
+    /// </summary>
     static Level Flatten(Level lv)
     {
         Level flat = lv.Clone();
-        for (int i = 0; i < flat.vox.Length; i++) if (flat.vox[i] == 'E') flat.vox[i] = '+';
+        flat.alts = null;
         flat.ClearEff();
         return flat;
     }
@@ -227,16 +269,40 @@ static class ArcSearch
         return false;
     }
 
+    /// <summary>
+    /// A FOLD THAT ONLY ONE FACE PERMITS — asked from everywhere the player could
+    /// be standing, not only from the door.
+    ///
+    /// This tested the four folds off `lv.start` and nothing else, which is one
+    /// cell of a board with a dozen, and it found nothing in four thousand
+    /// placements. The claim was never about the entrance: it is that somewhere
+    /// on this cube there is a swipe you can take on one face and not on the
+    /// other, and where you are standing when that bites is the puzzle.
+    /// </summary>
     static bool PolarityGatesAFold(Level lv)
     {
+        int n = lv.n;
         Ori m = Turns.Oris[0];
-        for (int t = 0; t < 4; t++)
-        {
-            Ori m2 = Turns.All[t].f(m);
-            bool up = Projection.Landing(lv, m2, lv.start, 0, 0, out _);
-            bool ev = Projection.Landing(lv, m2, lv.start, 0, Level.Everted, out _);
-            if (up != ev) return true;
-        }
+        Surf[] a = Projection.Project(n, lv.Eff(0), m);
+        Surf[] b = Projection.Project(n, lv.Eff(Level.Everted), m);
+
+        for (int u = 0; u < n; u++)
+            for (int v = 0; v < n; v++)
+            {
+                // it has to be a square you can stand on in BOTH, or the fold
+                // being refused is the footing changing rather than the fold
+                if (!Projection.Walkable(lv, a, u, v, 0)) continue;
+                if (!Projection.Walkable(lv, b, u, v, 0)) continue;
+                Int3 cell = a[u * n + v].w;
+
+                for (int t = 0; t < 4; t++)
+                {
+                    Ori m2 = Turns.All[t].f(m);
+                    bool up = Projection.Landing(lv, m2, cell, 0, 0, out _);
+                    bool ev = Projection.Landing(lv, m2, cell, 0, Level.Everted, out _);
+                    if (up != ev) return true;
+                }
+            }
         return false;
     }
 

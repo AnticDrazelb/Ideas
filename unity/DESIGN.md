@@ -475,6 +475,73 @@ first four of vault IX, which is exactly where the audit says the ladder stops
 getting harder. `ArcChecks` re-proves on every run that each cube still *requires*
 its own lesson.
 
+**THE RULE CHANGED, AND EVERYTHING FROM HERE TO THE END OF §4 DESCRIBES THE OLD
+ONE.** It is kept because the argument for it is still the argument for the
+thing that replaced it, and because a design note that quietly rewrites its own
+history is worth less than one that shows the turn.
+
+Eversion was one comparison in `Projection.Project` — `evert ? d < cur.d : d >
+cur.d` — so a column stopped showing its nearest solid cell and showed its
+farthest. Nothing moved. Every square the player was looking at was replaced by
+a cell from the other end of the solid, and the per-cell turn on screen was a
+depiction of that rather than a thing happening to the machine.
+
+It is now what it was meant to be. **A cell is a small solid with six faces, and
+the one that matters is the one pointing at the camera.** An everter turns every
+cell in place, at once, out of time with its neighbours, and a different face is
+the surface. That is a second ARRAY of types over the same cells — which is what
+`alts` already is and what the trigger already rides on — under one added
+constraint that is the whole difference between them: **occupancy is locked.** A
+trigger exchanges the ground and the silhouette moves with it; an everter
+exchanges nothing, so the same cell still wins its column, the board's shape
+holds still, and only the circuit drawn on it rearranges.
+
+The faces are indexed in **view space, not cell space**. Fixed to the cell,
+folding would change which face points at the camera as well as which cells are
+on the surface, so one swipe would rewire the board twice over and nothing about
+it could be predicted. Indexed in view space, folding changes which cells you
+see and everting changes what they are, and the two verbs stay separable.
+
+```sh
+dotnet run --project unity/tools/UnityStubs faces
+```
+
+```
+   squares showing a cell                48.6
+   of those, walkable now                 8.3   <- the board the game plays on
+   of those, inert and free              40.3
+   largest JOINED run of inert surface   39.5
+```
+
+Five times the board to paint a second route on, and it is one region rather
+than scraps. The everter that shipped offered 6.3 walkable squares of which 2.4
+were reachable; the column-advance reading of "every cell rotates", measured in
+`peel`, offered 3.7 and 1.1.
+
+Three things hold the invariant, and each was a bug before it was a rule: the
+fill copies occupancy from the primary instead of rolling its own; `Carve` takes
+a `mirror` array, so a cell placed in one face appears in the other as bedrock;
+and the everter glyph is written into **every** array, because the cell you are
+standing on is the one turning and it has to be walkable on the other side. That
+last one was missing and every everter cube failed to mint — 4,680 of 4,680,
+which looks exactly like a yield problem until somebody prints it.
+
+**The four cubes at 146–149 are different cubes**, re-searched against the new
+rule with an honest control: the same cube with `alts` nulled, which leaves the
+everter itself in place, still walkable, still winning its column, and removes
+only the ability to turn. The old control demoted the glyph to trace, which
+changes which cell wins the column — so it measured the glyph's precedence
+rather than the mechanic, and under the new rule it found two lessons that were
+both fiction.
+
+**And the lessons are tested one at a time now.** `Classify` was a first-match
+cascade, and lesson three — somewhere a square is trace on one face and bedrock
+on the other — is true of almost every face everter. It matched first on
+everything, so lesson four was unreachable and 4,390 placements could never have
+found it. A cube is allowed to teach more than one thing.
+
+---
+
 **The visual is in, and it is the honest one.** `Cell.shader` opens by insisting
 that the renderer and the rules are the same statement: an orthographic camera
 down one axis makes the *depth buffer* perform the projection, so the nearest
