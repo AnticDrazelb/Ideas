@@ -35,8 +35,12 @@ class_name Access
 # different criterion (2.3.1) with a different answer. Splitting them is not
 # more knobs for its own sake — it is the difference between a setting that
 # works and one that makes somebody choose which symptom to keep.
-enum MotionLevel { FULL = 0, REDUCED = 1, STILL = 2 }
-enum LightLevel { FULL = 0, REDUCED = 1, NONE = 2 }
+# The two grades themselves live in Grade — Store writes them and this reads
+# them, and a class each of them names is the only way out of the ring that
+# creates. These aliases are so that every call site in the game still says
+# Access.MotionLevel, which is where a reader looks for it.
+const MotionLevel := Grade.Motion
+const LightLevel := Grade.Light
 
 
 static func motion() -> int:

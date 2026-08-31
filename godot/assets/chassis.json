@@ -1,0 +1,48 @@
+{
+  "_comment": [
+    "THE MEASUREMENTS OF WHATEVER CASE IS CURRENTLY IN THE MACHINE.",
+    "",
+    "Chassis used to carry these as constants, with a note saying a Python script",
+    "had printed them. That was true and it was also a trap: the numbers and the",
+    "picture they describe could drift apart with nothing to notice, and swapping",
+    "the case meant editing code with a calculator open. Every one of them is a",
+    "measurement OF AN ASSET, so they belong beside the asset.",
+    "",
+    "EVERY LENGTH HERE IS IN THE ART'S OWN PIXELS except `scale`, which is the",
+    "exchange rate to canvas units and the only number in the file that is a",
+    "decision rather than an observation.",
+    "",
+    "IT IS OPTIONAL. Chassis falls back to these same numbers if the file is",
+    "missing, so a clone without it still draws the housing the game was built",
+    "with. The fallback is not a default anybody should rely on \u2014 it is there so",
+    "that a missing file is a case that still fits rather than an interface with",
+    "no edges."
+  ],
+  "artW": 461,
+  "artH": 1018,
+  "left": 38.0,
+  "right": 38.0,
+  "top": 60.0,
+  "bottom": 62.0,
+  "corner": 160.0,
+  "armW": 58.0,
+  "armH": 80.0,
+  "sideW": 44.0,
+  "bandH": 66.0,
+  "scale": 1.25,
+  "crop": [
+    50,
+    6,
+    511,
+    1024
+  ],
+  "glass": [
+    88,
+    66,
+    472,
+    961
+  ],
+  "glassRadius": 15.0,
+  "darkBelow": 9.0,
+  "sourceRows": 1024
+}

@@ -10,6 +10,11 @@ config_version=4
 
 _global_script_classes=[ {
 "base": "Reference",
+"class": "Access",
+"language": "GDScript",
+"path": "res://game/Access.gd"
+}, {
+"base": "Reference",
 "class": "Act",
 "language": "GDScript",
 "path": "res://core/Act.gd"
@@ -45,9 +50,34 @@ _global_script_classes=[ {
 "path": "res://core/Catalogue.gd"
 }, {
 "base": "Reference",
+"class": "Chassis",
+"language": "GDScript",
+"path": "res://game/Chassis.gd"
+}, {
+"base": "Reference",
+"class": "ChassisSpec",
+"language": "GDScript",
+"path": "res://game/ChassisSpec.gd"
+}, {
+"base": "Reference",
+"class": "Coach",
+"language": "GDScript",
+"path": "res://ui/Coach.gd"
+}, {
+"base": "Reference",
+"class": "Cutter",
+"language": "GDScript",
+"path": "res://game/Cutter.gd"
+}, {
+"base": "Reference",
 "class": "Daily",
 "language": "GDScript",
 "path": "res://core/Daily.gd"
+}, {
+"base": "Reference",
+"class": "DailyBoards",
+"language": "GDScript",
+"path": "res://game/DailyBoards.gd"
 }, {
 "base": "Reference",
 "class": "Generator",
@@ -55,9 +85,34 @@ _global_script_classes=[ {
 "path": "res://core/Generator.gd"
 }, {
 "base": "Reference",
+"class": "Glyphs",
+"language": "GDScript",
+"path": "res://game/Glyphs.gd"
+}, {
+"base": "Reference",
+"class": "Grade",
+"language": "GDScript",
+"path": "res://game/Grade.gd"
+}, {
+"base": "Reference",
+"class": "Haptics",
+"language": "GDScript",
+"path": "res://game/Haptics.gd"
+}, {
+"base": "Reference",
+"class": "HudMetrics",
+"language": "GDScript",
+"path": "res://ui/HudMetrics.gd"
+}, {
+"base": "Reference",
 "class": "Identity",
 "language": "GDScript",
 "path": "res://core/Identity.gd"
+}, {
+"base": "Reference",
+"class": "Layout",
+"language": "GDScript",
+"path": "res://ui/Layout.gd"
 }, {
 "base": "Reference",
 "class": "Level",
@@ -65,9 +120,24 @@ _global_script_classes=[ {
 "path": "res://core/Level.gd"
 }, {
 "base": "Reference",
+"class": "LevelSupply",
+"language": "GDScript",
+"path": "res://game/LevelSupply.gd"
+}, {
+"base": "Reference",
+"class": "MadeCube",
+"language": "GDScript",
+"path": "res://game/MadeCube.gd"
+}, {
+"base": "Reference",
 "class": "MintedIds",
 "language": "GDScript",
 "path": "res://core/MintedIds.gd"
+}, {
+"base": "Reference",
+"class": "Num",
+"language": "GDScript",
+"path": "res://game/Num.gd"
 }, {
 "base": "Reference",
 "class": "Ori",
@@ -75,9 +145,29 @@ _global_script_classes=[ {
 "path": "res://core/Ori.gd"
 }, {
 "base": "Reference",
+"class": "Palette",
+"language": "GDScript",
+"path": "res://game/Palette.gd"
+}, {
+"base": "Reference",
+"class": "PerfWatch",
+"language": "GDScript",
+"path": "res://game/PerfWatch.gd"
+}, {
+"base": "Reference",
+"class": "Platform",
+"language": "GDScript",
+"path": "res://game/Platform.gd"
+}, {
+"base": "Reference",
 "class": "Projection",
 "language": "GDScript",
 "path": "res://core/Projection.gd"
+}, {
+"base": "Reference",
+"class": "RemainSolver",
+"language": "GDScript",
+"path": "res://game/RemainSolver.gd"
 }, {
 "base": "Reference",
 "class": "Rng",
@@ -85,9 +175,24 @@ _global_script_classes=[ {
 "path": "res://core/Rng.gd"
 }, {
 "base": "Reference",
+"class": "SaveData",
+"language": "GDScript",
+"path": "res://game/SaveData.gd"
+}, {
+"base": "Reference",
+"class": "Session",
+"language": "GDScript",
+"path": "res://game/Session.gd"
+}, {
+"base": "Reference",
 "class": "ShareCode",
 "language": "GDScript",
 "path": "res://core/ShareCode.gd"
+}, {
+"base": "Reference",
+"class": "SolveClock",
+"language": "GDScript",
+"path": "res://game/SolveClock.gd"
 }, {
 "base": "Reference",
 "class": "SolveResult",
@@ -110,14 +215,74 @@ _global_script_classes=[ {
 "path": "res://core/Spec.gd"
 }, {
 "base": "Reference",
+"class": "Sprites",
+"language": "GDScript",
+"path": "res://ui/Sprites.gd"
+}, {
+"base": "Reference",
+"class": "Store",
+"language": "GDScript",
+"path": "res://game/Store.gd"
+}, {
+"base": "Reference",
 "class": "Surf",
 "language": "GDScript",
 "path": "res://core/Surf.gd"
 }, {
 "base": "Reference",
+"class": "Tilt",
+"language": "GDScript",
+"path": "res://game/Tilt.gd"
+}, {
+"base": "Reference",
+"class": "TimeBend",
+"language": "GDScript",
+"path": "res://game/TimeBend.gd"
+}, {
+"base": "Reference",
 "class": "Turns",
 "language": "GDScript",
 "path": "res://core/Turns.gd"
+}, {
+"base": "UiRect",
+"class": "UiBar",
+"language": "GDScript",
+"path": "res://ui/UiBar.gd"
+}, {
+"base": "UiRect",
+"class": "UiButton",
+"language": "GDScript",
+"path": "res://ui/UiButton.gd"
+}, {
+"base": "UiRect",
+"class": "UiField",
+"language": "GDScript",
+"path": "res://ui/UiField.gd"
+}, {
+"base": "Reference",
+"class": "UiKit",
+"language": "GDScript",
+"path": "res://ui/UiKit.gd"
+}, {
+"base": "Reference",
+"class": "UiKitRefit",
+"language": "GDScript",
+"path": "res://ui/UiKitRefit.gd"
+}, {
+"base": "Control",
+"class": "UiRect",
+"language": "GDScript",
+"path": "res://ui/UiRect.gd"
+}, {
+"base": "UiRect",
+"class": "UiScroll",
+"language": "GDScript",
+"path": "res://ui/UiScroll.gd"
+}, {
+"base": "UiRect",
+"class": "UiSwitch",
+"language": "GDScript",
+"path": "res://ui/UiSwitch.gd"
 }, {
 "base": "Reference",
 "class": "Validation",
@@ -135,6 +300,7 @@ _global_script_classes=[ {
 "path": "res://core/VoxRef.gd"
 } ]
 _global_script_class_icons={
+"Access": "",
 "Act": "",
 "B64": "",
 "Baked": "",
@@ -142,21 +308,53 @@ _global_script_class_icons={
 "Bits": "",
 "Carve": "",
 "Catalogue": "",
+"Chassis": "",
+"ChassisSpec": "",
+"Coach": "",
+"Cutter": "",
 "Daily": "",
+"DailyBoards": "",
 "Generator": "",
+"Glyphs": "",
+"Grade": "",
+"Haptics": "",
+"HudMetrics": "",
 "Identity": "",
+"Layout": "",
 "Level": "",
+"LevelSupply": "",
+"MadeCube": "",
 "MintedIds": "",
+"Num": "",
 "Ori": "",
+"Palette": "",
+"PerfWatch": "",
+"Platform": "",
 "Projection": "",
+"RemainSolver": "",
 "Rng": "",
+"SaveData": "",
+"Session": "",
 "ShareCode": "",
+"SolveClock": "",
 "SolveResult": "",
 "SolveState": "",
 "Solver": "",
 "Spec": "",
+"Sprites": "",
+"Store": "",
 "Surf": "",
+"Tilt": "",
+"TimeBend": "",
 "Turns": "",
+"UiBar": "",
+"UiButton": "",
+"UiField": "",
+"UiKit": "",
+"UiKitRefit": "",
+"UiRect": "",
+"UiScroll": "",
+"UiSwitch": "",
 "Validation": "",
 "Vaults": "",
 "VoxRef": ""
@@ -169,29 +367,11 @@ config/description="You are a black hole inside a broken machine. Fold the engin
 run/main_scene="res://game/Main.tscn"
 config/icon="res://assets/icon.png"
 
-; NO AUTOLOADS, and that is a decision rather than an omission.
-;
-; The C# project is built out of static classes — Store, Access, Palette,
-; Layout, Coach and a dozen more — and the natural Godot translation is an
-; autoload apiece. It is the wrong one here for a reason that only shows up
-; headless: an autoload's name is a global identifier registered when a SceneTree
-; is the main loop, and `godot -s tests/run.gd` replaces the main loop, so every
-; one of those names becomes a parse error and the whole harness stops existing.
-;
-; So the statics stay static. GDScript 3.5 has static functions and no static
-; variables, and a `const` Array or Dictionary is a single object owned by the
-; script whose CONTENTS are mutable — which is exactly the storage a C# static
-; field provides. See the note in core/Turns.gd.
-
 [display]
 
-window/size/width=1080
-window/size/height=1920
-window/size/test_width=405
-window/size/test_height=720
+window/size/width=405
+window/size/height=720
 window/handheld/orientation="sensor"
-window/stretch/mode="2d"
-window/stretch/aspect="expand"
 
 [input]
 
