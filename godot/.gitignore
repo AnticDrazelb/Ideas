@@ -1,0 +1,7 @@
+# Godot's import cache and per-machine editor state. Everything else in this
+# project is source: the scene is empty on purpose and there is not a prefab in
+# the repository.
+.import/
+export.cfg
+export_presets.cfg
+*.translation
