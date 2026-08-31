@@ -534,7 +534,7 @@ func _paint(s, cam: Camera, view) -> void:
 		if not c.has:
 			return
 
-		var world_at: Vector3 = view.cube.global_transform.xform(CubeMesh.cell_to_object(s.n, c.w))
+		var world_at: Vector3 = view.cube.global_transform.xform(CubeGeometry.cell_to_object(s.n, c.w))
 		var screen := cam.unproject_position(world_at)
 		var host: UiRect = _ring.get_parent()
 		host.set_anchored_position(_to_canvas(screen))

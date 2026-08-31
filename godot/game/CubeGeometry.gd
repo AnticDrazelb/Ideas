@@ -1,5 +1,10 @@
-class_name CubeMesh
+class_name CubeGeometry
 # THE CUBE, AS GEOMETRY.
+#
+# NOT CubeMesh, WHICH IS THE C#'s NAME FOR IT: Godot already has a CubeMesh — the
+# primitive box every 3D tutorial starts with — and a `class_name` that shadows a
+# native class is refused outright. The name here says what it is rather than
+# what it makes, which is the better name anyway.
 #
 # Only faces with nothing next to them are ever built — the inside of the cube is
 # not visible from anywhere, and meshing it away is the difference between
