@@ -944,7 +944,18 @@ func _process(dt: float) -> void:
 		# marks that hang on it are re-cut before the camera is re-fitted to them
 		hud.relayout()
 		if s.lv != null:
-			rig.fit(s.n)
+			# AND THE ATTRACT CUBE IS FRAMED BY ITS OWN RECT, which is the one thing
+			# the C# forgets here: it re-fits to the PLAY window unconditionally, so
+			# turning the device on the title screen would snap the cube to the
+			# framing of a board that is not being played. Godot exposes it on every
+			# launch rather than never, because `idle_frame` fires BEFORE `_process`
+			# — the attract coroutine has already run and set its framing by the time
+			# this branch first sees a screen size, where Unity's runs after Update
+			# and this branch harmlessly skipped on a null level.
+			if view.attract:
+				rig.fit_to(Layout.title_rect(), s.n, ATTRACT_MARGIN)
+			else:
+				rig.fit(s.n)
 			_fx.set_board(s.n)
 
 	# measured, not guessed: see PerfWatch

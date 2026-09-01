@@ -84,6 +84,14 @@ mulberry32 the original uses and the fixtures are written as exact numerators
 over 2^32, because a decimal literal lands a unit in the last place away from the
 value the generator actually produces.
 
+**Known: the vault heading clashes with its arrows.** The rack's title box spans
+120–505 of the plate and the two arrows sit at 40–140 and 485–585, so twenty
+units of the first and last letter are painted over. The C# has the identical
+numbers and the identical draw order; `UiKit.fit` shrinks the string to its box
+exactly as it should, and the box is the thing that is too wide. It is
+reproduced rather than fixed because it looks the same in both, which is what
+this port is for — but it is the original's bug, not the fitter's.
+
 **One shipped bug is repaired rather than reproduced.** The vault screen's seed
 box and its message are written with `offsetMin` and `offsetMax` the wrong way
 round in the C#, which makes them rects of negative height — they are not on the
@@ -111,7 +119,7 @@ tools/classes.py --check    # exit 1 if it would change anything
 Run it after adding, renaming or moving any file with a `class_name` in it.
 `tools/check.sh` runs it first, every time.
 
-## The three harnesses
+## The four harnesses
 
 **`tests/compile.gd`** loads every script individually. Godot's own scan reports
 a parse error against whichever file happened to *consume* the broken one, which
@@ -128,6 +136,23 @@ correct sizes for all of it.
 Two engine errors during that run are the headless build itself and not the
 game: the dummy rasterizer has no render targets, so the two viewport textures
 the bloom chain binds resolve to RIDs it never created.
+
+**`tests/play.gd` and `tests/win.gd`** run the game for real, under a virtual
+display, and press it. `play` walks, holds for the matrix, tries all four folds,
+and visits every screen; `win` asks the session for its own advice — the solver
+behind the HINT button — and performs it as gestures until a cube is solved,
+which is the only way to reach the collapse, the exit and the win card. Both
+drive the pointer through `Input.parse_input_event`, so every gesture goes down
+the path a thumb does. Frames land in `user://shots`.
+
+```sh
+xvfb-run -s "-screen 0 1280x1024x24" godot --path godot -s tests/win.gd
+```
+
+They are not in `tools/check.sh` because they want a display. They found four
+bugs in their first ten minutes, three of which drew nothing and said nothing:
+a bloom shader that would not compile, a mesh whose every index was thrown away,
+and a camera pointed at the empty half of the world.
 
 **`tests/run.gd`** is the rules, against the original's own fixtures: the random
 source, all twenty-four orientations, every minted cube's size, par, step count

@@ -62,11 +62,13 @@ func init(into: Node) -> void:
 	cam.far = 200.0
 	cam.current = true
 	cam.translation = Vector3(0, 0, 40.0)
-	# THE CAMERA LOOKS DOWN ITS OWN -Z, which is +Z of the world when it stands
-	# at +40 with no rotation — the same axis the C# camera looks down from -40.
-	# That difference is the engines' handedness and it is already paid for in
-	# CubeGeometry.rotation_for; nothing else in the game needs to know.
-	cam.rotate_y(PI)
+	# AND IT IS NOT TURNED ROUND. A Godot camera looks down its OWN -Z, so one
+	# standing at +40 with no rotation is already looking at the origin — which is
+	# the same view the C# camera has looking down +Z from -40. The half turn that
+	# used to be here read the sentence one word wrong and pointed the camera at
+	# the empty half of the world: every frame was correct, drawn from behind.
+	# The handedness the two engines disagree about is paid for once, in
+	# CubeGeometry.to_object and rotation_for, and nothing else needs to know.
 	into.add_child(cam)
 
 	# THE PERLIN THE SHAKE IS MADE OF. Unity has one built in; Godot's nearest

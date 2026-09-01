@@ -112,7 +112,17 @@ static func build(lv: Level, world: int) -> ArrayMesh:
 	var uv1 := PoolVector2Array()
 	var cols := PoolColorArray()
 	_CELL_OF_VERTEX.clear()
-	var tri := [PoolIntArray(), PoolIntArray(), PoolIntArray()]
+	# PLAIN ARRAYS, AND THE REASON IS THE ONE THAT BITES TWICE IN THIS PORT.
+	#
+	# A Pool*Array is a VALUE in GDScript, so `tri[sub]` hands back a COPY and
+	# `tri[sub].append(...)` fills a copy that is thrown away on the next line.
+	# Every index this loop emitted went into the bin: eight hundred vertices
+	# arrived with no triangles referencing them, the mesh committed three
+	# degenerate placeholders instead of three surfaces, and the board rendered as
+	# nothing at all — with no error anywhere, because nothing failed. An Array is
+	# a reference and appends in place; the pool is built once at the end, which is
+	# the only place it was ever wanted.
+	var tri := [[], [], []]
 
 	var c := (n - 1) * 0.5
 
@@ -180,7 +190,7 @@ static func build(lv: Level, world: int) -> ArrayMesh:
 		arr[ArrayMesh.ARRAY_TEX_UV] = uv0
 		arr[ArrayMesh.ARRAY_TEX_UV2] = uv1
 		arr[ArrayMesh.ARRAY_COLOR] = cols
-		arr[ArrayMesh.ARRAY_INDEX] = tri[s]
+		arr[ArrayMesh.ARRAY_INDEX] = PoolIntArray(tri[s])
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	return mesh
 

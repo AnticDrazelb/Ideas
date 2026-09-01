@@ -9,7 +9,12 @@ render_mode blend_disabled, unshaded;
 
 uniform sampler2D src : hint_albedo;
 uniform vec2 dir = vec2(1.0, 0.0);
-uniform vec2 texel = vec2(1.0 / 256.0, 1.0 / 256.0);
+// A LITERAL, NOT AN EXPRESSION. Godot's GLES2 shader compiler takes only a
+// constant literal as a uniform's default — `1.0 / 256.0` is a constant to a
+// reader and a parse error to it, and a shader that will not compile takes the
+// whole bloom chain with it. Bloom.tick writes the real value on the first
+// frame; this is only what it is before that.
+uniform vec2 texel = vec2(0.00390625, 0.00390625);
 
 
 void fragment() {
