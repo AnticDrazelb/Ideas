@@ -45,10 +45,57 @@ const SCREENS := ["title", "vaults", "manual", "plate", "chapter", "pause",
 const TOOL_SCREENS := ["forgeEdit"]
 
 
+# THE SHAPE IS SET FROM IN HERE, NOT FROM THE COMMAND LINE.
+#
+# `--resolution` is a request made before the window exists, and an X server with
+# no window manager is free to answer it with something else — 540x960 came back
+# as 477x847 on one run and 540x960 on the next, in the same session. Worse, it
+# sometimes settled on the second answer PART WAY THROUGH, so screens built at
+# one size were measured against the glass of another and the audit reported
+# eighty units of overshoot that no player would ever see.
+#
+# So the size is asked for after boot and then WAITED FOR. Nothing is measured
+# until the root viewport has reported the same rectangle several frames running,
+# which is the only statement about the window this harness can actually trust.
+#
+#   UI_SIZE=1280x720 godot --path godot -s tests/ui.gd
+const DEFAULT_SIZE := "405x720"
+
+var _want := Vector2.ZERO
+var _seen := Vector2.ZERO
+var _still := 0
+
+
 func _init() -> void:
 	Directory.new().remove(Store.FILE)
-	_root = load("res://game/Main.tscn").instance()
-	get_root().add_child(_root)
+	# The board is drawn by whatever rasteriser this machine has, and on a build
+	# machine that is a software one. Dynamic resolution would correctly react to
+	# it and incorrectly move everything this harness measures.
+	PerfWatch.pin()
+	_want = _wanted_size()
+	if _want.x > 0.0:
+		OS.set_window_size(_want)
+
+
+static func _wanted_size() -> Vector2:
+	var spec := OS.get_environment("UI_SIZE")
+	if spec == "":
+		spec = DEFAULT_SIZE
+	var bits := spec.to_lower().split("x")
+	if bits.size() != 2 or not bits[0].is_valid_integer() or not bits[1].is_valid_integer():
+		return Vector2.ZERO
+	return Vector2(int(bits[0]), int(bits[1]))
+
+
+# True once the window has stopped arguing.
+func _settled() -> bool:
+	var now := Layout.screen_size()
+	if now == _seen:
+		_still += 1
+	else:
+		_seen = now
+		_still = 0
+	return _still >= 8
 
 
 func _idle(_dt: float) -> bool:
@@ -61,7 +108,21 @@ func _idle(_dt: float) -> bool:
 
 
 func _run() -> void:
+	# THE GAME IS NOT BUILT UNTIL THE WINDOW HAS STOPPED MOVING.
+	#
+	# Asking for a size and instancing in the same breath builds every screen
+	# against whatever the window happened to be at startup, and then measures it
+	# against what the window became — which reports the difference between the
+	# two as a layout fault on every screen at once. A player's device is one
+	# size when the game opens; so is this one, now.
 	if _step == 0:
+		if not _settled():
+			return
+		if _want.x > 0.0 and _seen != _want:
+			print("  ! [window] asked for %.0fx%.0f, the display gave %.0fx%.0f"
+					% [_want.x, _want.y, _seen.x, _seen.y])
+		_root = load("res://game/Main.tscn").instance()
+		get_root().add_child(_root)
 		_step += 1
 		_wait = 70
 		return
@@ -81,6 +142,10 @@ func _run() -> void:
 			print("0 controls measured, 1 faults")
 			quit(1)
 			return
+		print("case  L%.1f R%.1f T%.1f B%.1f  k %.3f  %.2f in  dpi %d" % [
+				Layout.chassis_left(), Layout.chassis_right(),
+				Layout.chassis_top(), Layout.chassis_bottom(),
+				Chassis.scale_now(), Chassis.diagonal_inches(), OS.get_screen_dpi()])
 		print("plate %.0f x %.0f  screen %s  scale %.4f  panel floor %.0f" % [
 				Layout.plate_width(), Layout.plate_height(),
 				str(Layout.screen_size()), Layout.canvas_scale(), Screens.panel_floor()])
@@ -441,5 +506,17 @@ func _audit(where: String, root: Node) -> void:
 		var li2: Rect2 = _clip_to_ancestors(l, _ink(l))
 		if li2.size.x < 1.0:
 			continue
-		if li2.position.x < glass.position.x - 1.0 or li2.end.x > glass.end.x + 1.0:
-			_fault(where, "'%s' reaches the bezel" % l.text.substr(0, 28))
+		# THE TOLERANCE IS IN CANVAS UNITS, NOT IN PIXELS, and it has to be.
+		# A label's ink is measured by asking the font for the string's advance
+		# at the size it is rasterised at, and a hinted face rounds every glyph's
+		# advance to a whole pixel — so the same twenty-eight characters come out
+		# a unit wider at one scale than at another. A word set flush to the
+		# plate's own edge then reports as being ON the metal at 0.75 and off it
+		# at 0.5625, which is a fact about the rasteriser rather than about the
+		# layout. One canvas unit of slack is under a third of a stroke and well
+		# inside the rounding; anything a player could see is many.
+		var slack: float = 1.0 * scale
+		var over: float = max(glass.position.x - li2.position.x, li2.end.x - glass.end.x)
+		if over > slack:
+			_fault(where, "'%s' reaches the bezel by %.1f units"
+					% [l.text.substr(0, 28), over / scale])

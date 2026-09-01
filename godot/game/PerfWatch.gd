@@ -55,6 +55,31 @@ static func settle() -> void:
 	_s()[2] = 30
 
 
+# HOLD THE PICTURE STILL, WHICH IS ONLY EVER WHAT A HARNESS WANTS.
+#
+# The interface audit measures pixel geometry, and dynamic resolution moves the
+# ruler: under a software rasteriser the median frame is forty milliseconds, the
+# budget correctly drops the render size a fifth of the way through the run, and
+# every screen built before that point is then measured against a viewport that
+# is smaller than the one it was built for. The report is eighty units of
+# overshoot that no player on any device would ever see.
+#
+# This is not a debug flag on the feature. It is the feature's own question —
+# is it allowed to change the picture right now — answered "not while something
+# is measuring it".
+static func pin() -> void:
+	var s := _s()
+	if s.size() < 5:
+		s.append(true)
+	else:
+		s[4] = true
+
+
+static func pinned() -> bool:
+	var s := _s()
+	return s.size() >= 5 and s[4]
+
+
 static func reset() -> void:
 	var s := _s()
 	s[1] = 0
@@ -64,6 +89,8 @@ static func reset() -> void:
 
 static func tick(unscaled_delta_seconds: float) -> void:
 	var s := _s()
+	if pinned():
+		return
 	if s[3] <= FLOOR:
 		return
 	if s[2] > 0:
