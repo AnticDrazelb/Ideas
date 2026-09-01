@@ -217,6 +217,65 @@ shipped screen at all. `UiRect` exists to make that class of mistake impossible
 and would have caught them silently; they are written the right way round instead,
 so the guard stays a guard. It is called out in `ui/Screens.gd` where it happens.
 
+## The device turns
+
+The C# answers one shape: a phone held upright. This one answers two, and the
+second is not the first stretched.
+
+**The case turns with the device**, because the case is a photograph of the
+device. A phone's brow and chin are deeper than its sides — seventy-five and
+seventy-seven against forty-seven and a half — and that is a fact about the
+object, not about the screen it is pointed at. Turn the phone and the deep bands
+are on the left and right. The twelve pieces hang off a frame inside the panel,
+so the turn is one rotation of one node: give the frame the panel's height for
+its width, spin it a quarter turn clockwise about its own centre, and put that
+centre back. Nothing inside it knows.
+
+It is also the way round the layout wants. Turned, height is the scarce axis:
+leaving the deep bands top and bottom would spend a hundred and fifty of the
+seven hundred and twenty units that are hard to find and ninety-five of the
+twelve hundred and eighty that are not.
+
+**The readout becomes a rail.** Two bands across a landscape display spend the
+height the board wants and none of the width beside it. The four readings go
+two-by-two down the right, then which cube and whose, then the three controls off
+the bottom on the thumb's side. Same seven things, same order, stood up. It is
+laid out against the height it was GIVEN rather than the one it wanted: sixteen
+by nine leaves five hundred and seventy-five units of plate, twenty by nine
+leaves five hundred and seven, and twenty-one by nine four hundred and
+seventy-eight. What gives at each step is a ranking of what the rail is for — the
+three controls never give, the chips shrink first, and the vault's name goes onto
+the cube's line last.
+
+**Every screen is two panels**, and it is the same shape each time: what the
+screen is about on the left, what you can do about it down the right. The machine
+and the words; the rack and the seed box; the deck and the palette; which cube
+and what to do about it. The settings panels break into as many columns as the
+height needs, the manual breaks at the seam its own writing already has, and the
+heading and the three exits share one bar instead of taking three hundred and
+ninety-two units off the top and bottom of a six-hundred-unit plate.
+
+**A rotation is a rebuild, not a re-fit.** All of that is decided while a screen
+is being built, so the two canvases are thrown away and the other ones are built,
+once, on the frame the orientation flips. Nothing in them is state — the state is
+in the Store and in the Session, and every screen reads it on the way up — so
+what is lost is the fade a card arrives with and whatever is half-typed in the
+seed box. The back stack survives.
+
+One bug fell out of the whole exercise that had been there since the port.
+`CameraRig.fit_to` offsets the camera by the drift between the board's centre and
+the screen's, with one sign for both axes; the y sign is right and the x sign is
+not, because moving a camera right sends what it is looking at left and the
+board's viewport is read with `render_target_v_flip`, which cancels the minus
+vertically and not horizontally. Nothing caught it because until the display
+could turn, no rectangle in this game was ever off centre horizontally — every
+drift ever asked for was vertical.
+
+The one shape neither arrangement answers is between them: a four-by-three tablet
+in **portrait**, from an aspect of 0.68 up to the 1.18 where the case calls itself
+turned. Too wide for a column of full-width rows, not wide enough for two of them.
+The audit says so once rather than reporting fifty symptoms of it.
+
 ## The class registry
 
 Godot 3.5 resolves every `class_name` through two tables in `project.godot`, and
@@ -237,7 +296,7 @@ tools/classes.py --check    # exit 1 if it would change anything
 Run it after adding, renaming or moving any file with a `class_name` in it.
 `tools/check.sh` runs it first, every time.
 
-## The five harnesses
+## The six harnesses
 
 **`tests/compile.gd`** loads every script individually. Godot's own scan reports
 a parse error against whichever file happened to *consume* the broken one, which
@@ -284,15 +343,48 @@ thing against the tap target it owes a finger, everything inside the plate, and
 any rect built with no width or height. Then it walks the attract cube through 240
 poses against the band it is allowed to occupy.
 
+It asks for its window size from inside the process and waits until the root
+viewport has reported the same rectangle eight frames running before it builds
+anything, because `--resolution` is a request made before a window exists and an
+X server with no window manager is free to answer with something else — 540x960
+came back as 477x847 on one run and 540x960 on the next. It also pins dynamic
+resolution: under a software rasteriser the frame budget correctly drops the
+render size a fifth of the way through the run, and every screen built before
+that point was then measured against a smaller viewport.
+
+**Then it turns the device over and measures again**, in the same process, on the
+interface the running game built for the new shape — a rotation rebuilds both
+canvases, and a rebuild is exactly the kind of thing that works when it is the
+only thing that has ever happened and falls over the second time.
+
+`tools/ui.sh` runs it across the set, one process per shape:
+
 ```sh
-for r in 405x720 414x896 480x800 320x568 360x640; do
-  xvfb-run -s "-screen 0 1280x1024x24" godot --path godot --resolution $r -s tests/ui.gd
-done
+xvfb-run -s "-screen 0 2400x2000x24" tools/ui.sh
+SHAPES="1280x720" tools/ui.sh
 ```
 
-323 controls, five phone shapes, no faults. Every fault it found the first time
-is listed under "What is different" below; three of them were invisible at the
-authored aspect and broke on ordinary phones.
+Twelve shapes from 320x568 to 2560x1080, each measured and then turned and
+measured again: 646 controls per shape, no faults. Every fault it found the first
+time is listed under "What is different" below; three of them were invisible at
+the authored aspect and broke on ordinary phones.
+
+Two of its own blind spots are worth naming, because both let a screen pass
+without being looked at. The bounds check had two sides — "no word ever sits on
+the metal" has four, and a column that overruns a portrait phone runs out of the
+bottom, which had never happened. And the chapter word, the one screen with no
+way out drawn on it, took itself down seconds later in the middle of measuring
+some other screen; every check iterates over what was gathered, so an empty
+screen was indistinguishable from a clean one. A screen that measures nothing is
+a fault now.
+
+**`tests/shots.gd`** takes a picture of every screen at any shape, and then again
+after turning it over, because the audit can say whether a word lands on a
+control and cannot say whether the thing looks like a machine.
+
+```sh
+UI_SIZE=1280x720 xvfb-run -s "-screen 0 2400x2000x24" godot --path godot -s tests/shots.gd
+```
 
 **`tests/run.gd`** is the rules, against the original's own fixtures: the random
 source, all twenty-four orientations, every minted cube's size, par, step count
@@ -308,6 +400,6 @@ game/      the board, the camera, the effects, the sound, the save, the editor's
 ui/        the kit, the readout, and every screen that is not the board.
 shaders/   nine of them: cells, wire, debris, glyphs, sky, three bloom passes, the filter.
 assets/    the catalogue, the case, the glass, the face and its licence.
-tests/     compile, smoke, rules.
-tools/     the class registry generator and the check script.
+tests/     compile, smoke, rules, the interface audit, two playthroughs, screenshots.
+tools/     the class registry generator, the check script and the shape sweep.
 ```
