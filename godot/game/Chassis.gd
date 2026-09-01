@@ -112,27 +112,143 @@ static func texture():
 	return _TEX[0]
 
 
+# ---- how thick the case is, and it is not one number ----------------------
+#
+# A TEN-INCH TABLET DOES NOT HAVE A TWO-INCH BEZEL.
+#
+# The canvas scaler keeps the canvas AREA constant at every resolution, which is
+# what makes one set of authored offsets land correctly on every phone — and it
+# also means a canvas unit is the same FRACTION of the display everywhere. The
+# case is 23.5% of the screen on a five-inch handheld and 23.5% of the screen on
+# a thirteen-inch panel, and only the first of those is a machine you are holding.
+# On the second it is a picture of a machine with the game inside it.
+#
+# So the bezel is the authored thickness on anything handheld and thins from
+# there. It is a function of the display's DIAGONAL rather than its pixels,
+# because pixels are what the scaler already normalised away.
+
+# Where the case stops being a thing in your hands, and where it is a panel on a
+# desk. Between them it thins in a straight line.
+const HANDHELD_INCHES := 6.5
+const PANEL_INCHES := 10.0
+const PANEL_BEZEL := 0.5
+
+
+# Pure, so the harness can hold the policy without a display to measure.
+static func bezel_factor(inches: float) -> float:
+	# A PLATFORM THAT WILL NOT SAY GETS THE CASE THE GAME WAS BUILT WITH. Zero is
+	# what diagonal_inches answers when the DPI it was given is not a figure any
+	# handheld reports — an X server's nominal 96, say — and guessing from it
+	# would thin the bezel on every desktop the game was ever tested on.
+	if inches <= 0.0:
+		return 1.0
+	if inches <= HANDHELD_INCHES:
+		return 1.0
+	var k: float = clamp((inches - HANDHELD_INCHES) / (PANEL_INCHES - HANDHELD_INCHES), 0.0, 1.0)
+	return lerp(1.0, PANEL_BEZEL, k)
+
+
+# The display's diagonal, or zero when the number offered is not believable.
+#
+# THE WINDOW IS READ HERE RATHER THAN THROUGH LAYOUT, and it has to be: Layout
+# asks Chassis for its insets on every rect it computes, so a call back the other
+# way is a ring the engine refuses to load. It is the same two lines either way.
+static func window_size() -> Vector2:
+	var tree := Engine.get_main_loop()
+	if tree != null and tree is SceneTree:
+		var root: Viewport = (tree as SceneTree).root
+		if root != null:
+			return root.get_visible_rect().size
+	return Vector2(720, 1280)
+
+
+static func diagonal_inches() -> float:
+	var dpi := OS.get_screen_dpi()
+	if dpi < 120 or dpi > 800:
+		return 0.0
+	var s := window_size()
+	return sqrt(s.x * s.x + s.y * s.y) / float(dpi)
+
+
+# The exchange rate from the art's own pixels to canvas units, as it stands on
+# THIS display. Everything in the case is measured through it.
+static func scale_now() -> float:
+	return spec().scale * bezel_factor(diagonal_inches())
+
+
 # ---- what the rest of the interface is allowed to know ---------------------
 
 # Display edge to glass, in canvas units. Everything readable lives inside these.
 static func inset_left() -> float:
-	return spec().left * spec().scale
+	return spec().left * scale_now()
 
 
 static func inset_right() -> float:
-	return spec().right * spec().scale
+	return spec().right * scale_now()
 
 
 static func inset_top() -> float:
-	return spec().top * spec().scale
+	return spec().top * scale_now()
 
 
 static func inset_bottom() -> float:
-	return spec().bottom * spec().scale
+	return spec().bottom * scale_now()
 
 
 static func corner() -> float:
-	return spec().corner * spec().scale
+	return spec().corner * scale_now()
+
+
+# ---- and the case is not inert ---------------------------------------------
+#
+# A QUARTER OF THE DISPLAY WAS DOING NO WORK. Twelve pieces of photographed metal
+# that never changed, on a screen where the board is barely half. The case is the
+# machine the whole game is set inside; it can afford to behave like one.
+#
+# Two things reach it. The LADDER corrodes it — the same vault age the lattice
+# already wears, so a player ten chapters in is holding a visibly worse machine
+# than the one they started on, and never had to read a number to know it. And
+# the two events that are about the MACHINE rather than about the board — a plate
+# turning the world inside out, and the core taking you — light its inner edge.
+const _FIT := []
+
+
+static func attach(fit) -> void:
+	_FIT.clear()
+	_FIT.append(fit)
+
+
+static func _fit():
+	return _FIT[0] if not _FIT.empty() and is_instance_valid(_FIT[0]) else null
+
+
+# How far along the ladder the case has corroded, 0 at the first vault and 1 at
+# the last. Called where the board's own palette is pushed, from one number.
+static func set_band(band: int) -> void:
+	var f = _fit()
+	if f != null:
+		f.set_age(Palette.vault_age(band))
+
+
+# One event on the metal. Scaled by the light setting like every other flash in
+# the game — a player who asked for none gets none.
+static func pulse(col: Color, amount: float) -> void:
+	var f = _fit()
+	if f != null:
+		f.flash(col, amount * Access.light_amount())
+
+
+# The plate's five seconds, as a light rather than as a number. 0 is off.
+static func set_clock(k: float) -> void:
+	var f = _fit()
+	if f != null:
+		f.set_clock(k * Access.light_amount())
+
+
+static func tick(dt: float) -> void:
+	var f = _fit()
+	if f != null:
+		f.step(dt)
 
 
 # The housing, on its own layer behind everything.

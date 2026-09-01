@@ -499,3 +499,22 @@ func _teaching() -> void:
 	# alone says "beginner" about the one save that has certainly cleared a cube.
 	ok(not Screens.never_cleared(1, 1), "the machine was finished and the Forge was taken away")
 	ok(not Screens.never_cleared(1, 3), "three runs and still a beginner")
+
+	group("the case is thinner on a bigger machine")
+
+	# A TEN-INCH TABLET DOES NOT HAVE A TWO-INCH BEZEL. The canvas scaler keeps a
+	# unit the same FRACTION of the display at every resolution, which is what
+	# makes one set of offsets land everywhere — and it also means the case costs
+	# the same quarter of the screen on a handheld and on a panel.
+	eq(Chassis.bezel_factor(4.7), 1.0, "a phone loses part of its case")
+	eq(Chassis.bezel_factor(6.5), 1.0, "the biggest handheld loses part of its case")
+	ok(Chassis.bezel_factor(8.0) < 1.0, "an eight-inch tablet wears a phone's bezel")
+	ok(Chassis.bezel_factor(8.0) > Chassis.bezel_factor(10.0), "it does not thin with size")
+	eq(Chassis.bezel_factor(10.0), Chassis.PANEL_BEZEL, "a panel is not at the floor")
+	eq(Chassis.bezel_factor(13.0), Chassis.PANEL_BEZEL, "it thins past the floor")
+
+	# AND A PLATFORM THAT WILL NOT SAY GETS THE CASE THE GAME WAS BUILT WITH.
+	# An X server's nominal 96 dpi is not a figure any handheld reports, and
+	# guessing from it would thin the bezel on every desktop it was tested on.
+	eq(Chassis.bezel_factor(0.0), 1.0, "an unknown display is guessed at")
+	eq(Chassis.bezel_factor(-1.0), 1.0, "a nonsense diagonal is trusted")

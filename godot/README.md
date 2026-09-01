@@ -92,6 +92,45 @@ exactly as it should, and the box is the thing that is too wide. It is
 reproduced rather than fixed because it looks the same in both, which is what
 this port is for — but it is the original's bug, not the fitter's.
 
+**The case is not inert.** It was twelve pieces of photographed metal that never
+changed, on a quarter of the display, in a game where the board is barely half.
+Three things reach it now, and none of them is new art:
+
+*It corrodes across the ladder.* `Palette.vault_age` already returns 0→1 across
+the ten vaults and the lattice already wears it; the case wears the same number,
+so a player ten chapters in is holding a visibly worse machine than the one they
+started on and never had to read anything to know it. One line, beside the board's
+own palette push.
+
+*Its inner edge takes light from the two events that are about the machine rather
+than the board* — a plate turning the world inside out, and the core taking you.
+Additive only, on the same argument the glass is built on: a layer that can darken
+is a layer that can take a control below its contrast floor, and this one draws
+over the housing every screen is mounted in. Scaled by the light setting like
+every other flash in the game.
+
+*And the plate's five seconds are a lamp as well as a bar.* The bar is at the top
+of the window and the number is under it; neither is where the eyes are, which is
+the board. The case is the whole edge of the display and it is in peripheral
+vision the entire time.
+
+**The bezel thins on a bigger machine.** The canvas scaler holds the canvas area
+constant, which is what makes one set of authored offsets land on every phone —
+and it also means the case costs the same 23.5% of the display on a five-inch
+handheld and on a thirteen-inch panel. Only the first of those is a machine you
+are holding. `Chassis.bezel_factor` is the authored thickness up to 6.5 inches and
+halves by 10; a platform that will not report a believable DPI gets the case the
+game was built with, because an X server's nominal 96 is not a figure any handheld
+reports and guessing from it would thin the bezel on every desktop.
+
+**Known: 4:3 is outside the envelope.** The plate is 1128 canvas units tall and
+the scaler holds canvas AREA constant, so a display wider than about 0.68 has
+fewer units of height than the layout needs and every screen anchored to the
+plate's bottom hangs off it. Six phone shapes from 0.46 to 0.60 lay out with 323
+controls and no faults; a 4:3 tablet does not, and `tests/ui.gd` says so once
+rather than reporting fifty-four symptoms of it. The original targets a portrait
+phone and so does this.
+
 **And the interface is measured rather than eyeballed.** `tests/ui.gd` found
 eight faults at the authored size and six more that only appear on other phones.
 The ones worth naming:

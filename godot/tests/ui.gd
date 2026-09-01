@@ -77,6 +77,10 @@ func _run() -> void:
 		return
 
 	if _step == 2:
+		if not _envelope():
+			print("0 controls measured, 1 faults")
+			quit(1)
+			return
 		print("plate %.0f x %.0f  screen %s  scale %.4f  panel floor %.0f" % [
 				Layout.plate_width(), Layout.plate_height(),
 				str(Layout.screen_size()), Layout.canvas_scale(), Screens.panel_floor()])
@@ -109,8 +113,11 @@ func _run() -> void:
 
 	if idx == SCREENS.size() + 2:
 		Screens.show_title()
+		# THE FRAMING EASES, so the first poses after the title comes up are the
+		# camera on its way rather than the pose it settles at. Sampling those
+		# reports the cube leaving a band it was never in.
 		_step += 1
-		_wait = 20
+		_wait = 60
 		return
 	if idx < SCREENS.size() + 3 + TITLE_SAMPLES:
 		_sample_attract()
@@ -185,6 +192,37 @@ func _outside_by(box: Rect2, band: Rect2) -> String:
 	if box.end.y > band.end.y + 0.5:
 		out.append("%.0f px bottom" % (box.end.y - band.end.y))
 	return out.join(", ")
+
+
+# THE AUTHORED ENVELOPE, NAMED ONCE INSTEAD OF FIFTY-FOUR TIMES.
+#
+# Layout's plate is 625 by 1128 canvas units and the canvas scaler holds the
+# canvas AREA constant, so a display that is wider relative to its height has
+# fewer units of HEIGHT to give. Past a point there are not enough of them, every
+# screen anchored to the plate's bottom hangs off the display, and this audit
+# reports one fault per label. All of them are the same fault.
+#
+# THE BOUNDARY IS MEASURED RATHER THAN DERIVED. The obvious sum — the plate plus
+# its two chassis insets — comes to exactly the reference canvas, and the layout
+# turns out to tolerate being well short of it: 0.60 lays out with 323 controls
+# and no faults at 41 units under. 0.75 does not. The line is drawn between what
+# was seen to work and what was seen to fail, and it moves when that changes.
+#
+# This game is authored for a portrait phone and the original targets one. A
+# four-by-three tablet is outside that, and saying so once is worth more than
+# fifty symptoms of it.
+const WIDEST_ASPECT := 0.68
+
+
+func _envelope() -> bool:
+	var screen := Layout.screen_size()
+	var aspect: float = screen.x / max(1.0, screen.y)
+	if aspect <= WIDEST_ASPECT:
+		return true
+	var canvas: Vector2 = screen / max(0.0001, Layout.canvas_scale())
+	print("  ! [envelope] aspect %.2f is outside the portrait shape the game is authored for" % aspect)
+	print("  ! [envelope] (%.0f units of canvas height; the reference portrait has 1280)" % canvas.y)
+	return false
 
 
 func _show(id: String) -> void:

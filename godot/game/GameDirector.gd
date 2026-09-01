@@ -333,6 +333,7 @@ func _on_plate_fired(cell: Vector3, bit: int) -> void:
 		_orb.set_mood("wide", 900.0)
 		# the hold lands halfway through the turn, where the solid is edge-on —
 		# CubeView.EVERT_SECONDS is the whole flip, so half of it is the crossing
+		Chassis.pulse(Palette.EVERT, 0.55)
 		TimeBend.hitstop(90.0)
 		TimeBend.slowmo(0.42, CubeView.EVERT_SECONDS * 1000.0)
 		view.restart_reveal(0.26 * 26.0)
@@ -348,6 +349,9 @@ func _on_plate_fired(cell: Vector3, bit: int) -> void:
 	rig.squash(true, 0.09)
 	hud.flash(Palette.rust(), 0.24)
 	sfx.plate(bit)
+	# THE WORLD TURNING INSIDE OUT IS THE MACHINE'S EVENT, not the board's, so it
+	# is the one that reaches the housing.
+	Chassis.pulse(Palette.rust(), 0.9)
 	_fx.plate_fired(s.n, at(cell))
 	_orb.set_mood("wide", 700.0)
 	# the world turning inside out is worth a held breath: a long stop, then a third
@@ -487,6 +491,13 @@ func _play_routine(level: int, how: int, made_key: String) -> void:
 	# five's difficulty borrows its metal too, which is the same rule the ambience
 	# above is already following.
 	view.push_palette(band)
+
+	# AND THE CASE WEARS THE SAME VAULT. The lattice already corrodes as the ladder
+	# climbs and the housing is the same machine — a player ten chapters in should
+	# be holding a visibly worse instrument than the one they started with, without
+	# ever having read a number to know it. One line, from the band that was
+	# already computed.
+	Chassis.set_band(band)
 
 	s.load_cube(src, level, how, made_key)
 	view.attract = false
@@ -634,6 +645,7 @@ func _on_win() -> void:
 	rig.shake(1.0)
 	rig.punch(0.09)
 	hud.flash(Palette.core(), 0.22)
+	Chassis.pulse(Palette.core(), 0.85)
 	Haptics.buzz(Haptics.COLLAPSE)
 	_fx.collapse(s.n, at_player())
 	# through to the card. The exit is a second and a half now, and a mood that
@@ -962,6 +974,14 @@ func _process(dt: float) -> void:
 			else:
 				rig.fit(s.n)
 			_fx.set_board(s.n)
+
+	# THE PLATE'S FIVE SECONDS, ON THE HOUSING. The bar at the top of the window
+	# says how long is left and the number under it says it again; neither is where
+	# the eyes are, which is the board. The case is the whole edge of the display
+	# and it is in peripheral vision the entire time.
+	Chassis.set_clock((s.plate_t / Session.PLATE_MS) if (s.lv != null and s.world != 0
+			and s.plate_t > 0.0) else 0.0)
+	Chassis.tick(dt)
 
 	# measured, not guessed: see PerfWatch
 	PerfWatch.tick(dt)

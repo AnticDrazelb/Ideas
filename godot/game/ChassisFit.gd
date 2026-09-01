@@ -14,10 +14,76 @@ var _piece := []
 var _art_h := 0.0
 var _k := 1.0
 
+# ---- the case, behaving like one ------------------------------------------
+#
+# The metal corrodes across the ladder and its inner edge takes light from the
+# two events that are about the machine rather than about the board. Both are
+# written here because both are one property of twelve pieces and one rim.
+
+# How far along the ladder, 0..1. See Chassis.set_band.
+var _age := 0.0
+var _age_shown := -1.0
+
+# Where the case is clean and where it has been in the ground for thirty years.
+# The first vault lifts the photograph very slightly and cools it; the last takes
+# it down and swings it into the rust the rest of the interface is drawn in.
+const AGE_NEW := Color(1.06, 1.05, 1.04)
+const AGE_OLD := Color(0.84, 0.68, 0.58)
+
+var _rim: NinePatchRect
+var _flash := 0.0
+var _flash_col := Color(1, 1, 1, 1)
+var _clock := 0.0
+
 
 func setup() -> void:
 	_piece.resize(12)
+	Chassis.attach(self)
 	set_process(true)
+
+
+func set_age(a: float) -> void:
+	_age = clamp(a, 0.0, 1.0)
+	_repaint_age()
+
+
+func _repaint_age() -> void:
+	if is_equal_approx(_age, _age_shown):
+		return
+	_age_shown = _age
+	var tint := AGE_NEW.linear_interpolate(AGE_OLD, _age)
+	for p in _piece:
+		if p != null:
+			p.modulate = tint
+
+
+func flash(col: Color, amount: float) -> void:
+	if amount <= 0.001:
+		return
+	_flash_col = col
+	_flash = max(_flash, clamp(amount, 0.0, 1.0))
+
+
+func set_clock(k: float) -> void:
+	_clock = clamp(k, 0.0, 1.0)
+
+
+# THE RIM IS ADDITIVE, so it can only ever put light ON the metal. The same
+# argument the glass is built on: a layer that can darken is a layer that can
+# take a control below its contrast floor, and this one draws over the housing
+# every screen in the game is mounted in.
+func step(dt: float) -> void:
+	if _rim == null:
+		return
+	_flash = max(0.0, _flash - dt * 2.2)
+	var a: float = _flash * 0.85
+	if _clock > 0.001:
+		# steady while there is time, and beating once a second over the last three
+		var beat: float = 1.0 if _clock > 0.6 else (0.55 + 0.45 * sin(_clock * 40.0))
+		a = max(a, 0.26 * _clock * beat)
+	var col: Color = _flash_col if _flash > 0.001 else Palette.rust()
+	_rim.modulate = Color(col.r, col.g, col.b, a)
+	_rim.visible = a > 0.004
 
 
 func _process(_dt: float) -> void:
@@ -26,14 +92,19 @@ func _process(_dt: float) -> void:
 	var c := Chassis.corner()
 	if w < c * 2.0 + 8.0 or h < c * 2.0 + 8.0:
 		return
-	if abs(w - _fitted.x) < 1.0 and abs(h - _fitted.y) < 1.0:
+	if abs(w - _fitted.x) < 1.0 and abs(h - _fitted.y) < 1.0 \
+			and is_equal_approx(_k, Chassis.scale_now()):
 		return
 	_fitted = Vector2(w, h)
 
 	if not _built:
 		_compose()
+		_build_rim()
 		_built = true
 	_stretch()
+	_fit_rim()
+	_age_shown = -1.0
+	_repaint_age()
 
 
 # THE TWELVE WINDOWS ONTO THE CASE, once.
@@ -50,7 +121,7 @@ func _compose() -> void:
 
 	var s := Chassis.spec()
 	_art_h = s.art_h
-	_k = s.scale
+	_k = Chassis.scale_now()
 	var aw := s.arm_w
 	var ah := s.arm_h
 	var sw := s.side_w
@@ -58,7 +129,7 @@ func _compose() -> void:
 	var cc := s.corner
 	var w := float(s.art_w)
 	var h := float(s.art_h)
-	var kk := s.scale
+	var kk := Chassis.scale_now()
 
 	# top left, and then the same L three more times. The vertical arm runs the
 	# full depth of the corner; the horizontal arm takes the rest of the top, so
@@ -109,6 +180,53 @@ func _place(tex, i: int, piece_name: String, sx: float, sy: float, sw: float, sh
 	img.anchor_bottom = 1.0
 	rt.add_child(img)
 	_piece[i] = rt
+
+
+# THE INNER EDGE, WHICH IS THE ONLY PART OF THE CASE THAT MOVES.
+#
+# One rounded stroke laid just inside the glass, drawn additively so it cannot
+# darken anything, at zero until something asks for it. It is the same nine-slice
+# every framed control in the game uses, at the size of the display's own
+# opening — so when the machine reacts, what lights up is unmistakably the
+# housing rather than a rectangle somebody drew on top of it.
+func _build_rim() -> void:
+	_rim = NinePatchRect.new()
+	_rim.name = "rim"
+	# THE GLOW, NOT THE STROKE. A hairline around the opening is an outline of the
+	# display; what this is for is light coming OFF it and falling on the metal,
+	# which is the difference between the case being adjacent to the event and the
+	# case being part of it. Same soft nine-slice the primary button is lit with.
+	_rim.texture = Sprites.glow()
+	var b := Sprites.glow_border()
+	_rim.patch_margin_left = b
+	_rim.patch_margin_right = b
+	_rim.patch_margin_top = b
+	_rim.patch_margin_bottom = b
+	# THE BORDER ONLY. The glow's middle patch is solid, and stretched across the
+	# whole opening it floods the board with light instead of edging it — the nine
+	# slice is being used for its falloff, not for its fill.
+	_rim.draw_center = false
+	_rim.material = Glass.additive()
+	_rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rim.modulate = Color(1, 1, 1, 0)
+	_rim.visible = false
+	add_child(_rim)
+
+
+func _fit_rim() -> void:
+	if _rim == null:
+		return
+	_rim.anchor_left = 0.0
+	_rim.anchor_top = 0.0
+	_rim.anchor_right = 1.0
+	_rim.anchor_bottom = 1.0
+	# Sized to the opening and then pushed OUTWARD, so the falloff lands on the
+	# bezel rather than on the board.
+	var reach := Sprites.GLOW_REACH
+	_rim.margin_left = Chassis.inset_left() - reach
+	_rim.margin_top = Chassis.inset_top() - reach
+	_rim.margin_right = -Chassis.inset_right() + reach
+	_rim.margin_bottom = -Chassis.inset_bottom() + reach
 
 
 # The four sides take whatever the corners left. Nothing else moves: the eight
