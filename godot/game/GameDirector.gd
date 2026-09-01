@@ -236,7 +236,7 @@ func _reface() -> void:
 	hud.relayout()
 	if s.lv != null:
 		if view.attract:
-			rig.fit_to(Layout.title_rect(), s.n, ATTRACT_MARGIN)
+			rig.fit_to(Layout.title_rect(), s.n, attract_margin())
 		else:
 			rig.fit(s.n)
 		_fx.set_board(s.n)
@@ -455,9 +455,52 @@ func _on_plate_tick(seconds: int) -> void:
 # to lean into. Turned the band is very nearly square — the cube is the left
 # panel of the front screen now — and there is no spare axis at all, so the pose
 # that was always the worst one is the first pose that has ever been measured
-# against a rectangle its own shape. 1.68 is what it costs, everywhere, and four
-# per cent off the attract cube is not a thing anyone can see.
-const ATTRACT_MARGIN := 1.68
+# against a rectangle its own shape.
+#
+# AND IT IS A PROPERTY OF THE BAND, WORKED OUT RATHER THAN LOOKED UP.
+#
+# THE FIT SIZES THE CUBE FROM THE SHORTER SIDE, both axes, always. So the drawn
+# cube is `shorter / margin` and the pose spreads it by some factor in each
+# direction — and whether that spread crosses an edge depends on how much of the
+# band lies in THAT direction, which is a different question per axis and per
+# band:
+#
+#     margin >= spread_x * shorter / width
+#     margin >= spread_y * shorter / height
+#
+# On the reference band — six hundred wide and a hundred and eighty tall — the
+# height binds the fit and the width has three hundred units to spare, so only
+# the second line does any work and 1.60 is the answer it has always given.
+#
+# On a band that is near square, or taller than it is wide, the first line binds
+# instead: the cube is sized from the WIDTH and then leans into a width it has
+# already used up. That is not a landscape fact — the front screen's band comes
+# out 602 by 573 on a sixteen-by-nine display turned, 504 by 550 on a
+# twenty-one-by-nine held, and 357 by 684 on a four-by-three turned, and all
+# three fail the same way and by the same six to twenty-one pixels.
+#
+# The two spreads are measured, by tests/ui.gd, across the whole attract cycle
+# rather than judged from one pose. The x is the larger of the two, which is why
+# the reference band never noticed: it is the axis that band had spare.
+#
+# The alternative was to CONTAIN the attract pose the way a mid-fold on the board
+# is contained, which would make this a resting frame rather than a reservation
+# and is plainly the better idea. It is not this change: switched on, it fixed
+# the extreme shapes and put two pixels of overhang on the reference phone, which
+# means something on that path is not understood yet — and a framing change
+# nobody understands is worse than a number somebody measured.
+const ATTRACT_SPREAD_X := 1.74
+const ATTRACT_SPREAD_Y := 1.60
+
+# What the reference band asks for, which is the y spread and nothing else.
+const ATTRACT_MARGIN := ATTRACT_SPREAD_Y
+
+
+static func attract_margin() -> float:
+	var b := Layout.title_rect()
+	var shorter: float = max(1.0, min(b.size.x, b.size.y))
+	return max(ATTRACT_SPREAD_X * shorter / max(1.0, b.size.x),
+			ATTRACT_SPREAD_Y * shorter / max(1.0, b.size.y))
 
 
 func show_attract() -> void:
@@ -489,7 +532,7 @@ func _attract() -> void:
 	# screen at all, so the subject of the title sat seventy units low. And the
 	# margin was paying for a full tumble AND for a paragraph of pitch that has
 	# since been deleted from the screen.
-	rig.fit_to(Layout.title_rect(), s.n, ATTRACT_MARGIN)
+	rig.fit_to(Layout.title_rect(), s.n, attract_margin())
 	_fx.set_board(s.n)
 
 
@@ -1034,7 +1077,7 @@ func _process(dt: float) -> void:
 			# this branch first sees a screen size, where Unity's runs after Update
 			# and this branch harmlessly skipped on a null level.
 			if view.attract:
-				rig.fit_to(Layout.title_rect(), s.n, ATTRACT_MARGIN)
+				rig.fit_to(Layout.title_rect(), s.n, attract_margin())
 			else:
 				rig.fit(s.n)
 			_fx.set_board(s.n)

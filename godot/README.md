@@ -262,6 +262,17 @@ in the Store and in the Session, and every screen reads it on the way up — so
 what is lost is the fade a card arrives with and whatever is half-typed in the
 seed box. The back stack survives.
 
+One number had to stop being a number. The attract cube is framed into the gap
+the title leaves for it with a margin that reserves room for a lean, and 1.60 was
+measured on the one band that band has ever been: six hundred wide and a hundred
+and eighty tall, where the height binds the fit and the width has three hundred
+units to spare. A near-square band — 602 by 573 on a sixteen-by-nine display
+turned, 504 by 550 on a twenty-one-by-nine held, 357 by 684 on a four-by-three
+turned — has no spare axis, so the cube is sized from the width and then leans
+into a width it has already used up. The margin is worked out per axis now, from
+two measured spreads and the band's own shape, and the reference phone gets the
+same 1.60 it always did.
+
 One bug fell out of the whole exercise that had been there since the port.
 `CameraRig.fit_to` offsets the camera by the drift between the board's centre and
 the screen's, with one sign for both axes; the y sign is right and the x sign is
