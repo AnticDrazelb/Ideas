@@ -30,6 +30,10 @@ var _bad := 0
 var _checked := 0
 var _pending := ""
 
+# Whether the audit has already turned the device over and re-measured. See the
+# tail of _run.
+var _turned := false
+
 # Every screen the game builds, and the HUD over the board.
 const SCREENS := ["title", "vaults", "manual", "plate", "chapter", "pause",
 		"calibrate", "access", "win", "forge", "forgeEdit"]
@@ -150,6 +154,15 @@ func _run() -> void:
 				Layout.plate_width(), Layout.plate_height(),
 				str(Layout.screen_size()), Layout.canvas_scale(), Screens.panel_floor()])
 
+	if _step == -1:
+		if not _settled():
+			return
+		print("turned to %s — %s" % [str(_seen),
+				"landscape" if Layout.is_landscape() else "portrait"])
+		_step = 2
+		_wait = 30
+		return
+
 	var idx := _step - 2
 	if idx < SCREENS.size():
 		var id: String = SCREENS[idx]
@@ -194,6 +207,39 @@ func _run() -> void:
 		_step += 1
 		return
 
+	# ---- AND THEN TURN IT OVER --------------------------------------------
+	#
+	# Every arrangement in this game is decided while a screen is being built, so
+	# a rotation is a rebuild rather than a re-fit — and a rebuild is exactly the
+	# kind of thing that works when it is the only thing that has ever happened
+	# and falls over the second time. So the whole audit runs again on the
+	# transposed window, on the interface the running game built for it, without
+	# restarting the process.
+	#
+	# It is the same measurement, so it is the same code: the step counter goes
+	# back to the top of the screen loop and everything downstream of it happens
+	# a second time.
+	# A TURN THAT LANDS OUTSIDE THE ENVELOPE IS NOT A FAILURE, IT IS THE ENVELOPE.
+	#
+	# A four-by-three tablet turned is a three-by-four tablet, which is the one
+	# shape between the two the game is authored for — and _envelope already says
+	# so, once, rather than fifty times. Turning into it and then reporting that
+	# as a fault would be the audit arguing with itself.
+	if not _turned and not _would_hold():
+		print("not turned: %s would be outside the envelope" % str(
+				Vector2(Layout.screen_size().y, Layout.screen_size().x)))
+		_turned = true
+	if not _turned:
+		_turned = true
+		_pending = ""
+		_sampled = 0
+		_worst = Rect2()
+		var now := Layout.screen_size()
+		OS.set_window_size(Vector2(now.y, now.x))
+		_still = 0
+		_step = -1
+		_wait = 4
+		return
 	print("%d controls measured, %d faults" % [_checked, _bad])
 	quit(1 if _bad > 0 else 0)
 
@@ -286,6 +332,13 @@ const WIDEST_ASPECT := 0.68
 # where Chassis calls it landscape — is a shape neither arrangement is authored
 # for: too wide for a column of full-width rows, not wide enough for two of them.
 # Saying so once is still worth more than fifty symptoms of it.
+# Whether the transposed window would be a shape the game answers.
+func _would_hold() -> bool:
+	var s2 := Layout.screen_size()
+	var a: float = s2.y / max(1.0, s2.x)
+	return a <= WIDEST_ASPECT or a > 1.18
+
+
 func _envelope() -> bool:
 	var screen := Layout.screen_size()
 	var aspect: float = screen.x / max(1.0, screen.y)

@@ -33,6 +33,10 @@ var _screen_up := true      # a menu is over the board
 var _last_w := 0
 var _last_h := 0
 
+# Which way up the interface was BUILT, which is not the same question as what
+# size the window is. See _reface.
+var _turned := false
+
 # THE BOARD IS DRAWN OFFSCREEN AND COMPOSITED.
 #
 # Unity hands a camera effect the frame it just rendered; Godot's unit of "render
@@ -99,6 +103,10 @@ func _ready() -> void:
 	# picture rather than the picture the glow was computed from.
 	glow = Bloom.attach(self, _world, _board_layer)
 	filter = ScreenFilter.attach(self)
+
+	# Which way up the interface was built, so the first frame does not read a
+	# rotation that has not happened.
+	_turned = Layout.is_landscape()
 
 	_wire()
 	Screens.build(self)
@@ -199,6 +207,39 @@ func _wire() -> void:
 	s.connect("stuck_changed", self, "_on_stuck_changed")
 	s.connect("plate_tick", self, "_on_plate_tick")
 	s.connect("cube_won", self, "_on_win")
+
+
+# THROW THE INTERFACE AWAY AND BUILD THE OTHER ONE.
+#
+# Two canvases carry every arrangement decision in the game — the readout and the
+# nine screens — and both decide their shape while they are being built. Nothing
+# in either is state: the state is in the Store and in the Session, and every
+# screen reads it on the way up, so a rebuild loses the fade a card arrives with
+# and whatever is half-typed in the seed box and nothing else.
+#
+# The chassis is not rebuilt because it does not need to be: it is twelve pieces
+# anchored to four corners inside a frame that simply turns, and ChassisFit
+# notices on its own next frame.
+#
+# Order matters twice. The HUD goes first because the screens are built over it
+# and a canvas added later draws later within its own order. And the caption
+# funcref is re-pointed, because it holds the OLD hud by object id and a funcref
+# to a freed object is a silent no-op — every sound in the game would stop
+# writing itself down.
+func _reface() -> void:
+	Screens.i().set_process(false)
+	UiKit.drop(hud._canvas)
+	hud = Hud.build(self)
+	sfx.caption = funcref(hud, "caption")
+	Screens.reface(self)
+	hud.refresh(s)
+	hud.relayout()
+	if s.lv != null:
+		if view.attract:
+			rig.fit_to(Layout.title_rect(), s.n, ATTRACT_MARGIN)
+		else:
+			rig.fit(s.n)
+		_fx.set_board(s.n)
 
 
 func _on_toast(msg: String) -> void:
@@ -962,6 +1003,20 @@ func _process(dt: float) -> void:
 	if int(screen.x) != _last_w or int(screen.y) != _last_h:
 		_last_w = int(screen.x)
 		_last_h = int(screen.y)
+
+		# A RESIZE IS A RE-FIT; A ROTATION IS A REBUILD.
+		#
+		# Everything below re-cuts rectangles, which is the right answer to a
+		# window that changed size and the wrong one to a device that changed
+		# shape. The readout is two bands held and one rail turned, the settings
+		# panel is one column or three, the front screen is a masthead over the
+		# machine or a plate beside it — none of those is an anchor that can be
+		# re-solved. So the whole interface is thrown away and the other one is
+		# built, once, on the frame the orientation actually flips.
+		var turned := Layout.is_landscape()
+		if turned != _turned:
+			_turned = turned
+			_reface()
 		# and the offscreen board is re-cut to match, or the composite would be a
 		# stretched copy of the last shape the window had
 		_world.size = screen

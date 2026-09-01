@@ -61,6 +61,79 @@ static func build(dir) -> void:
 	s.set_process(true)
 
 
+# THE DEVICE TURNED, AND A LAYOUT IS NOT A STRETCH.
+#
+# Every screen in this file decides its shape once, while it is being built —
+# whether the settings panel is one column or two, whether the vault rack has a
+# seed box under it or beside it, whether the title's cube is over the controls
+# or next to them. None of that is an anchor that can be re-solved; it is a
+# different arrangement of different rects. So a rotation throws the interface
+# away and builds the other one.
+#
+# WHICH IS NOT AS VIOLENT AS IT SOUNDS. Nothing in here is state — the state is
+# in Store and in the Session, and every screen reads it on the way up. What is
+# lost is the fade a screen arrives with and whatever is typed in the seed box,
+# and the second of those is worth a note: a player halfway through typing a
+# cube number who turns their phone loses four characters. The alternative is a
+# screen that cannot be read at all in the hand it is now in.
+#
+# The stack survives, so BACK still goes where it went before the turn.
+static func reface(dir) -> void:
+	var me := i()
+	var up: String = me.top_id()
+	var stack: Array = me._stack.duplicate()
+	var canvas := me._canvas
+
+	# _FORGE caches the SCRIPT, not the instance, so it stays; ForgeScreens clears
+	# its own singleton when it is rebuilt, and its node is a child of this one.
+	_S.clear()
+	UiKit.drop(canvas)
+
+	build(dir)
+	var now := i()
+	now._stack = stack
+	now._restore(up, dir)
+
+
+# The screen that is up, or "" for the board.
+func top_id() -> String:
+	for k in _layers.keys():
+		var n = _layers[k]
+		if n != null and n.visible:
+			return k
+	return ""
+
+
+# PUT BACK WHAT WAS THERE, and four of them are not a plain show().
+#
+# A screen that was opened through a door has to be opened through the same door
+# again: the vault rack paints itself from the band it was looking at, the forge
+# from what is on the shelf, the editor from the cube in hand, and the win card
+# from the session that raised it. The two that cannot come back are the chapter
+# word, which is a clock rather than a screen and simply finishes early, and the
+# board, which is not a screen at all.
+func _restore(up: String, dir) -> void:
+	match up:
+		"":
+			show(null)
+		"title":
+			show_title()
+		"vaults":
+			_open_vaults()
+		"forge":
+			forge().call("open_shelf")
+		"forgeEdit":
+			forge().call("open_editor", Forge.resume())
+		"win":
+			show_win(dir.s, dir)
+		"pause":
+			show_pause(dir)
+		"chapter":
+			show(null)
+		_:
+			show(up)
+
+
 # ---- plumbing --------------------------------------------------------------
 
 # A LAYER IS NOW TWO THINGS, AND EVERY SCREEN GOT THE SECOND ONE FREE.
@@ -1986,10 +2059,18 @@ static func panel_columns(of: int) -> int:
 	return 3
 
 
+# ONE OF THREE ACROSS, AND THE WORD SHRINKS RATHER THAN LEANING ON ITS NEIGHBOUR.
+#
+# A third of a plate is two hundred units on the phone this was composed against
+# and a hundred and five on a 20:9 phone in portrait, where the canvas comes out
+# 652 wide rather than 720 — and "[ VAULTS ]" is a hundred and forty-four at
+# twenty-four points. The three of these are always the same three words at the
+# same size on the same row, so the one that does not fit is the one that gives.
 func _third(parent: Control, idx: int, label: String, method: String) -> void:
 	var slot := UiKit.rect(parent, label, Vector2(idx / 3.0, 0), Vector2((idx + 1) / 3.0, 1),
 			Vector2(6, 0), Vector2(-6, 0))
-	UiKit.bracketed(slot, label, label, funcref(self, method), 24)
+	var b := UiKit.bracketed(slot, label, label, funcref(self, method), 24)
+	UiKit.fit(b.label_node(), 15)
 
 
 func _on_access(_a = null) -> void:

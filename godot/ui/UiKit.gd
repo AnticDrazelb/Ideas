@@ -145,6 +145,21 @@ static func canvas(canvas_name: String, order: int) -> CanvasLayer:
 	return layer
 
 
+# TAKE A CANVAS BACK OUT OF THE TREE AND OFF THE LIST.
+#
+# The list exists so that dim() and the ending can reach every canvas at once, so
+# a canvas that has been freed and left on it is a null the next fade walks into.
+# One caller: a rotation, which throws the whole interface away and builds the
+# other one.
+static func drop(layer: CanvasLayer) -> void:
+	if layer == null:
+		return
+	_CANVASES.erase(layer)
+	if layer.get_parent() != null:
+		layer.get_parent().remove_child(layer)
+	layer.queue_free()
+
+
 # The scaled root of a canvas, which is what everything is parented to. The layer
 # itself has no size and no scale.
 static func root_of(layer: CanvasLayer) -> Control:

@@ -23,6 +23,7 @@ var _still := 0
 var _want := Vector2.ZERO
 var _dir := ""
 var _shots := 0
+var _flipped := false
 
 
 func _init() -> void:
@@ -77,6 +78,13 @@ func _run() -> void:
 		_wait = 10
 		return
 
+	if _step == -1:
+		if not _settled():
+			return
+		_step = 2
+		_wait = 40
+		return
+
 	var idx := _step - 2
 	if idx < SCREENS.size():
 		_show(SCREENS[idx])
@@ -96,6 +104,19 @@ func _run() -> void:
 		call_deferred("_later", "board")
 		return
 
+	# AND THE SAME AGAIN AFTER TURNING IT OVER, into a second directory, because
+	# a rotation rebuilds the whole interface and the only way to know the rebuilt
+	# one looks like the built one is to look at both.
+	if not _flipped:
+		_flipped = true
+		_dir += "-turned"
+		Directory.new().make_dir_recursive(OUT + _dir)
+		var now := Layout.screen_size()
+		OS.set_window_size(Vector2(now.y, now.x))
+		_still = 0
+		_step = -1
+		_wait = 4
+		return
 	print("%d frames into user://shots/%s at %s" % [_shots, _dir, str(_seen)])
 	quit(0)
 
