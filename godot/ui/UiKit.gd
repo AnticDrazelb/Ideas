@@ -385,6 +385,27 @@ static func framed(rt: Control, fill: Color, edge_col: Color) -> NinePatchRect:
 	return plate
 
 
+# THE STROKE ON ITS OWN, with nothing filled behind it.
+#
+# `framed` is a plate AND its edge, which is what every control wants. The
+# aperture wants only the second half: it is a window onto the board, and a fill
+# on a screen-space layer would paint over the cube it is framing.
+static func stroke(rt: Control, col: Color) -> NinePatchRect:
+	var line := NinePatchRect.new()
+	line.name = "edge"
+	line.texture = Sprites.frame(true)
+	line.patch_margin_left = Sprites.FRAME_SLICE
+	line.patch_margin_right = Sprites.FRAME_SLICE
+	line.patch_margin_top = Sprites.FRAME_SLICE
+	line.patch_margin_bottom = Sprites.FRAME_SLICE
+	line.modulate = col
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.anchor_right = 1.0
+	line.anchor_bottom = 1.0
+	rt.add_child(line)
+	return line
+
+
 # A button is a bracketed label inside a lit frame: [ MENU ]. The brackets are
 # part of the design system rather than decoration — they say "this is pressable"
 # in the same monospace the rest of the interface speaks.

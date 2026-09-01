@@ -79,6 +79,16 @@ func label_node() -> Label:
 	return _label
 
 
+# The plate and its edge, for the two controls in the game that are ABOUT their
+# own state — a vault card and a segmented stop — and override both.
+func plate_node() -> NinePatchRect:
+	return _plate
+
+
+func edge_node() -> NinePatchRect:
+	return _edge
+
+
 func set_primary(on: bool) -> void:
 	_primary = on
 	if _plate != null:

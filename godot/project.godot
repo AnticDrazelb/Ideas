@@ -35,6 +35,11 @@ _global_script_classes=[ {
 "path": "res://core/BakedLevel.gd"
 }, {
 "base": "Reference",
+"class": "Bank",
+"language": "GDScript",
+"path": "res://game/Bank.gd"
+}, {
+"base": "Reference",
 "class": "Bits",
 "language": "GDScript",
 "path": "res://core/Bits.gd"
@@ -58,6 +63,11 @@ _global_script_classes=[ {
 "class": "Catalogue",
 "language": "GDScript",
 "path": "res://core/Catalogue.gd"
+}, {
+"base": "Reference",
+"class": "Chapters",
+"language": "GDScript",
+"path": "res://ui/Chapters.gd"
 }, {
 "base": "Reference",
 "class": "Chassis",
@@ -139,6 +149,11 @@ _global_script_classes=[ {
 "language": "GDScript",
 "path": "res://game/Haptics.gd"
 }, {
+"base": "Node",
+"class": "Hud",
+"language": "GDScript",
+"path": "res://ui/Hud.gd"
+}, {
 "base": "Reference",
 "class": "HudMetrics",
 "language": "GDScript",
@@ -148,6 +163,11 @@ _global_script_classes=[ {
 "class": "Identity",
 "language": "GDScript",
 "path": "res://core/Identity.gd"
+}, {
+"base": "Reference",
+"class": "InputRouter",
+"language": "GDScript",
+"path": "res://game/InputRouter.gd"
 }, {
 "base": "Reference",
 "class": "Layout",
@@ -244,6 +264,11 @@ _global_script_classes=[ {
 "language": "GDScript",
 "path": "res://game/Session.gd"
 }, {
+"base": "Node",
+"class": "Sfx",
+"language": "GDScript",
+"path": "res://game/Sfx.gd"
+}, {
 "base": "Reference",
 "class": "Shaders",
 "language": "GDScript",
@@ -295,6 +320,11 @@ _global_script_classes=[ {
 "path": "res://core/Surf.gd"
 }, {
 "base": "Reference",
+"class": "Synth",
+"language": "GDScript",
+"path": "res://game/Synth.gd"
+}, {
+"base": "Reference",
 "class": "Tilt",
 "language": "GDScript",
 "path": "res://game/Tilt.gd"
@@ -308,6 +338,11 @@ _global_script_classes=[ {
 "class": "Turns",
 "language": "GDScript",
 "path": "res://core/Turns.gd"
+}, {
+"base": "Node",
+"class": "UiAct",
+"language": "GDScript",
+"path": "res://ui/UiAct.gd"
 }, {
 "base": "UiRect",
 "class": "UiBar",
@@ -370,11 +405,13 @@ _global_script_class_icons={
 "B64": "",
 "Baked": "",
 "BakedLevel": "",
+"Bank": "",
 "Bits": "",
 "Bloom": "",
 "CameraRig": "",
 "Carve": "",
 "Catalogue": "",
+"Chapters": "",
 "Chassis": "",
 "ChassisSpec": "",
 "Coach": "",
@@ -391,8 +428,10 @@ _global_script_class_icons={
 "Glyphs": "",
 "Grade": "",
 "Haptics": "",
+"Hud": "",
 "HudMetrics": "",
 "Identity": "",
+"InputRouter": "",
 "Layout": "",
 "Level": "",
 "LevelSupply": "",
@@ -412,6 +451,7 @@ _global_script_class_icons={
 "Scanlines": "",
 "ScreenFilter": "",
 "Session": "",
+"Sfx": "",
 "Shaders": "",
 "ShareCode": "",
 "SolveClock": "",
@@ -422,9 +462,11 @@ _global_script_class_icons={
 "Sprites": "",
 "Store": "",
 "Surf": "",
+"Synth": "",
 "Tilt": "",
 "TimeBend": "",
 "Turns": "",
+"UiAct": "",
 "UiBar": "",
 "UiButton": "",
 "UiField": "",
@@ -435,7 +477,7 @@ _global_script_class_icons={
 "UiSwitch": "",
 "Validation": "",
 "Vaults": "",
-"VoxRef": ""
+"VoxRef": "",
 }
 
 [application]
