@@ -33,6 +33,21 @@ var _screen_up := true      # a menu is over the board
 var _last_w := 0
 var _last_h := 0
 
+# HOW FAR THE BOOT GOT, AND WHY THAT IS WORTH A VARIABLE.
+#
+# GDScript has no exceptions: a failed call prints one error and abandons the
+# function it was in, and everything after it in _ready simply does not happen.
+# What the player sees is a board with no interface on it, and what the console
+# shows is a hundred and fifty-five copies of the SECOND problem — _process
+# calling into a readout that was never built — with the one line that matters
+# scrolled off the top.
+#
+# So the boot writes down what it finished, and the first frame checks. One
+# error, naming the stage, and then it stops rather than repeating itself sixty
+# times a second.
+var _stage := "nothing"
+var _boot_told := false
+
 # Which way up the interface was BUILT, which is not the same question as what
 # size the window is. See _reface.
 var _turned := false
@@ -56,6 +71,7 @@ func _ready() -> void:
 	_I.append(self)
 	Store.load_save()
 
+	_stage = "world"
 	_build_world()
 
 	s = Session.new()
@@ -69,6 +85,7 @@ func _ready() -> void:
 	_world.add_child(view)
 	view.init(s)
 
+	_stage = "session"
 	sfx = Sfx.build(self)
 	_fx = Fx.build(_world)
 	_orb = PlayerOrb.build(_world, s, view, rig.cam, _fx)
@@ -78,19 +95,23 @@ func _ready() -> void:
 	# AND THE SKY UNDER EVERYTHING, before the housing goes on. It is a canvas
 	# layer inside the board's own viewport, which is what BG_CANVAS makes into
 	# that viewport's background — see _build_world.
+	_stage = "board"
 	_sky = DeepSky.build(_world)
 
 	# THE HOUSING FIRST, so everything after it is mounted IN something. Order 5,
 	# behind the HUD's 10 and the screens' 20, and it is twelve pieces around the
 	# edge rather than a plate — see Chassis.
+	_stage = "sky"
 	Chassis.build()
 
+	_stage = "chassis"
 	hud = Hud.build(self)
 
 	# THE PANEL'S OWN ROWS AT 24 AND THE PANE ACROSS THE FRONT AT 25, both in
 	# front of the menus as well — see Scanlines and Glass. Built after the HUD
 	# only because it is easier to read in the order the light arrives; the layer
 	# number is what actually decides, not where these two lines sit.
+	_stage = "readout"
 	Scanlines.build()
 	Glass.build()
 
@@ -101,6 +122,7 @@ func _ready() -> void:
 
 	# ORDER MATTERS: bloom first, so the brightness control raises the finished
 	# picture rather than the picture the glow was computed from.
+	_stage = "glass"
 	glow = Bloom.attach(self, _world, _board_layer)
 	filter = ScreenFilter.attach(self)
 
@@ -108,13 +130,16 @@ func _ready() -> void:
 	# rotation that has not happened.
 	_turned = Layout.is_landscape()
 
+	_stage = "bloom"
 	_wire()
 	Screens.build(self)
+	_stage = "screens"
 	Screens.show_title()   # which starts the attract cube
 
 	# and the panel comes up: one band down the glass, once, because a machine that
 	# is switched on does something and a picture does not
 	Scanlines.warm_up()
+	_stage = "everything"
 
 	set_process(true)
 
@@ -1026,6 +1051,15 @@ func screen_up() -> bool:
 # ---- the frame -------------------------------------------------------------
 
 func _process(dt: float) -> void:
+	if hud == null or Screens.i() == null:
+		if not _boot_told:
+			_boot_told = true
+			push_error("SINGULARITY ENGINE: the boot stopped after " + _stage
+					+ ". The interface is not there. The FIRST error above this"
+					+ " one is the cause; everything after it is this.")
+			printerr("[Singularity] boot stopped after ", _stage)
+		return
+
 	# Everything that MOVES runs on the bent clock; everything that MEASURES runs on
 	# the real one. The solve clock is monotonic and untouched by any of this, so a
 	# player cannot buy thinking time by triggering impacts.

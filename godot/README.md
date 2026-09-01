@@ -287,6 +287,29 @@ in **portrait**, from an aspect of 0.68 up to the 1.18 where the case calls itse
 turned. Too wide for a column of full-width rows, not wide enough for two of them.
 The audit says so once rather than reporting fifty symptoms of it.
 
+## If it comes up with no interface
+
+The board draws, the stars draw, and there is nothing on top of them. That is
+always the same shape of fault and it is worth knowing how to read it.
+
+GDScript has no exceptions. A failed call prints one error and abandons the
+function it was in, so anything after it in the director's boot simply does not
+happen — and the boot builds the housing, then the readout, then the screens, in
+that order, after the board. One failure in the middle and the player gets a
+board with nothing on it.
+
+What the console then shows is a hundred and fifty of the SECOND problem: the
+frame loop calling into a readout that was never built, sixty times a second,
+with the one line that matters scrolled off the top. So the boot writes down
+what it finished and the first frame checks:
+
+```
+[Singularity] boot stopped after chassis
+```
+
+That names the stage that completed, so the fault is in the one after it. The
+first error above that line is the cause; everything below it is noise.
+
 ## The class registry
 
 Godot 3.5 resolves every `class_name` through two tables in `project.godot`, and
