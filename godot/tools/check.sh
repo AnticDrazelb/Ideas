@@ -11,10 +11,14 @@
 # where all three fields of every entry already are. So the registry is a build
 # product with a generator, the tests read it, and nothing here needs an editor.
 #
+# Three passes, cheapest first: every file parses, the whole machine comes up,
+# and the rules still say what the original says.
+#
 #   GODOT=/path/to/godot3.5 tools/check.sh
 set -e
 DIR=$(cd "$(dirname "$0")/.." && pwd)
 GODOT=${GODOT:-godot3}
 python3 "$DIR/tools/classes.py" >/dev/null
 "$GODOT" --path "$DIR" -s tests/compile.gd
+"$GODOT" --path "$DIR" -s tests/smoke.gd
 exec "$GODOT" --path "$DIR" -s tests/run.gd

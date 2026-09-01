@@ -311,6 +311,13 @@ func _rebuild_cage(half: float) -> void:
 		_slab(v, uv, kind, col, tri, a, b, p1 * w)
 		_slab(v, uv, kind, col, tri, a, b, p2 * w)
 
+	# AN EMPTY SURFACE IS NOT AN EMPTY MESH. VisualServer refuses a surface with no
+	# vertices and says so once per commit, which on a board that is legitimately
+	# bare — before the first cube is loaded, or a schematic with nothing to draw —
+	# is an error a frame about nothing being wrong.
+	if v.size() == 0:
+		_cage.mesh = null
+		return
 	var m := ArrayMesh.new()
 	var arr := []
 	arr.resize(ArrayMesh.ARRAY_MAX)

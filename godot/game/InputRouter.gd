@@ -65,8 +65,13 @@ static func _px_per_quarter() -> float:
 
 # Godot's pointer is measured down from the top; everything below wants it up
 # from the bottom. This is the only place that knows.
+# THE WINDOW'S POINTER, NOT THE BOARD'S VIEWPORT. The board renders into an
+# offscreen Viewport so the bloom has something to read, and a sub-viewport that
+# is not inside a ViewportContainer is never handed input at all — its mouse
+# position would sit at the origin for the life of the game. The composite fills
+# the window at one to one, so the window's own pointer IS the board's.
 func _point() -> Vector2:
-	var p: Vector2 = _view.cube.get_viewport().get_mouse_position()
+	var p: Vector2 = _view.cube.get_tree().get_root().get_mouse_position()
 	return Vector2(p.x, Layout.screen_size().y - p.y)
 
 

@@ -266,6 +266,12 @@ static func build_wire(lv: Level, world: int) -> ArrayMesh:
 						bit <<= 1
 
 	var mesh := ArrayMesh.new()
+	# AN EMPTY SURFACE IS NOT AN EMPTY MESH. VisualServer refuses a surface with no
+	# vertices and says so once per commit, which on a board that is legitimately
+	# bare — before the first cube is loaded, or a schematic with nothing to draw —
+	# is an error a frame about nothing being wrong.
+	if verts.size() == 0:
+		return mesh
 	var arr := []
 	arr.resize(ArrayMesh.ARRAY_MAX)
 	arr[ArrayMesh.ARRAY_VERTEX] = verts

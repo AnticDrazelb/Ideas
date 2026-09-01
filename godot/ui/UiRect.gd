@@ -54,13 +54,18 @@ func anchor_to(a_min: Vector2, a_max: Vector2, off_min: Vector2, off_max: Vector
 	# Where the anchors DIFFER the axis is a stretch and the offsets are insets
 	# against two different edges, so offsetMax below offsetMin is ordinary and
 	# correct. That is why this asks about the anchors first.
-	if a_min.x == a_max.x and off_max.x <= off_min.x:
+	# STRICTLY LESS THAN, because ZERO IS A LEGITIMATE ANSWER. A point-anchored
+	# rect with both offsets at zero is how every icon in the game is built —
+	# UiKit.icon makes one and then sizes it through set_size_delta, which is
+	# Unity's own sizeDelta and has no offset form at all. Only an INVERTED pair
+	# is the mistake this guard exists for.
+	if a_min.x == a_max.x and off_max.x < off_min.x:
 		push_error("UiRect: '%s' is %f units wide — offsetMin and offsetMax are the wrong way round"
 				% [name, off_max.x - off_min.x])
 		var t := off_min.x
 		off_min.x = off_max.x
 		off_max.x = t
-	if a_min.y == a_max.y and off_max.y <= off_min.y:
+	if a_min.y == a_max.y and off_max.y < off_min.y:
 		push_error("UiRect: '%s' is %f units tall — offsetMin and offsetMax are the wrong way round"
 				% [name, off_max.y - off_min.y])
 		var t2 := off_min.y

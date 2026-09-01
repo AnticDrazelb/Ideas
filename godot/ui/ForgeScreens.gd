@@ -276,7 +276,9 @@ func _build_editor() -> void:
 	# off — so it lives in a selectable field.
 	_code_band = _slot(l, "codeRow", 58)
 	_code_field = UiKit.field(_code_band.rt, "code", "", Vector2.ZERO, Vector2.ONE, Vector2.ZERO, Vector2.ZERO)
-	_code_field.line.readonly = true
+	# `editable`, not `readonly` — Godot's LineEdit spells the negative form and
+	# has no property by the other name at all.
+	_code_field.line.editable = false
 
 	var msg_row := _band(l, "msg", 30)
 	_ed_msg = UiKit.label(msg_row, "msg", "", 18, Palette.dim(), UiKit.Anchor.MIDDLE_CENTER,

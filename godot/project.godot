@@ -134,6 +134,11 @@ _global_script_classes=[ {
 "language": "GDScript",
 "path": "res://game/Fx.gd"
 }, {
+"base": "Node",
+"class": "GameDirector",
+"language": "GDScript",
+"path": "res://game/GameDirector.gd"
+}, {
 "base": "Reference",
 "class": "Generator",
 "language": "GDScript",
@@ -445,6 +450,7 @@ _global_script_class_icons={
 "Forge": "",
 "ForgeScreens": "",
 "Fx": "",
+"GameDirector": "",
 "Generator": "",
 "Glass": "",
 "GlyphQuad": "",

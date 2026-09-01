@@ -536,9 +536,19 @@ func _build_vaults() -> void:
 	# floating at the bottom of it. Now the foot is where a foot goes and the CARDS
 	# grow to meet it, which is the one thing on this screen that is worth more
 	# space.
+	#
+	# AND THE TWO OFFSETS ARE THE RIGHT WAY ROUND HERE, which is the one place
+	# this port does not copy the original literally. The C# writes offsetMin at
+	# -JumpTop and offsetMax at -(JumpTop + 88) — offsetMax the MORE negative of
+	# the two — which is a row eighty-eight units tall in the wrong direction, and
+	# a rect with negative height lays its children out inside nothing. The seed
+	# box and its message are not on the shipped vault screen at all. It is the
+	# same slip the pause card carries a long note about, and UiRect exists to
+	# make it impossible: it would catch and repair these two silently. They are
+	# written correctly instead, so the guard stays a guard.
 	var jt := jump_top()
 	_jump_row = UiKit.rect(l, "jumpRow", Vector2(0, 1), Vector2(1, 1),
-			Vector2(40, -jt), Vector2(-40, -(jt + Access.TAP_TARGET)))
+			Vector2(40, -(jt + Access.TAP_TARGET)), Vector2(-40, -jt))
 	_jump_field = UiKit.field(_jump_row, "jump", "CUBE NUMBER",
 			Vector2(0, 0), Vector2(0.72, 1), Vector2.ZERO, Vector2(-8, 0))
 	var go_slot := UiKit.rect(_jump_row, "goSlot", Vector2(0.72, 0), Vector2.ONE, Vector2.ZERO, Vector2.ZERO)
@@ -546,8 +556,8 @@ func _build_vaults() -> void:
 
 	_jump_msg = UiKit.label(l, "jumpMsg", "", 18, Palette.dim(), UiKit.Anchor.UPPER_CENTER,
 			Vector2(0, 1), Vector2(1, 1),
-			Vector2(40, -(jt + Access.TAP_TARGET + 8.0)),
-			Vector2(-40, -(jt + Access.TAP_TARGET + 42.0)))
+			Vector2(40, -(jt + Access.TAP_TARGET + 42.0)),
+			Vector2(-40, -(jt + Access.TAP_TARGET + 8.0)))
 
 	# A LINK, NOT A PLATE. This screen's subject is the rack; BACK was a full-width
 	# filled control at the bottom of it, which made the heaviest object on the

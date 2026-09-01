@@ -147,15 +147,20 @@ func _ensure_buses() -> void:
 		AudioServer.set_bus_name(j, BUS_ROOM)
 		AudioServer.set_bus_send(j, "Master")
 
+		# THE TAPS ARE ADDRESSED BY PATH, NOT BY FIELD. AudioEffectDelay exposes
+		# `tap1/active`, not `tap1_active` — the slash is part of the property name
+		# rather than an inspector grouping, so a plain assignment is a silent
+		# nothing on a release build and a thrown "invalid set index" on a debug
+		# one. set() takes the real name.
 		var echo := AudioEffectDelay.new()
 		echo.dry = 0.0
-		echo.tap1_active = true
-		echo.tap1_delay_ms = 83.0
-		echo.tap1_level_db = -9.4        # 0.34 as a ratio
-		echo.tap2_active = false
-		echo.feedback_active = true
-		echo.feedback_delay_ms = 83.0
-		echo.feedback_level_db = -12.0
+		echo.set("tap1/active", true)
+		echo.set("tap1/delay_ms", 83.0)
+		echo.set("tap1/level_db", -9.4)      # 0.34 as a ratio
+		echo.set("tap2/active", false)
+		echo.set("feedback/active", true)
+		echo.set("feedback/delay_ms", 83.0)
+		echo.set("feedback/level_db", -12.0)
 		AudioServer.add_bus_effect(j, echo)
 
 		var lp := AudioEffectLowPassFilter.new()

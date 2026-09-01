@@ -120,6 +120,25 @@ static func canvas(canvas_name: String, order: int) -> CanvasLayer:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.set_script(load("res://ui/UiCanvasRoot.gd"))
 	layer.add_child(root)
+
+	# AND IT GOES INTO THE TREE HERE, because a canvas that is not in one draws
+	# nothing and says nothing about it.
+	#
+	# The C# gets this free: `new GameObject(...)` is already in the scene, so no
+	# caller of UiKit.Canvas passes a parent and none of the nine of them has
+	# anywhere to put one. A Godot node is not in the tree until something adds it,
+	# and an orphaned CanvasLayer accepts children, lays them out, reports the
+	# right sizes and is simply never drawn — which is the whole interface missing
+	# with no error anywhere.
+	#
+	# The tree's own root is the right parent rather than the caller's node: a
+	# CanvasLayer is screen space by definition, it is the direct equivalent of the
+	# overlay canvas the original makes, and hanging it off the director would put
+	# the entire interface inside the board's offscreen viewport if the director
+	# ever moved.
+	var tree := Engine.get_main_loop()
+	if tree != null and tree is SceneTree:
+		(tree as SceneTree).root.add_child(layer)
 	root.call("setup")
 
 	_CANVASES.append(layer)
