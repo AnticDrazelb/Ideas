@@ -18,6 +18,12 @@ var _shots := 0
 
 
 func _init() -> void:
+	# THE POINTER IS DRIVEN IN SCREEN PIXELS, so the ruler must not move under it.
+	# Under a software rasteriser the frame budget correctly drops the render size
+	# a few seconds in — and the root viewport's size override is what every tap
+	# this file sends is measured against, so a gesture aimed at a cell lands on
+	# the one beside it and the run walks in place. See PerfWatch.pin.
+	PerfWatch.pin()
 	Directory.new().make_dir_recursive(OUT)
 	# from cube one every time, so "SOLVED in n folds (par p)" means something
 	Directory.new().remove(Store.FILE)

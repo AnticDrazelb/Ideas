@@ -139,6 +139,24 @@ static func canvas(canvas_name: String, order: int) -> CanvasLayer:
 	var tree := Engine.get_main_loop()
 	if tree != null and tree is SceneTree:
 		(tree as SceneTree).root.add_child(layer)
+
+	# AND IT SAYS SO WHEN IT DID NOT GO IN.
+	#
+	# add_child does not raise; it prints an engine error and returns, and the
+	# five words that error carries — "parent node is busy setting up children" —
+	# are not obviously about this game. What the player gets is the failure
+	# described above: a canvas that accepts children, lays them out, reports
+	# every rect correctly and is never drawn. It happened, for the whole of one
+	# build, to all five canvases at once, because the main scene's _ready runs
+	# while the tree's root is mid-add. See Boot.
+	#
+	# One line, naming the canvas, in the game's own words.
+	if layer.get_parent() == null:
+		push_error("UiKit: the " + canvas_name + " canvas is not in the tree, so"
+				+ " nothing on it will be drawn. Something added it while the"
+				+ " tree was busy — see Boot.")
+		printerr("[Singularity] canvas '", canvas_name, "' was refused by the tree")
+
 	root.call("setup")
 
 	_CANVASES.append(layer)

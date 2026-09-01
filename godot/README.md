@@ -287,6 +287,35 @@ in **portrait**, from an aspect of 0.68 up to the 1.18 where the case calls itse
 turned. Too wide for a column of full-width rows, not wide enough for two of them.
 The audit says so once rather than reporting fifty symptoms of it.
 
+## The bug the tests could not see
+
+It shipped for a whole build and every harness passed the whole time, so it is
+worth writing down properly.
+
+When Godot opens a project it adds the main scene to the tree's root, and **a
+node that is having children added is busy**: an `add_child` on it from inside
+that call is refused outright with "Parent node is busy setting up children".
+The director's boot makes five canvases — the housing, the readout, the
+scanlines, the glass and the screens — and a CanvasLayer belongs to the tree's
+root by definition, because it is screen space rather than anything in the
+world.
+
+So all five were refused. The interface was built, laid out, and reported
+correct sizes for every rect in it, and not one pixel of it was ever drawn. The
+board renders, the stars render, and there is nothing on top of them.
+
+**Every harness instances `Main.tscn` and adds it to the root itself**, from a
+SceneTree script — and a root that is not mid-add is not busy, so the five calls
+that fail for a player succeeded for the tests. Six harnesses, 646 controls
+measured across twelve shapes, 230 rules green, and none of them was running the
+game the way Godot runs it. `tools/boot.py` does: no arguments, no script, the
+main scene, and any engine error is a failure. Two families are allowed and both
+are the headless build rather than the game — the dummy rasterizer has no meshes
+or render targets, and a container has no sound card.
+
+`Boot` waits one frame before building anything, and `UiKit.canvas` now says so
+in the game's own words when a canvas does not make it into the tree.
+
 ## If it comes up with no interface
 
 The board draws, the stars draw, and there is nothing on top of them. That is
@@ -330,7 +359,7 @@ tools/classes.py --check    # exit 1 if it would change anything
 Run it after adding, renaming or moving any file with a `class_name` in it.
 `tools/check.sh` runs it first, every time.
 
-## The six harnesses
+## The seven harnesses
 
 **`tests/compile.gd`** loads every script individually. Godot's own scan reports
 a parse error against whichever file happened to *consume* the broken one, which
@@ -435,5 +464,6 @@ ui/        the kit, the readout, and every screen that is not the board.
 shaders/   nine of them: cells, wire, debris, glyphs, sky, three bloom passes, the filter.
 assets/    the catalogue, the case, the glass, the face and its licence.
 tests/     compile, smoke, rules, the interface audit, two playthroughs, screenshots.
-tools/     the class registry generator, the check script and the shape sweep.
+tools/     the class registry generator, the check script, the shape sweep,
+           the real-boot check and the icon.
 ```
