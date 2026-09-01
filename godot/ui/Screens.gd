@@ -383,6 +383,11 @@ func _open_forge_or_manual(_a = null) -> void:
 
 func _build_title() -> void:
 	var l := layer("title")
+	# A WINDOW, NOT A PLATE. Every other screen keeps the layer's scrim because
+	# every other screen is words; this one has the board turning behind it and
+	# the two stage ramps are already the only thing a word here needs. At 0.72
+	# the cube reads at just over a quarter and might as well not be running.
+	_tint(l, Color(0, 0, 0, 0))
 	UiKit.stage(l)
 
 	UiKit.label(l, "wordmark1", "SINGULARITY", 66, Palette.INK, UiKit.Anchor.UPPER_CENTER,
@@ -544,19 +549,46 @@ func _build_vaults() -> void:
 	# It says "VAULT I" here and "VAULT X · SINGULARITY" by the end, in a gap fixed
 	# by the two arrows either side of it — so it shrinks to fit rather than sliding
 	# underneath them. See UiKit.fit.
-	_vault_name = UiKit.fit(
-			UiKit.label(l, "vaultName", "VAULT I", 32, Palette.INK, UiKit.Anchor.MIDDLE_CENTER,
-					Vector2(0, 1), Vector2(1, 1), Vector2(120, -140), Vector2(-120, -80)), 18)
+	# ONE ROW, SO THEY CANNOT DRIFT.
+	#
+	# The C# hangs the heading off both plate edges with a fixed inset and hangs
+	# the two arrows off the same edges independently, then relies on the two sets
+	# of numbers agreeing. They agree at the authored aspect and nowhere else: on a
+	# taller phone the heading's box comes out sixty units into the right arrow,
+	# and fit() cannot save it because fit() shrinks type to a BOX and the box is
+	# the thing that is wrong. It had already shrunk to its eighteen-point floor.
+	#
+	# All three live in one row now and the middle is inset past both ends, so
+	# "the name goes between the arrows" is what the anchors SAY rather than what
+	# two independent sums happen to work out to. There is no aspect at which this
+	# can overlap.
+	var head := UiKit.rect(l, "head", Vector2(0, 1), Vector2(1, 1),
+			Vector2(40, -154), Vector2(-40, -66))
 
-	# AND BOTH ARROWS STOP. The rack is RANKED_VAULTS wide and neither end of it is
-	# a suggestion: past the last one vault_name starts inventing titles for bands
-	# that hold no cubes. The buttons are kept and made INERT at the ends rather
-	# than hidden, because a control that vanishes moves everything beside it and a
-	# player reads that as the screen changing rather than as the list ending.
-	var prev := UiKit.rect(l, "prev", Vector2(0, 1), Vector2(0, 1), Vector2(40, -154), Vector2(140, -66))
+	var prev := UiKit.rect(head, "prev", Vector2(0, 0), Vector2(0, 1), Vector2(0, 0), Vector2(100, 0))
 	_prev_btn = UiKit.bracketed(prev, "prev", "<", funcref(self, "_on_prev_vault"), 26)
-	var nxt := UiKit.rect(l, "next", Vector2(1, 1), Vector2(1, 1), Vector2(-140, -154), Vector2(-40, -66))
+	var nxt := UiKit.rect(head, "next", Vector2(1, 0), Vector2(1, 1), Vector2(-100, 0), Vector2(0, 0))
 	_next_btn = UiKit.bracketed(nxt, "next", ">", funcref(self, "_on_next_vault"), 26)
+
+	# TWO LINES, BECAUSE ONE OF THEM WILL NOT GO.
+	#
+	# "VAULT III · DISTANT NEIGHBOURS" is thirty characters. The gap between the
+	# arrows is 262 units on a tall phone, which at the eighteen-point floor holds
+	# twenty-four — so the C#'s single centred line cannot be made to fit by any
+	# amount of shrinking, and fit() correctly bottoms out and lets it overflow
+	# into both arrows. The box is not the problem either: widening it takes the
+	# room the arrows need.
+	#
+	# They are two different facts anyway. The numeral is where you are in the
+	# ladder and the name is what the chapter is called, and the interface already
+	# sets them as two lines everywhere else it prints them — the title's resume
+	# block, the pause card, the win card. This is the odd one out, and the middle
+	# dot was there to join two things that never wanted joining.
+	UiKit.label(head, "vaultNo", "VAULT I", 19, Palette.rust(), UiKit.Anchor.LOWER_CENTER,
+			Vector2(0, 0), Vector2(1, 1), Vector2(108, 44), Vector2(-108, -4))
+	_vault_name = UiKit.fit(
+			UiKit.label(head, "vaultName", "THE COLLAPSE", 26, Palette.INK, UiKit.Anchor.UPPER_CENTER,
+					Vector2(0, 0), Vector2(1, 1), Vector2(108, 2), Vector2(-108, -42)), 15)
 
 	_grid = UiKit.rect(l, "grid", Vector2(0, 0), Vector2(1, 1),
 			Vector2(RACK_INSET, 300), Vector2(-RACK_INSET, -RACK_TOP))
@@ -607,6 +639,14 @@ func _build_vaults() -> void:
 	var back_rt := UiKit.rect(l, "back", Vector2(0, 0), Vector2(1, 0),
 			Vector2(60, FOOT_FLOOR), Vector2(-60, FOOT_FLOOR + Access.TAP_TARGET))
 	UiKit.link(back_rt, "back", "BACK", funcref(self, "_on_back"), 24, Palette.INK)
+
+
+func _seek_label(nm: String) -> Label:
+	var rt = _layers.get("vaults")
+	if rt == null:
+		return null
+	var host = rt.find_node(nm, true, false)
+	return host.get_node("text") as Label if host != null and host.has_node("text") else null
 
 
 func _on_prev_vault(_a = null) -> void:
@@ -768,8 +808,10 @@ func _paint_vaults() -> void:
 		_grid.remove_child(c)
 		c.queue_free()
 
-	UiKit.set_fitted(_vault_name,
-			"VAULT " + Vaults.roman_of(_view_band) + " · " + Vaults.vault_name(_view_band))
+	var head_no := _seek_label("vaultNo")
+	if head_no != null:
+		head_no.text = "VAULT " + Vaults.roman_of(_view_band)
+	UiKit.set_fitted(_vault_name, Vaults.vault_name(_view_band))
 
 	var start := Vaults.vault_start(_view_band)
 	var size := Vaults.vault_size(_view_band)
@@ -915,8 +957,10 @@ func _build_manual() -> void:
 
 	# The title stays put and the rules scroll under it, so the heading is always
 	# there to say what you are reading.
+	# The page stops above the button, and the button is a finger tall — see the
+	# note on "got" below.
 	var sc := UiKit.scroll(l, "scroll", Vector2(0, 0), Vector2(1, 1),
-			Vector2(0, 178), Vector2(0, -150))
+			Vector2(0, 196), Vector2(0, -150))
 	_man_m = sc.content
 
 	# NINE LINES, NOT NINE PARAGRAPHS — AND A PICTURE FOR EACH.
@@ -1028,7 +1072,11 @@ func _build_manual() -> void:
 
 	sc.end_scroll(_man_y + 24.0)
 
-	var got := UiKit.rect(l, "got", Vector2(0, 0), Vector2(1, 0), Vector2(60, 90), Vector2(-60, 160))
+	# EIGHTY-EIGHT, NOT SEVENTY. This is the single primary on the screen and the
+	# only way off it, and the C# builds it seventy units tall — eighteen under the
+	# target every other control in the game is measured against, on the button
+	# that gets pressed most often on the page it is on.
+	var got := UiKit.rect(l, "got", Vector2(0, 0), Vector2(1, 0), Vector2(60, 90), Vector2(-60, 178))
 	UiKit.bracketed(got, "got", "GOT IT", funcref(self, "_on_back"), 28, true)
 
 
@@ -1239,7 +1287,9 @@ func _build_plate_teach() -> void:
 				Vector2(0, 1), Vector2(1, 1), Vector2(48, y - 110), Vector2(-48, y - 32), true)
 		y -= 130
 
-	var go := UiKit.rect(l, "go", Vector2(0, 0), Vector2(1, 0), Vector2(60, 90), Vector2(-60, 160))
+	# a finger tall, for the same reason GOT IT is — the last body's floor is at
+	# -790 and this reaches -178, so the column is still well clear of it
+	var go := UiKit.rect(l, "go", Vector2(0, 0), Vector2(1, 0), Vector2(60, 90), Vector2(-60, 178))
 	UiKit.bracketed(go, "go", "STEP ON IT", funcref(self, "_on_resume"), 28, true)
 
 
@@ -1359,7 +1409,7 @@ func _build_calibrate() -> void:
 	# recognised, which is what you want on the screen somebody opens to change one
 	# thing they already had in mind.
 	var panel := UiKit.rect(l, "panel", Vector2(0, 0), Vector2(1, 1),
-			Vector2(28, panel_floor()), Vector2(-28, -200))
+			Vector2(28, panel_floor()), Vector2(-28, -PANEL_TOP))
 	var r := Palette.rust()
 	UiKit.framed(panel, Palette.PANEL, Color(r.r, r.g, r.b, 0.55))
 
@@ -1423,6 +1473,14 @@ func _build_calibrate() -> void:
 # tap target every row owes a finger.
 const CAL_ROWS := 8
 
+# HOW MUCH OF THE RIGHT-HAND END A ROW'S CONTROL OWNS, plus eight of air. The
+# widest is the OPEN link at 124 from the edge; a switch is 108 and the three
+# stops of a segmented control are a third of the row. A hint may run up to here
+# and no further, and because it is a distance from the same edge the control is
+# measured from, it is the same answer at every aspect.
+const HINT_CLEAR := 132.0
+const HINT_NARROW := 300.0
+
 
 # WHERE THE THREE WAYS OFF A SETTINGS SCREEN SIT, and how much air is above them.
 #
@@ -1432,7 +1490,21 @@ const CAL_ROWS := 8
 # fallen off the bottom of it, while ninety units of nothing sat underneath. The
 # gap and the margin have swapped most of the way round.
 const FOOT_FLOOR := 62.0
-const FOOT_GAP := 58.0
+
+# EIGHT ROWS OF NINETY-TWO, WHICH IS WHAT EIGHT CONTROLS OF EIGHTY-EIGHT NEED.
+#
+# The C# divides whatever is left between the sub-heading and the feet into eight
+# and then puts an eighty-eight unit control in the middle of each — and what is
+# left is 720, so each row is ninety, each row's own two units of inset take it
+# to eighty-six, and every control on both settings panels overflows its row by a
+# unit at each end. It is invisible at the authored size and it is the reason the
+# rows collide outright on a plate any shorter.
+#
+# Sixteen units bought back — six from the air above the feet and ten from the
+# gap under the sub-heading, neither of which is doing anything with them — makes
+# the panel 736, the row 92, and the control fit inside it with air to spare.
+const FOOT_GAP := 52.0
+const PANEL_TOP := 190.0
 
 
 static func panel_floor() -> float:
@@ -1461,8 +1533,17 @@ func _cal_rt(panel: Control, icon: String, label: String, hint: String, wide_hin
 	UiKit.label(r, "l", label, 21, Palette.INK, UiKit.Anchor.MIDDLE_LEFT,
 			Vector2(0, 0.0 if hint == "" else 0.40), Vector2(0.62, 1), Vector2(58, 0), Vector2.ZERO)
 	if hint != "":
-		UiKit.label(r, "h", hint, 17, Palette.dim(), UiKit.Anchor.MIDDLE_LEFT,
-				Vector2(0, 0), Vector2(0.72 if wide_hint else 0.30, 0.40), Vector2(58, 0), Vector2.ZERO)
+		# MEASURED FROM THE CONTROL, NOT AS A FRACTION OF THE ROW. A switch is 108
+		# units of the right-hand end and the OPEN link is 124; a hint that runs to
+		# 0.72 of the row clears both at the authored aspect and walks into them on a
+		# taller phone, where 0.72 of a wider row is further right and the control is
+		# still the same distance from the edge. HINT_CLEAR is that distance plus air.
+		# and it SHRINKS rather than running on. Every hint on this panel is a fixed
+		# string in a box that is narrower on a taller phone; without a floor to fall
+		# to, the longest of them prints its last word over the control beside it.
+		UiKit.fit(UiKit.label(r, "h", hint, 17, Palette.dim(), UiKit.Anchor.MIDDLE_LEFT,
+				Vector2(0, 0), Vector2(1, 0.40),
+				Vector2(58, 0), Vector2(-(HINT_CLEAR if wide_hint else HINT_NARROW), 0)), 13)
 
 	# a hairline under every row but the last, so eight rows read as one instrument
 	# rather than eight unrelated controls
@@ -1628,6 +1709,11 @@ func _after_assist() -> void:
 
 const ACC_ROWS := 8
 
+# The three stops start at 0.58 of the row; a hint must stop short of that, and a
+# fraction of the row is what fails on a taller phone. 260 is the widest the stops
+# and their air have ever been.
+const STEPS_CLEAR := 260.0
+
 
 func _build_access() -> void:
 	var l := layer("access")
@@ -1638,7 +1724,7 @@ func _build_access() -> void:
 			Vector2(0, 1), Vector2(1, 1), Vector2(0, -176), Vector2(0, -146))
 
 	var panel := UiKit.rect(l, "panel", Vector2(0, 0), Vector2(1, 1),
-			Vector2(28, panel_floor()), Vector2(-28, -200))
+			Vector2(28, panel_floor()), Vector2(-28, -PANEL_TOP))
 	var r := Palette.rust()
 	UiKit.framed(panel, Palette.PANEL, Color(r.r, r.g, r.b, 0.55))
 
@@ -1681,7 +1767,7 @@ static func show_access() -> void:
 # printed behind [FULL]. The row that owns the widest control is the row that has
 # to say so.
 func _acc_rt(panel: Control, icon: String, label: String, hint: String,
-		hint_to: float = 0.72) -> UiRect:
+		hint_to: float = HINT_CLEAR) -> UiRect:
 	var h := 1.0 / ACC_ROWS
 	var slot := _acc_row
 	_acc_row += 1
@@ -1692,8 +1778,8 @@ func _acc_rt(panel: Control, icon: String, label: String, hint: String,
 	UiKit.label(r, "l", label, 21, Palette.INK, UiKit.Anchor.MIDDLE_LEFT,
 			Vector2(0, 0.0 if hint == "" else 0.40), Vector2(0.55, 1), Vector2(58, 0), Vector2.ZERO)
 	if hint != "":
-		UiKit.label(r, "h", hint, 17, Palette.dim(), UiKit.Anchor.MIDDLE_LEFT,
-				Vector2(0, 0), Vector2(hint_to, 0.40), Vector2(58, 0), Vector2.ZERO)
+		UiKit.fit(UiKit.label(r, "h", hint, 17, Palette.dim(), UiKit.Anchor.MIDDLE_LEFT,
+				Vector2(0, 0), Vector2(1, 0.40), Vector2(58, 0), Vector2(-hint_to, 0)), 13)
 
 	if slot < ACC_ROWS - 1:
 		var ru := Palette.rust()
@@ -1745,7 +1831,10 @@ func _acc_bar(panel: Control, icon: String, label: String, hint: String,
 # is the same plate without the brackets. STILL is 51 units now, in a slot of 67.7.
 func _steps(panel: Control, icon: String, label: String, hint: String,
 		names: Array, field: String, after: String) -> void:
-	var r := _acc_rt(panel, icon, label, hint, 0.56)
+	# THE THREE STOPS ARE THE WIDEST CONTROL ON THE PANEL, so the hint beside them
+	# has to stop soonest — see HINT_CLEAR. The row is 0.58 to the right edge less
+	# eighteen, and eight of air ahead of that.
+	var r := _acc_rt(panel, icon, label, hint, STEPS_CLEAR)
 	var row_rt := UiKit.rect(r, "steps", Vector2(0.58, 0.5), Vector2(1, 0.5),
 			Vector2(0, -Access.TAP_TARGET * 0.5), Vector2(-18, Access.TAP_TARGET * 0.5))
 

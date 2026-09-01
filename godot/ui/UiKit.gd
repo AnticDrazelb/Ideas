@@ -351,10 +351,31 @@ static func _size_of(t: Label) -> int:
 	return int(f.size) if f is DynamicFont else 22
 
 
+# THE BOX IS THE PARENT'S, AND MEASURING THE LABEL'S OWN RECT IS WHY THIS NEVER
+# WORKED.
+#
+# A Label that does not wrap reports its TEXT as its minimum size, and a Control
+# is never laid out smaller than its minimum — so a label whose string is wider
+# than the rect it was given quietly grows past it, and `rect_size.x` comes back
+# as the width of the text rather than the width of the box. Fitting the text to
+# that is fitting the text to itself: the loop's very first candidate passes, the
+# size never comes down, and the string sits over whatever is beside it.
+#
+# It is invisible at the authored aspect, where every box is wide enough that the
+# minimum never bites, and it is why the vault heading printed over both of its
+# arrows on a taller phone with fit() reporting that everything was in order.
+#
+# The parent is the rect the layout actually gave this label, and it is the only
+# honest answer to "how much room is there".
+static func _box_of(t: Label) -> float:
+	var p := t.get_parent()
+	return (p as Control).rect_size.x if p is Control else t.rect_size.x
+
+
 static func _refit(t: Label) -> void:
 	var lo: int = t.get_meta("fit_min")
 	var hi: int = t.get_meta("fit_max")
-	var box := t.rect_size.x
+	var box := _box_of(t)
 	if box <= 1.0:
 		# Called before the first layout, which is where every screen builds its
 		# labels. Re-asked on the next resize.
@@ -654,18 +675,26 @@ static func stage(rt: Control) -> void:
 	var top_h := Layout.TITLE_MAST_BOTTOM + Layout.TITLE_SCRIM_RAMP
 	var bot_h := Layout.TITLE_FOOT_TOP + Layout.TITLE_SCRIM_RAMP
 
-	# the plate under both of them is the void, exactly as every other screen's
-	# is — the pieces only ever ADD black over it
-	var own := ColorRect.new()
-	own.name = "ground"
-	own.color = Palette.VOID
-	own.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	own.anchor_right = 1.0
-	own.anchor_bottom = 1.0
-	rt.add_child(own)
-
+	# AND THE GROUND BETWEEN THEM IS THE BOARD, WHICH IS THE WHOLE POINT.
+	#
+	# The C# fills this plate with an opaque Palette.Void and then lays the two
+	# ramps over it — so the attract cube, which GameDirector loads, poses,
+	# frames and turns on every visit to the title, is drawn behind a sheet of
+	# black and has never once been seen. The screen's own note calls that cube
+	# "the best argument the title has" and explains that the ninety units of air
+	# under the masthead are deliberately left empty for it; what is actually
+	# there is a hole.
+	#
+	# The ramps are what protect the type, and they already do it alone: the top
+	# runs at 0.96 down the masthead and off to nothing by 376, the bottom holds
+	# 0.96 across the buttons and clears by 482 up. Between them is 270 units of
+	# window, which is exactly the band Layout.title_rect frames the cube into.
+	# Nothing needs to be added to keep a word readable; the sheet only had to
+	# stop being there.
 	_stage_piece(rt, "stageTop", true, top_h)
 	_stage_piece(rt, "stageBottom", false, bot_h)
+
+
 
 
 static func _stage_piece(parent: Control, node_name: String, top: bool, height: float) -> void:

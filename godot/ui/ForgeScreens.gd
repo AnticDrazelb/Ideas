@@ -89,14 +89,18 @@ func _build_shelf() -> void:
 	_shelf_count = UiKit.label(l, "count", "FORGE", 34, Palette.INK, UiKit.Anchor.UPPER_CENTER,
 			Vector2(0, 1), Vector2(1, 1), Vector2(0, -140), Vector2(0, -90))
 
+	# the rack stops above the import row, which grew to a finger — see below
 	_shelf_grid = UiKit.rect(l, "grid", Vector2(0, 0), Vector2(1, 1),
-			Vector2(40, 330), Vector2(-40, -170))
+			Vector2(40, 354), Vector2(-40, -170))
 
 	# THE CODE IS THE CARGO. A generated cube has a seed because a seed is what made
 	# it; an authored cube was not made by anything, so the code has to carry the
 	# voxels themselves.
+	# EIGHTY-EIGHT. A text field and the button beside it are sixty-six units tall
+	# in the C#, which is a field somebody has to hit while holding a phone and a
+	# code they have to paste into it.
 	var row := UiKit.rect(l, "importRow", Vector2(0, 0), Vector2(1, 0),
-			Vector2(40, 250), Vector2(-40, 316))
+			Vector2(40, 250), Vector2(-40, 338))
 	_import_field = UiKit.field(row, "code", "PASTE A CUBE CODE",
 			Vector2(0, 0), Vector2(0.72, 1), Vector2.ZERO, Vector2(-8, 0))
 	var load_slot := UiKit.rect(row, "loadSlot", Vector2(0.72, 0), Vector2.ONE, Vector2.ZERO, Vector2.ZERO)
@@ -110,7 +114,8 @@ func _build_shelf() -> void:
 	# wants and no eye reads as a button. Halved, they come out close to square — and
 	# these two are alternatives to each other rather than steps in a sequence, which
 	# is what a row says and a stack does not.
-	var bot := UiKit.rect(l, "bot", Vector2(0, 0), Vector2(1, 0), Vector2(50, 96), Vector2(-50, 178))
+	# and the two below it, which were six units short of the same rule
+	var bot := UiKit.rect(l, "bot", Vector2(0, 0), Vector2(1, 0), Vector2(50, 96), Vector2(-50, 184))
 	var mk := UiKit.rect(bot, "mk", Vector2(0, 0), Vector2(0.5, 1), Vector2.ZERO, Vector2(-7, 0))
 	# RESUME, NOT NEW. The editor mirrors itself into a draft after every change, so
 	# the cube somebody was halfway through when Android reclaimed the app is still

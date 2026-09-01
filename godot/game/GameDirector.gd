@@ -399,7 +399,11 @@ func _on_plate_tick(seconds: int) -> void:
 #
 # Root two is the worst silhouette a bounded three-quarter pose presents; the rest
 # is air, so a corner never touches the rule above it or the primary below.
-const ATTRACT_MARGIN := 1.53
+# Root two is the worst silhouette a bounded three-quarter pose presents and the
+# rest is air. 1.53 is the C#'s number and it is four pixels short on a taller
+# phone, where the title band is a different shape — measured across the whole
+# cycle by tests/ui.gd rather than judged from one pose.
+const ATTRACT_MARGIN := 1.60
 
 
 func show_attract() -> void:

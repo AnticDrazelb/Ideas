@@ -92,6 +92,51 @@ exactly as it should, and the box is the thing that is too wide. It is
 reproduced rather than fixed because it looks the same in both, which is what
 this port is for — but it is the original's bug, not the fitter's.
 
+**And the interface is measured rather than eyeballed.** `tests/ui.gd` found
+eight faults at the authored size and six more that only appear on other phones.
+The ones worth naming:
+
+*`UiKit.fit` could never shrink anything.* A Label that does not wrap reports its
+own text as its minimum size, and a Control is never laid out smaller than its
+minimum — so a label whose string is wider than its rect quietly grows past it and
+`rect_size.x` comes back as the width of the TEXT. Fitting the text to that is
+fitting the text to itself: the first candidate always passed. It is invisible at
+the authored aspect, where every box is wide enough that the minimum never bites.
+
+*The vault heading is two lines now, because one will not go.* "VAULT III ·
+DISTANT NEIGHBOURS" is thirty characters and the gap between the arrows is 262
+units on a tall phone, which holds twenty-four at the readable floor. No amount of
+shrinking fits it and widening the box takes the room the arrows need. They are
+two different facts anyway, and every other screen in the game already sets them
+as two lines.
+
+*Both settings panels overflowed every row.* The panel divides what is left into
+eight and centres an 88-unit control in each; what is left is 720, so the row is
+90, its own insets take it to 86, and every control overflows by a unit at each
+end. Invisible at the authored size, and the reason the rows collide outright on a
+shorter plate. Sixteen units — six from the air above the feet, ten from the gap
+under the sub-heading — makes the row 92 and the control fit inside it.
+
+*Four controls were under the tap target*: the manual's GOT IT and the plate
+card's STEP ON IT at 70 units, and the Forge shelf's import row at 66. The Forge
+EDITOR is exempt and says why: it is ten bands over a deck that takes what is
+left, giving every band 88 costs 172 units, and the deck's own floor is 240 — the
+column would run off the plate. A dense tool trades band height for the size of
+the thing being edited, deliberately.
+
+*And a hint ran into its own control.* The settings hints stop at a fraction of
+the row while the control they must clear is a fixed distance from the edge; on a
+wider row the fraction moves and the control does not. They are measured from the
+same edge now, and they shrink rather than running on.
+
+**The attract cube is visible.** The C# fills the title's plate with an opaque
+black and then lays the two stage ramps over it — so the cube that GameDirector
+loads, poses, frames and turns on every visit to the title has never once been
+seen. The screen's own note calls it "the best argument the title has" and
+explains that the ninety units under the masthead are left empty for it. What was
+there was a hole. The ramps already protect the type on their own; the sheet only
+had to stop being there.
+
 **Three teaching faults are fixed rather than reproduced.** All three are in the
 C# too; they were found by playing the port and are the only places where this
 build deliberately behaves better than the one it came from.
@@ -153,7 +198,7 @@ tools/classes.py --check    # exit 1 if it would change anything
 Run it after adding, renaming or moving any file with a `class_name` in it.
 `tools/check.sh` runs it first, every time.
 
-## The four harnesses
+## The five harnesses
 
 **`tests/compile.gd`** loads every script individually. Godot's own scan reports
 a parse error against whichever file happened to *consume* the broken one, which
@@ -187,6 +232,28 @@ They are not in `tools/check.sh` because they want a display. They found four
 bugs in their first ten minutes, three of which drew nothing and said nothing:
 a bloom shader that would not compile, a mesh whose every index was thrown away,
 and a camera pointed at the empty half of the world.
+
+**`tests/ui.gd`** measures the interface where it is drawn. The Unity harness
+checks Layout's arithmetic across device sizes, which is the most it can do
+without an engine: it asks whether the numbers add up. This asks the built tree —
+every screen is constructed at runtime out of three thousand lines of anchors and
+offsets, and the question that decides whether a screen is any good, does this
+control land on that word, is a question about rects that exist only once
+something has laid them out. It boots the game, visits all eleven screens plus the
+readout, and checks four things: a word drawn over a control, every pressable
+thing against the tap target it owes a finger, everything inside the plate, and
+any rect built with no width or height. Then it walks the attract cube through 240
+poses against the band it is allowed to occupy.
+
+```sh
+for r in 405x720 414x896 480x800 320x568 360x640; do
+  xvfb-run -s "-screen 0 1280x1024x24" godot --path godot --resolution $r -s tests/ui.gd
+done
+```
+
+323 controls, five phone shapes, no faults. Every fault it found the first time
+is listed under "What is different" below; three of them were invisible at the
+authored aspect and broke on ordinary phones.
 
 **`tests/run.gd`** is the rules, against the original's own fixtures: the random
 source, all twenty-four orientations, every minted cube's size, par, step count
