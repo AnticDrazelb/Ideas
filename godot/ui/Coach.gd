@@ -103,7 +103,7 @@ const LEARNED_EVERYTHING := LEARNED_ALL | LEARNED_NODE | LEARNED_SUBSTRATE \
 # finished any other way.
 const LAST_CUBE := 2
 
-enum Lesson { NONE, STEP, FOLD, NODE, SUBSTRATE, EVERTER, TRIGGER }
+enum Lesson { NONE, STEP, FOLD, NODE, SUBSTRATE, EVERTER, TRIGGER, PEEK }
 
 # THE ORDER THE LESSONS QUEUE IN when a cube carries more than one thing the
 # player has not met. It is the order the ladder introduces them, so on the cubes
@@ -168,7 +168,7 @@ static func carries(lv, saw_plate_card: bool) -> int:
 # play the state machine out against a real Session without a canvas, a camera or
 # a frame.
 static func next(taught: int, kind: int, level_no: int, won: bool,
-		advice_is_fold: bool, carried: int) -> int:
+		advice_is_fold: bool, carried: int, peek_wanted: bool = false) -> int:
 	# THE LADDER ONLY. A daily is somebody's second week, a made cube is the
 	# Forge's output and practice is a cube visited by number; none of the three
 	# is anybody's first minute, and the coach speaking there would be the game
@@ -197,6 +197,24 @@ static func next(taught: int, kind: int, level_no: int, won: bool,
 		if (carried & wv[0]) != 0 and (taught & wv[0]) == 0:
 			return wv[1]
 
+	# ---- AND THE ONE VERB THAT IS ABOUT LOOKING RATHER THAN DOING
+	#
+	# Hold anywhere and the lattice goes to glass. It is the gesture that says the
+	# board is a SOLID rather than a grid of squares, and it is the only thing on
+	# the screen that can answer "where is the exit" when the exit is behind
+	# something — which is the state this fires on, and nothing else.
+	#
+	# LAST, because the world's verbs are about the rules and this is about the
+	# view: a cube that introduces a plate teaches the plate, and mentions the
+	# glass on some later cube that does not.
+	#
+	# It cannot reach cubes one and two — first contact returns above — and that is
+	# the right floor rather than an accident of ordering. Measured through
+	# LevelSupply, cubes one and two draw their core and cube three does not, so
+	# the first board that can ask this question is the first board that has it.
+	if peek_wanted:
+		return Lesson.PEEK
+
 	return Lesson.NONE
 
 
@@ -218,7 +236,21 @@ static func line_for(l: int) -> String:
 			return "EVERY CELL TURNS"
 		Lesson.TRIGGER:
 			return "THE BOARD IS EXCHANGED"
+		# WHAT IT DOES, and it has to explain rather than name: MATRIX is what the
+		# manual calls it and this is where the player meets it, so a line that
+		# said "hold for matrix" would be introducing a word instead of a verb.
+		Lesson.PEEK:
+			return "HOLD TO SEE INSIDE IT"
 	return ""
+
+
+# CAN THE PLAYER SEE WHERE THEY ARE GOING? The exit exists in a projection only
+# while its cell IS the surface of its column — bury it behind lattice and it is
+# gone until you fold, which is the whole reason the glass is worth reaching for.
+static func exit_hidden(s) -> bool:
+	if s == null or s.lv == null or s.won or s.surf.empty():
+		return false
+	return not Projection.surface_at(s.n, s.surf, s.m, s.lv.goal)
 
 
 static func is_world_verb(l: int) -> bool:
@@ -440,6 +472,17 @@ func tick(s, cam: Camera, view, dt: float) -> void:
 		_stamp = st
 		_restate(s)
 
+	# THE ONE LESSON WHOSE ACT DOES NOT MOVE THE BOARD.
+	#
+	# Every other prompt retires for free, because the thing that teaches it — a
+	# walk, a fold, a node taken — changes the state the stamp is made of, so the
+	# next tick restates and the lesson is gone. Holding the glass changes nothing
+	# on the board: same position, same orientation, same keys. The stamp is
+	# identical and the line would sit there congratulating the player until their
+	# next move. It goes the moment they hold instead.
+	if _showing == Lesson.PEEK and Store.data().saw_peek != 0:
+		_hide()
+
 	if _showing == Lesson.NONE:
 		return
 
@@ -472,7 +515,12 @@ func _restate(s) -> void:
 				learned(wv[0])
 		taught = Store.data().taught
 
-	var want := next(taught, s.kind, s.level_no, s.won, fold, carried)
+	# `saw_peek` is already the honest record of whether they have ever held, so
+	# the lesson needs no bit of its own and no migration: a save that found the
+	# glass before this file existed is a save that is never told about it.
+	var peek_wanted: bool = Store.data().saw_peek == 0 and exit_hidden(s)
+
+	var want := next(taught, s.kind, s.level_no, s.won, fold, carried, peek_wanted)
 
 	# A LESSON WITH NOWHERE TO POINT IS NOT SHOWN. Both marks are marks on the
 	# board, so both can fail to have a square — the walk when every reachable

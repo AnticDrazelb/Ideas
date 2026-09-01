@@ -452,37 +452,40 @@ func _catalogue() -> void:
 # ---- when the game offers to teach -----------------------------------------
 
 func _teaching() -> void:
-	group("the matrix is offered when it is the answer")
+	group("the glass is taught where the screen stops answering")
 
-	# THE FIRST OFFER LANDS ON THE FIRST CUBE THAT NEEDS IT. Three is the first
-	# cube in the shipped ladder whose exit is buried at the start — measured
-	# through LevelSupply, which is the path the player gets, not through the
-	# catalogue, which for the first fourteen is a cube nobody plays.
 	var V = Session.LoadKind.VAULT
-	ok(not GameDirector.wants_matrix(0, 0, 1, V, false), "offered on cube one")
-	ok(not GameDirector.wants_matrix(0, 0, 2, V, false), "offered on cube two")
-	ok(GameDirector.wants_matrix(0, 0, 3, V, false), "not offered on cube three")
+	var NONE = Coach.Lesson.NONE
+	var PEEK = Coach.Lesson.PEEK
+	var ALL = Coach.LEARNED_EVERYTHING
 
-	# AND A SECOND TIME, BECAUSE THE FIRST IS A TOAST. One line for 1.6 seconds
-	# at the foot of a window nobody is looking at, on the frame a cube loads. The
-	# C# spends it before raising it, so a load landing during a walk burns the
-	# only offer there will ever be on words nobody saw.
-	ok(not GameDirector.wants_matrix(0, 1, 40, V, false), "the second offer is unprompted")
-	ok(GameDirector.wants_matrix(0, 1, 40, V, true), "a dead end does not re-offer it")
-	ok(not GameDirector.wants_matrix(0, 2, 40, V, true), "a third offer is nagging")
+	# WHERE IT CAN FIRE. Not on cubes one and two — those are first contact, and
+	# the coach never stacks a third thing on the two verbs. Measured through
+	# LevelSupply, which is the path the player gets, cubes one and two draw their
+	# core and cube three does not: the first board that can ask "where is the
+	# exit" is the first board that has the question.
+	eq(Coach.next(ALL, V, 1, false, false, 0, true), NONE, "taught over first contact")
+	eq(Coach.next(ALL, V, 2, false, false, 0, true), NONE, "taught over first contact")
+	eq(Coach.next(ALL, V, 3, false, false, 0, true), PEEK, "not taught on the first buried exit")
 
-	# ONCE THEY HAVE HELD, NEVER AGAIN — which is the whole point of the flag.
-	ok(not GameDirector.wants_matrix(1, 0, 3, V, false), "offered after they found it")
-	ok(not GameDirector.wants_matrix(1, 1, 40, V, true), "offered again after they found it")
+	# AND ONLY WHILE THE EXIT IS OUT OF SIGHT. A board that shows you where you
+	# are going has already answered the question the glass answers.
+	eq(Coach.next(ALL, V, 40, false, false, 0, false), NONE, "taught with the exit in plain sight")
 
-	# THE LADDER ONLY. A daily is somebody's second week and a made cube is the
-	# Forge's output; neither is anybody's first minute. Same stance as Coach.
-	ok(not GameDirector.wants_matrix(0, 0, 3, Session.LoadKind.DAILY, false),
+	# LAST, BEHIND THE RULES. A cube that introduces a plate teaches the plate;
+	# the view can wait for a cube that is not busy.
+	eq(Coach.next(0, V, 80, false, false, Coach.LEARNED_SUBSTRATE, true),
+			Coach.Lesson.SUBSTRATE, "the view outranks the rules")
+
+	# THE LADDER ONLY, and never over a solved board.
+	eq(Coach.next(ALL, Session.LoadKind.DAILY, 40, false, false, 0, true), NONE,
 			"the daily gets a tutorial")
-	ok(not GameDirector.wants_matrix(0, 0, 3, Session.LoadKind.MADE, false),
+	eq(Coach.next(ALL, Session.LoadKind.MADE, 40, false, false, 0, true), NONE,
 			"a made cube gets a tutorial")
-	ok(not GameDirector.wants_matrix(0, 1, 40, Session.LoadKind.PRACTICE, true),
-			"a practice cube gets a tutorial")
+	eq(Coach.next(ALL, V, 40, true, false, 0, true), NONE, "taught over a won cube")
+
+	# It has a line, and it explains the verb rather than naming the feature.
+	ok(Coach.line_for(PEEK).length() > 0, "the lesson has nothing to say")
 
 	group("what the front door offers")
 

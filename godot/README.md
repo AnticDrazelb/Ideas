@@ -96,16 +96,21 @@ this port is for — but it is the original's bug, not the fitter's.
 C# too; they were found by playing the port and are the only places where this
 build deliberately behaves better than the one it came from.
 
-*The matrix survives being missed.* Hold anywhere and the lattice goes to glass —
-the one gesture that says the board is a solid. The C# offers it once, on cube
-three, and never again. The cube is exactly right and it is not arbitrary: three
-is the first cube in the shipped ladder whose exit is buried at the start, so it
-is the first screen where the matrix is the only thing that can show you where
-you are going. What is fragile is the once — it is a toast, 1.6 seconds, at the
-foot of a window nobody is looking at, and the C# spends the offer BEFORE raising
-it, so a load landing mid-walk burns it on words nobody saw. Here the offer is
-spent when the words appear, and a second one waits for the board to actually run
-out of route. `GameDirector.wants_matrix` is pure and pinned by the harness.
+*The glass is taught by the Coach instead of by a toast.* Hold anywhere and the
+lattice goes to glass — the one gesture that says the board is a solid rather than
+a grid of squares, and the only thing on the screen that can answer "where is the
+exit" when the exit is behind something. The C# raises one 1.6-second line on cube
+three and never again, and it spends the offer BEFORE raising it, so a load
+landing during a walk burns the only offer there will ever be on words nobody saw.
+Answering a missable prompt with a second missable prompt is not an answer, so it
+is a Coach lesson now: the same place the two verbs are taught, a line that stays
+up for exactly as long as the exit is out of sight, and retires itself the moment
+the player holds. Cube three is still where it first lands, and that was never
+arbitrary — measured through `LevelSupply`, cubes one and two draw their core and
+cube three does not. The cube is called BURIED.
+
+`Coach.next` carries it, last, behind the rules: a cube that introduces a plate
+teaches the plate and the view waits for a cube that is not busy.
 
 *A relocked ladder says what it kept.* Finishing sets `reached` back to one. Every
 best, par and time survives and the rack still shows the pips you earned — but the
