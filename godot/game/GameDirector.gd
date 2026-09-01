@@ -380,12 +380,69 @@ func _on_stuck_changed() -> void:
 	hud.vignette(1.0)
 	sfx.stuck()
 	_orb.set_mood("wide", 1400.0)
+	# A DEAD END IS THE ONE MOMENT THE MATRIX ANSWERS. Nothing here changes what
+	# the player may do; it tells them there is a way of looking they have not
+	# found. It says nothing at all if they have already held once.
+	_offer_matrix(true)
 
 
 # one tick a second over the last three, so the plate clock can be HEARD while the
 # eyes are on the board — where they have to be, and where the number is not
 func _on_plate_tick(seconds: int) -> void:
 	sfx.tick_clock(seconds)
+
+
+# ---- the matrix, offered when it is the answer -----------------------------
+#
+# A GESTURE NOBODY CAN SEE IS A GESTURE NOBODY HAS, and the matrix is the best
+# thing on this board: hold anywhere and the lattice goes to glass, and the solid
+# you have been reading as a grid of squares is suddenly a solid.
+#
+# The C# offers it once, on cube three, and never again. The cube is exactly
+# right and it is not arbitrary — three is the first cube in the ladder whose
+# EXIT IS BURIED at the start, so it is the first screen where the player cannot
+# see where they are going and the matrix is the only tool that shows them.
+# (Measured through LevelSupply, which is the path the player gets: cubes one and
+# two draw their core, three does not.)
+#
+# What is fragile is the once. The offer is a toast — one line, 1.6 seconds, at
+# the bottom of a window the player is not looking at because they are looking at
+# the board — and the C# spends it BEFORE the toast is raised, so a load that
+# lands during a walk burns the only offer there will ever be on words nobody
+# saw. Miss it and the best thing in the game is gone for good.
+#
+# So: at most two, spent at the moment the words appear rather than before, and
+# the second one waits for the board to actually run out of route. A player who
+# is stuck is the one player who wants to be told there is more to see.
+const PEEK_OFFERS := 2
+
+# The first cube whose exit is buried on the opening screen.
+const FIRST_MATRIX_CUBE := 3
+
+
+# Pure, so the harness can play a save's whole history out with no scene in it —
+# the same reason Coach.next and Screens.decide_back are.
+static func wants_matrix(saw_peek: int, offers: int, level_no: int,
+		kind: int, stuck: bool) -> bool:
+	if saw_peek != 0 or offers >= PEEK_OFFERS:
+		return false
+	# THE LADDER ONLY. A daily is somebody's second week and a made cube is the
+	# Forge's output; neither is anybody's first minute. Same stance as Coach.
+	if kind != Session.LoadKind.VAULT:
+		return false
+	if offers == 0:
+		return level_no >= FIRST_MATRIX_CUBE
+	return stuck
+
+
+# Raise it, and spend the offer only if the words actually went up.
+func _offer_matrix(stuck: bool) -> void:
+	if not wants_matrix(Store.data().saw_peek, Store.data().peek_hinted,
+			s.level_no, s.kind, stuck):
+		return
+	Store.data().peek_hinted += 1
+	Store.save()
+	hud.toast("HOLD ANYWHERE FOR MATRIX")
 
 
 # ---- the attract cube ------------------------------------------------------
@@ -520,15 +577,13 @@ func _play_routine(level: int, how: int, made_key: String) -> void:
 			Screens.show_plate_teach()
 		return
 
-	# THE ONE NUDGE. A gesture nobody can see is a gesture nobody has, and the matrix
-	# is the answer to the exact frustration that starts around here — so it is
-	# offered once, on the third cube, and never again.
-	if Store.data().saw_peek == 0 and Store.data().peek_hinted == 0 and s.level_no >= 3:
-		Store.data().peek_hinted = 1
-		Store.save()
+	# THE FIRST NUDGE, on the first cube whose exit is buried. See wants_matrix
+	# for why the offer is spent below rather than here.
+	if wants_matrix(Store.data().saw_peek, Store.data().peek_hinted,
+			s.level_no, s.kind, false):
 		yield(get_tree().create_timer(1.1), "timeout")
 		if not s.won and s.walking == null and s.anim == null:
-			hud.toast("HOLD ANYWHERE FOR MATRIX")
+			_offer_matrix(false)
 
 
 static func _has_plate(lv: Level) -> bool:

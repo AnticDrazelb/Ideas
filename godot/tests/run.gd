@@ -99,6 +99,7 @@ func _run() -> void:
 	_forge_standard()
 	_daily()
 	_catalogue()
+	_teaching()
 
 
 # ---- the arithmetic under everything ---------------------------------------
@@ -446,3 +447,52 @@ func _catalogue() -> void:
 	# where nobody would notice they had done it.
 	print("  catalogue stamp: " + Catalogue.stamp())
 	ok(Catalogue.stamp().length() == 8, "the stamp is not a checksum")
+
+
+# ---- when the game offers to teach -----------------------------------------
+
+func _teaching() -> void:
+	group("the matrix is offered when it is the answer")
+
+	# THE FIRST OFFER LANDS ON THE FIRST CUBE THAT NEEDS IT. Three is the first
+	# cube in the shipped ladder whose exit is buried at the start — measured
+	# through LevelSupply, which is the path the player gets, not through the
+	# catalogue, which for the first fourteen is a cube nobody plays.
+	var V = Session.LoadKind.VAULT
+	ok(not GameDirector.wants_matrix(0, 0, 1, V, false), "offered on cube one")
+	ok(not GameDirector.wants_matrix(0, 0, 2, V, false), "offered on cube two")
+	ok(GameDirector.wants_matrix(0, 0, 3, V, false), "not offered on cube three")
+
+	# AND A SECOND TIME, BECAUSE THE FIRST IS A TOAST. One line for 1.6 seconds
+	# at the foot of a window nobody is looking at, on the frame a cube loads. The
+	# C# spends it before raising it, so a load landing during a walk burns the
+	# only offer there will ever be on words nobody saw.
+	ok(not GameDirector.wants_matrix(0, 1, 40, V, false), "the second offer is unprompted")
+	ok(GameDirector.wants_matrix(0, 1, 40, V, true), "a dead end does not re-offer it")
+	ok(not GameDirector.wants_matrix(0, 2, 40, V, true), "a third offer is nagging")
+
+	# ONCE THEY HAVE HELD, NEVER AGAIN — which is the whole point of the flag.
+	ok(not GameDirector.wants_matrix(1, 0, 3, V, false), "offered after they found it")
+	ok(not GameDirector.wants_matrix(1, 1, 40, V, true), "offered again after they found it")
+
+	# THE LADDER ONLY. A daily is somebody's second week and a made cube is the
+	# Forge's output; neither is anybody's first minute. Same stance as Coach.
+	ok(not GameDirector.wants_matrix(0, 0, 3, Session.LoadKind.DAILY, false),
+			"the daily gets a tutorial")
+	ok(not GameDirector.wants_matrix(0, 0, 3, Session.LoadKind.MADE, false),
+			"a made cube gets a tutorial")
+	ok(not GameDirector.wants_matrix(0, 1, 40, Session.LoadKind.PRACTICE, true),
+			"a practice cube gets a tutorial")
+
+	group("what the front door offers")
+
+	# THE FOURTH DOOR IS MANUAL UNTIL THE FIRST CLEAR AND FORGE AFTER IT. A level
+	# editor is the least useful thing in this game to somebody who has not
+	# finished a cube: it is a tool for making the thing they have not played.
+	ok(Screens.never_cleared(1, 0), "a fresh save is offered the Forge")
+	ok(not Screens.never_cleared(2, 0), "a save past cube one is still a beginner")
+
+	# AND FINISHING THE MACHINE HANDS THE LADDER BACK AT CUBE ONE, so `reached`
+	# alone says "beginner" about the one save that has certainly cleared a cube.
+	ok(not Screens.never_cleared(1, 1), "the machine was finished and the Forge was taken away")
+	ok(not Screens.never_cleared(1, 3), "three runs and still a beginner")

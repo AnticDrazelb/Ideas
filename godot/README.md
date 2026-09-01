@@ -92,6 +92,35 @@ exactly as it should, and the box is the thing that is too wide. It is
 reproduced rather than fixed because it looks the same in both, which is what
 this port is for — but it is the original's bug, not the fitter's.
 
+**Three teaching faults are fixed rather than reproduced.** All three are in the
+C# too; they were found by playing the port and are the only places where this
+build deliberately behaves better than the one it came from.
+
+*The matrix survives being missed.* Hold anywhere and the lattice goes to glass —
+the one gesture that says the board is a solid. The C# offers it once, on cube
+three, and never again. The cube is exactly right and it is not arbitrary: three
+is the first cube in the shipped ladder whose exit is buried at the start, so it
+is the first screen where the matrix is the only thing that can show you where
+you are going. What is fragile is the once — it is a toast, 1.6 seconds, at the
+foot of a window nobody is looking at, and the C# spends the offer BEFORE raising
+it, so a load landing mid-walk burns it on words nobody saw. Here the offer is
+spent when the words appear, and a second one waits for the board to actually run
+out of route. `GameDirector.wants_matrix` is pure and pinned by the harness.
+
+*A relocked ladder says what it kept.* Finishing sets `reached` back to one. Every
+best, par and time survives and the rack still shows the pips you earned — but the
+cubes are shut, and a hundred and fifty locked cards with your own scores on them
+have exactly one reading. The C# answers it nowhere; the way back in is the eighth
+row of a settings screen. The title now says so, in the two lines that were naming
+the cube you are returning to.
+
+*And the front door stops demoting the player who finished.* `SaveData` says the
+rule where `runs` is declared — "`reached` is how far along this run you are,
+`runs` is whether the machine has ever been finished at all, and only the second
+one should change what the title offers" — and then the title tests `reached <= 1`,
+so the relock takes the Forge away from the one save that has certainly earned it
+and offers the beginner's manual instead. `Screens.never_cleared` asks both.
+
 **One shipped bug is repaired rather than reproduced.** The vault screen's seed
 box and its message are written with `offsetMin` and `offsetMax` the wrong way
 round in the C#, which makes them rects of negative height — they are not on the

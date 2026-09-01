@@ -358,8 +358,20 @@ var _resume_vault: Label
 var _make_quad: UiButton
 
 
+# AND `reached` ALONE CANNOT ANSWER IT ANY MORE, which is the whole reason
+# SaveData carries `runs`: "`reached` is how far along this run you are, `runs` is
+# whether the machine has ever been finished at all, and ONLY THE SECOND ONE
+# SHOULD CHANGE WHAT THE TITLE OFFERS." The C# states that rule where the field
+# is declared and then tests `reached <= 1` here — so finishing the machine, which
+# hands the ladder back at cube one, takes the Forge away from the one player who
+# has certainly earned it and offers them the beginner's manual instead.
 static func before_the_first_clear() -> bool:
-	return Store.data().reached <= 1
+	return never_cleared(Store.data().reached, Store.data().runs)
+
+
+# Pure, so the harness can ask it about a save it does not have to build.
+static func never_cleared(reached: int, runs: int) -> bool:
+	return reached <= 1 and not Vaults.cleared(runs)
 
 
 func _open_forge_or_manual(_a = null) -> void:
@@ -468,6 +480,34 @@ static func show_title() -> void:
 				else ("[ INITIALISE ]" if r <= 1 else "[ CONTINUE ]")
 	if me._make_quad != null:
 		UiKit.set_label(me._make_quad, "MANUAL" if before_the_first_clear() else "FORGE")
+
+	# AND A RELOCKED LADDER SAYS SO, WHERE THE QUESTION IS ASKED.
+	#
+	# Finishing the machine sets `reached` back to one. Every best, every par and
+	# every time survives — the rack still shows the pips you earned — but the
+	# cubes are shut, and a player looking at a hundred and fifty locked cards with
+	# their own scores printed on them has exactly one thought, and it is that the
+	# game has eaten their save.
+	#
+	# The C# answers it nowhere. The button reads AGAIN, which is the right word
+	# and is not an explanation, and the way back in is the eighth row of a
+	# settings screen that only grows that row once you have finished. So the two
+	# lines that name the cube you are returning to say what happened instead —
+	# on the screen the player is standing on when they wonder, in the place their
+	# eye is already going.
+	if done and r <= 1:
+		if me._resume_vault != null:
+			me._resume_vault.text = "THE MACHINE RESET"
+		if me._resume_name != null:
+			me._resume_name.text = "EVERY BEST KEPT · UNSEAL IN CALIBRATE"
+		me._stack.clear()
+		me._leave_asked_at = -99.0
+		me._foot_dirty = false
+		if me._foot != null:
+			me._foot.text = FOOT_LINE
+		show("title")
+		me._dir.show_attract()
+		return
 
 	var band := Vaults.vault_of(r)
 	if me._resume_vault != null:
