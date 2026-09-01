@@ -70,9 +70,9 @@ def main():
     with open(PROJECT, encoding="utf-8") as fh:
         text = fh.read()
 
-    text2 = re.sub(r"_global_script_classes=\[.*?\n\]\n", classes, text,
+    text2 = re.sub(r"_global_script_classes=\[.*?\] *\n", classes, text,
                    count=1, flags=re.S)
-    text2 = re.sub(r"_global_script_class_icons=\{.*?\n\}\n", icons, text2,
+    text2 = re.sub(r"_global_script_class_icons=\{.*?\} *\n", icons, text2,
                    count=1, flags=re.S)
 
     if "--check" in sys.argv:
