@@ -317,16 +317,32 @@ static func column(parent: Control, top: float, bottom: float) -> UiRect:
 			Vector2(40, bottom), Vector2(-40, -top))
 
 
-# One of the four quiet destinations under the primary: 0,1 top row; 2,3 bottom.
-func _quad(col: Control, idx: int, label: String, method: String) -> UiButton:
-	var x: float = idx % 2
-	var y: float = idx / 2
+# One of the four quiet destinations under the primary.
+#
+# `across` is how many of them share a row: two, which is the two-by-two the
+# held screen is composed around, or four, which is what a turned display with
+# no height left has room for. Four in a row is not the better shape — a
+# two-by-two reads as a pair of pairs and a row of four reads as a toolbar — it
+# is what a hundred and sixteen units of missing height buys back on a twenty by
+# nine phone held sideways.
+func _quad(col: Control, idx: int, label: String, method: String,
+		across: int = 2) -> UiButton:
+	var w := 1.0 / across
+	var x: float = idx % across
+	var y: float = idx / across
 	var top: float = -(UiKit.PRIMARY_H + 16.0 + y * (UiKit.BTN_H + 12.0))
 	var r := UiKit.rect(col, label,
-			Vector2(x * 0.5, 1), Vector2((x + 1) * 0.5, 1),
+			Vector2(x * w, 1), Vector2((x + 1) * w, 1),
 			Vector2(0 if x == 0 else 6, top - UiKit.BTN_H),
-			Vector2(-6 if x == 0 else 0, top))
-	return UiKit.bracketed(r, label, label, funcref(self, method), 24)
+			Vector2(-6 if x == across - 1 else 0, top))
+	var b := UiKit.bracketed(r, label, label, funcref(self, method), 24 if across == 2 else 20)
+	# FOUR ACROSS IS A HUNDRED AND TWENTY-EIGHT UNITS EACH, and "[ CALIBRATE ]" is
+	# a hundred and fifty-six at twenty. The row of four exists because the height
+	# ran out; shrinking the one word that does not fit is cheaper than widening
+	# the column, which comes straight off the machine beside it.
+	if across > 2:
+		UiKit.fit(b.label_node(), 14)
+	return b
 
 
 static func row(col: Control, slot: int, of: int, label: String,
@@ -388,7 +404,6 @@ func _build_title() -> void:
 	# the two stage ramps are already the only thing a word here needs. At 0.72
 	# the cube reads at just over a quarter and might as well not be running.
 	_tint(l, Color(0, 0, 0, 0))
-	UiKit.stage(l)
 
 	# TWO SHAPES, ONE SCREEN. Held, the masthead is over the machine and the five
 	# controls are under it. Turned there is no height for that — the type and the
@@ -406,6 +421,7 @@ func _build_title() -> void:
 
 
 func _title_held(l: UiRect) -> UiButton:
+	UiKit.stage(l)
 	UiKit.label(l, "wordmark1", "SINGULARITY", 66, Palette.INK, UiKit.Anchor.UPPER_CENTER,
 			Vector2(0, 1), Vector2(1, 1), Vector2(0, -170), Vector2(0, -90))
 	UiKit.label(l, "wordmark2", "ENGINE", 66, Palette.rust(), UiKit.Anchor.UPPER_CENTER,
@@ -469,23 +485,59 @@ func _title_held(l: UiRect) -> UiButton:
 # units is enough width for it at either size; it is the HEIGHT that is not, and
 # a title that has to shed a control to keep its type big has its priorities the
 # wrong way round.
-const TITLE_PAD := 22.0
-const TITLE_WORD := 60.0
+const TITLE_PAD := 16.0
 const TITLE_RULE_GAP := 12.0
-const TITLE_QUAD_GAP := 14.0
+
+# WHERE THE FOUR GO IN ONE ROW INSTEAD OF TWO.
+#
+# The masthead and the five controls come to five hundred and sixty-six units in
+# the two-by-two shape. Sixteen by nine turned gives six hundred and one, which
+# holds it; twenty by nine gives five hundred and thirty-three, which does not,
+# and the hundred and sixteen units a second quad row costs is exactly the
+# difference.
+const TITLE_TWO_ROW_PLATE := 580.0
 
 
 func _title_turned(l: UiRect) -> UiButton:
+	var plate := Layout.plate_size().y
+	var roomy: bool = plate >= TITLE_TWO_ROW_PLATE
+	var across: int = 2 if roomy else 4
+	var word: float = 56.0 if roomy else 46.0
+	var word_pt: int = 46 if roomy else 38
+
+	# TWO PLATES, NOT A STAGE.
+	#
+	# The held screen protects its type with two ramps — three hundred and
+	# seventy-six units down from the top and four hundred and eighty-two up from
+	# the floor, with the machine turning in the two hundred and seventy between
+	# them. Turned, the plate is six hundred tall, so those two ramps come to more
+	# than the whole screen: the cube was behind a sheet of black exactly as it
+	# was in the C# before the ground came out, and for the same arithmetic
+	# reason. It is not a bug in the ramps; a band measured off each end is a
+	# portrait idea.
+	#
+	# So the turned screen says what it is instead: the machine in a window with
+	# the aperture's own stroke around it, and the words on a framed plate beside
+	# it. That is the language every other screen in this game is already written
+	# in — framed plates, hairlines, one lit control — and it needs no gradient at
+	# all, because the type is not over the cube any more. It is next to it.
+	var win := UiKit.rect(l, "window", Vector2(0, 0), Vector2(1, 1),
+			Vector2(0, Layout.RAIL_CLEAR),
+			Vector2(-Layout.TITLE_COLUMN, -Layout.RAIL_CLEAR))
+	UiKit.stroke(win, UiKit.edge())
+
 	var col := UiKit.rect(l, "titleCol", Vector2(1, 0), Vector2(1, 1),
 			Vector2(-Layout.TITLE_COLUMN, 0), Vector2(0, 0))
+	var ru := Palette.rust()
+	UiKit.framed(col, Palette.PANEL, Color(ru.r, ru.g, ru.b, 0.55))
 
 	var y := -TITLE_PAD
-	UiKit.label(col, "wordmark1", "SINGULARITY", 48, Palette.INK, UiKit.Anchor.UPPER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(24, y - TITLE_WORD), Vector2(-24, y))
-	y -= TITLE_WORD
-	UiKit.label(col, "wordmark2", "ENGINE", 48, Palette.rust(), UiKit.Anchor.UPPER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(24, y - TITLE_WORD), Vector2(-24, y))
-	y -= TITLE_WORD + 8.0
+	UiKit.label(col, "wordmark1", "SINGULARITY", word_pt, Palette.INK, UiKit.Anchor.UPPER_CENTER,
+			Vector2(0, 1), Vector2(1, 1), Vector2(24, y - word), Vector2(-24, y))
+	y -= word
+	UiKit.label(col, "wordmark2", "ENGINE", word_pt, Palette.rust(), UiKit.Anchor.UPPER_CENTER,
+			Vector2(0, 1), Vector2(1, 1), Vector2(24, y - word), Vector2(-24, y))
+	y -= word + 6.0
 
 	_resume_vault = UiKit.label(col, "resumeVault", "", 19, Palette.rust(),
 			UiKit.Anchor.UPPER_CENTER, Vector2(0, 1), Vector2(1, 1),
@@ -499,21 +551,25 @@ func _title_turned(l: UiRect) -> UiButton:
 	UiKit.panel(col, "mastRule", Palette.rust(), Vector2(0, 1), Vector2(1, 1),
 			Vector2(32, y - 2.0), Vector2(-32, y))
 
-	# the controls, off the bottom, in the same order they are read held
-	var quad_h := UiKit.BTN_H * 2.0 + 12.0
+	# THE CONTROLS HANG OFF THE BOTTOM, and the stack is exactly as tall as what
+	# _quad puts in it: the primary, sixteen of air, and one or two rows of the
+	# four. Written as the same sum _quad measures from, so a change to either is
+	# a change to one number.
+	var rows: int = 4 / across
+	var stack_h: float = UiKit.PRIMARY_H + 16.0 \
+			+ rows * UiKit.BTN_H + (rows - 1) * 12.0
 	var stack := UiKit.rect(col, "buttons", Vector2(0, 0), Vector2(1, 0),
-			Vector2(24, TITLE_PAD),
-			Vector2(-24, TITLE_PAD + quad_h + TITLE_QUAD_GAP + UiKit.PRIMARY_H))
+			Vector2(24, TITLE_PAD), Vector2(-24, TITLE_PAD + stack_h))
 
 	var go := UiKit.rect(stack, "CONTINUE", Vector2(0, 1), Vector2(1, 1),
 			Vector2(0, -UiKit.PRIMARY_H), Vector2(0, 0))
 	var b: UiButton = UiKit.bracketed(go, "CONTINUE", "CONTINUE",
 			funcref(self, "_on_continue"), 30, true)
 
-	_quad(stack, 0, "DAILY", "_on_daily")
-	_quad(stack, 1, "VAULTS", "_on_vaults")
-	_make_quad = _quad(stack, 2, "FORGE", "_open_forge_or_manual")
-	_quad(stack, 3, "CALIBRATE", "_on_calibrate")
+	_quad(stack, 0, "DAILY", "_on_daily", across)
+	_quad(stack, 1, "VAULTS", "_on_vaults", across)
+	_make_quad = _quad(stack, 2, "FORGE", "_open_forge_or_manual", across)
+	_quad(stack, 3, "CALIBRATE", "_on_calibrate", across)
 
 	# THE BUILD LINE GOES UNDER THE MACHINE, NOT UNDER THE CONTROLS. It is the
 	# quietest thing on the screen and the column is the loudest column; the strip
@@ -645,7 +701,24 @@ func _build_vaults() -> void:
 	# "the name goes between the arrows" is what the anchors SAY rather than what
 	# two independent sums happen to work out to. There is no aspect at which this
 	# can overlap.
-	var head := UiKit.rect(l, "head", Vector2(0, 1), Vector2(1, 1),
+	# TURNED, THE RACK IS THE LEFT PANEL AND EVERYTHING ELSE IS A COLUMN.
+	#
+	# Held, this screen is a stack: which vault, the cards, the seed box, the way
+	# out. Turned there are six hundred units of height for it and eleven hundred
+	# of width, and the cards are what the width is for — a rack that has to be
+	# three across on a phone can be six across turned, which is the difference
+	# between scrolling a vault and seeing it.
+	#
+	# So the four things above and below the rack become four things beside it,
+	# in the same order read down: the vault's name at the top, the seed box under
+	# it, what the seed box said, and the way out at the foot.
+	var turned := Layout.is_landscape()
+	var side: UiRect = l
+	if turned:
+		side = UiKit.rect(l, "side", Vector2(1, 0), Vector2(1, 1),
+				Vector2(-VAULT_COLUMN, 0), Vector2(0, 0))
+
+	var head := UiKit.rect(side, "head", Vector2(0, 1), Vector2(1, 1),
 			Vector2(40, -154), Vector2(-40, -66))
 
 	var prev := UiKit.rect(head, "prev", Vector2(0, 0), Vector2(0, 1), Vector2(0, 0), Vector2(100, 0))
@@ -674,7 +747,9 @@ func _build_vaults() -> void:
 					Vector2(0, 0), Vector2(1, 1), Vector2(108, 2), Vector2(-108, -42)), 15)
 
 	_grid = UiKit.rect(l, "grid", Vector2(0, 0), Vector2(1, 1),
-			Vector2(RACK_INSET, 300), Vector2(-RACK_INSET, -RACK_TOP))
+			Vector2(RACK_INSET, RACK_FOOT_TURNED if turned else 300.0),
+			Vector2(-(RACK_INSET + VAULT_COLUMN) if turned else -RACK_INSET,
+					-(RACK_TOP_TURNED if turned else RACK_TOP)))
 
 	# THE SEED BOX. Every generated cube in this game is a pure function of its
 	# number, so the NUMBER IS THE SEED — a few characters that cut the same puzzle
@@ -702,14 +777,14 @@ func _build_vaults() -> void:
 	# make it impossible: it would catch and repair these two silently. They are
 	# written correctly instead, so the guard stays a guard.
 	var jt := jump_top()
-	_jump_row = UiKit.rect(l, "jumpRow", Vector2(0, 1), Vector2(1, 1),
+	_jump_row = UiKit.rect(side, "jumpRow", Vector2(0, 1), Vector2(1, 1),
 			Vector2(40, -(jt + Access.TAP_TARGET)), Vector2(-40, -jt))
 	_jump_field = UiKit.field(_jump_row, "jump", "CUBE NUMBER",
 			Vector2(0, 0), Vector2(0.72, 1), Vector2.ZERO, Vector2(-8, 0))
 	var go_slot := UiKit.rect(_jump_row, "goSlot", Vector2(0.72, 0), Vector2.ONE, Vector2.ZERO, Vector2.ZERO)
 	UiKit.bracketed(go_slot, "go", "GO", funcref(self, "_jump"), 24)
 
-	_jump_msg = UiKit.label(l, "jumpMsg", "", 18, Palette.dim(), UiKit.Anchor.UPPER_CENTER,
+	_jump_msg = UiKit.label(side, "jumpMsg", "", 18, Palette.dim(), UiKit.Anchor.UPPER_CENTER,
 			Vector2(0, 1), Vector2(1, 1),
 			Vector2(40, -(jt + Access.TAP_TARGET + 42.0)),
 			Vector2(-40, -(jt + Access.TAP_TARGET + 8.0)))
@@ -719,7 +794,7 @@ func _build_vaults() -> void:
 	# screen the one way OFF the screen. The house rule is already written down in
 	# UiKit: one plate per screen, and everything else is a bracketed label with
 	# nothing behind it.
-	var back_rt := UiKit.rect(l, "back", Vector2(0, 0), Vector2(1, 0),
+	var back_rt := UiKit.rect(side, "back", Vector2(0, 0), Vector2(1, 0),
 			Vector2(60, FOOT_FLOOR), Vector2(-60, FOOT_FLOOR + Access.TAP_TARGET))
 	UiKit.link(back_rt, "back", "BACK", funcref(self, "_on_back"), 24, Palette.INK)
 
@@ -817,13 +892,33 @@ const RACK_INSET := 40.0
 # harness asks it before any canvas has been laid out — and because the plate is
 # the same 625 by 1127 on every display, which is the whole point of authoring
 # against one. Returns [grid_w, avail].
+# THE COLUMN BESIDE THE RACK, turned. Wide enough for "VAULT III" over "DISTANT
+# NEIGHBOURS" between two arrows, which is the widest thing that goes in it.
+const VAULT_COLUMN := 500.0
+
+# Where the rack starts and stops turned: the same air the held screen leaves
+# over its cards, and a foot rather than the three hundred units the seed box
+# and the way out used to need under them.
+const RACK_TOP_TURNED := 40.0
+const RACK_FOOT_TURNED := 40.0
+
+
 static func rack_space() -> Array:
+	if Layout.is_landscape():
+		var p := Layout.plate_size()
+		return [p.x - VAULT_COLUMN - RACK_INSET * 2.0,
+				p.y - RACK_TOP_TURNED - RACK_FOOT_TURNED]
 	return [Layout.plate_width() - RACK_INSET * 2.0, jump_top() - RACK_TOP - 26.0]
 
 
 # The seed box, measured up from the foot: BACK, twenty-four of air, the message
 # line, eight, and then the box itself.
+# HOW FAR DOWN THE SEED BOX SITS. Held that is measured from the plate's floor,
+# past the way out; turned it is measured from the top of the column it is in,
+# under the vault's name.
 static func jump_top() -> float:
+	if Layout.is_landscape():
+		return 200.0
 	return Layout.plate_height() - FOOT_FLOOR - Access.TAP_TARGET * 2.0 - 66.0
 
 
@@ -923,7 +1018,12 @@ func _paint_vaults() -> void:
 	var grid_w: float = _grid.rect_size.x
 	if grid_w <= 1.0:
 		grid_w = rack_space()[0]
-	var r: Array = rack(size, grid_w, jump_top() - RACK_TOP - 26.0)
+	# THE SPACE THE RACK HAS IS rack_space's ANSWER, not a second copy of it. The
+	# height was written out here as the same three terms — the seed box's top less
+	# the rack's own top less the air — which is true held and nonsense turned,
+	# where the seed box is beside the rack rather than under it and its "top" is
+	# two hundred units down a column. It came out at four units of card.
+	var r: Array = rack(size, grid_w, rack_space()[1])
 	var cols: int = r[0]
 	var cell_h: float = r[2]
 
@@ -1028,6 +1128,18 @@ func _open_card(level: int) -> void:
 var _man_y := 0.0
 var _man_m: UiRect
 
+# WHICH HALF OF THE PAGE THE CURSOR IS IN, and how tall the other half got.
+#
+# Held, the manual is one column that scrolls. Turned, a page of nine rules in
+# one column shows one and a half of them at a time, and the reader who came here
+# to check one thing has to hunt for it — so it breaks into two, at the seam the
+# writing already has: the rule and the verbs on the left, the objects and what
+# is worth knowing on the right. It still scrolls if it has to; on every landscape
+# shape measured it does not have to.
+var _man_x0 := 0.0
+var _man_x1 := 1.0
+var _man_tall := 0.0
+
 
 func _build_manual() -> void:
 	var l := layer("manual")
@@ -1035,15 +1147,22 @@ func _build_manual() -> void:
 	# A SCREEN IS NAMED AFTER THE CONTROL THAT OPENS IT. This was CALIBRATION and
 	# the settings screen is CALIBRATE — two headings one word apart, and the button
 	# that opens this one says MANUAL, so the player had three names for two screens.
-	UiKit.label(l, "h", "MANUAL", 40, Palette.INK, UiKit.Anchor.UPPER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(0, -130), Vector2(0, -80))
+	# THE HEADING AND THE WAY OUT BOTH COME IN WHEN THE DEVICE TURNS, because the
+	# page between them is the screen and there are five hundred and seventy-five
+	# units of plate rather than eleven hundred and twenty-eight. A hundred and
+	# thirty of air above a title is composition on a phone and a third of the
+	# manual on a tablet.
+	var turned := Layout.is_landscape()
+	UiKit.label(l, "h", "MANUAL", 32 if turned else 40, Palette.INK, UiKit.Anchor.UPPER_CENTER,
+			Vector2(0, 1), Vector2(1, 1),
+			Vector2(0, -70 if turned else -130), Vector2(0, -28 if turned else -80))
 
 	# The title stays put and the rules scroll under it, so the heading is always
 	# there to say what you are reading.
 	# The page stops above the button, and the button is a finger tall — see the
 	# note on "got" below.
 	var sc := UiKit.scroll(l, "scroll", Vector2(0, 0), Vector2(1, 1),
-			Vector2(0, 196), Vector2(0, -150))
+			Vector2(0, 128 if turned else 196), Vector2(0, -80 if turned else -150))
 	_man_m = sc.content
 
 	# NINE LINES, NOT NINE PARAGRAPHS — AND A PICTURE FOR EACH.
@@ -1054,6 +1173,9 @@ func _build_manual() -> void:
 	# explain are all spatial, and a sentence about a fold is a worse description of
 	# a fold than two squares and an arrow.
 	_man_y = 24.0
+	_man_x0 = 0.0
+	_man_x1 = 0.5 if turned else 1.0
+	_man_tall = 0.0
 
 	_kicker("THE RULE")
 	# NO AUTHORED BREAKS IN A BODY. They were put in against a wider plate and
@@ -1089,8 +1211,13 @@ func _build_manual() -> void:
 	var a4 := _entry("COLLAPSE INTO THE CORE", "Reach it and the vault is solved.", 62.0)
 	_mark(a4, "core", Palette.core(), 52, 0, 0)
 
+	# THE SEAM. Everything above is the rule and the two verbs; everything below is
+	# what is in the lattice and what is worth knowing about it. Turned, that is
+	# where the page folds.
+	_man_break()
+
 	_kicker("THE OBJECTS")
-	var cards := UiKit.rect(_man_m, "cards", Vector2(0, 1), Vector2(1, 1),
+	var cards := UiKit.rect(_man_m, "cards", _man_a0(), _man_a1(),
 			Vector2(44, -(_man_y + 92)), Vector2(-44, -_man_y))
 	_card(cards, 0, "sqfill", Palette.TRACE, "TRACE", "CIRCUIT")
 	_card(cards, 1, "node", Palette.NODE, "NODE", "COLLECT")
@@ -1149,40 +1276,82 @@ func _build_manual() -> void:
 		UiKit.label(_man_m, "colophon",
 				"JetBrains Mono, by the JetBrains Mono Project Authors, under the SIL Open Font License 1.1. The licence ships with the game.",
 				17, Palette.dim(), UiKit.Anchor.UPPER_LEFT,
-				Vector2(0, 1), Vector2(1, 1),
+				_man_a0(), _man_a1(),
 				Vector2(44, -(_man_y + 76)), Vector2(-44, -_man_y), true)
 		_man_y += 76.0
 
-	sc.end_scroll(_man_y + 24.0)
+	# The page is as tall as its TALLER column, not as tall as the cursor — which
+	# is the second one, and shorter than the first on some shapes.
+	sc.end_scroll(max(_man_tall, _man_y) + 24.0)
 
 	# EIGHTY-EIGHT, NOT SEVENTY. This is the single primary on the screen and the
 	# only way off it, and the C# builds it seventy units tall — eighteen under the
 	# target every other control in the game is measured against, on the button
 	# that gets pressed most often on the page it is on.
-	var got := UiKit.rect(l, "got", Vector2(0, 0), Vector2(1, 0), Vector2(60, 90), Vector2(-60, 178))
+	var got := UiKit.rect(l, "got",
+			Vector2(0.25 if turned else 0.0, 0), Vector2(0.75 if turned else 1.0, 0),
+			Vector2(60, 22 if turned else 90), Vector2(-60, (22 if turned else 90) + 88))
 	UiKit.bracketed(got, "got", "GOT IT", funcref(self, "_on_back"), 28, true)
+
+
+# Move the cursor to the second column, if there is one. Called at the seam.
+func _man_break() -> void:
+	if not Layout.is_landscape():
+		return
+	_man_tall = max(_man_tall, _man_y)
+	_man_x0 = 0.5
+	_man_x1 = 1.0
+	_man_y = 24.0
+
+
+func _man_a0() -> Vector2:
+	return Vector2(_man_x0, 1)
+
+
+func _man_a1() -> Vector2:
+	return Vector2(_man_x1, 1)
 
 
 func _kicker(s: String) -> void:
 	UiKit.label(_man_m, s, s, 19, Palette.rust(), UiKit.Anchor.LOWER_LEFT,
-			Vector2(0, 1), Vector2(1, 1), Vector2(44, -(_man_y + 24)), Vector2(-44, -_man_y))
+			_man_a0(), _man_a1(), Vector2(44, -(_man_y + 24)), Vector2(-44, -_man_y))
 	_man_y += 28
 
 
-func _entry(head: String, body: String, h: float = 88.0) -> UiRect:
+# THE GUTTER THE DIAGRAMS SHARE, and how much taller a wrapped body gets when
+# the page is two columns wide instead of one.
+#
+# A half-width column is five hundred and forty units, less the gutter, less the
+# margin — three hundred and fifty for the text, against five hundred and ten
+# held. So every body wraps to about one more line than it was authored for, and
+# the box heights, which were measured against the held wrap, come out short by
+# exactly that line. The gutter gives back what it can and the box takes the
+# rest.
+const MAN_GUT := 190.0
+const MAN_GUT_TURNED := 150.0
+const MAN_TALLER := 1.34
+
+
+func _man_gut() -> float:
+	return MAN_GUT_TURNED if Layout.is_landscape() else MAN_GUT
+
+
+func _entry(head: String, body: String, h0: float = 88.0) -> UiRect:
+	var h: float = round(h0 * MAN_TALLER) if Layout.is_landscape() else h0
+	var gut := _man_gut()
 	UiKit.label(_man_m, head, head, 23, Palette.INK, UiKit.Anchor.UPPER_LEFT,
-			Vector2(0, 1), Vector2(1, 1), Vector2(44, -(_man_y + 30)), Vector2(-190, -_man_y))
+			_man_a0(), _man_a1(), Vector2(44, -(_man_y + 30)), Vector2(-gut, -_man_y))
 	# WRAPPED, because it is a sentence. The line breaks in these strings were
 	# authored against a plate that was thirty-nine units wider than the one the
 	# case leaves, and every one of them that no longer fits used to run out over
 	# the bezel and lose its last word.
 	UiKit.label(_man_m, head + "_d", body, 17, Palette.dim(), UiKit.Anchor.UPPER_LEFT,
-			Vector2(0, 1), Vector2(1, 1), Vector2(44, -(_man_y + h)), Vector2(-190, -(_man_y + 32)), true)
+			_man_a0(), _man_a1(), Vector2(44, -(_man_y + h)), Vector2(-gut, -(_man_y + 32)), true)
 
 	# the diagram lives in a fixed gutter on the right, so every picture on the page
 	# shares one optical column
-	var art := UiKit.rect(_man_m, head + "_art", Vector2(1, 1), Vector2(1, 1),
-			Vector2(-176, -(_man_y + 96)), Vector2(-44, -(_man_y + 4)))
+	var art := UiKit.rect(_man_m, head + "_art", _man_a1(), _man_a1(),
+			Vector2(-(gut - 14.0), -(_man_y + 96)), Vector2(-44, -(_man_y + 4)))
 	_man_y += h + 16.0
 	return art
 
@@ -1223,6 +1392,31 @@ var _pause_where: Label
 var _up_y := 0.0
 
 
+# THE PAUSE AND WIN CARDS ARE THE SAME OBJECT SEEN TWICE, and they turn the same
+# way: what cube this is on the left, what you can do about it on the right.
+#
+# Held they are one column — the name at the top, the actions stacked up from the
+# foot, and the board showing through the middle. That stack is three hundred and
+# sixty-four units and the head is two hundred and sixty; a turned plate has five
+# hundred and seventy-five, so one of the two has to go somewhere else. The
+# actions go beside, which is also where the thumb already is.
+const CARD_COLUMN := 520.0
+
+# Where the actions go on the card being built: the plate held, a column turned.
+var _card_side: Control = null
+
+
+# The two halves of a card. Returns [body, side]; they are the same rect held.
+func _card_halves(l: UiRect) -> Array:
+	if not Layout.is_landscape():
+		return [l, l]
+	var body := UiKit.rect(l, "body", Vector2(0, 0), Vector2(1, 1),
+			Vector2(0, 0), Vector2(-CARD_COLUMN, 0))
+	var side := UiKit.rect(l, "side", Vector2(1, 0), Vector2(1, 1),
+			Vector2(-CARD_COLUMN, 0), Vector2(0, 0))
+	return [body, side]
+
+
 func _build_pause() -> void:
 	var l := layer("pause")
 	# Dark enough that the board is a memory rather than a distraction. The pause
@@ -1249,12 +1443,30 @@ func _build_pause() -> void:
 	# the foot, and the space between them in one piece rather than two. That space
 	# is not empty either — this is the one card that lets the board through, and
 	# what shows in the middle of it is the puzzle you are about to go back to.
-	_pause_name = UiKit.label(l, "h", "", 40, Palette.INK, UiKit.Anchor.LOWER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(40, -206), Vector2(-40, -150))
-	_pause_where = UiKit.label(l, "where", "", 17, Palette.rust(), UiKit.Anchor.UPPER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(40, -244), Vector2(-40, -214))
+	# THE FLOOR IS THE ONE THE DISPLAY GAVE, not the authored one.
+	#
+	# _up measures DOWN from the top of the plate, so the number it starts from is
+	# the plate's height — and Layout.plate_height is the reference eleven hundred
+	# and twenty-eight, which is right on the phone this was composed against and
+	# wrong on every other. On a 20:9 phone the card floated a hundred and thirty
+	# units above the floor; turned, the whole card — RESUME, the three ways to
+	# another board, both links — was drawn five hundred units below the plate and
+	# clipped out of existence. The screen could only be left by solving the cube,
+	# which is the same failure UiRect's own note describes, arrived at from the
+	# other direction.
+	var turned := Layout.is_landscape()
+	var halves := _card_halves(l)
+	var body: Control = halves[0]
+	_card_side = halves[1]
+	var head: float = 138.0 if turned else 206.0
+	_pause_name = UiKit.label(body, "h", "", 34 if turned else 40, Palette.INK,
+			UiKit.Anchor.LOWER_CENTER, Vector2(0, 1), Vector2(1, 1),
+			Vector2(40, -head), Vector2(-40, -(head - 56.0)))
+	_pause_where = UiKit.label(body, "where", "", 17, Palette.rust(), UiKit.Anchor.UPPER_CENTER,
+			Vector2(0, 1), Vector2(1, 1),
+			Vector2(40, -(head + 38.0)), Vector2(-40, -(head + 8.0)))
 
-	_up_y = Layout.plate_height() - FOOT_FLOOR
+	_up_y = Layout.plate_size().y - (24.0 if turned else FOOT_FLOOR)
 
 	# TWO LINKS, AND THE RULES ARE THE ONE THAT MATTERS.
 	#
@@ -1266,18 +1478,18 @@ func _build_pause() -> void:
 	# The pause card is where somebody goes when they are stuck, which is exactly
 	# when a reference is worth having, so this is the right two taps: MENU, then
 	# MANUAL.
-	var links := _up(l, "links", Access.TAP_TARGET, 18.0)
+	var links := _up(_card_side, "links", Access.TAP_TARGET, 18.0)
 	var man_slot := UiKit.rect(links, "m", Vector2(0, 0), Vector2(0.5, 1), Vector2.ZERO, Vector2.ZERO)
 	UiKit.link(man_slot, "manual", "MANUAL", funcref(self, "_on_manual"), 20)
 	var cal_slot := UiKit.rect(links, "c", Vector2(0.5, 0), Vector2.ONE, Vector2.ZERO, Vector2.ZERO)
 	UiKit.link(cal_slot, "calibrate", "CALIBRATE", funcref(self, "_on_calibrate"), 20)
 
-	var three := _up(l, "three", Access.TAP_TARGET, 26.0)
+	var three := _up(_card_side, "three", Access.TAP_TARGET, 26.0)
 	_third(three, 0, "RESET", "_on_reset")
 	_third(three, 1, "VAULTS", "_on_vaults")
 	_third(three, 2, "MENU", "_on_menu")
 
-	var go := _up(l, "resume", UiKit.PRIMARY_H, 0.0)
+	var go := _up(_card_side, "resume", UiKit.PRIMARY_H, 0.0)
 	UiKit.bracketed(go, "resume", "RESUME", funcref(self, "_on_resume"), 28, true)
 
 
@@ -1290,8 +1502,9 @@ func _build_pause() -> void:
 # leaving a screen that could only be left by solving the cube. See UiRect, which
 # now shouts about it rather than drawing nothing.
 func _up(l: Control, nm: String, h: float, gap: float) -> UiRect:
+	var pad: float = 24.0 if Layout.is_landscape() else 72.0
 	var r := UiKit.rect(l, nm, Vector2(0, 1), Vector2(1, 1),
-			Vector2(72, -_up_y), Vector2(-72, -(_up_y - h)))
+			Vector2(pad, -_up_y), Vector2(-pad, -(_up_y - h)))
 	_up_y -= h + gap
 	return r
 
@@ -1324,6 +1537,10 @@ static func show_pause(dir) -> void:
 # it arrives when the thing is on screen, with the thing itself waiting behind the
 # card.
 
+# One row of the lesson is a name and a body under it: thirty units of heading,
+# two of air, and seventy-eight of wrapped body.
+const PLATE_BODY := 110.0
+
 const PLATE_ROWS := [
 	"THE LATTICE INVERTS|Every trace goes dead. Every dead cell lights up. Nothing moves — only what carries current.",
 	"IT LASTS FIVE SECONDS|Then the lattice springs back and puts you on the nearest plate. Running out costs you the walk, never the vault.",
@@ -1335,10 +1552,13 @@ const PLATE_ROWS := [
 func _build_plate_teach() -> void:
 	var l := layer("plate")
 	solid_layer(l)
+	var head_up: float = 60.0 if Layout.is_landscape() else 0.0
 	UiKit.label(l, "eyebrow", "A NEW COMPONENT", 20, Palette.dim(), UiKit.Anchor.UPPER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(0, -130), Vector2(0, -100))
+			Vector2(0, 1), Vector2(1, 1),
+			Vector2(0, -130 + head_up), Vector2(0, -100 + head_up))
 	UiKit.label(l, "h", "PLATES", 44, Palette.rust(), UiKit.Anchor.UPPER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(0, -190), Vector2(0, -140))
+			Vector2(0, 1), Vector2(1, 1),
+			Vector2(0, -190 + head_up), Vector2(0, -140 + head_up))
 	# TWO LINES, BECAUSE THE FACE IS A MONOSPACE. Fifty-six characters at twenty
 	# points across the plate is one line in a proportional face and two in this one
 	# — every glyph is 0.6em, and lowercase is where that costs. The box is as tall
@@ -1350,7 +1570,8 @@ func _build_plate_teach() -> void:
 	# run to the literal edge of the glass with the bezel starting at the next pixel.
 	UiKit.label(l, "sub", "Everything you know how to do is about to be worth less.",
 			20, Palette.dim(), UiKit.Anchor.UPPER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(48, -272), Vector2(-48, -200), true)
+			Vector2(0, 1), Vector2(1, 1),
+			Vector2(48, -272 + head_up), Vector2(-48, -200 + head_up), true)
 
 	# NO AUTHORED BREAKS IN A BODY. Exactly the change the manual got, for exactly
 	# the reason, and this screen is where it actually bit: the breaks were placed
@@ -1361,18 +1582,53 @@ func _build_plate_teach() -> void:
 	# type, so the body box is seventy-eight and the row pitch is a hundred and
 	# thirty. Four rows from -290 put the last body's floor at -790, and the STEP ON
 	# IT button's ceiling is at -967 — the column still ends well clear of it.
-	var y := -290.0
-	for line in PLATE_ROWS:
-		var p: PoolStringArray = line.split("|")
-		UiKit.label(l, p[0], p[0], 23, Palette.INK, UiKit.Anchor.UPPER_LEFT,
-				Vector2(0, 1), Vector2(1, 1), Vector2(48, y - 30), Vector2(-48, y))
-		UiKit.label(l, p[0] + "_d", p[1], 19, Palette.dim(), UiKit.Anchor.UPPER_LEFT,
-				Vector2(0, 1), Vector2(1, 1), Vector2(48, y - 110), Vector2(-48, y - 32), true)
-		y -= 130
+	# FOUR ROWS DOWN, OR TWO BY TWO.
+	#
+	# Four rows at a hundred and thirty from -290 put the last one's floor at -790,
+	# which is what a portrait plate has. Turned there are six hundred units and
+	# the header takes a hundred and ninety of them, so the four go two and two —
+	# the same rows in the same order, read down the first column and then down
+	# the second, and each half as wide, which is why the bodies are given the
+	# wrap they already had.
+	var turned := Layout.is_landscape()
+	var cols: int = 2 if turned else 1
+	var per: int = int(ceil(PLATE_ROWS.size() / float(cols)))
+	var top: float = -196.0 if turned else -290.0
+	var foot: float = 20.0 if turned else 90.0
 
-	# a finger tall, for the same reason GOT IT is — the last body's floor is at
-	# -790 and this reaches -178, so the column is still well clear of it
-	var go := UiKit.rect(l, "go", Vector2(0, 0), Vector2(1, 0), Vector2(60, 90), Vector2(-60, 178))
+	# THE PITCH IS WHAT IS LEFT DIVIDED BY WHAT IS IN IT, not a number.
+	#
+	# A hundred and thirty is right for a portrait plate and for a turned one at
+	# sixteen by nine. At twenty by nine there are sixty-eight fewer units of
+	# height and the second row's body printed through STEP ON IT. The rows are
+	# a hundred and ten of type each; the pitch is the air between them, and air
+	# is the thing there is a variable amount of.
+	var free: float = Layout.plate_size().y + top \
+			- (foot + Access.TAP_TARGET + 16.0) - PLATE_BODY
+	var pitch: float = min(130.0, free / max(1, per - 1)) if per > 1 else 130.0
+	var w := 1.0 / cols
+	var pad := 24.0 if turned else 48.0
+
+	for i in range(PLATE_ROWS.size()):
+		var p: PoolStringArray = PLATE_ROWS[i].split("|")
+		var col: int = i / per
+		var y: float = top - (i % per) * pitch
+		var x0 := col * w
+		var x1 := (col + 1) * w
+		UiKit.label(l, p[0], p[0], 23, Palette.INK, UiKit.Anchor.UPPER_LEFT,
+				Vector2(x0, 1), Vector2(x1, 1),
+				Vector2(pad + (24.0 if col > 0 else 0.0), y - 30),
+				Vector2(-pad, y))
+		UiKit.label(l, p[0] + "_d", p[1], 19, Palette.dim(), UiKit.Anchor.UPPER_LEFT,
+				Vector2(x0, 1), Vector2(x1, 1),
+				Vector2(pad + (24.0 if col > 0 else 0.0), y - 110),
+				Vector2(-pad, y - 32), true)
+
+	# a finger tall, for the same reason GOT IT is — held, the last body's floor
+	# is at -790 and this reaches -178; turned, the last is at -566 and this
+	# reaches -108 out of six hundred
+	var go := UiKit.rect(l, "go", Vector2(0.25 if turned else 0.0, 0), Vector2(0.75 if turned else 1.0, 0),
+			Vector2(60, foot), Vector2(-60, foot + Access.TAP_TARGET))
 	UiKit.bracketed(go, "go", "STEP ON IT", funcref(self, "_on_resume"), 28, true)
 
 
@@ -1473,13 +1729,43 @@ var _acc_row := 0
 var _unlock_row: UiRect
 
 
+# THE HEADING OF A SETTINGS SCREEN, AND — TURNED — THE THREE WAYS OFF IT.
+#
+# Held, this is two centred lines with a hundred and forty units of air over
+# them, and the exits are a band at the other end of the plate. Turned, both are
+# one bar: the two lines set flush left, the three exits flush right, and the
+# panel gets everything under it. See PANEL_BAR.
+func _settings_head(l: UiRect, head: String, sub: String) -> void:
+	if not Layout.is_landscape():
+		UiKit.label(l, "h", head, 40, Palette.INK, UiKit.Anchor.UPPER_CENTER,
+				Vector2(0, 1), Vector2(1, 1), Vector2(0, -140), Vector2(0, -90))
+		UiKit.label(l, "sub", sub, 20, Palette.dim(), UiKit.Anchor.UPPER_CENTER,
+				Vector2(0, 1), Vector2(1, 1), Vector2(0, -176), Vector2(0, -146))
+		var feet := UiKit.rect(l, "feet", Vector2(0, 0), Vector2(1, 0),
+				Vector2(40, FOOT_FLOOR), Vector2(-40, FOOT_FLOOR + Access.TAP_TARGET))
+		_third(feet, 0, "MANUAL", "_on_manual")
+		_third(feet, 1, "BACK", "_on_back")
+		_third(feet, 2, "MENU", "_on_menu")
+		return
+
+	var bar := UiKit.rect(l, "bar", Vector2(0, 1), Vector2(1, 1),
+			Vector2(28, -PANEL_BAR), Vector2(-28, 0))
+	UiKit.label(bar, "h", head, 32, Palette.INK, UiKit.Anchor.LOWER_LEFT,
+			Vector2(0, 0.44), Vector2(0.5, 1), Vector2(6, 0), Vector2.ZERO)
+	UiKit.label(bar, "sub", sub, 18, Palette.dim(), UiKit.Anchor.UPPER_LEFT,
+			Vector2(0, 0), Vector2(0.5, 0.44), Vector2(8, 0), Vector2.ZERO)
+
+	var exits := UiKit.rect(bar, "feet", Vector2(1, 0), Vector2(1, 1),
+			Vector2(-PANEL_EXIT_W, 0), Vector2(0, 0))
+	_third(exits, 0, "MANUAL", "_on_manual")
+	_third(exits, 1, "BACK", "_on_back")
+	_third(exits, 2, "MENU", "_on_menu")
+
+
 func _build_calibrate() -> void:
 	var l := layer("calibrate")
 	solid_layer(l)
-	UiKit.label(l, "h", "CALIBRATE", 40, Palette.INK, UiKit.Anchor.UPPER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(0, -140), Vector2(0, -90))
-	UiKit.label(l, "sub", "TUNE THE INSTRUMENT", 20, Palette.dim(), UiKit.Anchor.UPPER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(0, -176), Vector2(0, -146))
+	_settings_head(l, "CALIBRATE", "TUNE THE INSTRUMENT")
 
 	# ONE PANEL, EIGHT ROWS, EACH WITH ITS OWN MARK.
 	#
@@ -1492,7 +1778,7 @@ func _build_calibrate() -> void:
 	# recognised, which is what you want on the screen somebody opens to change one
 	# thing they already had in mind.
 	var panel := UiKit.rect(l, "panel", Vector2(0, 0), Vector2(1, 1),
-			Vector2(28, panel_floor()), Vector2(-28, -PANEL_TOP))
+			Vector2(28, panel_floor()), Vector2(-28, -panel_top()))
 	var r := Palette.rust()
 	UiKit.framed(panel, Palette.PANEL, Color(r.r, r.g, r.b, 0.55))
 
@@ -1536,11 +1822,6 @@ func _build_calibrate() -> void:
 	_unlock_row = _toggle(panel, "i.togo", "UNSEAL CUBES", "EVERYTHING YOU HAVE SOLVED",
 			"unlocked", "")
 
-	var feet := UiKit.rect(l, "feet", Vector2(0, 0), Vector2(1, 0),
-			Vector2(40, FOOT_FLOOR), Vector2(-40, FOOT_FLOOR + Access.TAP_TARGET))
-	_third(feet, 0, "MANUAL", "_on_manual")
-	_third(feet, 1, "BACK", "_on_back")
-	_third(feet, 2, "MENU", "_on_menu")
 
 
 # EIGHT, AND THE COMMENT THAT USED TO BE HERE WAS RIGHT.
@@ -1563,6 +1844,18 @@ const CAL_ROWS := 8
 # measured from, it is the same answer at every aspect.
 const HINT_CLEAR := 132.0
 const HINT_NARROW := 300.0
+
+# HOW SMALL A HINT MAY GET BEFORE IT IS ALLOWED TO OVERFLOW INSTEAD.
+#
+# Thirteen held. Turned it is eleven, and that is not a relaxation of the rule —
+# it is the same rule read in the right units. A canvas unit is a constant
+# FRACTION of the display, so eleven units on the ten-inch panel a two-column
+# settings list implies is physically bigger type than thirteen on a phone. What
+# changed is the box: two columns of a four-by-three plate are four hundred and
+# twenty units wide, and "MOTION · LIGHT · CONTRAST · WORDS" is two hundred and
+# sixty-four at thirteen.
+static func hint_floor() -> int:
+	return 11 if Layout.is_landscape() else 13
 
 
 # WHERE THE THREE WAYS OFF A SETTINGS SCREEN SIT, and how much air is above them.
@@ -1590,8 +1883,107 @@ const FOOT_GAP := 52.0
 const PANEL_TOP := 190.0
 
 
+# THE SAME PANEL, TURNED, IS TWO LISTS SIDE BY SIDE.
+#
+# Eight rows of ninety-two want seven hundred and thirty-six units of height and
+# a turned phone's plate has six hundred and twenty-five, of which the heading
+# and the feet were taking three hundred and ninety-two. Four rows want three
+# hundred and sixty-eight, which fits with room to spare — and the width the
+# second column needs is width that was going to be air.
+#
+# The heading and the feet come in too, because a landscape screen has no height
+# to spend on a hundred and forty units of air over a title.
+# TURNED, THE HEADING AND THE THREE WAYS OUT SHARE ONE BAR ACROSS THE TOP.
+#
+# Held, they are at opposite ends of the plate — a hundred and ninety units of
+# title over the panel and two hundred and two of feet under it — and there are
+# eleven hundred and twenty-eight units of height to spend on that. Turned there
+# are six hundred, or five hundred and thirty on the twenty by nine phones that
+# are exactly the ones somebody turns sideways, and three hundred and ninety-two
+# of it cannot go on chrome: eight settings in two columns need four rows of a
+# tap target and there is no arrangement of the rest that leaves room for them.
+#
+# So the title goes to the left of one bar and the three exits to the right of
+# it, which costs a hundred instead of three hundred and ninety-two and reads as
+# the header of an instrument rather than as a page. The panel keeps the FULL
+# width, which is what keeps every hint inside its own row: two columns of five
+# hundred is a shrink the fit can absorb, and three columns of three hundred and
+# seventy is not.
+const PANEL_BAR := 88.0
+const PANEL_BAR_GAP := 12.0
+const PANEL_FLOOR_TURNED := 12.0
+
+# How much of the bar the three exits take. Three bracketed labels at a hundred
+# and fifty each, plus the air between them.
+const PANEL_EXIT_W := 480.0
+
+# The least a settings row may be and still hold a control a finger can hit: the
+# tap target and its two units of inset at each end.
+const PANEL_ROW_MIN := Access.TAP_TARGET + 4.0
+
+# The gutter between the two columns. Eighteen is what a row already leaves to
+# the right of its own control, so this is the pair of them.
+const PANEL_GUTTER := 18.0
+
+
+static func panel_top() -> float:
+	return PANEL_BAR + PANEL_BAR_GAP if Layout.is_landscape() else PANEL_TOP
+
+
 static func panel_floor() -> float:
+	if Layout.is_landscape():
+		return PANEL_FLOOR_TURNED
 	return FOOT_FLOOR + Access.TAP_TARGET + FOOT_GAP
+
+
+# WHERE ONE ROW OF A SETTINGS PANEL GOES, and whether it owes a hairline under
+# itself. Both panels ask; neither knows which orientation it is in.
+#
+# HALF A TURNED PANEL IS AS WIDE AS A WHOLE HELD ONE, which is why nothing inside
+# a row had to change. Eleven hundred and twenty-nine units across a turned plate,
+# halved and less the gutter, is five hundred and fifty-five; the held panel is
+# five hundred and sixty-nine. Every offset in a row — the hint's clearance, the
+# switch's hundred and eight, the slider's track — is measured against the width
+# it was authored against either way.
+#
+# Filled down the first column and then down the second, which is the order the
+# rows are written in and the order a settings list is read in.
+static func panel_slot(panel: Control, nm: String, slot: int, of: int) -> Array:
+	var cols := panel_columns(of)
+	var rows: int = int(ceil(float(of) / cols))
+	var col: int = int(slot / rows)
+	var idx: int = slot % rows
+	var w := 1.0 / cols
+	var hh := 1.0 / rows
+	var half := PANEL_GUTTER * 0.5
+	var r := UiKit.rect(panel, nm,
+			Vector2(col * w, 1 - (idx + 1) * hh), Vector2((col + 1) * w, 1 - idx * hh),
+			Vector2(0.0 if col == 0 else half, 2),
+			Vector2(0.0 if col == cols - 1 else -half, -2))
+	return [r, idx < rows - 1 and slot + 1 < of]
+
+
+# HOW MANY COLUMNS THE PANEL BREAKS INTO, WHICH IS A QUESTION ABOUT THE DISPLAY
+# AND NOT ABOUT TASTE.
+#
+# Held, one: the plate is eleven hundred and twenty-eight units tall and eight
+# rows of ninety-two fit down it with the heading and the feet.
+#
+# Turned, the height is whatever the aspect left. Sixteen by nine gives six
+# hundred and one units of plate and four rows fit; twenty by nine — which is
+# most phones, and exactly the ones somebody turns sideways — gives five hundred
+# and thirty-three and they do not. So the count is derived from the height, the
+# same way the vault rack derives its own: take the fewest columns whose rows
+# still clear the tap target, and stop at three because a fourth column of a
+# settings list is a spreadsheet.
+static func panel_columns(of: int) -> int:
+	if not Layout.is_landscape():
+		return 1
+	var avail: float = Layout.plate_size().y - panel_top() - panel_floor()
+	for c in range(2, 4):
+		if ceil(float(of) / c) * PANEL_ROW_MIN <= avail:
+			return c
+	return 3
 
 
 func _third(parent: Control, idx: int, label: String, method: String) -> void:
@@ -1606,11 +1998,10 @@ func _on_access(_a = null) -> void:
 
 # A row of the calibrate panel: mark, name, what it does, and the control.
 func _cal_rt(panel: Control, icon: String, label: String, hint: String, wide_hint: bool) -> UiRect:
-	var h := 1.0 / CAL_ROWS
 	var slot := _cal_row
 	_cal_row += 1
-	var r := UiKit.rect(panel, label, Vector2(0, 1 - (slot + 1) * h), Vector2(1, 1 - slot * h),
-			Vector2(0, 2), Vector2(0, -2))
+	var seat: Array = panel_slot(panel, label, slot, CAL_ROWS)
+	var r: UiRect = seat[0]
 
 	UiKit.icon(r, icon, Palette.rust(), 26, Vector2(0, 0.5), Vector2(34, 0))
 	UiKit.label(r, "l", label, 21, Palette.INK, UiKit.Anchor.MIDDLE_LEFT,
@@ -1626,11 +2017,11 @@ func _cal_rt(panel: Control, icon: String, label: String, hint: String, wide_hin
 		# to, the longest of them prints its last word over the control beside it.
 		UiKit.fit(UiKit.label(r, "h", hint, 17, Palette.dim(), UiKit.Anchor.MIDDLE_LEFT,
 				Vector2(0, 0), Vector2(1, 0.40),
-				Vector2(58, 0), Vector2(-(HINT_CLEAR if wide_hint else HINT_NARROW), 0)), 13)
+				Vector2(58, 0), Vector2(-(HINT_CLEAR if wide_hint else HINT_NARROW), 0)), hint_floor())
 
 	# a hairline under every row but the last, so eight rows read as one instrument
 	# rather than eight unrelated controls
-	if slot < CAL_ROWS - 1:
+	if seat[1]:
 		var ru := Palette.rust()
 		UiKit.panel(r, "rule", Color(ru.r, ru.g, ru.b, 0.20),
 				Vector2(0, 0), Vector2(1, 0), Vector2(20, 0), Vector2(-20, 1))
@@ -1801,13 +2192,10 @@ const STEPS_CLEAR := 260.0
 func _build_access() -> void:
 	var l := layer("access")
 	solid_layer(l)
-	UiKit.label(l, "h", "ACCESS", 40, Palette.INK, UiKit.Anchor.UPPER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(0, -140), Vector2(0, -90))
-	UiKit.label(l, "sub", "SIGHT · SOUND · HAND", 20, Palette.dim(), UiKit.Anchor.UPPER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(0, -176), Vector2(0, -146))
+	_settings_head(l, "ACCESS", "SIGHT · SOUND · HAND")
 
 	var panel := UiKit.rect(l, "panel", Vector2(0, 0), Vector2(1, 1),
-			Vector2(28, panel_floor()), Vector2(-28, -PANEL_TOP))
+			Vector2(28, panel_floor()), Vector2(-28, -panel_top()))
 	var r := Palette.rust()
 	UiKit.framed(panel, Palette.PANEL, Color(r.r, r.g, r.b, 0.55))
 
@@ -1830,11 +2218,6 @@ func _build_access() -> void:
 			"assist", "_after_assist")
 	_acc_toggle(panel, "i.depth", "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL", "depth", "")
 
-	var feet := UiKit.rect(l, "feet", Vector2(0, 0), Vector2(1, 0),
-			Vector2(40, FOOT_FLOOR), Vector2(-40, FOOT_FLOOR + Access.TAP_TARGET))
-	_third(feet, 0, "MANUAL", "_on_manual")
-	_third(feet, 1, "BACK", "_on_back")
-	_third(feet, 2, "MENU", "_on_menu")
 
 
 static func show_access() -> void:
@@ -1851,20 +2234,19 @@ static func show_access() -> void:
 # to say so.
 func _acc_rt(panel: Control, icon: String, label: String, hint: String,
 		hint_to: float = HINT_CLEAR) -> UiRect:
-	var h := 1.0 / ACC_ROWS
 	var slot := _acc_row
 	_acc_row += 1
-	var r := UiKit.rect(panel, label, Vector2(0, 1 - (slot + 1) * h), Vector2(1, 1 - slot * h),
-			Vector2(0, 2), Vector2(0, -2))
+	var seat: Array = panel_slot(panel, label, slot, ACC_ROWS)
+	var r: UiRect = seat[0]
 
 	UiKit.icon(r, icon, Palette.rust(), 26, Vector2(0, 0.5), Vector2(34, 0))
 	UiKit.label(r, "l", label, 21, Palette.INK, UiKit.Anchor.MIDDLE_LEFT,
 			Vector2(0, 0.0 if hint == "" else 0.40), Vector2(0.55, 1), Vector2(58, 0), Vector2.ZERO)
 	if hint != "":
 		UiKit.fit(UiKit.label(r, "h", hint, 17, Palette.dim(), UiKit.Anchor.MIDDLE_LEFT,
-				Vector2(0, 0), Vector2(1, 0.40), Vector2(58, 0), Vector2(-hint_to, 0)), 13)
+				Vector2(0, 0), Vector2(1, 0.40), Vector2(58, 0), Vector2(-hint_to, 0)), hint_floor())
 
-	if slot < ACC_ROWS - 1:
+	if seat[1]:
 		var ru := Palette.rust()
 		UiKit.panel(r, "rule", Color(ru.r, ru.g, ru.b, 0.20),
 				Vector2(0, 0), Vector2(1, 0), Vector2(20, 0), Vector2(-20, 1))
@@ -2017,17 +2399,21 @@ func _build_win() -> void:
 	# instrument and sits on the middle of the plate. WHAT NOW is anchored to the
 	# BOTTOM and stacks upward from there, which is both where a thumb is and the
 	# only arrangement in which a hidden RETRY cannot open a hole — see _flow_win.
-	_win_what = UiKit.label(l, "what", "VAULT SOLVED", 17, Palette.rust(), UiKit.Anchor.LOWER_CENTER,
+	var halves := _card_halves(l)
+	var body: Control = halves[0]
+	_card_side = halves[1]
+
+	_win_what = UiKit.label(body, "what", "VAULT SOLVED", 17, Palette.rust(), UiKit.Anchor.LOWER_CENTER,
 			Vector2(0, 1), Vector2(1, 1), Vector2(WIN_PAD, -150), Vector2(-WIN_PAD, -122))
-	_win_verdict = UiKit.label(l, "verdict", "AT PAR", 46, Palette.ARC, UiKit.Anchor.UPPER_CENTER,
+	_win_verdict = UiKit.label(body, "verdict", "AT PAR", 46, Palette.ARC, UiKit.Anchor.UPPER_CENTER,
 			Vector2(0, 1), Vector2(1, 1), Vector2(WIN_PAD, -224), Vector2(-WIN_PAD, -158))
-	_win_vault = UiKit.label(l, "vault", "", 18, Palette.ARC, UiKit.Anchor.UPPER_CENTER,
+	_win_vault = UiKit.label(body, "vault", "", 18, Palette.ARC, UiKit.Anchor.UPPER_CENTER,
 			Vector2(0, 1), Vector2(1, 1), Vector2(WIN_PAD, -262), Vector2(-WIN_PAD, -232))
 
 	# BETWEEN THE TWO OF THEM, and _flow_win decides where — it is the only block
 	# with slack either side of it, so it is the one that absorbs a missing RETRY row
 	# instead of letting the hole land somewhere it can be read as a mistake.
-	_win_stats = UiKit.rect(l, "stats", Vector2(0, 1), Vector2(1, 1),
+	_win_stats = UiKit.rect(body, "stats", Vector2(0, 1), Vector2(1, 1),
 			Vector2(WIN_PAD, -474), Vector2(-WIN_PAD, -306))
 	var ru := Palette.rust()
 	UiKit.framed(_win_stats, Palette.PANEL_HI, Color(ru.r, ru.g, ru.b, 0.55))
@@ -2035,19 +2421,19 @@ func _build_win() -> void:
 	_win_par = _stat(_win_stats, "PAR", 1)
 	_win_best = _stat(_win_stats, "YOUR BEST", 2)
 
-	_win_next_row = UiKit.rect(l, "next", Vector2(0, 1), Vector2(1, 1),
+	_win_next_row = UiKit.rect(_card_side, "next", Vector2(0, 1), Vector2(1, 1),
 			Vector2(WIN_PAD, -498 - UiKit.PRIMARY_H), Vector2(-WIN_PAD, -498))
 	_win_next = UiKit.bracketed(_win_next_row, "next", "NEXT", funcref(self, "_on_next"), 28, true)
 
 	# The rest are text. They are ways OUT of this card rather than things it is for,
 	# and a bracketed label with nothing behind it says that without needing to be
 	# smaller or greyer than it can be read at.
-	_win_retry_row = UiKit.rect(l, "retry", Vector2(0, 1), Vector2(1, 1),
+	_win_retry_row = UiKit.rect(_card_side, "retry", Vector2(0, 1), Vector2(1, 1),
 			Vector2(WIN_PAD, -640), Vector2(-WIN_PAD, -592))
 	_win_retry = UiKit.link(_win_retry_row, "retry", "RETRY FOR PAR",
 			funcref(self, "_on_reset"), 21, Palette.INK)
 
-	_win_outs_row = UiKit.rect(l, "outs", Vector2(0, 1), Vector2(1, 1),
+	_win_outs_row = UiKit.rect(_card_side, "outs", Vector2(0, 1), Vector2(1, 1),
 			Vector2(WIN_PAD, -700), Vector2(-WIN_PAD, -652))
 	var v_slot := UiKit.rect(_win_outs_row, "v", Vector2(0, 0), Vector2(0.5, 1), Vector2.ZERO, Vector2.ZERO)
 	UiKit.link(v_slot, "vaults", "VAULTS", funcref(self, "_on_vaults"), 20)
@@ -2095,7 +2481,9 @@ func _play_next() -> void:
 func _flow_win() -> void:
 	# measured downward from the top of the plate, because that is the frame the
 	# offsets are in — the foot is just where we start
-	_flow_y = Layout.plate_height() - WIN_FOOT
+	# The measured floor, for the reason the pause card's note gives — these two
+	# are the same object seen twice and they flow the same way.
+	_flow_y = Layout.plate_size().y - (24.0 if Layout.is_landscape() else WIN_FOOT)
 
 	_place(_win_outs_row, Access.TAP_TARGET, 18.0)
 	_place(_win_retry_row, Access.TAP_TARGET, 26.0)
@@ -2106,9 +2494,15 @@ func _flow_win() -> void:
 	# up — as equal air above and below a panel, which is a composition, rather than
 	# as a gap at one end, which is a screen that failed to finish loading.
 	# _flow_y is now the top of the stack — the last _place took no gap after it.
-	var mid := (WIN_HEAD + _flow_y) * 0.5
+	# TURNED, THE INSTRUMENT IS NOT BETWEEN THE HEAD AND THE STACK — they are in
+	# different columns. It takes the middle of what is left under the head on its
+	# own side, which is the same sentence with the stack's height taken out of it.
+	var floor_y: float = _flow_y if not Layout.is_landscape() \
+			else Layout.plate_size().y - 24.0
+	var mid := (WIN_HEAD + floor_y) * 0.5
+	var pad: float = 40.0 if Layout.is_landscape() else WIN_PAD
 	_win_stats.anchor_to(Vector2(0, 1), Vector2(1, 1),
-			Vector2(WIN_PAD, -(mid + STATS_H * 0.5)), Vector2(-WIN_PAD, -(mid - STATS_H * 0.5)))
+			Vector2(pad, -(mid + STATS_H * 0.5)), Vector2(-pad, -(mid - STATS_H * 0.5)))
 
 
 var _flow_y := 0.0
@@ -2117,8 +2511,9 @@ var _flow_y := 0.0
 func _place(r: UiRect, h: float, gap: float) -> void:
 	if not r.visible:
 		return
+	var pad: float = 24.0 if Layout.is_landscape() else WIN_PAD
 	r.anchor_to(Vector2(0, 1), Vector2(1, 1),
-			Vector2(WIN_PAD, -_flow_y), Vector2(-WIN_PAD, -(_flow_y - h)))
+			Vector2(pad, -_flow_y), Vector2(-pad, -(_flow_y - h)))
 	_flow_y -= h + gap
 
 

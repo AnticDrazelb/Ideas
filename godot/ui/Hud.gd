@@ -358,12 +358,14 @@ func _compose_bands() -> void:
 # same order as the portrait screen read from the top of the display to the
 # bottom of it, which is the point: nothing has moved relative to anything else,
 # the whole strip has just been stood up.
-const RAIL_PAD := 16.0
+const RAIL_PAD := 12.0
 const RAIL_CHIP := 74.0
+const RAIL_CHIP_FLOOR := 50.0
 const RAIL_CHIP_GAP := 10.0
-const RAIL_LINE := 30.0
-const RAIL_BTN := 84.0
-const RAIL_BTN_GAP := 12.0
+const RAIL_LINE := 26.0
+const RAIL_BTN := Access.TAP_TARGET
+const RAIL_BTN_GAP := 10.0
+const RAIL_RULE_GAP := 18.0
 
 # TWO BY TWO, NOT FOUR DOWN. Four chips, three lines of identity, a rule and
 # three controls come to seven hundred and thirty-six units stacked, and a turned
@@ -373,9 +375,48 @@ const RAIL_BTN_GAP := 12.0
 # node counts are, and what is left to do.
 const RAIL_CHIP_GRID_GAP := 10.0
 
-# Everything above the controls, measured down from the top of the rail. Written
-# once because three things below hang off the end of it.
-const RAIL_HEAD := RAIL_PAD + RAIL_CHIP * 2.0 + RAIL_CHIP_GRID_GAP + 22.0
+# The three controls off the bottom, and the air under them.
+const RAIL_FOOT := RAIL_PAD + RAIL_BTN * 3.0 + RAIL_BTN_GAP * 2.0
+
+# THE RAIL IS LAID OUT AGAINST THE HEIGHT IT WAS GIVEN, NOT THE ONE IT WANTED.
+#
+# Sixteen by nine turned leaves five hundred and seventy-five units of plate and
+# everything fits at its authored size. Twenty by nine — most phones, and exactly
+# the ones somebody turns sideways — leaves five hundred and seven, and twenty-one
+# by nine leaves four hundred and seventy-eight. Something has to give at each
+# step, and the order it gives in is a ranking of what the rail is FOR:
+#
+#   the three controls never give. A target a finger cannot hit is not a control.
+#   the chips give first, down to fifty. A reading in a shorter box is a reading.
+#   the vault's name goes last, onto the same line as the cube's, because two
+#   lines of provenance is the one thing here nobody is looking at mid-fold.
+#
+# All three questions are answered from one number so they cannot disagree.
+const RAIL_ID_ONE := RAIL_LINE + 4.0
+const RAIL_ID_TWO := RAIL_LINE * 2.0 + 4.0
+
+
+static func rail_two_lines() -> bool:
+	return _rail_free(RAIL_ID_TWO) * 0.5 >= RAIL_CHIP_FLOOR
+
+
+static func rail_id_h() -> float:
+	return RAIL_ID_TWO if rail_two_lines() else RAIL_ID_ONE
+
+
+static func rail_chip_h() -> float:
+	return clamp(_rail_free(rail_id_h()) * 0.5, RAIL_CHIP_FLOOR, RAIL_CHIP)
+
+
+# What the two rows of chips have left after everything that is not a chip.
+static func _rail_free(id_h: float) -> float:
+	return Layout.plate_size().y - RAIL_PAD - RAIL_CHIP_GRID_GAP - 22.0 \
+			- id_h - RAIL_RULE_GAP - RAIL_FOOT
+
+
+# Everything above the identity lines, measured down from the top of the rail.
+static func rail_head() -> float:
+	return RAIL_PAD + rail_chip_h() * 2.0 + RAIL_CHIP_GRID_GAP + 22.0
 
 
 func _compose_rail() -> void:
@@ -413,22 +454,33 @@ func _compose_rail() -> void:
 	# WHICH CUBE, AND WHOSE. Three lines under the readings rather than one line
 	# beside them: a rail is narrow, and "VAULT I · THE COLLAPSE" set beside a
 	# number is either shrunk past reading or run off the metal.
-	var top: float = -RAIL_HEAD
+	var top: float = -rail_head()
+	var two := rail_two_lines()
 	_lv_no = UiKit.label(rail, "lvNo", "—", 22, Palette.rust(), UiKit.Anchor.MIDDLE_LEFT,
-			Vector2(0, 1), Vector2(0.3, 1), Vector2(16, top - RAIL_LINE), Vector2(0, top))
+			Vector2(0, 1), Vector2(0.14 if not two else 0.22, 1),
+			Vector2(16, top - RAIL_LINE), Vector2(0, top))
 	_lv_name = UiKit.label(rail, "lvName", "—", 22, Palette.dim(), UiKit.Anchor.MIDDLE_LEFT,
-			Vector2(0.3, 1), Vector2(1, 1), Vector2(0, top - RAIL_LINE), Vector2(-16, top))
-	_vault = UiKit.label(rail, "vault", "", 20, Palette.dim(), UiKit.Anchor.MIDDLE_LEFT,
-			Vector2(0, 1), Vector2(1, 1),
-			Vector2(16, top - RAIL_LINE * 2.0 - 4.0), Vector2(-16, top - RAIL_LINE - 4.0))
+			Vector2(0.14 if not two else 0.22, 1), Vector2(0.50 if not two else 1.0, 1),
+			Vector2(0, top - RAIL_LINE), Vector2(0 if not two else -16, top))
+	if two:
+		_vault = UiKit.label(rail, "vault", "", 20, Palette.dim(), UiKit.Anchor.MIDDLE_LEFT,
+				Vector2(0, 1), Vector2(1, 1),
+				Vector2(16, top - RAIL_ID_TWO), Vector2(-16, top - RAIL_LINE - 4.0))
+	else:
+		# ONE LINE, AND THE VAULT GOES ON THE END OF IT. On the shortest turned
+		# plate there is no room for a second row of provenance, so what is left
+		# is the two facts side by side and the wider of them shrinking.
+		_vault = UiKit.label(rail, "vault", "", 18, Palette.dim(), UiKit.Anchor.MIDDLE_RIGHT,
+				Vector2(0.50, 1), Vector2(1, 1),
+				Vector2(6, top - RAIL_LINE), Vector2(-16, top))
 	UiKit.fit(_lv_name, 14)
-	UiKit.fit(_vault, 13)
+	UiKit.fit(_vault, 11)
 
 	# The rule closes the readings, the way it closes the band held. Under the
 	# identity rather than over it, because there is nothing above it to separate.
 	var rule := UiKit.rule(rail, 1.0)
 	(rule.get_parent() as UiRect).set_anchored_position(
-			Vector2(0, top - RAIL_LINE * 2.0 - 20.0))
+			Vector2(0, top - rail_id_h() - RAIL_RULE_GAP + 4.0))
 
 	# and the three controls, stacked off the bottom
 	for k in range(3):
@@ -443,11 +495,12 @@ func _compose_rail() -> void:
 func _rail_chip(rail: Control, node_name: String, i: int, hue: Color) -> UiRect:
 	var col: float = float(i % 2)
 	var row: float = float(i / 2)
-	var y: float = -(RAIL_PAD + (row + 1.0) * RAIL_CHIP + row * RAIL_CHIP_GRID_GAP)
+	var ch := rail_chip_h()
+	var y: float = -(RAIL_PAD + (row + 1.0) * ch + row * RAIL_CHIP_GRID_GAP)
 	var gap := RAIL_CHIP_GAP * 0.5
 	var rt := UiKit.rect(rail, node_name, Vector2(col * 0.5, 1), Vector2((col + 1.0) * 0.5, 1),
 			Vector2(12.0 if col == 0.0 else gap, y),
-			Vector2(-gap if col == 0.0 else -12.0, y + RAIL_CHIP))
+			Vector2(-gap if col == 0.0 else -12.0, y + ch))
 	UiKit.framed(rt, Color(hue.r, hue.g, hue.b, 0.10), Color(hue.r, hue.g, hue.b, 0.80))
 	return rt
 

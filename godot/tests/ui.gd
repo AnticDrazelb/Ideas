@@ -279,18 +279,39 @@ func _outside_by(box: Rect2, band: Rect2) -> String:
 const WIDEST_ASPECT := 0.68
 
 
+# AND THE OTHER SIDE OF THE SAME LINE.
+#
+# The game answers two shapes now: a phone held, and a device turned. Between
+# them — a four-by-three tablet in PORTRAIT, an aspect from 0.68 up to the 1.18
+# where Chassis calls it landscape — is a shape neither arrangement is authored
+# for: too wide for a column of full-width rows, not wide enough for two of them.
+# Saying so once is still worth more than fifty symptoms of it.
 func _envelope() -> bool:
 	var screen := Layout.screen_size()
 	var aspect: float = screen.x / max(1.0, screen.y)
-	if aspect <= WIDEST_ASPECT:
+	if aspect <= WIDEST_ASPECT or Layout.is_landscape():
 		return true
 	var canvas: Vector2 = screen / max(0.0001, Layout.canvas_scale())
-	print("  ! [envelope] aspect %.2f is outside the portrait shape the game is authored for" % aspect)
+	print("  ! [envelope] aspect %.2f is between the two shapes the game is authored for" % aspect)
 	print("  ! [envelope] (%.0f units of canvas height; the reference portrait has 1280)" % canvas.y)
 	return false
 
 
 func _show(id: String) -> void:
+	# THE CHAPTER WORD LEAVES ON ITS OWN, AND IT WAS STILL LEAVING THREE SCREENS
+	# LATER.
+	#
+	# It is the one screen in the game with no way out drawn on it: it types
+	# itself, waits, and then calls show(null). The audit puts it up like any
+	# other screen and moves on — so a few seconds afterwards, in the middle of
+	# auditing the forge or the editor, the word's own clock ran out and took the
+	# screen down underneath the measurement. The audit then found nothing, and
+	# reported no faults, because everything it checks iterates over what it
+	# gathered. Two runs in three, and which screen it landed on depended on how
+	# fast the machine was.
+	if Screens.chapter_up():
+		Screens.i()._close_chapter()
+
 	var sc = Screens.i()
 	match id:
 		"win":
@@ -344,6 +365,25 @@ func _gather(from: Node, into: Array) -> void:
 # right place at the wrong size — 1.78x too big here, which is enough to invent
 # a collision on every control in the game and to report the whole readout as
 # hanging off the bezel. The transform carries both; this asks it for both.
+# A LABEL'S TEXT, FIT FOR ONE LINE OF A REPORT. A body with a newline in it cut
+# every fault after it out of the listing — the message ended mid-sentence and
+# the next line of the report was the rest of somebody's paragraph.
+static func _say(t: String, n: int) -> String:
+	return t.replace("\n", " / ").substr(0, n)
+
+
+# Whether anything above this control scrolls. A control below the fold of a
+# scrolling page is where it should be; a control below the fold of a plate is
+# not.
+static func _in_scroll(c: Node) -> bool:
+	var n := c.get_parent()
+	while n != null:
+		if n is ScrollContainer:
+			return true
+		n = n.get_parent()
+	return false
+
+
 func _rect(c: Control) -> Rect2:
 	var t := c.get_global_transform_with_canvas()
 	return Rect2(t.origin, c.rect_size * t.get_scale())
@@ -434,15 +474,26 @@ func _audit(where: String, root: Node) -> void:
 			labels.append(c)
 
 	_checked += presses.size() + labels.size()
+	if OS.get_environment("UI_VERBOSE") != "":
+		print("    %-10s %d pressable, %d words" % [where, presses.size(), labels.size()])
 
-	if where == "vaults":
-		var sc2: float = max(0.0001, Layout.canvas_scale())
-		for c in all:
-			if c.name in ["head", "prev", "next", "vaultName", "plate"]:
-				var rr := _rect(c)
-				print("    %-10s %-14s x %.0f..%.0f  w %.0f  parent %s" % [
-						c.name, c.get_class(), rr.position.x / sc2, rr.end.x / sc2,
-						rr.size.x / sc2, c.get_parent().name])
+	# A SCREEN THAT MEASURES NOTHING IS NOT A SCREEN THAT PASSES.
+	#
+	# Every check below iterates over what was gathered, so a screen the audit
+	# never saw reports zero faults and is indistinguishable in the total from one
+	# that was measured and was clean. That is the one failure mode an audit must
+	# not have, and it happened: the forge editor came back empty on two runs in
+	# three and the sweep said every shape was clean.
+	if presses.empty() and labels.empty():
+		var vis: bool = root is CanvasItem and (root as CanvasItem).visible
+		var up := []
+		for k in Screens.i()._layers.keys():
+			var n = Screens.i()._layers[k]
+			if n != null and n.visible:
+				up.append(k)
+		_fault(where, "measured nothing — the layer is %s and has %d children; showing %s"
+				% ["visible" if vis else "HIDDEN", root.get_child_count(), str(up)])
+		return
 
 	# ---- EMPTY: built and unpressable
 	for p in presses:
@@ -487,11 +538,13 @@ func _audit(where: String, root: Node) -> void:
 			if over.size.x > 2.0 and over.size.y > 2.0:
 				var f2 = l.get_font("font")
 				var lb := _rect(l)
-				_fault(where, "'%s' into %s  ink %.0f..%.0f  box %.0f..%.0f  ctrl %.0f..%.0f  %dpt"
-						% [l.text.substr(0, 20), p.name,
+				_fault(where, "'%s' into %s  ink x %.0f..%.0f y %.0f..%.0f  ctrl x %.0f..%.0f y %.0f..%.0f  box %.0f..%.0f  %dpt"
+						% [_say(l.text, 20), p.name,
 						li.position.x / scale, li.end.x / scale,
-						lb.position.x / scale, lb.end.x / scale,
+						li.position.y / scale, li.end.y / scale,
 						pr.position.x / scale, pr.end.x / scale,
+						pr.position.y / scale, pr.end.y / scale,
+						lb.position.x / scale, lb.end.x / scale,
 						int(f2.size) if f2 is DynamicFont else 0])
 
 	# ---- BOUNDS: nothing on the metal
@@ -519,4 +572,38 @@ func _audit(where: String, root: Node) -> void:
 		var over: float = max(glass.position.x - li2.position.x, li2.end.x - glass.end.x)
 		if over > slack:
 			_fault(where, "'%s' reaches the bezel by %.1f units"
-					% [l.text.substr(0, 28), over / scale])
+					% [_say(l.text, 28), over / scale])
+
+	# ---- AND THE OTHER TWO EDGES, which nothing was checking
+	#
+	# The rule is "no word ever sits on the metal" and it has four sides. Only two
+	# of them were measured, because on a portrait phone a column that overruns
+	# runs out of the BOTTOM and that had never happened — every screen was
+	# authored against the one plate it was ever shown on.
+	#
+	# Turned, it happens immediately: the forge editor sizes its deck against
+	# Layout.plate_height, which is the authored eleven hundred and twenty-eight
+	# and not the five hundred and seventy-five a landscape display leaves, so
+	# the deck and every band under it were drawn off the end of the machine. The
+	# audit reported no faults, because nothing it measured was horizontal.
+	# NOT CLIPPED FIRST, WHICH IS THE WHOLE POINT. Screens.layer clips every plate
+	# to the glass, so a control drawn off the bottom is invisible rather than on
+	# the metal — and a check that measures what is left after the clip can never
+	# see it. This measures where the layout PUT it.
+	#
+	# A scroll is the one legitimate reason to be outside: the page is longer than
+	# the window and the reader brings the rest up. Everything else that is mostly
+	# outside is a control the player cannot reach.
+	for c in presses + labels:
+		if _in_scroll(c):
+			continue
+		var cr: Rect2 = _rect(c)
+		if cr.size.x < 1.0 or cr.size.y < 1.0:
+			continue
+		var seen := cr.clip(glass)
+		var area: float = cr.size.x * cr.size.y
+		if area <= 0.0 or seen.size.x * seen.size.y >= area * 0.5:
+			continue
+		var down: float = max(glass.position.y - cr.position.y, cr.end.y - glass.end.y)
+		_fault(where, "%s is %.0f units off the plate, %s" % [c.name, max(0.0, down) / scale,
+				"above the top" if cr.position.y < glass.position.y else "below the floor"])

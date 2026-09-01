@@ -176,6 +176,21 @@ static func chassis_bottom() -> float:
 # The reference numbers rather than the live rect, deliberately: these are read
 # while the screen is being BUILT, before any layout has happened and while every
 # rect in the game still measures zero.
+# THE OPENING AS IT ACTUALLY CAME OUT, in canvas units.
+#
+# plate_width and plate_height below are the AUTHORED reference: the numbers a
+# portrait screen is composed against, deliberately fixed so that a screen being
+# built — when every rect in the game still measures zero — has something to
+# divide. This is the measured one, and the turned layouts need it: a sixteen by
+# nine display turned gives six hundred and one units of height and a twenty by
+# nine gives five hundred and thirty-three, and the difference decides whether a
+# panel is two columns or three.
+static func plate_size() -> Vector2:
+	var g := glass_rect()
+	var k: float = max(0.0001, canvas_scale())
+	return Vector2(max(1.0, g.size.x / k), max(1.0, g.size.y / k))
+
+
 static func plate_width() -> float:
 	return REF_WIDTH - chassis_left() - chassis_right()
 

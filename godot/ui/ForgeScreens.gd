@@ -64,6 +64,13 @@ const ED_TOP := 84.0
 const ED_FOOT := 28.0
 const ED_SIDE := 40.0
 
+# The palette's column when the device is turned, and how much air is over it.
+const ED_COLUMN := 560.0
+const ED_TOP_TURNED := 24.0
+const ED_SIDE_TURNED := 22.0
+
+var _ed_scroll = null
+
 # Which cube DELETE is currently armed for. Cleared by leaving the screen.
 var _armed_delete = null
 
@@ -82,16 +89,37 @@ static func build(dir) -> void:
 
 # ---- the shelf -------------------------------------------------------------
 
+# The column beside the shelf when the device is turned: the paste field and its
+# LOAD, and NEW CUBE beside BACK, which is the widest pair.
+const SHELF_COLUMN := 500.0
+
+
 func _build_shelf() -> void:
 	var l := Screens.layer("forge")
 	Screens.solid_layer(l)
 
-	_shelf_count = UiKit.label(l, "count", "FORGE", 34, Palette.INK, UiKit.Anchor.UPPER_CENTER,
-			Vector2(0, 1), Vector2(1, 1), Vector2(0, -140), Vector2(0, -90))
+	# THE SHELF IS THE VAULT RACK AGAIN, and it turns the same way.
+	#
+	# Held it is a stack: how many, the cubes, a place to paste a code, and the
+	# two ways on. The stack is three hundred and fifty-four units under the rack
+	# and a hundred and seventy over it, and a turned plate has five hundred and
+	# seventy-five all told — which leaves fifty for the thing the screen is
+	# about. So the four things above and below the rack become a column beside
+	# it, exactly as they do on the vault screen.
+	var turned := Layout.is_landscape()
+	var side: Control = l
+	if turned:
+		side = UiKit.rect(l, "side", Vector2(1, 0), Vector2(1, 1),
+				Vector2(-SHELF_COLUMN, 0), Vector2(0, 0))
+
+	_shelf_count = UiKit.label(side, "count", "FORGE", 34, Palette.INK, UiKit.Anchor.UPPER_CENTER,
+			Vector2(0, 1), Vector2(1, 1),
+			Vector2(0, -100 if turned else -140), Vector2(0, -56 if turned else -90))
 
 	# the rack stops above the import row, which grew to a finger — see below
 	_shelf_grid = UiKit.rect(l, "grid", Vector2(0, 0), Vector2(1, 1),
-			Vector2(40, 354), Vector2(-40, -170))
+			Vector2(40, 40 if turned else 354),
+			Vector2(-(40 + SHELF_COLUMN) if turned else -40, -(40 if turned else 170)))
 
 	# THE CODE IS THE CARGO. A generated cube has a seed because a seed is what made
 	# it; an authored cube was not made by anything, so the code has to carry the
@@ -99,14 +127,14 @@ func _build_shelf() -> void:
 	# EIGHTY-EIGHT. A text field and the button beside it are sixty-six units tall
 	# in the C#, which is a field somebody has to hit while holding a phone and a
 	# code they have to paste into it.
-	var row := UiKit.rect(l, "importRow", Vector2(0, 0), Vector2(1, 0),
+	var row := UiKit.rect(side, "importRow", Vector2(0, 0), Vector2(1, 0),
 			Vector2(40, 250), Vector2(-40, 338))
 	_import_field = UiKit.field(row, "code", "PASTE A CUBE CODE",
 			Vector2(0, 0), Vector2(0.72, 1), Vector2.ZERO, Vector2(-8, 0))
 	var load_slot := UiKit.rect(row, "loadSlot", Vector2(0.72, 0), Vector2.ONE, Vector2.ZERO, Vector2.ZERO)
 	UiKit.bracketed(load_slot, "load", "LOAD", funcref(self, "_do_import"), 24)
 
-	_shelf_msg = UiKit.label(l, "msg", "", 18, Palette.dim(), UiKit.Anchor.UPPER_CENTER,
+	_shelf_msg = UiKit.label(side, "msg", "", 18, Palette.dim(), UiKit.Anchor.UPPER_CENTER,
 			Vector2(0, 0), Vector2(1, 0), Vector2(40, 210), Vector2(-40, 246))
 
 	# SIDE BY SIDE, NOT STACKED. Two full-width bars in a hundred pixels gives two
@@ -115,7 +143,7 @@ func _build_shelf() -> void:
 	# these two are alternatives to each other rather than steps in a sequence, which
 	# is what a row says and a stack does not.
 	# and the two below it, which were six units short of the same rule
-	var bot := UiKit.rect(l, "bot", Vector2(0, 0), Vector2(1, 0), Vector2(50, 96), Vector2(-50, 184))
+	var bot := UiKit.rect(side, "bot", Vector2(0, 0), Vector2(1, 0), Vector2(50, 96), Vector2(-50, 184))
 	var mk := UiKit.rect(bot, "mk", Vector2(0, 0), Vector2(0.5, 1), Vector2.ZERO, Vector2(-7, 0))
 	# RESUME, NOT NEW. The editor mirrors itself into a draft after every change, so
 	# the cube somebody was halfway through when Android reclaimed the app is still
@@ -219,7 +247,26 @@ func _build_editor() -> void:
 	# it: the deck.
 	_bands.clear()
 
-	var bar := _band(l, "deckBar", 60)
+	# TURNED, THE DECK IS THE LEFT PANEL AND THE TOOLS SCROLL BESIDE IT.
+	#
+	# The editor is nine bands and a deck. The bands alone come to six hundred and
+	# sixty-six units before the deck gets anything, and a turned plate has five
+	# hundred and seventy-five — so there is no arrangement of one column that
+	# holds them, and no arrangement of two that holds them either.
+	#
+	# What there IS, turned, is width and a square: the deck takes the full height
+	# on the left, which is the biggest it has ever been, and the nine bands go
+	# down a column on the right that scrolls when it has to. A dense tool that
+	# scrolls its palette is a normal thing; a dense tool that draws half its
+	# palette off the bottom of the machine is not.
+	var turned := Layout.is_landscape()
+	var host: Control = l
+	if turned:
+		_ed_scroll = UiKit.scroll(l, "edScroll", Vector2(1, 0), Vector2(1, 1),
+				Vector2(-ED_COLUMN, ED_FOOT), Vector2(0, -ED_TOP_TURNED))
+		host = _ed_scroll.content
+
+	var bar := _band(host, "deckBar", 60)
 	var dn := UiKit.rect(bar, "dn", Vector2(0, 0), Vector2(0.22, 1), Vector2.ZERO, Vector2.ZERO)
 	UiKit.bracketed(dn, "dn", "<", funcref(self, "_deck_down"), 24)
 	_deck_label = UiKit.label(bar, "deck", "DECK 1 / 5", 24, Palette.INK, UiKit.Anchor.MIDDLE_CENTER,
@@ -232,7 +279,7 @@ func _build_editor() -> void:
 	# saveable cube is named, in a sentence, above the deck. Always one thing and
 	# never a checklist: a checklist is read once, and a next step is read every time
 	# it changes.
-	_coach = _band(l, "coach", 54)
+	_coach = _band(host, "coach", 54)
 	var r := Palette.rust()
 	UiKit.framed(_coach, Palette.PANEL_HI, Color(r.r, r.g, r.b, 0.6))
 	_coach_n = UiKit.label(_coach, "n", "1", 17, Palette.rust(), UiKit.Anchor.MIDDLE_CENTER,
@@ -263,9 +310,9 @@ func _build_editor() -> void:
 	# the price of the cells being right.
 	_deck = UiKit.rect(_slice, "deck", Vector2(0.5, 0.5), Vector2(0.5, 0.5), Vector2.ZERO, Vector2.ZERO)
 
-	_tool_row = _band(l, "tools", 118)
+	_tool_row = _band(host, "tools", 118)
 
-	var name_row := _band(l, "nameRow", 62)
+	var name_row := _band(host, "nameRow", 62)
 	_name_field = UiKit.field(name_row, "name", "NAME THIS CUBE",
 			Vector2(0, 0), Vector2(0.72, 1), Vector2.ZERO, Vector2(-8, 0))
 	_name_field.line.max_length = 18
@@ -279,13 +326,13 @@ func _build_editor() -> void:
 	# The code used to be printed into the verdict line next to a clipboard call that
 	# does not exist offline. It was on screen and there was no way on earth to get it
 	# off — so it lives in a selectable field.
-	_code_band = _slot(l, "codeRow", 58)
+	_code_band = _slot(host, "codeRow", 58)
 	_code_field = UiKit.field(_code_band.rt, "code", "", Vector2.ZERO, Vector2.ONE, Vector2.ZERO, Vector2.ZERO)
 	# `editable`, not `readonly` — Godot's LineEdit spells the negative form and
 	# has no property by the other name at all.
 	_code_field.line.editable = false
 
-	var msg_row := _band(l, "msg", 30)
+	var msg_row := _band(host, "msg", 30)
 	_ed_msg = UiKit.label(msg_row, "msg", "", 18, Palette.dim(), UiKit.Anchor.MIDDLE_CENTER,
 			Vector2.ZERO, Vector2.ONE, Vector2.ZERO, Vector2.ZERO)
 
@@ -296,18 +343,18 @@ func _build_editor() -> void:
 	# screen looked like it wanted was a button that could not work yet. The plate
 	# follows the coach now: VERIFY until the cube is proved, SAVE once it is. See
 	# UiKit.set_primary for why both have to be built this way.
-	var two := _band(l, "two", 62)
+	var two := _band(host, "two", 62)
 	var v_slot := UiKit.rect(two, "v", Vector2(0, 0), Vector2(0.5, 1), Vector2.ZERO, Vector2(-6, 0))
 	_verify_btn = UiKit.bracketed(v_slot, "verify", "VERIFY", funcref(self, "_do_verify"), 24, true)
 	var s_slot := UiKit.rect(two, "s", Vector2(0.5, 0), Vector2.ONE, Vector2(6, 0), Vector2.ZERO)
 	_save_btn = UiKit.bracketed(s_slot, "save", "SAVE", funcref(self, "_do_save"), 24, true)
 
-	var three := _band(l, "three", 58)
+	var three := _band(host, "three", 58)
 	_third(three, 0, "PLAY", "_do_play")
 	_third(three, 1, "BACK", "_on_back")
 	_third(three, 2, "MENU", "_on_menu")
 
-	_del_band = _slot(l, "del", 56)
+	_del_band = _slot(host, "del", 56)
 	# DELETING IS THE ONE THING IN THE FORGE THAT CANNOT BE UNDONE.
 	#
 	# There is no bin and no undo: once the cube is gone the only copy left is
@@ -381,21 +428,38 @@ func _flow_editor() -> void:
 		if b.on and b != _slice_band:
 			taken += b.h + b.gap
 
-	_slice_band.h = max(240.0,
-			Layout.plate_height() - ED_TOP - ED_FOOT - taken - _slice_band.gap)
+	var plate := Layout.plate_size()
+	var turned: bool = _ed_scroll != null
 
-	var y := ED_TOP
+	if turned:
+		# THE DECK TAKES THE LEFT OF THE PLATE, whole. It is not in the flow at
+		# all any more, so its height is the plate's rather than what nine bands
+		# left over.
+		_slice_band.h = max(240.0, plate.y - ED_TOP_TURNED - ED_FOOT)
+		_slice_band.rt.anchor_to(Vector2(0, 0), Vector2(1, 1),
+				Vector2(ED_SIDE, ED_FOOT),
+				Vector2(-(ED_COLUMN + ED_SIDE), -ED_TOP_TURNED))
+	else:
+		_slice_band.h = max(240.0,
+				Layout.plate_height() - ED_TOP - ED_FOOT - taken - _slice_band.gap)
+
+	var pad: float = ED_SIDE_TURNED if turned else ED_SIDE
+	var y: float = 0.0 if turned else ED_TOP
 	for b in _bands:
 		if b.rt.visible != b.on:
 			b.rt.visible = b.on
-		if not b.on:
+		if not b.on or (turned and b == _slice_band):
 			continue
 		b.rt.anchor_to(Vector2(0, 1), Vector2(1, 1),
-				Vector2(ED_SIDE, -(y + b.h)), Vector2(-ED_SIDE, -y))
+				Vector2(pad, -(y + b.h)), Vector2(-pad, -y))
 		y += b.h + b.gap
+	if turned:
+		_ed_scroll.end_scroll(y + 12.0)
 
 	# and the deck is the largest square the band will hold
-	var side: float = min(Layout.plate_width() - ED_SIDE * 2.0, _slice_band.h)
+	var room: float = (plate.x - ED_COLUMN - ED_SIDE * 2.0) if turned \
+			else (Layout.plate_width() - ED_SIDE * 2.0)
+	var side: float = min(room, _slice_band.h)
 	_deck.set_size_delta(Vector2(side, side))
 	_deck.set_anchored_position(Vector2.ZERO)
 

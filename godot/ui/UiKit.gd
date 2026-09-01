@@ -365,11 +365,27 @@ static func _size_of(t: Label) -> int:
 # minimum never bites, and it is why the vault heading printed over both of its
 # arrows on a taller phone with fit() reporting that everything was in order.
 #
-# The parent is the rect the layout actually gave this label, and it is the only
-# honest answer to "how much room is there".
+# THE PARENT IS NOT THE ANSWER EITHER, and this is the second half of the same
+# bug. A label parented to a box that is exactly its own rect gets the right
+# number from the parent; a label ANCHORED to a fraction of a wider parent — the
+# vault name in the play rail is half of it, the readout's identity line is a
+# third — gets the whole parent back and believes it has twice the room it has.
+# It then never shrinks, and the string runs off the end of the plate with fit()
+# reporting that everything is in order.
+#
+# So the box is what the ANCHORS say: the share of the parent this label was
+# given, plus its own two offsets. That is the rectangle the layout would have
+# handed it if the text were not pushing back, which is the only honest answer to
+# "how much room is there" — and it is the same answer as the parent's width in
+# the case where the label fills its parent, which is what the note above was
+# reaching for.
 static func _box_of(t: Label) -> float:
-	var p := t.get_parent()
-	return (p as Control).rect_size.x if p is Control else t.rect_size.x
+	var p := t.get_parent() as Control
+	if p == null:
+		return t.rect_size.x
+	var w: float = p.rect_size.x * (t.anchor_right - t.anchor_left) \
+			+ t.margin_right - t.margin_left
+	return w if w > 1.0 else p.rect_size.x
 
 
 static func _refit(t: Label) -> void:

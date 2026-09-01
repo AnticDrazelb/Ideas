@@ -5,7 +5,7 @@
 # because a screen is built once at boot and the honest question is what it looks
 # like when it was built for THIS display rather than resized onto it.
 #
-# Six phones and three turned shapes. The turned ones are the whole reason the
+# Six phones and five turned shapes. The turned ones are the whole reason the
 # list is written down: a change that helps landscape and quietly costs portrait
 # is a change nobody would notice until it shipped.
 #
@@ -14,7 +14,7 @@
 set -e
 DIR=$(cd "$(dirname "$0")/.." && pwd)
 GODOT=${GODOT:-godot3}
-SHAPES=${SHAPES:-"320x568 360x640 405x720 414x896 480x800 540x960 1280x720 800x480 1024x768"}
+SHAPES=${SHAPES:-"320x568 360x640 405x720 414x896 480x800 540x960 1280x720 2340x1080 2560x1080 800x480 1024x768"}
 python3 "$DIR/tools/classes.py" >/dev/null
 bad=0
 for s in $SHAPES; do

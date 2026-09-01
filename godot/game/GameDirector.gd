@@ -407,7 +407,16 @@ func _on_plate_tick(seconds: int) -> void:
 # rest is air. 1.53 is the C#'s number and it is four pixels short on a taller
 # phone, where the title band is a different shape — measured across the whole
 # cycle by tests/ui.gd rather than judged from one pose.
-const ATTRACT_MARGIN := 1.60
+#
+# AND SIX PIXELS SHORT AGAIN WHEN THE DEVICE TURNS, for a reason worth writing
+# down: held, the title's band is six hundred wide and a hundred and eighty tall,
+# so the fit takes the height and a lean has three hundred units of spare WIDTH
+# to lean into. Turned the band is very nearly square — the cube is the left
+# panel of the front screen now — and there is no spare axis at all, so the pose
+# that was always the worst one is the first pose that has ever been measured
+# against a rectangle its own shape. 1.68 is what it costs, everywhere, and four
+# per cent off the attract cube is not a thing anyone can see.
+const ATTRACT_MARGIN := 1.68
 
 
 func show_attract() -> void:
