@@ -390,6 +390,22 @@ func _build_title() -> void:
 	_tint(l, Color(0, 0, 0, 0))
 	UiKit.stage(l)
 
+	# TWO SHAPES, ONE SCREEN. Held, the masthead is over the machine and the five
+	# controls are under it. Turned there is no height for that — the type and the
+	# controls alone come to eight hundred units and a turned phone has six
+	# hundred and twenty-five — and there is width to spare instead, so the words
+	# and the controls go in a column down the right and the cube takes the rest.
+	# See Layout.title_rect, which is the other half of the same decision.
+	var b: UiButton
+	if Layout.is_landscape():
+		b = _title_turned(l)
+	else:
+		b = _title_held(l)
+
+	_play_label = b.label_node()
+
+
+func _title_held(l: UiRect) -> UiButton:
 	UiKit.label(l, "wordmark1", "SINGULARITY", 66, Palette.INK, UiKit.Anchor.UPPER_CENTER,
 			Vector2(0, 1), Vector2(1, 1), Vector2(0, -170), Vector2(0, -90))
 	UiKit.label(l, "wordmark2", "ENGINE", 66, Palette.rust(), UiKit.Anchor.UPPER_CENTER,
@@ -429,17 +445,84 @@ func _build_title() -> void:
 
 	var go := UiKit.rect(col, "CONTINUE", Vector2(0, 1), Vector2(1, 1),
 			Vector2(0, -UiKit.PRIMARY_H), Vector2(0, 0))
-	var b := UiKit.bracketed(go, "CONTINUE", "CONTINUE", funcref(self, "_on_continue"), 30, true)
+	var b: UiButton = UiKit.bracketed(go, "CONTINUE", "CONTINUE", funcref(self, "_on_continue"), 30, true)
 
 	_quad(col, 0, "DAILY", "_on_daily")
 	_quad(col, 1, "VAULTS", "_on_vaults")
 	_make_quad = _quad(col, 2, "FORGE", "_open_forge_or_manual")
 	_quad(col, 3, "CALIBRATE", "_on_calibrate")
 
-	_play_label = b.label_node()
-
 	_foot = UiKit.label(l, "foot", FOOT_LINE, 19, Palette.dim(), UiKit.Anchor.LOWER_CENTER,
 			Vector2(0, 0), Vector2(1, 0), Vector2(0, 40), Vector2(0, 76))
+	return b
+
+
+# THE SAME FIVE THINGS AND THE SAME ORDER, STOOD IN A COLUMN.
+#
+# Masthead hung off the top of the column, controls off its bottom, and whatever
+# height is left becomes air between them rather than being distributed — which
+# is what the held screen does with the ninety units the pitch used to have, and
+# for the same reason: the cube beside this is the best argument the title has
+# and nothing should be crowding it.
+#
+# The wordmark comes down from sixty-six to forty-eight. Five hundred and sixty
+# units is enough width for it at either size; it is the HEIGHT that is not, and
+# a title that has to shed a control to keep its type big has its priorities the
+# wrong way round.
+const TITLE_PAD := 22.0
+const TITLE_WORD := 60.0
+const TITLE_RULE_GAP := 12.0
+const TITLE_QUAD_GAP := 14.0
+
+
+func _title_turned(l: UiRect) -> UiButton:
+	var col := UiKit.rect(l, "titleCol", Vector2(1, 0), Vector2(1, 1),
+			Vector2(-Layout.TITLE_COLUMN, 0), Vector2(0, 0))
+
+	var y := -TITLE_PAD
+	UiKit.label(col, "wordmark1", "SINGULARITY", 48, Palette.INK, UiKit.Anchor.UPPER_CENTER,
+			Vector2(0, 1), Vector2(1, 1), Vector2(24, y - TITLE_WORD), Vector2(-24, y))
+	y -= TITLE_WORD
+	UiKit.label(col, "wordmark2", "ENGINE", 48, Palette.rust(), UiKit.Anchor.UPPER_CENTER,
+			Vector2(0, 1), Vector2(1, 1), Vector2(24, y - TITLE_WORD), Vector2(-24, y))
+	y -= TITLE_WORD + 8.0
+
+	_resume_vault = UiKit.label(col, "resumeVault", "", 19, Palette.rust(),
+			UiKit.Anchor.UPPER_CENTER, Vector2(0, 1), Vector2(1, 1),
+			Vector2(24, y - 26.0), Vector2(-24, y))
+	y -= 26.0
+	_resume_name = UiKit.label(col, "resume", "", 24, Palette.INK,
+			UiKit.Anchor.UPPER_CENTER, Vector2(0, 1), Vector2(1, 1),
+			Vector2(24, y - 32.0), Vector2(-24, y))
+	y -= 32.0 + TITLE_RULE_GAP
+
+	UiKit.panel(col, "mastRule", Palette.rust(), Vector2(0, 1), Vector2(1, 1),
+			Vector2(32, y - 2.0), Vector2(-32, y))
+
+	# the controls, off the bottom, in the same order they are read held
+	var quad_h := UiKit.BTN_H * 2.0 + 12.0
+	var stack := UiKit.rect(col, "buttons", Vector2(0, 0), Vector2(1, 0),
+			Vector2(24, TITLE_PAD),
+			Vector2(-24, TITLE_PAD + quad_h + TITLE_QUAD_GAP + UiKit.PRIMARY_H))
+
+	var go := UiKit.rect(stack, "CONTINUE", Vector2(0, 1), Vector2(1, 1),
+			Vector2(0, -UiKit.PRIMARY_H), Vector2(0, 0))
+	var b: UiButton = UiKit.bracketed(go, "CONTINUE", "CONTINUE",
+			funcref(self, "_on_continue"), 30, true)
+
+	_quad(stack, 0, "DAILY", "_on_daily")
+	_quad(stack, 1, "VAULTS", "_on_vaults")
+	_make_quad = _quad(stack, 2, "FORGE", "_open_forge_or_manual")
+	_quad(stack, 3, "CALIBRATE", "_on_calibrate")
+
+	# THE BUILD LINE GOES UNDER THE MACHINE, NOT UNDER THE CONTROLS. It is the
+	# quietest thing on the screen and the column is the loudest column; the strip
+	# of glass below the cube is where a plate number is stencilled on the real
+	# object anyway.
+	_foot = UiKit.label(l, "foot", FOOT_LINE, 19, Palette.dim(), UiKit.Anchor.LOWER_CENTER,
+			Vector2(0, 0), Vector2(1, 0),
+			Vector2(0, 18), Vector2(-Layout.TITLE_COLUMN, 50))
+	return b
 
 
 func _on_continue(_a = null) -> void:

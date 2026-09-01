@@ -67,6 +67,25 @@ const TITLE_BEHIND := 90.0
 # and crossed the line that is supposed to be the edge of the window. One
 # definition, three consumers now — the stroke, the rect the camera contains the
 # solid inside, and the four fold marks that hang on the stroke's inner edge.
+# THE RAIL, WHICH IS WHAT THE TWO BANDS BECOME WHEN THE DEVICE IS TURNED.
+#
+# Wide enough for "VAULT I · THE COLLAPSE" to be read at twenty and for a control
+# to be pressed with a thumb, and wider than either strictly needs — because the
+# height is what binds the board turned, so every unit the rail does NOT take is
+# a unit of dead glass beside a square cube rather than a bigger one. Three
+# hundred and eighty leaves about eighty either side of the board on a sixteen by
+# nine display, which is the same air the portrait window keeps above and below.
+const RAIL_WIDTH := 380.0
+
+# The front screen's own rail: wider than the play one, because a wordmark set at
+# sixty-six and a primary that says CONTINUE both want the room, and because
+# nothing on this screen is competing with it for the width.
+const TITLE_COLUMN := 560.0
+
+# The air over and under the window, turned. It is small on purpose: nothing
+# lives there, and the board is the thing the height is for.
+const RAIL_CLEAR := 14.0
+
 const APERTURE_X := 16.0
 const APERTURE_Y := 10.0
 
@@ -91,9 +110,13 @@ static func screen_size() -> Vector2:
 
 # The same 1.18 the web build uses: a little past square, so a near-square tablet
 # stays "held".
+#
+# CHASSIS OWNS THE ANSWER, because the case has to know it before this file does
+# — it turns with the device, and every inset below is measured off the turned
+# case. Two copies of one threshold is the bug this codebase keeps finding; the
+# copy that had to exist first is the one that survived.
 static func is_landscape() -> bool:
-	var s := screen_size()
-	return s.x > s.y * 1.18
+	return Chassis.turned()
 
 
 # Whether this device has a touchscreen at all. Cached: it cannot change, and it
@@ -226,6 +249,21 @@ static func title_rect() -> Rect2:
 	var g := glass_rect()
 	var s := canvas_scale()
 
+	# TURNED, THE FRONT SCREEN IS TWO PANELS AND THE MACHINE IS THE LEFT ONE.
+	#
+	# Held, the masthead is over the cube and the controls are under it, which is
+	# the only arrangement six hundred and twenty-five units of width allow. There
+	# is no height for that turned — the type and the five controls alone come to
+	# eight hundred — and there is width to spare instead. So the words and the
+	# controls go in a column down the right and the cube gets the rest, which is
+	# very nearly a square and is the biggest the object has ever been on its own
+	# title screen.
+	if is_landscape():
+		var col := TITLE_COLUMN * s
+		var pad := RAIL_CLEAR * s
+		return Rect2(g.position.x, g.position.y + pad,
+				max(1.0, g.size.x - col), max(1.0, g.size.y - pad * 2.0))
+
 	# The top is the masthead plus the scrim's ramp: the machine may not stand
 	# where the type is, and it may not stand in the gradient that gets the black
 	# off the type either — a cube under a ramp is the smudge this whole change
@@ -267,11 +305,34 @@ static func aperture_insets() -> Array:
 static func board_rect() -> Rect2:
 	var g := glass_rect()
 	var s := canvas_scale()
+	if is_landscape():
+		# TURNED, THE READOUT IS A RAIL AND THE SCARCE AXIS IS THE OTHER ONE.
+		#
+		# Two bands across a landscape display spend a hundred and fifty of the
+		# seven hundred and twenty units that are hard to find, and none of the
+		# five hundred and sixty spare ones beside the board. The same four
+		# readings and the same three controls, stacked down one side, spend
+		# nothing that the board wanted.
+		var rail := RAIL_WIDTH * s
+		var pad := RAIL_CLEAR * s
+		var free_l := Rect2(g.position.x, g.position.y + pad,
+				max(1.0, g.size.x - rail), max(1.0, g.size.y - pad * 2.0))
+		return _window(free_l)
 	var top := TOP_BAND * s
 	var bottom := BOTTOM_BAND * s
 	var free := Rect2(g.position.x, g.position.y + bottom,
 			max(1.0, g.size.x), max(1.0, g.size.y - top - bottom))
 	return _window(free)
+
+
+# WHERE THE READOUT AND THE THREE CONTROLS GO WHEN THE DEVICE IS TURNED, in
+# pixels. The strip of glass to the right of the window, which is the side the
+# hand holding it is already on.
+static func rail_rect() -> Rect2:
+	var g := glass_rect()
+	var s := canvas_scale()
+	var rail: float = min(RAIL_WIDTH * s, g.size.x * 0.5)
+	return Rect2(g.end.x - rail, g.position.y, rail, g.size.y)
 
 
 # THE WINDOW IS AS WIDE AS THE BOARD AND AS TALL AS THE BAND.
@@ -301,8 +362,9 @@ static func board_rect() -> Rect2:
 # Turned, the bands bind the HEIGHT, so the shorter side is the height, the width
 # is cut to it, and the window comes out the square it already was.
 static func _window(r: Rect2) -> Rect2:
-	var w: float = max(1.0, min(r.size.x, r.size.y))
-	var h: float = max(1.0, r.size.y)
+	var side: float = max(1.0, min(r.size.x, r.size.y))
+	var w: float = max(1.0, r.size.x) if side == r.size.y else side
+	var h: float = max(1.0, r.size.y) if side == r.size.x else side
 	var c := r.position + r.size * 0.5
 	return Rect2(c.x - w * 0.5, c.y - h * 0.5, w, h)
 

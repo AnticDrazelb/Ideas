@@ -30,6 +30,12 @@ var _age_shown := -1.0
 const AGE_NEW := Color(1.06, 1.05, 1.04)
 const AGE_OLD := Color(0.84, 0.68, 0.58)
 
+# The twelve pieces and the rim hang off this rather than off the panel, so that
+# turning the case is one rotation of one node instead of twelve re-placements.
+# In portrait it is the panel; turned, it is the panel transposed and rotated.
+var _frame: Control
+var _turned := false
+
 var _rim: NinePatchRect
 var _flash := 0.0
 var _flash_col := Color(1, 1, 1, 1)
@@ -38,6 +44,10 @@ var _clock := 0.0
 
 func setup() -> void:
 	_piece.resize(12)
+	_frame = Control.new()
+	_frame.name = "frame"
+	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_frame)
 	Chassis.attach(self)
 	set_process(true)
 
@@ -89,22 +99,49 @@ func step(dt: float) -> void:
 func _process(_dt: float) -> void:
 	var w := rect_size.x
 	var h := rect_size.y
+	var turn := Chassis.turned()
+	# The frame is the case's own rectangle: the panel in portrait, and the panel
+	# transposed in landscape, because a quarter turn swaps what the twelve pieces
+	# think their width and height are.
+	var fw: float = h if turn else w
+	var fh: float = w if turn else h
 	var c := Chassis.corner()
-	if w < c * 2.0 + 8.0 or h < c * 2.0 + 8.0:
+	if fw < c * 2.0 + 8.0 or fh < c * 2.0 + 8.0:
 		return
 	if abs(w - _fitted.x) < 1.0 and abs(h - _fitted.y) < 1.0 \
-			and is_equal_approx(_k, Chassis.scale_now()):
+			and turn == _turned and is_equal_approx(_k, Chassis.scale_now()):
 		return
 	_fitted = Vector2(w, h)
+	_turned = turn
 
 	if not _built:
 		_compose()
 		_build_rim()
 		_built = true
+	_turn_frame(Vector2(fw, fh), Vector2(w, h), turn)
 	_stretch()
 	_fit_rim()
 	_age_shown = -1.0
 	_repaint_age()
+
+
+# A QUARTER TURN OF ONE NODE.
+#
+# Everything inside the frame is placed against a portrait rectangle and knows
+# nothing about which way up the device is — the corner arms anchor to their own
+# corner, the four sides stretch between them, the rim hangs off the opening. So
+# the turn is not twelve decisions, it is this: give the frame the panel's height
+# for its width, spin it ninety degrees clockwise about its own centre, and put
+# that centre back where the panel's is.
+#
+# Clockwise, so the brow lands on the right. See Chassis.turned.
+func _turn_frame(size: Vector2, panel: Vector2, turn: bool) -> void:
+	if _frame == null:
+		return
+	_frame.rect_rotation = 90.0 if turn else 0.0
+	_frame.rect_size = size
+	_frame.rect_pivot_offset = size * 0.5
+	_frame.rect_position = panel * 0.5 - size * 0.5
 
 
 # THE TWELVE WINDOWS ONTO THE CASE, once.
@@ -160,7 +197,7 @@ func _compose() -> void:
 # line that is absent here.
 func _place(tex, i: int, piece_name: String, sx: float, sy: float, sw: float, sh: float,
 		ax: int, ay: int, ox: float) -> void:
-	var rt: UiRect = Chassis.kit().rect(self, piece_name, Vector2(ax, ay), Vector2(ax, ay), Vector2.ZERO, Vector2.ZERO)
+	var rt: UiRect = Chassis.kit().rect(_frame, piece_name, Vector2(ax, ay), Vector2(ax, ay), Vector2.ZERO, Vector2.ZERO)
 	rt.set_pivot(Vector2(ax, ay))
 	rt.set_size_delta(Vector2(sw * _k, sh * _k))
 	rt.set_anchored_position(Vector2(ox, 0.0))
@@ -210,7 +247,7 @@ func _build_rim() -> void:
 	_rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rim.modulate = Color(1, 1, 1, 0)
 	_rim.visible = false
-	add_child(_rim)
+	_frame.add_child(_rim)
 
 
 func _fit_rim() -> void:
@@ -222,11 +259,18 @@ func _fit_rim() -> void:
 	_rim.anchor_bottom = 1.0
 	# Sized to the opening and then pushed OUTWARD, so the falloff lands on the
 	# bezel rather than on the board.
+	#
+	# THE CASE'S OWN INSETS, NOT THE SCREEN'S. Inside the frame nothing has been
+	# turned yet: the brow is still at the top of this rectangle whatever the
+	# device is doing. Chassis.inset_* answer for the SCREEN, which is what every
+	# other caller wants and the one thing that would put this stroke on its side.
 	var reach := Sprites.GLOW_REACH
-	_rim.margin_left = Chassis.inset_left() - reach
-	_rim.margin_top = Chassis.inset_top() - reach
-	_rim.margin_right = -Chassis.inset_right() + reach
-	_rim.margin_bottom = -Chassis.inset_bottom() + reach
+	var sp := Chassis.spec()
+	var k := Chassis.scale_now()
+	_rim.margin_left = sp.left * k - reach
+	_rim.margin_top = sp.top * k - reach
+	_rim.margin_right = -sp.right * k + reach
+	_rim.margin_bottom = -sp.bottom * k + reach
 
 
 # The four sides take whatever the corners left. Nothing else moves: the eight

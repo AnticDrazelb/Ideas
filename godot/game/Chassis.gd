@@ -177,22 +177,44 @@ static func scale_now() -> float:
 
 
 # ---- what the rest of the interface is allowed to know ---------------------
+#
+# THE CASE TURNS WITH THE DEVICE, because the device is what it is a picture of.
+#
+# A phone's brow and chin are deeper than its sides — seventy-five and seventy-
+# seven against forty-seven and a half — and that is a fact about the object, not
+# about the screen it is pointed at. Turn the phone and the deep bands are on the
+# LEFT AND RIGHT. Anything else is a photograph of a machine that reshaped itself
+# when you tilted your wrist.
+#
+# It is also, as it happens, exactly the way round the layout wants it. Turned,
+# height is the scarce axis and width the plentiful one; leaving the deep bands
+# top and bottom would spend a hundred and fifty units of the seven hundred and
+# twenty that are hard to find, and ninety-five of the twelve hundred and eighty
+# that are not.
+#
+# The rotation is a quarter turn CLOCKWISE, so the brow goes to the right and the
+# chin to the left. One direction had to be picked; this one puts the deepest
+# band on the same side as the control rail, which is where the hand is.
+static func turned() -> bool:
+	var s := window_size()
+	return s.x > s.y * 1.18
+
 
 # Display edge to glass, in canvas units. Everything readable lives inside these.
 static func inset_left() -> float:
-	return spec().left * scale_now()
+	return (spec().bottom if turned() else spec().left) * scale_now()
 
 
 static func inset_right() -> float:
-	return spec().right * scale_now()
+	return (spec().top if turned() else spec().right) * scale_now()
 
 
 static func inset_top() -> float:
-	return spec().top * scale_now()
+	return (spec().left if turned() else spec().top) * scale_now()
 
 
 static func inset_bottom() -> float:
-	return spec().bottom * scale_now()
+	return (spec().right if turned() else spec().bottom) * scale_now()
 
 
 static func corner() -> float:

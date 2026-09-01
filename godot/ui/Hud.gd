@@ -185,6 +185,106 @@ func _compose() -> void:
 	coach = load("res://ui/Coach.gd").new()
 	coach.build(_aperture)
 
+	# ---- the readout ---------------------------------------------------------
+	#
+	# TWO ARRANGEMENTS OF THE SAME SEVEN THINGS, and the branch is here rather
+	# than threaded through every anchor below it.
+	#
+	# Held, the four readings are a band across the top and the three controls a
+	# band across the bottom, because width is what a portrait phone has spare.
+	# Turned, both become one rail down the right, because HEIGHT is what a
+	# landscape display has least of and the board is what wants it. Transposing
+	# the anchors one at a time would have been the same picture written twice and
+	# wrong in a different place each time; two functions that each say what they
+	# build is one picture each.
+	if Layout.is_landscape():
+		_compose_rail()
+	else:
+		_compose_bands()
+
+	# ---- the plate clock -----------------------------------------------------
+	#
+	# The count can be HEARD in the last three seconds, but it also has to be
+	# SEEN, and the number cannot go where the eyes are — which is the board. So
+	# it is a bar, at the top edge, draining.
+	_plate_bar = UiKit.panel(_root, "plateBar", Palette.rust(),
+			Vector2(0, 1), Vector2(1, 1), Vector2(0, -6), Vector2(0, 0))
+	# AND IT IS INSIDE THE WINDOW NOW, because the band it used to sit in is gone.
+	# It hung between the readout's rule and the top of the old square aperture;
+	# the stroke reaches the rule now, so the place left for it is under the
+	# stroke, past the fold mark. On the aperture, so it goes where the window
+	# goes. See HudMetrics.MARK_BAND.
+	_plate_clock = UiKit.label(_aperture, "plateClock", "", 22, Palette.RUST_HI,
+			UiKit.Anchor.UPPER_CENTER, Vector2(0, 1), Vector2(1, 1),
+			Vector2(0, -(HudMetrics.MARK_BAND + HudMetrics.CLOCK_HEIGHT)),
+			Vector2(0, -HudMetrics.MARK_BAND))
+	_plate_bar.get_parent().visible = false
+
+	# ---- the four folds, at the four edges -----------------------------------
+	#
+	# FOUR ARROWS, NOT FOUR DASHES.
+	#
+	# This is the one piece of the HUD that is about the RULE rather than the run
+	# — where you stand decides which folds you have — and it was four six-unit
+	# bars. On a phone that is exactly what they looked like: orange ticks at the
+	# edges of the screen with nothing to say which way any of them meant. The rule
+	# was reading as dust on the lens.
+	#
+	# The arrow already exists; the manual draws the four folds with it. So this is
+	# the mark the player was taught, pointing the way the fold goes, lit when that
+	# fold has footing and nearly out when it does not.
+	#
+	# ONE MARK PER EDGE, IN BOTH MODES. The assisted fold buttons want to be in the
+	# same four places, because that is where the answer to "can I fold that way"
+	# already is — so they are, and the passive arrow steps aside when the pressable
+	# one is on. Two arrows at one edge would be the interface disagreeing with
+	# itself about which one to look at.
+	#
+	# THEY HANG ON THE APERTURE, NOT ON THE SCREEN. They were anchored to the
+	# screen edges with hand-written offsets that happened to land near the board,
+	# which is a coincidence that survives exactly until the bands change height.
+	# Parented to the frame, "on the left edge of the play area" is what the anchor
+	# SAYS, in both orientations and on any phone.
+	for t in range(4):
+		_ticks[t] = _tick("tick" + str(t), FOLD_ANCHOR[t], FOLD_MARK[t], FOLD_SPIN[t])
+		_fold_btns[t] = _fold_button("fold" + str(t), t, FOLD_ANCHOR[t], FOLD_SLOT[t],
+				FOLD_MARK[t], FOLD_SPIN[t])
+	refresh_assist()
+
+	# DEPTH, PRINTED ON EVERY CELL. Off by default, because brightness IS distance
+	# and a number on top of that is a second answer to a question already
+	# answered. On, it is the fastest way to learn the ramp — and for anyone who
+	# cannot read the ramp at all, it is the only way.
+	_depth_root = UiKit.rect(_root, "depth", Vector2.ZERO, Vector2.ONE, Vector2.ZERO, Vector2.ZERO)
+
+	# THE SAME MOVE AT THE OTHER END. The toast sat 140 units up from the glass,
+	# which was the dead plate over the control band; that plate is window now and
+	# 140 is under the down fold's arrow. It goes above the coach's line, in the
+	# band between the marks and the board — the cube is fitted inside the square
+	# with Layout.FIT_MARGIN to spare.
+	_toast = UiKit.label(_aperture, "toast", "", 26, Palette.INK, UiKit.Anchor.LOWER_CENTER,
+			Vector2(0, 0), Vector2(1, 0),
+			Vector2(0, HudMetrics.TOAST_FOOT),
+			Vector2(0, HudMetrics.TOAST_FOOT + HudMetrics.TOAST_BOX))
+	_toast.add_color_override("font_color", Color(1, 1, 1, 0))
+
+	# THE CAPTION SITS UNDER THE PLATE CLOCK, NOT UNDER THE TOAST.
+	#
+	# A toast is the game talking; a caption is the game's SOUND written down, and
+	# they are different enough that stacking them in one line would make each look
+	# like an interruption of the other. It goes just below the top rule for the
+	# same reason the plate clock does: the eyes are on the board, and that is the
+	# nearest edge to them.
+	_caption = UiKit.label(_aperture, "caption", "", 19, Palette.dim(), UiKit.Anchor.UPPER_CENTER,
+			Vector2(0, 1), Vector2(1, 1),
+			Vector2(0, -(HudMetrics.CAPTION_TOP + HudMetrics.CAPTION_HEIGHT)),
+			Vector2(0, -HudMetrics.CAPTION_TOP))
+	_caption.add_color_override("font_color", Color(1, 1, 1, 0))
+
+	set_process(false)
+
+
+func _compose_bands() -> void:
 	# ---- top band ------------------------------------------------------------
 	var top := UiKit.rect(_root, "barTop", Vector2(0, 1), Vector2(1, 1),
 			Vector2(0, -160), Vector2(0, 0))
@@ -239,54 +339,6 @@ func _compose() -> void:
 	var rule := UiKit.rule(_root, 1.0)
 	(rule.get_parent() as UiRect).set_anchored_position(Vector2(0, -Layout.TOP_BAND))
 
-	# ---- the plate clock -----------------------------------------------------
-	#
-	# The count can be HEARD in the last three seconds, but it also has to be
-	# SEEN, and the number cannot go where the eyes are — which is the board. So
-	# it is a bar, at the top edge, draining.
-	_plate_bar = UiKit.panel(_root, "plateBar", Palette.rust(),
-			Vector2(0, 1), Vector2(1, 1), Vector2(0, -6), Vector2(0, 0))
-	# AND IT IS INSIDE THE WINDOW NOW, because the band it used to sit in is gone.
-	# It hung between the readout's rule and the top of the old square aperture;
-	# the stroke reaches the rule now, so the place left for it is under the
-	# stroke, past the fold mark. On the aperture, so it goes where the window
-	# goes. See HudMetrics.MARK_BAND.
-	_plate_clock = UiKit.label(_aperture, "plateClock", "", 22, Palette.RUST_HI,
-			UiKit.Anchor.UPPER_CENTER, Vector2(0, 1), Vector2(1, 1),
-			Vector2(0, -(HudMetrics.MARK_BAND + HudMetrics.CLOCK_HEIGHT)),
-			Vector2(0, -HudMetrics.MARK_BAND))
-	_plate_bar.get_parent().visible = false
-
-	# ---- the four folds, at the four edges -----------------------------------
-	#
-	# FOUR ARROWS, NOT FOUR DASHES.
-	#
-	# This is the one piece of the HUD that is about the RULE rather than the run
-	# — where you stand decides which folds you have — and it was four six-unit
-	# bars. On a phone that is exactly what they looked like: orange ticks at the
-	# edges of the screen with nothing to say which way any of them meant. The rule
-	# was reading as dust on the lens.
-	#
-	# The arrow already exists; the manual draws the four folds with it. So this is
-	# the mark the player was taught, pointing the way the fold goes, lit when that
-	# fold has footing and nearly out when it does not.
-	#
-	# ONE MARK PER EDGE, IN BOTH MODES. The assisted fold buttons want to be in the
-	# same four places, because that is where the answer to "can I fold that way"
-	# already is — so they are, and the passive arrow steps aside when the pressable
-	# one is on. Two arrows at one edge would be the interface disagreeing with
-	# itself about which one to look at.
-	#
-	# THEY HANG ON THE APERTURE, NOT ON THE SCREEN. They were anchored to the
-	# screen edges with hand-written offsets that happened to land near the board,
-	# which is a coincidence that survives exactly until the bands change height.
-	# Parented to the frame, "on the left edge of the play area" is what the anchor
-	# SAYS, in both orientations and on any phone.
-	for t in range(4):
-		_ticks[t] = _tick("tick" + str(t), FOLD_ANCHOR[t], FOLD_MARK[t], FOLD_SPIN[t])
-		_fold_btns[t] = _fold_button("fold" + str(t), t, FOLD_ANCHOR[t], FOLD_SLOT[t],
-				FOLD_MARK[t], FOLD_SPIN[t])
-	refresh_assist()
 
 	# ---- bottom band ---------------------------------------------------------
 	var bot := UiKit.rect(_root, "barBot", Vector2(0, 0), Vector2(1, 0),
@@ -295,37 +347,109 @@ func _compose() -> void:
 	_third(bot, 1, "UNDO", "_on_undo")
 	_third(bot, 2, "HINT", "do_hint")
 
-	# DEPTH, PRINTED ON EVERY CELL. Off by default, because brightness IS distance
-	# and a number on top of that is a second answer to a question already
-	# answered. On, it is the fastest way to learn the ramp — and for anyone who
-	# cannot read the ramp at all, it is the only way.
-	_depth_root = UiKit.rect(_root, "depth", Vector2.ZERO, Vector2.ONE, Vector2.ZERO, Vector2.ZERO)
 
-	# THE SAME MOVE AT THE OTHER END. The toast sat 140 units up from the glass,
-	# which was the dead plate over the control band; that plate is window now and
-	# 140 is under the down fold's arrow. It goes above the coach's line, in the
-	# band between the marks and the board — the cube is fitted inside the square
-	# with Layout.FIT_MARGIN to spare.
-	_toast = UiKit.label(_aperture, "toast", "", 26, Palette.INK, UiKit.Anchor.LOWER_CENTER,
-			Vector2(0, 0), Vector2(1, 0),
-			Vector2(0, HudMetrics.TOAST_FOOT),
-			Vector2(0, HudMetrics.TOAST_FOOT + HudMetrics.TOAST_BOX))
-	_toast.add_color_override("font_color", Color(1, 1, 1, 0))
+# ---- the same readout, stood on its end ------------------------------------
+#
+# THE RAIL IS READ TOP DOWN AND PRESSED BOTTOM UP.
+#
+# Four readings first, because they are what a glance comes for and the top of a
+# rail is where a glance lands. Then who and where you are. Then the air. Then
+# the three controls at the bottom, on the thumb's side of a held device — the
+# same order as the portrait screen read from the top of the display to the
+# bottom of it, which is the point: nothing has moved relative to anything else,
+# the whole strip has just been stood up.
+const RAIL_PAD := 16.0
+const RAIL_CHIP := 74.0
+const RAIL_CHIP_GAP := 10.0
+const RAIL_LINE := 30.0
+const RAIL_BTN := 84.0
+const RAIL_BTN_GAP := 12.0
 
-	# THE CAPTION SITS UNDER THE PLATE CLOCK, NOT UNDER THE TOAST.
-	#
-	# A toast is the game talking; a caption is the game's SOUND written down, and
-	# they are different enough that stacking them in one line would make each look
-	# like an interruption of the other. It goes just below the top rule for the
-	# same reason the plate clock does: the eyes are on the board, and that is the
-	# nearest edge to them.
-	_caption = UiKit.label(_aperture, "caption", "", 19, Palette.dim(), UiKit.Anchor.UPPER_CENTER,
+# TWO BY TWO, NOT FOUR DOWN. Four chips, three lines of identity, a rule and
+# three controls come to seven hundred and thirty-six units stacked, and a turned
+# phone has six hundred and twenty-five. Paired, the readings cost a hundred and
+# fifty-eight instead of three hundred and twenty-six and the rail fits with air
+# to spare — and the two pairs are the two questions anyway: what the fold and
+# node counts are, and what is left to do.
+const RAIL_CHIP_GRID_GAP := 10.0
+
+# Everything above the controls, measured down from the top of the rail. Written
+# once because three things below hang off the end of it.
+const RAIL_HEAD := RAIL_PAD + RAIL_CHIP * 2.0 + RAIL_CHIP_GRID_GAP + 22.0
+
+
+func _compose_rail() -> void:
+	var rail := UiKit.rect(_root, "rail", Vector2(1, 0), Vector2(1, 1),
+			Vector2(-Layout.RAIL_WIDTH, 0), Vector2(0, 0))
+
+	var fold_chip := _rail_chip(rail, "foldChip", 0, Palette.rust())
+	UiKit.label(fold_chip, "foldIcon", "▤", 20, Palette.rust(), UiKit.Anchor.MIDDLE_LEFT,
+			Vector2.ZERO, Vector2.ONE, Vector2(14, 0), Vector2.ZERO)
+	_fold_n = UiKit.label(fold_chip, "foldN", "0", 34, Palette.INK, UiKit.Anchor.MIDDLE_CENTER,
+			Vector2.ZERO, Vector2.ONE, Vector2(10, 0), Vector2(-26, 0))
+	_par_n = UiKit.label(fold_chip, "parN", "/0", 20, Palette.dim(), UiKit.Anchor.MIDDLE_RIGHT,
+			Vector2.ZERO, Vector2.ONE, Vector2.ZERO, Vector2(-12, 0))
+
+	_key_chip = _rail_chip(rail, "keyChip", 1, Palette.NODE)
+	UiKit.label(_key_chip, "keyIcon", "◆", 20, Palette.NODE, UiKit.Anchor.MIDDLE_LEFT,
+			Vector2.ZERO, Vector2.ONE, Vector2(14, 0), Vector2.ZERO)
+	_key_n = UiKit.label(_key_chip, "keyN", "0", 34, Palette.NODE, UiKit.Anchor.MIDDLE_CENTER,
+			Vector2.ZERO, Vector2.ONE, Vector2(10, 0), Vector2(-26, 0))
+	_key_tot = UiKit.label(_key_chip, "keyTot", "/0", 20, Palette.dim(), UiKit.Anchor.MIDDLE_RIGHT,
+			Vector2.ZERO, Vector2.ONE, Vector2.ZERO, Vector2(-12, 0))
+
+	_go_chip = _rail_chip(rail, "goChip", 2, Palette.ARC)
+	UiKit.label(_go_chip, "goLbl", "TO GO", 18, Palette.ARC, UiKit.Anchor.MIDDLE_LEFT,
+			Vector2.ZERO, Vector2.ONE, Vector2(12, 0), Vector2.ZERO)
+	_go_n = UiKit.label(_go_chip, "goN", "·", 34, Palette.ARC, UiKit.Anchor.MIDDLE_RIGHT,
+			Vector2.ZERO, Vector2.ONE, Vector2.ZERO, Vector2(-14, 0))
+
+	var hint_chip := _rail_chip(rail, "hintChip", 3, Palette.LOCK)
+	UiKit.label(hint_chip, "hintIcon", "⬡", 20, Palette.LOCK, UiKit.Anchor.MIDDLE_LEFT,
+			Vector2.ZERO, Vector2.ONE, Vector2(14, 0), Vector2.ZERO)
+	_hint_n = UiKit.label(hint_chip, "hintN", "3", 30, Palette.LOCK, UiKit.Anchor.MIDDLE_RIGHT,
+			Vector2.ZERO, Vector2.ONE, Vector2.ZERO, Vector2(-14, 0))
+
+	# WHICH CUBE, AND WHOSE. Three lines under the readings rather than one line
+	# beside them: a rail is narrow, and "VAULT I · THE COLLAPSE" set beside a
+	# number is either shrunk past reading or run off the metal.
+	var top: float = -RAIL_HEAD
+	_lv_no = UiKit.label(rail, "lvNo", "—", 22, Palette.rust(), UiKit.Anchor.MIDDLE_LEFT,
+			Vector2(0, 1), Vector2(0.3, 1), Vector2(16, top - RAIL_LINE), Vector2(0, top))
+	_lv_name = UiKit.label(rail, "lvName", "—", 22, Palette.dim(), UiKit.Anchor.MIDDLE_LEFT,
+			Vector2(0.3, 1), Vector2(1, 1), Vector2(0, top - RAIL_LINE), Vector2(-16, top))
+	_vault = UiKit.label(rail, "vault", "", 20, Palette.dim(), UiKit.Anchor.MIDDLE_LEFT,
 			Vector2(0, 1), Vector2(1, 1),
-			Vector2(0, -(HudMetrics.CAPTION_TOP + HudMetrics.CAPTION_HEIGHT)),
-			Vector2(0, -HudMetrics.CAPTION_TOP))
-	_caption.add_color_override("font_color", Color(1, 1, 1, 0))
+			Vector2(16, top - RAIL_LINE * 2.0 - 4.0), Vector2(-16, top - RAIL_LINE - 4.0))
+	UiKit.fit(_lv_name, 14)
+	UiKit.fit(_vault, 13)
 
-	set_process(false)
+	# The rule closes the readings, the way it closes the band held. Under the
+	# identity rather than over it, because there is nothing above it to separate.
+	var rule := UiKit.rule(rail, 1.0)
+	(rule.get_parent() as UiRect).set_anchored_position(
+			Vector2(0, top - RAIL_LINE * 2.0 - 20.0))
+
+	# and the three controls, stacked off the bottom
+	for k in range(3):
+		var y: float = RAIL_PAD + (2 - k) * (RAIL_BTN + RAIL_BTN_GAP)
+		var r := UiKit.rect(rail, ["MENU", "UNDO", "HINT"][k],
+				Vector2(0, 0), Vector2(1, 0), Vector2(12, y), Vector2(-12, y + RAIL_BTN))
+		UiKit.bracketed(r, ["MENU", "UNDO", "HINT"][k], ["MENU", "UNDO", "HINT"][k],
+				funcref(self, ["_on_menu", "_on_undo", "do_hint"][k]), 26)
+
+
+# One reading. Slot 0 and 1 are the top pair, 2 and 3 the pair under them.
+func _rail_chip(rail: Control, node_name: String, i: int, hue: Color) -> UiRect:
+	var col: float = float(i % 2)
+	var row: float = float(i / 2)
+	var y: float = -(RAIL_PAD + (row + 1.0) * RAIL_CHIP + row * RAIL_CHIP_GRID_GAP)
+	var gap := RAIL_CHIP_GAP * 0.5
+	var rt := UiKit.rect(rail, node_name, Vector2(col * 0.5, 1), Vector2((col + 1.0) * 0.5, 1),
+			Vector2(12.0 if col == 0.0 else gap, y),
+			Vector2(-gap if col == 0.0 else -12.0, y + RAIL_CHIP))
+	UiKit.framed(rt, Color(hue.r, hue.g, hue.b, 0.10), Color(hue.r, hue.g, hue.b, 0.80))
+	return rt
 
 
 func _chip(bar: Control, node_name: String, x0: float, x1: float, hue: Color) -> UiRect:

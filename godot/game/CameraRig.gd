@@ -127,10 +127,27 @@ func fit_to(board: Rect2, n: int, margin: float) -> void:
 	_base_size = need * screen_h / (2.0 * shorter)
 
 	# and the board's centre is not the screen's centre
+	#
+	# THE TWO AXES DO NOT TAKE THE SAME SIGN, AND THAT IS THE FLIP TALKING.
+	#
+	# Move a camera right and what it is looking at goes left, so the offset that
+	# puts the world origin at a given point on the screen is MINUS the drift.
+	# That is the x line. The y line is the opposite because the board's viewport
+	# is read with render_target_v_flip: the picture is mirrored top to bottom on
+	# its way to the screen, so a camera moved up shows the origin higher rather
+	# than lower, and the minus cancels.
+	#
+	# It has been one line with one sign since the port, and nothing caught it,
+	# because until the display could turn NO RECTANGLE IN THIS GAME WAS EVER OFF
+	# CENTRE HORIZONTALLY. The two bands are top and bottom; the title's band is
+	# top and bottom; every drift the arithmetic had ever been asked for was
+	# vertical, and vertical was the axis that happened to be right. Turned, the
+	# window is the left three quarters of the glass and the board was drawn a
+	# window's width to the right of it, half under the rail.
 	var centre := board.position + board.size * 0.5
 	var drift := centre - Vector2(screen.x * 0.5, screen_h * 0.5)
 	var world_per_pixel := 2.0 * _base_size / screen_h
-	_base_offset = drift * world_per_pixel
+	_base_offset = Vector2(-drift.x, drift.y) * world_per_pixel
 
 	PerfWatch.settle()
 
