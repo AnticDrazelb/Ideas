@@ -164,6 +164,9 @@ func _build_world() -> void:
 	# projects rather than picks — nothing here needs a physics query
 	_world.physics_object_picking = false
 	add_child(_world)
+	# THE BOARD IS SCALED TO THE SCREEN BEFORE ANYONE SEES IT, and a
+	# ViewportTexture arrives with filtering off. See Bloom.filtered.
+	Bloom.filtered(_world)
 
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CANVAS

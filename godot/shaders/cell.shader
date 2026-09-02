@@ -62,7 +62,8 @@ uniform float burst_throw = 3.4;
 uniform float burst_spread : hint_range(0, 1) = 0.55;
 uniform float burst_spin = 1.35;
 
-uniform float unlit : hint_range(0, 1) = 0.46;
+// HOW MUCH CHROMA A CELL YOU CANNOT REACH KEEPS. There is no matching dim, and
+// that absence is the point — see the drain in the fragment stage.
 uniform float unlit_sat : hint_range(0, 1) = 0.30;
 
 // THE CELL CENTRE'S THIRD COMPONENT, which has nowhere else to ride: Godot's
@@ -362,23 +363,47 @@ void fragment() {
 	float arrived = step(dist, reveal);
 	float lit = v_reach.r * arrived;
 
-	// TWO READS WERE SHARING ONE CHANNEL.
+	// BRIGHTNESS MEANS ONE THING, AND IT MEANS CAN I STAND THERE.
 	//
-	// Depth is brightness. Material is brightness. And "can I stand there" — the
-	// question the player asks after every single fold, and the only one that
-	// changes what they do next — was ALSO brightness: a flat dim to 46%. Three
-	// answers in one number, on a board whose whole argument is that the number
-	// means distance.
+	// This drained AND darkened: saturation said whether the cell was reachable
+	// and a flat dim to 46% said so a second time. Two statements, and the
+	// second one was made in the channel the whole board is read off.
 	//
-	// So unreachable now DRAINS as well as darkens. Value keeps saying how far
-	// away a cell is; saturation says whether you can get to it. They are
-	// independent channels and the eye reads them independently, which is the
-	// entire point. It costs nothing that matters: the dim is unchanged, so
-	// every contrast pair the audit measures is exactly where it was — the grey
-	// a drained cell moves toward is its OWN luminance.
-	float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
-	c = mix(mix(vec3(lum), c, unlit_sat), c, lit);
-	c *= mix(unlit, 1.0, lit);
+	// Measured, farthest trace against nearest lattice: an unreachable cell came
+	// out at (0.156, 0.227, 0.263) and the lattice beside it at (0.169, 0.208,
+	// 0.271). 1.04 to 1. THE SAME COLOUR. A floor you cannot reach this turn and
+	// a wall you can never stand on were the same pixel value, so the one rule
+	// the player is given — the lighter tiles are the ones you can walk — was
+	// false on every board with an unreached plate on it. Every report of a tile
+	// that looked like footing and refused to be stepped on, and of a route that
+	// could not be read off the picture, was this.
+	//
+	// So the dim is gone. Value carries material and depth: footing is light,
+	// solid is dark, at every depth and in every vault, and the drained cell now
+	// clears the nearest lattice by 3.24:1 where it used to sit on top of it.
+	// Reachability moves ENTIRELY onto chroma, which is where the note under the
+	// old code already claimed it lived — a cell you cannot reach is the same
+	// brightness of floor with the colour taken out of it. The reveal sweep and
+	// the bloom knee, which only a lit cell crosses, say it twice more.
+	// AND THE DRAIN HAPPENS IN THE LIGHT, NOT IN THE NUMBERS.
+	//
+	// Two things were wrong with weighting the components as they stand. It is a
+	// luminance only if they are already linear and they are not — they are the
+	// palette's sRGB — and a saturated blue carries most of its NUMBER in the
+	// channel that carries least of its LIGHT. And mixing toward that figure in
+	// the same space loses light a second time, because the transfer curve is
+	// convex and a mix of two encoded values is darker than the mix of what they
+	// stand for.
+	//
+	// Squaring is close enough to the curve for a mid-tone and costs two
+	// multiplies. Mixing there and taking the root back is EXACTLY luminance
+	// preserving: the grey has the cell's own light by construction, so any
+	// amount of drain leaves the light alone and moves only the colour. Which is
+	// the whole claim — you cannot reach it, it is still a floor, and it is
+	// still exactly as bright a floor as it was.
+	vec3 e = c * c;
+	float y = dot(e, vec3(0.2126, 0.7152, 0.0722));
+	c = mix(sqrt(mix(vec3(y), e, unlit_sat)), c, lit);
 
 	// AND THE DEBRIS GOES OUT, LATE. It keeps its full brightness for most of
 	// the throw — a piece that starts fading the instant it leaves never reads

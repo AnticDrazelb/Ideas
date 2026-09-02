@@ -115,6 +115,16 @@ func _compose(board_layer: CanvasLayer) -> void:
 	board_layer.add_child(_plate)
 
 
+# A VIEWPORT'S TEXTURE, TOLD TO INTERPOLATE. It has to be asked for after the
+# viewport is in the tree — the texture does not exist before that — and it is
+# asked for on every stage of the chain including the world, because the last
+# upscale is as much of the picture as the taps are.
+static func filtered(vp: Viewport) -> void:
+	var t := vp.get_texture()
+	if t != null:
+		t.flags = Texture.FLAG_FILTER
+
+
 func _stage(stage_name: String, shader_path: String) -> Viewport:
 	var vp := Viewport.new()
 	vp.name = stage_name
@@ -124,6 +134,20 @@ func _stage(stage_name: String, shader_path: String) -> Viewport:
 	vp.transparent_bg = false
 	vp.disable_3d = true
 	add_child(vp)
+	# AND IT IS FILTERED, WHICH IS NOT A PREFERENCE — IT IS WHAT THE BLUR IS.
+	#
+	# See bloom_blur: five reads for a nine-wide kernel, and the trick is that a
+	# tap sitting 1.3846 texels out is fetched by the hardware as a weighted pair
+	# of texels. A ViewportTexture arrives with filtering OFF, so every one of
+	# those taps was snapping to whole texels and the kernel was a comb with
+	# holes in it rather than a Gaussian — and then a quarter-resolution comb was
+	# blown back up four times, nearest, over the picture.
+	#
+	# What that looked like was a blocky second copy of every lit cell, offset
+	# and stair-stepped, with vertical banding through the bright ones. Reported
+	# as ghosting, and it was: the glow was a low-resolution ghost of the board
+	# because nothing in the chain was allowed to interpolate.
+	filtered(vp)
 
 	var rect := ColorRect.new()
 	rect.name = "pass"
@@ -157,6 +181,14 @@ func tick() -> void:
 		_blur_y.size = q
 		_mat_blur_x.set_shader_param("texel", Vector2(1.0 / q.x, 1.0 / q.y))
 		_mat_blur_y.set_shader_param("texel", Vector2(1.0 / q.x, 1.0 / q.y))
+		# A RESIZE MAKES A NEW RENDER TARGET, so the flag is set again here as
+		# well as at build — this branch is the one that runs when the device is
+		# turned over, and an unfiltered chain after a rotation would be the same
+		# bug arriving late.
+		filtered(_world)
+		filtered(_knee)
+		filtered(_blur_x)
+		filtered(_blur_y)
 		_knee.get_child(0).material.set_shader_param("src", _world.get_texture())
 		_blur_x.get_child(0).material.set_shader_param("src", _knee.get_texture())
 		_blur_y.get_child(0).material.set_shader_param("src", _blur_x.get_texture())

@@ -73,9 +73,6 @@ uniform float burst_throw = 3.4;
 uniform float burst_spread : hint_range(0, 1) = 0.55;
 uniform float burst_spin = 1.35;
 
-uniform float unlit : hint_range(0, 1) = 0.46;
-uniform float unlit_sat : hint_range(0, 1) = 0.30;
-
 // THE CELL CENTRE'S THIRD COMPONENT, which has nowhere else to ride: Godot's
 // mesh arrays carry a two-component UV2 and the centre is a point. The mesh
 // writes x and y into UV2 and this rebuilds z from the cell's own place in the

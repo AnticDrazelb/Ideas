@@ -332,9 +332,10 @@ shape until that line agreed with the one that stands the camera up.
 
 `tests/board.gd` is what settled it, and what now holds it: it samples the
 framebuffer at every surface cell and asserts that everything the rules call
-footing is drawn brighter than everything they call solid. Cube 1 reads
-`footing 0.573..0.617 · unreachable 0.244..0.283 · solid 0.067..0.105` — three
-clean bands in the right order.
+footing is drawn brighter than everything they call solid — by a ratio, in
+linearised light, not merely in order. Cube 1 reads `reachable 0.331..0.384 ·
+unreached 0.281..0.345 · solid 0.018..0.039`, and the two footing bands sit
+together well clear of the third, which is the rule the player is given.
 
 ## The bug the tests could not see
 
@@ -408,6 +409,59 @@ that; ten does not, and a GLES2 driver is free to give the vertex stage ten.
 It is a direction now (`w = 0`, so the translation column is skipped), which is
 the same number by exact arithmetic and never forms the forty at all.
 
+## If a tile you cannot walk on looks exactly like one you can
+
+The player is told one thing about the board and it is the lighter tiles are the
+ones you may stand on. That was false, on every board with a plate on it you had
+not yet reached.
+
+Three things wanted to be brightness at once. Depth is brightness. Material is
+brightness — that is the rule above. And "can I get there this turn" was
+brightness too: an unreachable cell was drained of colour AND dimmed to 46%.
+Measured at the tightest pair, the farthest trace against the nearest lattice, a
+drained trace came out at (0.156, 0.227, 0.263) and the lattice beside it at
+(0.169, 0.208, 0.271). **1.04:1. The same colour.**
+
+Two separate faults, and both are in the drain:
+
+The dim had no business existing. Saturation was already carrying reachability —
+the note in the shader said so — and the dim said it a second time in the one
+channel the whole board is read off. It is gone. Value now carries material and
+depth and nothing else, so footing is light and solid is dark at every depth and
+in every vault, and reachability lives entirely in chroma, where the reveal sweep
+and the bloom knee say it twice more.
+
+The drain also leaked light. It mixed toward `dot(c, luma)` in the space the
+colour was already in, and that figure is a luminance only if the components are
+linear — they are the palette's sRGB. A saturated blue keeps most of its NUMBER
+in the channel that carries least of its LIGHT, and the transfer curve is convex,
+so mixing there lost about a fifth of the cell's real brightness before the dim
+ever touched it. It squares into an approximate linear, mixes with a grey of the
+cell's own light, and takes the root back: exactly luminance-preserving, so a
+drained cell is precisely as bright a floor as it was.
+
+`tests/board.gd` asks for the ratio now rather than only for the order — an order
+is what passed while those two colours were one per cent apart. Cube eleven, the
+only one where the depth ramp reaches both of its ends, measures 3.0:1 through
+the glass against Palette's own 3.41:1 for the same pair.
+
+## If bright cells have a blocky second copy of themselves
+
+The bloom is a nine-wide kernel read in five taps, and the trick is that a tap
+sitting 1.3846 texels out is fetched by the hardware as a weighted pair of
+texels. That is a statement about bilinear filtering, and a Godot
+`ViewportTexture` arrives with filtering OFF.
+
+So every tap snapped to a whole texel, the kernel was a comb with holes in it
+rather than a Gaussian, and a quarter-resolution comb was then blown back up four
+times, nearest, over the picture. What that looks like is a stair-stepped ghost
+of every lit cell with vertical banding through the bright ones — reported as
+ghosting, and it was one: the glow was a low-resolution ghost of the board,
+because nothing in the chain was allowed to interpolate.
+
+`Bloom.filtered` sets the flag, on all four stages including the world, at build
+and again on every resize — a rotation makes a new render target.
+
 ## If it comes up with no interface
 
 The board draws, the stars draw, and there is nothing on top of them. That is
@@ -451,7 +505,7 @@ tools/classes.py --check    # exit 1 if it would change anything
 Run it after adding, renaming or moving any file with a `class_name` in it.
 `tools/check.sh` runs it first, every time.
 
-## The seven harnesses
+## The eight harnesses
 
 **`tests/compile.gd`** loads every script individually. Godot's own scan reports
 a parse error against whichever file happened to *consume* the broken one, which
@@ -533,6 +587,22 @@ some other screen; every check iterates over what was gathered, so an empty
 screen was indistinguishable from a clean one. A screen that measures nothing is
 a fault now.
 
+**`tests/board.gd`** measures the board itself. Between the rules and the
+interface is one question neither asks: does the thing the rules call FOOTING
+come out brighter than the thing they call solid, in the pixels a player looks
+at? It plays four cubes, samples the framebuffer at the screen position of every
+surface cell, sorts them into reachable footing, footing you cannot reach yet,
+and solid, and asks for a contrast ratio between the dimmest of the first two and
+the brightest of the third. It wants a display, so it is not in `tools/check.sh`.
+
+```sh
+xvfb-run -s "-screen 0 1400x1100x24" godot --path godot -s tests/board.gd
+```
+
+It has caught two things nothing else could: a camera drawing the face of the
+cube the rules are not played on, and an unreachable floor tile rendering at
+1.04:1 against the wall beside it.
+
 **`tests/shots.gd`** takes a picture of every screen at any shape, and then again
 after turning it over, because the audit can say whether a word lands on a
 control and cannot say whether the thing looks like a machine.
@@ -555,7 +625,8 @@ game/      the board, the camera, the effects, the sound, the save, the editor's
 ui/        the kit, the readout, and every screen that is not the board.
 shaders/   nine of them: cells, wire, debris, glyphs, sky, three bloom passes, the filter.
 assets/    the catalogue, the case, the glass, the face and its licence.
-tests/     compile, smoke, rules, the interface audit, two playthroughs, screenshots.
+tests/     compile, smoke, rules, the interface audit, the board's own colours,
+           two playthroughs, screenshots.
 tools/     the class registry generator, the check script, the shape sweep,
            the real-boot check and the icon.
 ```

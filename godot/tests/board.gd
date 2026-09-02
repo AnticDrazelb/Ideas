@@ -27,6 +27,27 @@ var _at := 0
 
 const CUBES := [1, 3, 7, 11]
 
+# How far apart the two answers have to be, and it is nearly WCAG 1.4.11's figure
+# for anything that is not text — which is what a floor tile is.
+#
+# NEARLY, AND THE MISSING TWENTIETH IS THE SCANLINE ROLL. The tightest pair in
+# the catalogue is the one Palette already names: the farthest trace against the
+# nearest lattice, which on cube eleven is the only cube where the depth ramp
+# reaches both of its ends. It measures 3.0 there, and moves by about five
+# hundredths between runs because the roll is passing over one of the two cells
+# and not the other.
+#
+# Palette's own figure for that pair is 3.41:1, and the difference is everything
+# the colours are seen THROUGH. Most of it is the glass: it adds light, so it
+# lifts a dark cell by a far larger fraction than a light one, which is what an
+# additive layer does to a contrast ratio and is the price of the pane.
+#
+# So the exact three is asserted where it can be exact — tests/run.gd, on the
+# palette, through four kinds of eyes — and this asks the harder question of
+# whether the picture the player is actually shown still carries it. The floor is
+# one roll under, so a real regression fails and the roll does not.
+const FLOOR := 2.95
+
 
 func _init() -> void:
 	PerfWatch.pin()
@@ -123,11 +144,34 @@ func _sample(img: Image, p: Vector2, cell: float) -> float:
 		if q.x < 1 or q.y < 1 or q.x >= img.get_width() - 1 or q.y >= img.get_height() - 1:
 			continue
 		var c: Color = img.get_pixel(int(q.x), int(q.y))
-		lums.append(0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b)
+		lums.append(_ylin(c))
 	if lums.empty():
 		return -1.0
 	lums.sort()
 	return float(lums[lums.size() / 2])
+
+
+# THE LIGHT COMING OFF THE GLASS, NOT THE NUMBER IN THE FILE.
+#
+# This weighted the channels as they stand, which is a luminance only if they are
+# already linear — and a framebuffer is not. It matters here more than anywhere:
+# the board's two materials differ mostly in BLUE, the channel that carries the
+# least light and the most number, so an sRGB-weighted figure flatters a
+# saturated blue and the test was grading the board on a scale the eye does not
+# use. Same transfer curve as every contrast figure in Palette.
+static func _srgb(v: float) -> float:
+	return v / 12.92 if v <= 0.04045 else pow((v + 0.055) / 1.055, 2.4)
+
+
+static func _ylin(c: Color) -> float:
+	return 0.2126 * _srgb(c.r) + 0.7152 * _srgb(c.g) + 0.0722 * _srgb(c.b)
+
+
+# WCAG's non-text ratio, on the pixels rather than on the palette. Palette makes
+# this promise about the colours it hands the shader; this is the only place that
+# asks whether the shader kept it.
+static func _ratio(hi: float, lo: float) -> float:
+	return (max(hi, lo) + 0.05) / (min(hi, lo) + 0.05)
 
 
 func _measure() -> void:
@@ -142,9 +186,9 @@ func _measure() -> void:
 		if mt == null:
 			print("    ", nm, " is null")
 			continue
-		print("    %-12s col_far %s  col_near %s  half_span %s  unlit %s" % [
+		print("    %-12s col_far %s  col_near %s  half_span %s  unlit_sat %s" % [
 				nm, str(mt.get_shader_param("col_far")), str(mt.get_shader_param("col_near")),
-				str(mt.get_shader_param("half_span")), str(mt.get_shader_param("unlit"))])
+				str(mt.get_shader_param("half_span")), str(mt.get_shader_param("unlit_sat"))])
 
 	var eff: PoolByteArray = s.lv.eff(s.world)
 	var square := Layout.board_square()
@@ -277,9 +321,25 @@ func _measure() -> void:
 			("%.3f..%.3f" % [far[0], far[far.size() - 1]]) if not far.empty() else "none",
 			solid[0], solid[solid.size() - 1]])
 
-	# THE ONE PROPERTY. Not a ratio and not a threshold — an ORDER. Every cell a
-	# player may stand on is brighter than every cell they may not, or the board
-	# is not telling them the rule.
+	# THE ONE PROPERTY, AND AN ORDER IS NOT ENOUGH OF IT.
+	#
+	# This asked only that the dimmest footing beat the brightest solid, and it
+	# passed while an unreachable trace and the lattice beside it were within one
+	# per cent of each other — 1.04 to 1, which is an order and is also the same
+	# colour. The player is told, in the manual and by the shape of every board,
+	# that the lighter tiles are the ones they may walk on. A rule you can only
+	# see with a colour picker is not a rule.
+	#
+	# So it is the ratio, in the light the eye actually receives, and it is the
+	# same three-to-one Palette promises for the pair it can reason about — held
+	# here at the far end of the pipeline, after the depth ramp, the drain, the
+	# facing term, the glass and the filter have all had their turn.
+	var got: float = _ratio(dimmest_footing, brightest_solid)
+	print("  dimmest footing %.4f   brightest solid %.4f   %.2f:1" % [
+			dimmest_footing, brightest_solid, got])
 	if dimmest_footing <= brightest_solid:
 		print("  ! [board] a cell you cannot stand on is drawn as bright as one you can")
+		_bad += 1
+	elif got < FLOOR:
+		print("  ! [board] footing and solid are only %.2f:1 apart — the rule is not legible" % got)
 		_bad += 1
