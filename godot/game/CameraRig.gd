@@ -87,22 +87,30 @@ func init(into: Node) -> void:
 	# toward the camera so it cannot be buried — floated over whatever the far
 	# side happened to have there. Every one of those was reported and none of
 	# them was a shader.
-	# AND THE HALF TURN IS ABOUT Y, WHICH COSTS A MIRROR AND IS STILL THE RIGHT
-	# ONE.
+	# AND THE HALF TURN IS ABOUT Y, WHICH THE MESH PAYS FOR.
 	#
 	# Either half turn points the camera back at the cube; they differ in what
 	# they do to the picture. A camera basis is right-handed, so with its Z fixed
 	# at world -Z the up vector decides the rest. Up = +Y forces local X to world
-	# -X, so the board is mirrored left to right. Up = -Y — the pitch — keeps X
-	# and inverts Y instead, and the board comes out upside down, because the
-	# viewport's render_target_v_flip is already spending the Y flip.
+	# -X. Up = -Y — the pitch — keeps X and inverts Y instead, and the board comes
+	# out upside down, because the viewport's render_target_v_flip is already
+	# spending the Y flip.
 	#
 	# Measured both: the pitch separates footing from solid only with the sampler
-	# reading v upside down, which is the board being upside down. The yaw
-	# separates with u read right to left, which is a mirror nothing can see —
-	# the rules' u axis has no meaning on the glass of its own, and unproject
-	# carries the mirror for input, so a tap still lands where the thumb is. This
-	# is the arrangement the C# has.
+	# reading v upside down, which is the board being upside down. So it is the
+	# yaw, and the yaw puts the camera's own right at world -X.
+	#
+	# I WROTE HERE THAT THIS WAS A MIRROR NOTHING COULD SEE. It is not, and the
+	# error was in thinking of it as a property of the settled board — where it
+	# genuinely does not show, because the rules' u axis has no meaning of its own
+	# and a tap is unprojected rather than mapped. A FOLD sees it: turn 0 is a
+	# drag to the left, it pushes the near face toward the rules' -x, and the face
+	# was measured travelling +137 pixels to the RIGHT. The solid rolled away from
+	# the thumb on every horizontal fold in the game.
+	#
+	# It is paid for where it belongs now — CubeGeometry.to_object puts the rules'
+	# x on world -X to meet this — rather than left standing as a convention the
+	# hand disagrees with.
 	cam.translation = Vector3(0, 0, -40.0)
 	cam.rotate_y(PI)
 	into.add_child(cam)

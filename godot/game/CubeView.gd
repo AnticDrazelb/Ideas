@@ -392,7 +392,11 @@ func _place_reads(cam: Camera) -> void:
 		if not on:
 			continue
 		var e: Array = _near[i]
-		pip.translation = Vector3(e[0] - c, e[1] - c, -(_s.n * 0.5 + 0.4))
+		# THROUGH THE CONVERSION, NOT AROUND IT. near_specials answers in the
+		# rules' view coordinates and this is the only place that turned them
+		# into object space by hand — which was invisible for as long as the
+		# conversion left x alone, and stopped being the moment it did not.
+		pip.translation = CubeGeometry.to_object(e[0] - c, e[1] - c, _s.n * 0.5 + 0.4)
 		pip.face(cam)
 		pip.set_role(_role_of(e[2]))
 		pip.set_colour(_colour(e[2]) * 0.75)

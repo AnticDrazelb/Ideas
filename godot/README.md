@@ -316,26 +316,45 @@ looking down +Z from −40". It gives the opposite face.
 
 Two details of the fix are worth keeping:
 
-**The half turn is about Y, and that costs a mirror.** A camera basis is
+**The half turn is about Y, and the mesh pays for it.** A camera basis is
 right-handed, so with its Z fixed at world −Z the up vector decides the rest.
-Up = +Y forces local X to world −X and the board is mirrored left to right;
-up = −Y keeps X and inverts Y instead, and the board comes out upside down,
-because `render_target_v_flip` is already spending the Y flip. Both were
-measured. The mirror is the one nothing can see — the rules' u axis has no
-meaning on the glass of its own, and unproject carries the mirror for input, so
-a tap still lands under the thumb.
+Up = +Y forces local X to world −X; up = −Y keeps X and inverts Y instead, and
+the board comes out upside down, because `render_target_v_flip` is already
+spending the Y flip. Both were measured, so it is the yaw, and the yaw puts the
+camera's own right at world −X.
+
+I wrote here that this cost "the mirror nothing can see" — that the rules' u axis
+has no meaning on the glass of its own, and unproject carries the mirror for
+input, so a tap still lands under the thumb. All of that is true of the SETTLED
+board, and all of it is beside the point. **A fold sees it.** Turn 0 is a drag to
+the left; it pushes the near face toward the rules' −x; and that face was
+measured travelling **+137 pixels to the right** on a 405-wide screen. The solid
+rolled away from the thumb on every horizontal fold in the game, which is a thing
+you feel in the hand long before you could name it.
+
+`CubeGeometry.to_object` puts the rules' x on world −X to meet the camera, so the
+conversion is now `(−x, y, −z)` and `rotation_for` conjugates by the same signed
+diagonal — which is a half turn about Y, a rotation in its own right, so the
+determinant argument that forced the z flip is untouched. Same drag afterwards:
+−137 pixels, and the picture goes with the hand.
+
+**`tests/fold.gd` is the harness that was missing**, and its absence is the
+lesson. Every other harness checks a statement the game makes about itself, and
+the rules and the renderer agree with each other whether or not either agrees
+with the hand. This one takes a point on the face the player is looking at,
+commits each of the four turns, and watches where that point goes on the glass.
 
 **And fit_to's x sign follows the turn.** Under the yaw the camera's own right
 is world −X, so moving it +x shifts the picture the same way rather than the
 opposite. The attract cube sat a third of the screen right of its band on every
 shape until that line agreed with the one that stands the camera up.
 
-`tests/board.gd` is what settled it, and what now holds it: it samples the
-framebuffer at every surface cell and asserts that everything the rules call
-footing is drawn brighter than everything they call solid — by a ratio, in
-linearised light, not merely in order. Cube 1 reads `reachable 0.331..0.384 ·
-unreached 0.281..0.345 · solid 0.018..0.039`, and the two footing bands sit
-together well clear of the third, which is the rule the player is given.
+`tests/board.gd` is what settled which face was being drawn, and what now holds
+it: it samples the framebuffer at every surface cell and asserts that everything
+the rules call footing is drawn brighter than everything they call solid — by a
+ratio, in linearised light, not merely in order. Cube 1 reads
+`reachable 0.331..0.384 · unreached 0.281..0.345 · solid 0.018..0.039`, three
+bands with the two footing ones together and well clear of the third.
 
 ## The bug the tests could not see
 
@@ -441,9 +460,16 @@ cell's own light, and takes the root back: exactly luminance-preserving, so a
 drained cell is precisely as bright a floor as it was.
 
 `tests/board.gd` asks for the ratio now rather than only for the order — an order
-is what passed while those two colours were one per cent apart. Cube eleven, the
-only one where the depth ramp reaches both of its ends, measures 3.0:1 through
-the glass against Palette's own 3.41:1 for the same pair.
+is what passed while those two colours were one per cent apart. And it asks it of
+cells that TOUCH: nobody reads a route by comparing a tile in one corner with a
+tile in the other, and a figure taken across the whole face turned out to be
+measuring the pane rather than the palette — mirroring the board moved every cell
+to a new place under the dirt and moved that figure by seven tenths of a ratio
+without one colour changing. Side by side, the worst pair in the catalogue is
+2.96:1, against Palette's 3.41:1 for the same two colours; the half that goes
+missing is the vignette taking most from a corner cell and the glass, which only
+ever adds light, lifting a lattice cell by a far larger fraction than the trace
+beside it.
 
 ## If bright cells have a blocky second copy of themselves
 
@@ -505,7 +531,7 @@ tools/classes.py --check    # exit 1 if it would change anything
 Run it after adding, renaming or moving any file with a `class_name` in it.
 `tools/check.sh` runs it first, every time.
 
-## The eight harnesses
+## The nine harnesses
 
 **`tests/compile.gd`** loads every script individually. Godot's own scan reports
 a parse error against whichever file happened to *consume* the broken one, which
@@ -603,6 +629,14 @@ It has caught two things nothing else could: a camera drawing the face of the
 cube the rules are not played on, and an unreachable floor tile rendering at
 1.04:1 against the wall beside it.
 
+**`tests/fold.gd`** checks that the solid goes where the thumb goes. See above:
+it is the only harness that compares the game against the hand rather than
+against itself, and it exists because the alternative shipped.
+
+```sh
+xvfb-run -s "-screen 0 1400x1100x24" godot --path godot -s tests/fold.gd
+```
+
 **`tests/shots.gd`** takes a picture of every screen at any shape, and then again
 after turning it over, because the audit can say whether a word lands on a
 control and cannot say whether the thing looks like a machine.
@@ -626,7 +660,7 @@ ui/        the kit, the readout, and every screen that is not the board.
 shaders/   nine of them: cells, wire, debris, glyphs, sky, three bloom passes, the filter.
 assets/    the catalogue, the case, the glass, the face and its licence.
 tests/     compile, smoke, rules, the interface audit, the board's own colours,
-           two playthroughs, screenshots.
+           the fold directions, two playthroughs, screenshots.
 tools/     the class registry generator, the check script, the shape sweep,
            the real-boot check and the icon.
 ```

@@ -55,16 +55,31 @@ static func wire_class() -> Array:
 	return _WIRE_CLASS
 
 
-# Core cell space to object space. The rules use a right-handed basis and the
-# engine's cameras look down -Z, so the cube's own Z is flipped here — see the
-# note on rotation_for for why this flip has to exist rather than being folded
-# into the rotation.
+# CORE CELL SPACE TO OBJECT SPACE, AND BOTH OF THE MINUSES ARE EARNED.
+#
+# The z flip converts handedness: the rules use a right-handed basis and the
+# engine's cameras look down their own -Z. See the note on rotation_for for why
+# it has to exist here rather than being folded into the rotation.
+#
+# THE X FLIP IS THE GESTURE. The camera stands on the minus side of the cube and
+# is turned to face it, which is the only arrangement that draws the face the
+# rules are played on — see CameraRig.init. Turning it about Y puts its own right
+# at world -X, so a cube built with the rules' x running along world +X comes out
+# with the rules' RIGHT on the left of the screen. Nothing about the settled
+# board shows that: the rules' u axis has no meaning of its own, and a tap is
+# unprojected rather than mapped, so taps land under the thumb either way.
+#
+# The FOLD shows it, every time. A drag to the left is turn 0, which pushes the
+# near face toward the rules' -x, and that face was travelling +137 pixels to the
+# RIGHT on a 405-wide screen. The whole solid rolled away from the thumb. So the
+# rules' x runs along world -X, the two flips together make the conversion a
+# proper rotation, and the picture agrees with the hand.
 static func to_object(x: float, y: float, z: float) -> Vector3:
-	return Vector3(x, y, -z)
+	return Vector3(-x, y, -z)
 
 
 static func dir_object(d: Vector3) -> Vector3:
-	return Vector3(d.x, d.y, -d.z)
+	return Vector3(-d.x, d.y, -d.z)
 
 
 # The four corners of each face, in object units of one cell. Built from the
@@ -304,19 +319,23 @@ static func build_wire(lv: Level, world: int) -> ArrayMesh:
 # a matrix with determinant -1, which is a reflection and not a rotation: the
 # cube would come out mirrored and no quaternion could express it.
 #
-# The fix is to flip the cube's own local Z as well, so the conversion is a
-# similarity rather than a reflection: M = J A J, where A has rows R, U, F and
-# J = diag(1, 1, -1). det(M) = (-1)(+1)(-1) = +1, a proper rotation. Concretely
-# that negates the third row and the third column of A, leaving the corner entry
-# alone.
+# The fix is to conjugate rather than to convert: M = J A J, where A has rows R,
+# U, F and J is the same signed diagonal to_object applies. A conjugation cannot
+# change a determinant — det(J A J) = det(J)^2 det(A) = det(A) — so M is a proper
+# rotation whatever J is, and there is a quaternion for it.
+#
+# J = diag(-1, 1, -1), matching to_object, and it is a rotation in its own right:
+# a half turn about Y. Entry by entry, M[i][j] = s(i) * A[i][j] * s(j) with
+# s = (-1, 1, -1), which negates the middle row and the middle column and leaves
+# the corners of the outer ones alone.
 #
 # The mesh is built in the object handedness already, so the J on the right is
 # absorbed by reading the cube's local axes back out of the columns of M below.
 static func rotation_for(m: Ori) -> Basis:
 	# columns of M = images of the object-space basis vectors
-	var ix := Vector3(m.r.x, m.u.x, -m.f.x)
-	var iy := Vector3(m.r.y, m.u.y, -m.f.y)
-	var iz := Vector3(-m.r.z, -m.u.z, m.f.z)
+	var ix := Vector3(m.r.x, -m.u.x, m.f.x)
+	var iy := Vector3(-m.r.y, m.u.y, -m.f.y)
+	var iz := Vector3(m.r.z, -m.u.z, m.f.z)
 	# A signed permutation is exactly orthonormal, so this cannot be handed
 	# anything degenerate.
 	return Basis(ix, iy, iz)

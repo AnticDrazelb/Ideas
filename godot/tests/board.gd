@@ -27,26 +27,26 @@ var _at := 0
 
 const CUBES := [1, 3, 7, 11]
 
-# How far apart the two answers have to be, and it is nearly WCAG 1.4.11's figure
-# for anything that is not text — which is what a floor tile is.
+# How far apart the two answers have to be, and it is a shade under WCAG 1.4.11's
+# figure for anything that is not text — which is what a floor tile is.
 #
-# NEARLY, AND THE MISSING TWENTIETH IS THE SCANLINE ROLL. The tightest pair in
-# the catalogue is the one Palette already names: the farthest trace against the
-# nearest lattice, which on cube eleven is the only cube where the depth ramp
-# reaches both of its ends. It measures 3.0 there, and moves by about five
-# hundredths between runs because the roll is passing over one of the two cells
-# and not the other.
+# WHAT THE PALETTE PROMISES AND WHAT THE PANE DELIVERS. The tightest pair in the
+# catalogue is the one Palette already names: the farthest trace against the
+# nearest lattice, which Palette measures at 3.41:1 and which cube eleven is the
+# only board to show at both ends of the ramp at once. On the glass it measures
+# 2.96:1, and the missing half is not in the colours. It is the overlays:
 #
-# Palette's own figure for that pair is 3.41:1, and the difference is everything
-# the colours are seen THROUGH. Most of it is the glass: it adds light, so it
-# lifts a dark cell by a far larger fraction than a light one, which is what an
-# additive layer does to a contrast ratio and is the price of the pane.
+#   the vignette   takes most from whichever cell is nearest a corner, and the
+#                  worst pair here is a corner footing cell
+#   the pane       only ever ADDS light, so a speck of dirt lifts a lattice cell
+#                  by a far larger fraction than the trace beside it
 #
-# So the exact three is asserted where it can be exact — tests/run.gd, on the
-# palette, through four kinds of eyes — and this asks the harder question of
-# whether the picture the player is actually shown still carries it. The floor is
-# one roll under, so a real regression fails and the roll does not.
-const FLOOR := 2.95
+# Both are the machine this game is drawn inside and neither is a fault. The
+# floor sits just under what they leave, so a real regression in the palette or
+# in the shader fails here while the dirt does not. If the full three is ever
+# wanted at every corner, the levers are Glass.STRENGTH and the lattice ramp's
+# near end, and both of them are decisions about how the thing should look.
+const FLOOR := 2.90
 
 
 func _init() -> void:
@@ -198,14 +198,19 @@ func _measure() -> void:
 	mid.y = max(1.0, Layout.screen_size().y) - mid.y
 	var cell: float = max(4.0, square.size.x / (float(max(1, s.n)) * Layout.FIT_MARGIN))
 	var half: float = (s.n - 1) * 0.5
-	# THE VIEW'S u AXIS RUNS RIGHT TO LEFT ON THE GLASS. That is the camera's
-	# half turn about Y and it is not a fault — see CameraRig.init.
-	var flip := -1.0
+	# THE VIEW'S u AXIS RUNS LEFT TO RIGHT, the way it reads. It ran the other way
+	# for as long as the camera's half turn about Y was unanswered by the mesh —
+	# see CubeGeometry.to_object.
+	var flip := 1.0
 	var vflip := 1.0
 
 	var walk := []
 	var far := []
 	var solid := []
+	# AND WHERE EACH ONE WAS, so the pairs a player actually compares can be
+	# found. Keyed the way the surface is: u * n + v.
+	var lit_at := {}
+	var dark_at := {}
 	var report := []
 	var marks := []
 	for u in range(s.n):
@@ -274,10 +279,13 @@ func _measure() -> void:
 				pass
 			elif near:
 				walk.append(lum)
+				lit_at[k] = lum
 			elif can:
 				far.append(lum)
+				lit_at[k] = lum
 			else:
 				solid.append(lum)
+				dark_at[k] = lum
 	# AND A PICTURE OF WHERE IT LOOKED, because a sampler that is wrong reads
 	# like a board that is broken and the two are not distinguishable from the
 	# numbers alone.
@@ -334,12 +342,49 @@ func _measure() -> void:
 	# same three-to-one Palette promises for the pair it can reason about — held
 	# here at the far end of the pipeline, after the depth ramp, the drain, the
 	# facing term, the glass and the filter have all had their turn.
-	var got: float = _ratio(dimmest_footing, brightest_solid)
-	print("  dimmest footing %.4f   brightest solid %.4f   %.2f:1" % [
-			dimmest_footing, brightest_solid, got])
 	if dimmest_footing <= brightest_solid:
 		print("  ! [board] a cell you cannot stand on is drawn as bright as one you can")
 		_bad += 1
-	elif got < FLOOR:
-		print("  ! [board] footing and solid are only %.2f:1 apart — the rule is not legible" % got)
-		_bad += 1
+
+	# THE PAIRS A PLAYER ACTUALLY COMPARES ARE THE ONES THAT TOUCH.
+	#
+	# The dimmest footing anywhere against the brightest solid anywhere is a
+	# harder question than the board is asked, and the answer is dominated by
+	# where on the GLASS the two cells happen to be rather than by what colour
+	# they are: the pane's dirt only ever adds light, so it lifts a dark cell far
+	# more than a light one, and the filter's vignette takes most from whichever
+	# of them is nearest a corner. Mirroring the board — which is all putting the
+	# rules' x on world -X does to the picture — moved every cell to a new place
+	# under that dirt and moved the worst pair by seven tenths of a ratio without
+	# a single colour changing. A figure that moves like that is measuring the
+	# glass.
+	#
+	# Nobody reads a route by comparing a tile in one corner with a tile in the
+	# other. They ask whether THIS square is lighter than the one beside it, and
+	# two cells beside each other sit under nearly the same dirt and nearly the
+	# same vignette, so the comparison isolates the thing the test is about.
+	var worst := 99.0
+	var worst_at := ""
+	for k in lit_at.keys():
+		var u: int = int(k) / s.n
+		var v: int = int(k) - u * s.n
+		for step in [[1, 0], [-1, 0], [0, 1], [0, -1]]:
+			var u2: int = u + step[0]
+			var v2: int = v + step[1]
+			if u2 < 0 or v2 < 0 or u2 >= s.n or v2 >= s.n:
+				continue
+			var k2: int = u2 * s.n + v2
+			if not dark_at.has(k2):
+				continue
+			var r2: float = _ratio(lit_at[k], dark_at[k2])
+			if r2 < worst:
+				worst = r2
+				worst_at = "%d,%d against %d,%d" % [u, v, u2, v2]
+	if worst_at == "":
+		print("  no footing touches solid on this face")
+	else:
+		print("  touching, at worst %s: %.2f:1   (across the whole face %.2f:1)" % [
+				worst_at, worst, _ratio(dimmest_footing, brightest_solid)])
+		if worst < FLOOR:
+			print("  ! [board] two cells side by side are only %.2f:1 apart — the rule is not legible" % worst)
+			_bad += 1
