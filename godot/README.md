@@ -573,6 +573,65 @@ godot --path godot -s tools/audit.gd > audit.csv
 godot --path godot -s tools/shape.gd > shape.csv
 ```
 
+## Is it any FUN, though?
+
+`tools/audit.gd` counts decisions, which is structural. It cannot say whether
+the right answer is HARD TO SEE, and that is most of the difference between a
+puzzle and a form to fill in. `tools/fun.gd` goes at that.
+
+There is no dataset mapping the shape of a puzzle game to how much people enjoy
+it — nobody has measured five hundred games and correlated anything with review
+scores. The nearest thing to evidence is Jarusek and Pelanek's Sokoban work,
+which timed people solving two thousand problems and correlated the times
+against computable properties of the boards. Three came out, in this order:
+
+    problem decomposition    Spearman 0.82   can the sub-goals be done one at a
+                                             time, or must they be planned
+                                             together?
+    counterintuitive moves   Spearman 0.69   moves that take you away from the
+                                             goal before they take you to it
+    solution length          Spearman 0.47   the weakest of the three, and the
+                                             only one this catalogue is minted
+                                             against
+
+Sokoban is not this game, so each is translated rather than copied — see the
+head of `tools/fun.gd` for how, and treat the correlations as Sokoban's rather
+than as this game's.
+
+    counterintuitive folds   336 of 853  (39%)     121 of them bury the core
+    greedy-proof             140 of 150  (93%)     distance-following fails
+    real decisions           632 of 853  (74%)
+    distinct fold signatures 135 for 150 cubes
+
+    single-objective cubes    60 of 150  (40%)     no sub-goal structure at all
+    keyed cubes that decompose 76 of  90  (84%)    the keys are errands
+    cubes needing global plan  14 of 150  ( 9%)
+
+The top block is what makes one cube satisfying and the catalogue has it, evenly,
+in every vault. The bottom block is the strongest predictor there is, and 136 of
+150 cubes sit at the floor of it.
+
+The mechanic table says the same thing a second way. Four mechanics make fifteen
+possible combinations; the ladder uses three of them.
+
+                 keys  plates  everters  triggers
+    keys           90      30         0        45
+    plates         30      30         0         0
+    everters        0       0        15         0
+    triggers       45       0         0        45
+
+No cube uses more than two. An everter never meets anything at all. Plates never
+meet triggers.
+
+Both failures are one failure: **the mint makes excellent single-thread puzzles
+and never makes a puzzle whose parts constrain each other.** The filter it needs
+is one more solver call per candidate — reject a keyed cube whose sub-goals can
+be fetched nearest-first at par — plus a quota on the untried mechanic pairs.
+
+```sh
+godot --path godot -s tools/fun.gd > fun.csv
+```
+
 ## The nine harnesses
 
 **`tests/compile.gd`** loads every script individually. Godot's own scan reports
