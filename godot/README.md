@@ -316,6 +316,32 @@ or render targets, and a container has no sound card.
 `Boot` waits one frame before building anything, and `UiKit.canvas` now says so
 in the game's own words when a canvas does not make it into the tree.
 
+## The one property the board is read off
+
+**A trace is brighter than the lattice, always, at every depth.** That sentence
+is the whole board: depth is drawn as brightness, so the two materials get
+non-overlapping ranges of it, and "may I stand there" is answered by which range
+a cell is in before colour, before the reach dim, and on a phone at half
+brightness in daylight.
+
+Palette writes it down, provides `band_gap()` to measure it, and called that
+function from nowhere. Two hundred and thirty tests and not one of them asked.
+
+Asking properly found the palette missing its own standard: the 3.07:1 the note
+claims is the TRICHROMAT figure, and under deuteranopia the same pair reads 2.85
+in vault one and 2.76 in vault ten — under 1.4.11's 3:1 on every rung of the
+ladder. The note directly above it says the legibility mode cannot help because
+the corroded end of the ramp is shared, and then both palettes went on sharing
+it: by vault ten the legible ramp has lerped onto the same colour the shipped
+one has.
+
+All three near ends of the lattice are down twenty per cent of linear light,
+which preserves hue and keeps the fresh and corroded ends luminance-matched to
+each other exactly as before. Worst pair on the ladder is 3.06:1 now, under
+deuteranopia at vault ten, and the test asks at every vault, in both palettes,
+through all four eyes — for the ratio, not only for the sign. The trace does not
+move; it never does.
+
 ## If the board is a slab of grey plates
 
 Depth is brightness in this game: the ramp between `col_far` and `col_near` is

@@ -95,6 +95,7 @@ func _run() -> void:
 	_promise()
 	_projection_model()
 	_identity_and_codes()
+	_band()
 	_ladder()
 	_forge_standard()
 	_daily()
@@ -310,6 +311,66 @@ func _rotate(lv: Level, m: Ori) -> Level:
 	for d in lv.doors:
 		outp.doors.append(Projection.view_of(n, m, d))
 	return outp
+
+
+# ---- the one property the board is read off --------------------------------
+#
+# A TRACE IS BRIGHTER THAN THE LATTICE, ALWAYS, AT EVERY DEPTH.
+#
+# That sentence is the whole board. Depth is drawn as brightness, so the two
+# materials are given non-overlapping ranges of it, and "may I stand there" is
+# answered by which range a cell is in before anything else — before colour,
+# before the reach dim, and on a screen in daylight with a phone at half
+# brightness.
+#
+# Palette writes it down in a comment, provides band_gap() to measure it, and
+# calls that function from NOWHERE. Two hundred and thirty tests and not one of
+# them asked. The palette is four numbers somebody could edit and a silent
+# regression here does not look like a bug, it looks like the game got hard —
+# which is Palette's own note on the subject, written next to the function that
+# nothing calls.
+#
+# So it is asked properly: the WORST pair, which is the farthest trace against
+# the nearest lattice where the two ranges come closest; at every vault, because
+# the lattice corrodes down the ladder and walks toward the trace; in both
+# palettes, because the legible one moves only one of the two ends; and through
+# every eye the build claims to be readable by, because a gap that exists only
+# in the blue channel is not a gap.
+func _band() -> void:
+	group("a trace is brighter than the lattice at every depth")
+	var worst := 999.0
+	var worst_where := ""
+	var bad := 0
+
+	for legible in [false, true]:
+		Store.data().legible = 1 if legible else 0
+		for band in range(Vaults.RANKED_VAULTS):
+			# The two ends that come closest. Everything between them is a
+			# straight interpolation of these, so if the extremes clear, the
+			# whole ramp clears.
+			var trace_far := Palette.TRACE_FAR
+			var latt_near := Palette.lattice_near_of(band)
+			for eye in Access.ALL_SIGHT:
+				var t := Access.simulate(trace_far, eye)
+				var l := Access.simulate(latt_near, eye)
+				if Palette.luminance(t) <= Palette.luminance(l):
+					bad += 1
+				var r := Access.contrast(t, l)
+				if r < worst:
+					worst = r
+					worst_where = "vault %d, %s, eye %d" % [
+							band + 1, "legible" if legible else "shipped", eye]
+	Store.data().legible = 0
+
+	eq(bad, 0, "the farthest trace outranks the nearest lattice, every vault and every eye")
+
+	# AND BRIGHTER IS NOT ENOUGH ON ITS OWN. A trace one unit of luminance above
+	# the lattice satisfies the sentence and is invisible. 1.4.11 asks 3:1 of a
+	# graphical object against its neighbour, and Palette's own note records that
+	# the tightest pair on the ladder measures 3.07 after both ends of the
+	# lattice ramp were sunk to buy it.
+	ok(worst >= 3.0, "the tightest trace-to-lattice pair is %.2f:1 at %s, wanted 3:1"
+			% [worst, worst_where])
 
 
 # ---- the vault ladder ------------------------------------------------------

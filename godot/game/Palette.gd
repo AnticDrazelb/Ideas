@@ -137,23 +137,24 @@ const INERT := Color("#313f52")
 
 # ---- the two depth ramps --------------------------------------------------
 #
-#   lattice   #1a2332 (lum 34) .. #313c4d (lum 59)
+#   lattice   #1a2332 (lum 34) .. #2b3545 (lum 52)
 #   trace     #0b8ed0 (lum 119) .. #38bdf8 (lum 165)
 #
-# A gap of 60 between the materials, 46 of spread within the trace, and the near
+# A gap of 67 between the materials, 46 of spread within the trace, and the near
 # trace is exactly the value the brief names. The whole board is read off one
 # property: A TRACE IS BRIGHTER THAN THE LATTICE, ALWAYS, at every depth — so
 # "may I stand there" survives a dim screen and a colour-blind eye.
 #
 # That last claim is simulated and asserted rather than believed; see
-# Access.simulate. It holds under all three dichromacies, with the narrowest
-# margin under deuteranopia.
+# Access.simulate and the band test in tests/run.gd. It holds under all three
+# dichromacies at every vault in both palettes, with the narrowest margin under
+# deuteranopia at the bottom of the ladder.
 const TRACE_FAR := Color8(11, 142, 208, 255)
 const TRACE_NEAR := Color8(56, 189, 248, 255)
 const LATTICE_FAR := Color8(26, 35, 50, 255)
 
-const LATTICE_NEAR_SHIPPED := Color8(49, 60, 77, 255)
-const LATTICE_NEAR_LEGIBLE := Color8(40, 49, 63, 255)
+const LATTICE_NEAR_SHIPPED := Color8(43, 53, 69, 255)
+const LATTICE_NEAR_LEGIBLE := Color8(35, 43, 56, 255)
 
 
 # THE COLOUR THAT DECIDES THE WHOLE BOARD, AND IT WAS MEASURED IN THE WRONG
@@ -173,6 +174,27 @@ const LATTICE_NEAR_LEGIBLE := Color8(40, 49, 63, 255)
 # tightest ratio anywhere on the ladder is 3.07:1 now, and the game's own
 # luminance band went from 0.1362 to 0.1692 — a quarter wider — as a side
 # effect. It costs the trace nothing, because the trace does not move.
+#
+# AND THAT 3.07 WAS MEASURED WITH ONE PAIR OF EYES.
+#
+# It is the trichromat figure. Under deuteranopia the same pair reads 2.85 in
+# vault one and 2.76 in vault ten — under 1.4.11's 3:1 on every rung of the
+# ladder, in the shipped palette, for the one distinction the whole board is
+# read off. The note above this one says in as many words that the legibility
+# mode does not help because the corroded end of the ramp is shared, and then
+# both palettes went on sharing it: by vault ten the legible ramp has lerped
+# onto LATTICE_NEAR_DEEP and measures exactly what the shipped one does.
+#
+# Nothing caught it because nothing asked. Palette.band_gap is written, is
+# documented as "the band guarantee, asserted rather than assumed", and had no
+# callers at all — two hundred and thirty tests and not one of them read it.
+# tests/run.gd asks now, at every vault, in both palettes, through all four
+# eyes, and it asks for the ratio rather than only for the sign.
+#
+# All three near ends are down twenty per cent of LINEAR light, which is a hue-
+# preserving move and keeps the fresh and corroded ends luminance-matched to
+# each other exactly as before. Worst pair on the ladder: 3.06:1, under
+# deuteranopia at vault ten. The trace still does not move.
 static func lattice_near() -> Color:
 	return LATTICE_NEAR_LEGIBLE if Access.legible() else LATTICE_NEAR_SHIPPED
 
@@ -237,7 +259,7 @@ const FILL_SWAPS := [
 # The two ends are luminance-matched to within a hundredth, so the band
 # guarantee is not being spent on a mood.
 const LATTICE_FAR_DEEP := Color8(43, 37, 35, 255)
-const LATTICE_NEAR_DEEP := Color8(69, 57, 50, 255)
+const LATTICE_NEAR_DEEP := Color8(62, 51, 44, 255)
 
 
 # How far through the ladder a vault sits, 0 at the first and 1 at the last.
