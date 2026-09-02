@@ -109,6 +109,38 @@ namespace Singularity.Game
         {
             switch (role)
             {
+                // ---- THE CREATURE, for the warm look ------------------------
+                //
+                // The austere board is walked by a HOLE — an absence, drawn as
+                // black with a bright rim. It is the right object for an
+                // instrument and it is nobody's friend, and a store page is won by
+                // something a person wants to look after.
+                //
+                // So: a body. Round-shouldered, a little wider than tall so it
+                // sits rather than floats, flat on the bottom so it has weight on
+                // a cube. PlayerOrb squashes and stretches it on every landing and
+                // every refused fold, which is where the character actually lives
+                // — the shape is only what the squash happens TO.
+                case "body":
+                {
+                    // a rounded box: a superellipse, flattened at the foot
+                    float bu = u / 0.78f, bv = (v + 0.06f) / 0.72f;
+                    float d = Mathf.Pow(Mathf.Abs(bu), 3.2f) + Mathf.Pow(Mathf.Abs(bv), 2.6f);
+                    return d <= 1f ? 1f : Mathf.Clamp01(1f - (d - 1f) * 7f);
+                }
+
+                // The eyes are their own sprite so they can be coloured and
+                // ordered separately, and so a blink is one scale rather than a
+                // second texture.
+                case "eyes":
+                {
+                    float e = 0.30f, r = 0.155f;
+                    float l = Mathf.Sqrt((u + e) * (u + e) + (v - 0.10f) * (v - 0.10f) * 1.9f);
+                    float rr = Mathf.Sqrt((u - e) * (u - e) + (v - 0.10f) * (v - 0.10f) * 1.9f);
+                    float m = Mathf.Min(l, rr);
+                    return m <= r ? 1f : Mathf.Clamp01(1f - (m - r) * 26f);
+                }
+
                 case "node":
                 {
                     // a diamond, with a solid pip at its centre

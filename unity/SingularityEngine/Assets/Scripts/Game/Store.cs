@@ -56,6 +56,14 @@ namespace Singularity.Game
         /// you are, `runs` is whether the machine has ever been finished at all,
         /// and only the second one should change what the title offers.
         /// </summary>
+        /// <summary>
+        /// WHICH LOOK THE BOARD WEARS. 0 is the austere instrument this was built
+        /// as; 1 is the warm one. A switch rather than a rewrite, so the two can
+        /// be put side by side on a real phone and decided with eyes instead of
+        /// arguments. See Palette.Warm.
+        /// </summary>
+        public int look = 0;
+
         public int runs = 0;
 
         /// <summary>

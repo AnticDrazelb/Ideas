@@ -188,12 +188,52 @@ namespace Singularity.Game
         // Access.Simulate and the band checks. It holds under all three
         // dichromacies, with the narrowest margin under deuteranopia.
 
-        public static readonly Color TraceFar   = new Color32(11, 142, 208, 255);
-        public static readonly Color TraceNear  = new Color32(56, 189, 248, 255);
-        public static readonly Color LatticeFar = new Color32(26, 35, 50, 255);
+        // ---- TWO LOOKS, ONE BOARD -------------------------------------------
+        //
+        // THE AUSTERE PALETTE IS COHERENT AND IT IS NARROW. Rust on near-black
+        // reads as an instrument, which is what it was built to be, and it
+        // self-selects for a small audience on a store page where the icon and six
+        // screenshots are the whole funnel. That is a commercial fact, not a
+        // matter of taste, and it deserved a test rather than an argument.
+        //
+        // So there are two, and they are a SWITCH rather than a rewrite. Both go
+        // through this one pair of properties, which means both are measured by
+        // the same checks: the trace has to beat the lattice by 1.4.11's 3:1 at
+        // every vault, in both legibility modes, under all three dichromacies.
+        // Pretty is allowed. Unreadable is not, and a look that cannot clear the
+        // gate the other one clears never reaches a phone.
+        //
+        // THE WARM ONE IS A BOARD YOU WANT TO TOUCH. Rock against ice: a brown
+        // that is warm rather than muddy for the lattice you cannot stand on, and
+        // a bright cyan for the trace you can. Warm against cool is also a DEPTH
+        // cue — the eye reads warm as nearer — so the ramp does more work here
+        // than the two blues ever did.
+        public static bool Warm => Store.Data.look != 0;
+
+        static readonly Color TraceFarCold   = new Color32(11, 142, 208, 255);
+        static readonly Color TraceNearCold  = new Color32(56, 189, 248, 255);
+        static readonly Color LatticeFarCold = new Color32(26, 35, 50, 255);
+
+        static readonly Color TraceFarWarm   = new Color32(34, 166, 224, 255);
+        static readonly Color TraceNearWarm  = new Color32(103, 222, 255, 255);
+        static readonly Color LatticeFarWarm = new Color32(48, 34, 27, 255);
+
+        public static Color TraceFar   => Warm ? TraceFarWarm : TraceFarCold;
+        public static Color TraceNear  => Warm ? TraceNearWarm : TraceNearCold;
+        public static Color LatticeFar => Warm ? LatticeFarWarm : LatticeFarCold;
 
         static readonly Color LatticeNearShipped = new Color32(49, 60, 77, 255);
         static readonly Color LatticeNearLegible = new Color32(40, 49, 63, 255);
+
+        // THE ROCK, AND IT WAS TOO LIGHT AT THE FIRST GUESS. A brown picked to
+        // look like warm stone came out at 2.57:1 against the far trace — under
+        // 1.4.11's 3:1, which is the exact failure the cold palette was fixed for
+        // two builds ago, repeated in a new hue because the eye is not a light
+        // meter. It is solved rather than nudged: 0.80 of the original, which
+        // gives 3.37:1 with room for the ramp, and the legible twin is what the
+        // first attempt was.
+        static readonly Color LatticeNearWarmShipped = new Color32(90, 66, 48, 255);
+        static readonly Color LatticeNearWarmLegible = new Color32(78, 57, 42, 255);
 
         /// <summary>
         /// THE COLOUR THAT DECIDES THE WHOLE BOARD, AND IT WAS MEASURED IN THE
@@ -217,7 +257,9 @@ namespace Singularity.Game
         /// move: a trace is still exactly the value the brief names, at every
         /// depth, in both modes.
         /// </summary>
-        public static Color LatticeNear => Access.Legible ? LatticeNearLegible : LatticeNearShipped;
+        public static Color LatticeNear => Warm
+            ? (Access.Legible ? LatticeNearWarmLegible : LatticeNearWarmShipped)
+            : (Access.Legible ? LatticeNearLegible : LatticeNearShipped);
 
         public static float Luminance(Color c) => 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
 
@@ -299,6 +341,14 @@ namespace Singularity.Game
         static readonly Color LatticeFarDeep  = new Color32(43, 37, 35, 255);
         static readonly Color LatticeNearDeep = new Color32(69, 57, 50, 255);
 
+        // THE WARM RAMP CORRODES DOWNWARD, NOT UPWARD. The cold lattice ages
+        // toward brown, which is where the warm one starts — so ageing it the same
+        // way would walk it INTO the trace and lose the pair. It deepens instead:
+        // the rock gets older and darker as the ladder goes on, which is the same
+        // story told in the direction this palette has room for.
+        static readonly Color LatticeFarWarmDeep  = new Color32(32, 22, 18, 255);
+        static readonly Color LatticeNearWarmDeep = new Color32(70, 48, 35, 255);
+
         /// <summary>
         /// How far through the ladder a vault sits, 0 at the first and 1 at the
         /// last. Thirty vaults, so a step is a thirtieth — the drift is meant to
@@ -307,8 +357,10 @@ namespace Singularity.Game
         public static float VaultAge(int band)
             => Mathf.Clamp01(band / (float)Mathf.Max(1, Vaults.RankedVaults - 1));
 
-        public static Color LatticeFarOf(int band) => Color.Lerp(LatticeFar, LatticeFarDeep, VaultAge(band));
-        public static Color LatticeNearOf(int band) => Color.Lerp(LatticeNear, LatticeNearDeep, VaultAge(band));
+        public static Color LatticeFarOf(int band)
+            => Color.Lerp(LatticeFar, Warm ? LatticeFarWarmDeep : LatticeFarDeep, VaultAge(band));
+        public static Color LatticeNearOf(int band)
+            => Color.Lerp(LatticeNear, Warm ? LatticeNearWarmDeep : LatticeNearDeep, VaultAge(band));
 
         /// <summary>The flat-board colour of a cell — the same arithmetic the shader does per pixel.</summary>
         /// <summary>

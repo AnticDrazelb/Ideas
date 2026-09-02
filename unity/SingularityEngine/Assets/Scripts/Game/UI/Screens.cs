@@ -1260,8 +1260,25 @@ namespace Singularity.UI
             Link(panel, "i.fx", "ACCESS", "MOTION · LIGHT · CONTRAST · WORDS", ShowAccess);
             Toggle(panel, "i.togo", "FOLDS TO GO", "CYAN: PERFECT · RUST: YOU SLIPPED",
                    () => Store.Data.togo, v => Store.Data.togo = v);
-            Toggle(panel, "i.depth", "DEPTH READOUT", "DISTANCE PRINTED ON EVERY CELL",
-                   () => Store.Data.depth, v => Store.Data.depth = v);
+            // DEPTH READOUT USED TO BE HERE TOO, and it is on ACCESS as well —
+            // the same switch, wired to the same field, drawn on two screens. That
+            // was invisible while both had room and it is not free: eight rows is
+            // what this panel holds at an 88-unit tap target, PanelChecks proves
+            // it, and a duplicate was occupying one of them.
+            //
+            // It stays on ACCESS, which is the screen it belongs to: printing the
+            // distance on every cell is a legibility aid, not a preference.
+
+            // ---- the two looks, side by side on a real phone ------------------
+            //
+            // A switch rather than a rewrite. The austere board is what this was
+            // built as; the warm one is rock and ice with a creature on it, and it
+            // exists because a store page is won on screenshots. Both go through
+            // the same contrast gate — see Palette.Warm and AccessChecks, which
+            // walks every vault in both looks — so this chooses between two things
+            // that are known to be readable rather than between rigour and appeal.
+            Toggle(panel, "i.bright", "WARM LOOK", "ROCK AND ICE, WITH A CREATURE",
+                   () => Store.Data.look, v => Store.Data.look = v);
 
             // Reading through the old flag rather than migrating the save: anybody
             // who had haptics switched off has haptic 0 and a strength they set

@@ -119,10 +119,24 @@ public static class AccessChecks
     /// </summary>
     static void Band()
     {
+        // ---- AND THE WHOLE WALK RUNS TWICE, ONCE PER LOOK -------------------
+        //
+        // There are two board palettes now — the austere instrument and the warm
+        // one — and the warm one exists because a store page is won on screenshots
+        // rather than on rigour. That is a good reason to have it and a terrible
+        // reason to exempt it: a look somebody chose for its appeal is exactly the
+        // look nobody will want to hear is unreadable.
+        //
+        // So it goes through the same gate. Every vault, both legibility modes,
+        // all three dichromacies, 1.4.11's 3:1 on the pair a player has to tell
+        // apart. Pretty is allowed. Unreadable does not ship.
+        int savedLook = Store.Data.look;
+        foreach (int look in new[] { 0, 1 })
         foreach (int legible in new[] { 0, 1 })
         {
+            Store.Data.look = look;
             Store.Data.legible = legible;
-            string mode = legible == 0 ? "shipped" : "legible";
+            string mode = (look == 0 ? "austere" : "warm") + "/" + (legible == 0 ? "shipped" : "legible");
 
             Ok(Palette.BandGap() > 0f, mode + ": the palette's own luminance band has inverted");
 
@@ -185,6 +199,7 @@ public static class AccessChecks
             Console.WriteLine("access: " + mode + " palette, tightest trace-against-lattice ratio "
                               + tight.ToString("0.00") + ":1 at vault " + tightAt + " of " + Vaults.RankedVaults);
         }
+        Store.Data.look = savedLook;
     }
 
     /// <summary>

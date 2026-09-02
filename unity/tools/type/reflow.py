@@ -238,11 +238,12 @@ LABELS = [
     ("cal label · SOUND", "SOUND", 21, 0.62 * CAL_PANEL - 58),
     ("cal label · ACCESS", "ACCESS", 21, 0.62 * CAL_PANEL - 58),
     ("cal label · FOLDS TO GO", "FOLDS TO GO", 21, 0.62 * CAL_PANEL - 58),
-    ("cal label · DEPTH READOUT", "DEPTH READOUT", 21, 0.62 * CAL_PANEL - 58),
     ("cal label · HAPTICS", "HAPTICS", 21, 0.62 * CAL_PANEL - 58),
     ("cal label · BRIGHTNESS", "BRIGHTNESS", 21, 0.62 * CAL_PANEL - 58),
     ("cal label · CONTRAST", "CONTRAST", 21, 0.62 * CAL_PANEL - 58),
     ("cal label · UNSEAL CUBES", "UNSEAL CUBES", 21, 0.62 * CAL_PANEL - 58),
+    ("cal label · WARM LOOK", "WARM LOOK", 21, 0.62 * CAL_PANEL - 58),
+    ("cal hint · WARM LOOK", "ROCK AND ICE, WITH A CREATURE", 17, 0.72 * CAL_PANEL - 58),
 
     # a Bar passes wideHint false, so its hint stops at 0.30 — a quarter of the
     # room a Toggle's hint gets, and the one row nobody would think to check

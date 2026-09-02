@@ -55,6 +55,9 @@ namespace Singularity.Game
         Transform _root;
         SpriteRenderer _hole, _ring, _arc, _halo;
 
+        /// <summary>The warm look's creature: a body and two eyes. See Compose.</summary>
+        SpriteRenderer _body, _eyes;
+
         /// <summary>The marker's radius in cells, before breathing. The original's sz*0.325.</summary>
         const float Rad = 0.325f;
 
@@ -96,6 +99,27 @@ namespace Singularity.Game
             _halo = Sprite("halo", "halo", Color.white, 99, additive: true);
             _ring = Sprite("ring", "ring", Palette.Arc, 100, additive: true);
             _arc  = Sprite("arc",  "arc",  Palette.Hex("#a5f3fc"), 101, additive: true);
+
+            // ---- AND THE CREATURE, WHICH IS THE SAME OBJECT WEARING A FACE -----
+            //
+            // The hole is an absence with a bright rim: exactly right for an
+            // instrument, and nobody's friend. The warm look walks a body instead.
+            //
+            // IT IS A SPRITE SWAP AND NOTHING ELSE, which is the good news. Every
+            // piece of the performance already exists and is applied to the whole
+            // marker rather than to any one layer — it breathes on two unrelated
+            // beats, squashes on the way down and stretches on the way up, hops
+            // when it is bored, and flares when it takes a node. Give that
+            // machinery a body and two eyes and it is a character; the shape is
+            // only what the squash happens TO.
+            //
+            // PLUM, BECAUSE IT HAS TO READ ON ICE. It only ever stands on trace,
+            // which in the warm palette is a bright cyan, and the obvious warm
+            // choices die there: coral came out at 1.49:1 against it. Plum is
+            // 4.93:1, and it is a third hue against the rock's brown and the ice's
+            // blue rather than a fourth shade of either.
+            _body = Sprite("body", "body", Palette.Hex("#7c3a78"), 100, additive: false);
+            _eyes = Sprite("eyes", "eyes", Palette.Hex("#fff4e6"), 102, additive: false);
         }
 
         SpriteRenderer Sprite(string name, string glyph, Color col, int order, bool additive)
@@ -135,6 +159,17 @@ namespace Singularity.Game
         {
             if (_s?.lv == null || !visible) { _root.gameObject.SetActive(false); return; }
             _root.gameObject.SetActive(true);
+
+            // ONE MARKER, TWO SKINS. Read every frame rather than cached, because
+            // the look is a switch a player can throw mid-cube from Calibrate and
+            // a marker that only changes on reload is a setting that looks broken.
+            bool warm = Palette.Warm;
+            _hole.enabled = !warm;
+            _ring.enabled = !warm;
+            _arc.enabled  = !warm;
+            _halo.enabled = !warm;
+            _body.enabled = warm;
+            _eyes.enabled = warm;
 
             StepMood(dtMs);
             StepTrail(dtMs);
