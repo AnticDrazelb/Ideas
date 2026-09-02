@@ -629,9 +629,52 @@ meet triggers. And nothing anywhere can be lost: no wrong fold in seventeen
 thousand sampled states can put the core out of reach, so every mistake costs
 time and nothing else.
 
+### And then MATRIX, which is the part that makes it a game
+
+The search model above gives the player one face and no memory. That is not what
+the game offers either. A held MATRIX turns the whole solid to wire — every
+walkable cell in the volume brightest, the lattice behind it, the voids as a
+faint grid — and lets them orbit it. What it does NOT show is the core:
+`_place_markers` still gates the exit marker on `surface_at`. **Structure, not
+destination**, which is why "you can sort of plan" is the exact phrase for it.
+
+Two planners were built on what it shows — head for the core across the face, and
+clear whatever is standing in front of the core first — at one, two and three
+folds of lookahead. Both fail:
+
+    heads for the core     21 of 150 finished, and deeper lookahead is WORSE
+    clears the column      23 of 150
+    neither, at any depth 117 of 150  (78%)   nothing at all past vault 5
+
+Deeper lookahead being worse is the signature of a heuristic that misleads: more
+search commits you harder to the wrong branch. So no simple rule solves this
+game — which is a good thing to be able to say about a puzzle game, and says
+nothing at all about whether a person can plan.
+
+The right question is not whether the x-ray picks the move. It is whether it
+NARROWS the choice. So: rank the legal folds at every fold on every optimal line
+by what a player holding MATRIX can see, and find where the true one lands.
+
+    the right fold ranked first        551 of 853   65%
+    guessing would rank it first                    44%
+                                                    1.46x better than chance
+    the right fold ranked DEAD LAST    208 of 853   24%
+
+That is the whole game in three numbers. Per fold the x-ray gives a real edge,
+half again better than chance. Over a nine-fold solution, following that edge
+greedily is 0.65^9 — about two per cent — which is why the planners die past
+vault 5. And a quarter of the time the obvious read is the worst one available.
+
+**Informative, and nowhere near sufficient.** The loop is: hold MATRIX, throw
+away the folds that plainly lose, pick from what is left, be right about two
+times in three, and back up when you are not. That is not dumb luck and it is not
+solved strategy, and puzzle games live in exactly that gap.
+
 ```sh
 godot --path godot -s tools/fun.gd    > fun.csv
 godot --path godot -s tools/search.gd > search.csv
+godot --path godot -s tools/plan.gd   > plan.csv
+godot --path godot -s tools/prune.gd  > prune.csv
 ```
 
 ## The nine harnesses

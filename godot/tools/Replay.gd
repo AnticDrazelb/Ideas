@@ -103,3 +103,27 @@ func face_key(lv: Level, s: SolveState) -> String:
 		var raw: Surf = sf[i]
 		out.append(0 if not raw.has else int(raw.t))
 	return Marshalls.raw_to_base64(out)
+
+
+# HOW BURIED THE CORE IS: how much solid stands between it and the camera in its
+# own column, right now. Zero means the column collapses onto the core and it is
+# on the face.
+#
+# This is the one thing a held MATRIX tells you that the settled board cannot.
+# The x-ray draws the whole volume — every walkable cell brightest, the lattice
+# behind it, the voids as a faint grid — so a player looking through the solid
+# can see what is standing in front of the core and, by orbiting, which way to
+# fold to get it out of the way. The board on its own can only tell you the core
+# is not here.
+func burial(lv: Level, s: SolveState) -> int:
+	var n: int = lv.n
+	var m: Ori = Turns.ori(s.ori)
+	var g: Vector3 = Projection.view_of(n, m, lv.goal)
+	var sf = surf(lv, s.ori, s.world)
+	var k: int = int(g.x) * n + int(g.y)
+	if k < 0 or k >= sf.size():
+		return n
+	var raw: Surf = sf[k]
+	if not raw.has:
+		return n
+	return int(max(0, raw.d - g.z))
