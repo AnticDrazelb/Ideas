@@ -316,6 +316,23 @@ or render targets, and a container has no sound card.
 `Boot` waits one frame before building anything, and `UiKit.canvas` now says so
 in the game's own words when a canvas does not make it into the tree.
 
+## If the board is a slab of grey plates
+
+Depth is brightness in this game: the ramp between `col_far` and `col_near` is
+what says how near a cell is, and "which of these can I stand on" is read off
+that ramp before anything else. Lose the ramp and the board becomes a solid
+field of mid-grey tiles that all look like floor, with a lit route somewhere in
+it that no longer stands out.
+
+The vertex stage used to work the depth out by asking view space where the cell
+centre is, asking it where the object's origin is, and subtracting. Both answers
+are about forty — that is where the camera stands — and the signal buried in
+them is the two and a half units of half-span. Sixteen bits of mantissa carries
+that; ten does not, and a GLES2 driver is free to give the vertex stage ten.
+
+It is a direction now (`w = 0`, so the translation column is skipped), which is
+the same number by exact arithmetic and never forms the forty at all.
+
 ## If it comes up with no interface
 
 The board draws, the stars draw, and there is nothing on top of them. That is

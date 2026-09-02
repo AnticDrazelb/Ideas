@@ -238,10 +238,27 @@ void vertex() {
 	// The ANIMATED centre, not the authored one: depth is drawn as brightness,
 	// so a cell reading its old depth while it travels would keep the near ramp
 	// all the way to the far side.
-	float centre_z = (MODELVIEW_MATRIX * vec4(e_centre, 1.0)).z;
-	float origin_z = (MODELVIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).z;
+	// A DIRECTION, NOT TWO POSITIONS — and that is a bug fix, not a tidy-up.
+	//
+	// This asked view space where the cell centre is, asked it where the object's
+	// origin is, and subtracted. Both answers are about FORTY, because that is
+	// where the camera stands, and the signal buried in them is the two and a
+	// half units of half-span. Sixteen bits of mantissa carries that; ten does
+	// not — and a GLES2 driver is free to give the vertex stage ten. On one it
+	// resolves the cube into sixteen shades of depth and on another it resolves
+	// it into one, and every cell comes out at the NEAR end of the ramp: a solid
+	// board of mid-grey plates where there should be a lit route through a dark
+	// lattice. Depth is brightness in this game, so losing depth loses the only
+	// channel that says which cells are floor.
+	//
+	// With w = 0 the translation column is skipped, so this is the cell's offset
+	// along the view axis and nothing else. R*c + t minus t IS R*c; the two lines
+	// were computing a difference the matrix could have been asked for directly,
+	// and the forty never enters the arithmetic at all.
+	//
 	// View space looks down -Z, so a LARGER z is nearer.
-	v_depth01 = clamp((centre_z - origin_z) / (2.0 * half_span) + 0.5, 0.0, 1.0);
+	float centre_z = (MODELVIEW_MATRIX * vec4(e_centre, 0.0)).z;
+	v_depth01 = clamp(centre_z / (2.0 * half_span) + 0.5, 0.0, 1.0);
 
 	v_nrm_view = normalize((MODELVIEW_MATRIX * vec4(nrm, 0.0)).xyz);
 	v_uv = UV;
