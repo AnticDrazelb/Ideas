@@ -531,6 +531,48 @@ tools/classes.py --check    # exit 1 if it would change anything
 Run it after adding, renaming or moving any file with a `class_name` in it.
 `tools/check.sh` runs it first, every time.
 
+## Is the ladder any good?
+
+The harnesses above ask whether the game is CORRECT. `tools/audit.gd` and
+`tools/shape.gd` ask whether it is worth playing, which is a different question
+and the one that matters commercially: 140 of the 150 cubes are minted rather
+than written, and a generator filtered on "solvable at par N" will happily
+produce a hundred valid boards with nothing in them.
+
+`tools/shape.gd` reduces every cube to the smallest of its twenty-four
+orientations, so two cubes that are the same solid seen from different sides
+collide. `tools/audit.gd` replays each optimal line and grades every fold on it
+by two counts: how many of the four folds the geometry allows at all, and how
+many of those still reach the core in the folds remaining. That splits every
+fold in the game into three kinds.
+
+    forced   only one fold is legal              a corridor, not a choice
+    free     several are legal and all of them work    a formality
+    real     several are legal and one is right        a decision
+
+Counted as three rather than subtracted from each other — one legal fold that
+works is both the only thing you could do and a fold every option survives, and
+taking `real` as the remainder produced a negative count on cube 116.
+
+What it says, at the shipped stamp:
+
+    150 cubes, no duplicates, closest pair 56% identical voxel for voxel
+    853 folds: 74% real, 19% forced, 7% free
+    4.2 real decisions per cube, median 4
+    par 2.3 -> 9.0 across the ten vaults, correlation with position 0.86
+    three cubes contain no decision at all: 11, 27, 46
+
+And one thing worth fixing. Each mechanic occupies one contiguous block of the
+ladder and is then never seen again — plates 61-90, everters 91-105, triggers
+106-150. Only keys run the whole way. So a player learns the everter at 91 and
+has finished with it by 106, and no cube in the game combines an everter with a
+plate. The mint filter compounds nothing.
+
+```sh
+godot --path godot -s tools/audit.gd > audit.csv
+godot --path godot -s tools/shape.gd > shape.csv
+```
+
 ## The nine harnesses
 
 **`tests/compile.gd`** loads every script individually. Godot's own scan reports
@@ -662,5 +704,6 @@ assets/    the catalogue, the case, the glass, the face and its licence.
 tests/     compile, smoke, rules, the interface audit, the board's own colours,
            the fold directions, two playthroughs, screenshots.
 tools/     the class registry generator, the check script, the shape sweep,
-           the real-boot check and the icon.
+           the real-boot check, the icon, and the two that grade the ladder
+           as design rather than as rules.
 ```
