@@ -68,7 +68,7 @@ func _run() -> void:
 			Store.data().light = 2
 			Store.save()
 		Screens.show(null)
-		_root.director.play(1)
+		_root.director.play(int(OS.get_environment("BOARD_CUBE")) if OS.get_environment("BOARD_CUBE") != "" else 1)
 		_step += 1
 		_wait = 90
 		return
@@ -85,8 +85,14 @@ func _run() -> void:
 # every one of them is on plate, none of them is on a marker or in the gutter.
 func _sample(img: Image, p: Vector2, cell: float) -> float:
 	var lums := []
-	var r: float = cell * 0.32
-	for d in [Vector2(-r, -r), Vector2(r, -r), Vector2(-r, r), Vector2(r, r)]:
+	# WELL INSIDE THE PLATE. A cell is a rounded tile with a dark gutter around
+	# it and a lifted rim just inside that — the shader multiplies the gutter by
+	# 0.09 and the rim by 1.55 — so a sample a third of a cell out lands on one
+	# or the other and reads a sixth or half again of the colour it was after.
+	# That is not a subtle error: it made every trace look like lattice and three
+	# lattice cells look like traces, and it is what I mistook for a broken board.
+	var r: float = cell * 0.12
+	for d in [Vector2.ZERO, Vector2(-r, -r), Vector2(r, -r), Vector2(-r, r), Vector2(r, r)]:
 		var q: Vector2 = p + d
 		if q.x < 1 or q.y < 1 or q.x >= img.get_width() - 1 or q.y >= img.get_height() - 1:
 			continue
@@ -104,6 +110,17 @@ func _measure() -> void:
 	img.flip_y()
 	img.lock()
 
+	var cv = _root.director.view
+	for nm in ["_mat_trace", "_mat_lattice", "_mat_plate"]:
+		var mt = cv.get(nm)
+		if mt == null:
+			print("    ", nm, " is null")
+			continue
+		print("    %-12s col_far %s  col_near %s  half_span %s  unlit %s" % [
+				nm, str(mt.get_shader_param("col_far")), str(mt.get_shader_param("col_near")),
+				str(mt.get_shader_param("half_span")), str(mt.get_shader_param("unlit"))])
+
+	var eff: PoolByteArray = s.lv.eff(s.world)
 	var square := Layout.board_square()
 	var mid: Vector2 = square.position + square.size * 0.5
 	# The window is measured with the origin at the BOTTOM left, the way every
@@ -160,13 +177,29 @@ func _measure() -> void:
 			var kind: String = "solid  "
 			if can:
 				kind = "FOOTING" if near else "footing-unreached"
-			var tag: String = "%d,%d %s lum %.3f" % [u, v, kind, lum]
+			# AND WHICH OF THE THREE MATERIALS THE MESH PUT IT IN, which is the
+			# only thing that decides its ramp. CubeGeometry keys that off the
+			# EFFECTIVE cell: TRACE goes to the trace submesh, a glyph to the
+			# plate, and everything else to the lattice.
+			var t: int = eff[Level.vidx_n(s.n, int(sf.w.x), int(sf.w.y), int(sf.w.z))]
+			var sub: String = "plate"
+			if not Level.is_glyph(t):
+				sub = "trace" if t == Level.TRACE else "LATTICE"
+			var tag: String = "%d,%d %s drawn-as %s lum %.3f" % [u, v, kind, sub, lum]
 			if sf.w == s.pos:
 				tag += "  <- you are here"
 			if sf.w == s.lv.goal:
 				tag += "  <- the exit"
 			report.append(tag)
-			if near:
+			# THE TWO CELLS WITH SOMETHING ON THEM ARE NOT MEASURABLE HERE. The
+			# singularity is a black disc and the exit a lit ring, both centred
+			# and both larger than any patch of plate left around them, so what
+			# a sample there reads is the marker. They are reported and left out
+			# of the comparison; what is under them is the same material as
+			# everything else of their kind, which is what the ordering is about.
+			if sf.w == s.pos or sf.w == s.lv.goal:
+				pass
+			elif near:
 				walk.append(lum)
 			elif can:
 				far.append(lum)
