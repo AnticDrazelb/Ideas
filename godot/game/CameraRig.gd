@@ -147,7 +147,7 @@ func fit_to(board: Rect2, n: int, margin: float) -> void:
 	var centre := board.position + board.size * 0.5
 	var drift := centre - Vector2(screen.x * 0.5, screen_h * 0.5)
 	var world_per_pixel := 2.0 * _base_size / screen_h
-	_base_offset = Vector2(-drift.x, drift.y) * world_per_pixel
+	_base_offset = -drift * world_per_pixel
 
 	PerfWatch.settle()
 
