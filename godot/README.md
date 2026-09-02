@@ -575,44 +575,48 @@ godot --path godot -s tools/shape.gd > shape.csv
 
 ## Is it any FUN, though?
 
-`tools/audit.gd` counts decisions, which is structural. It cannot say whether
-the right answer is HARD TO SEE, and that is most of the difference between a
-puzzle and a form to fill in. `tools/fun.gd` goes at that.
+`tools/audit.gd` counts decisions, which is structural. It cannot say whether the
+right answer is HARD TO SEE. `tools/fun.gd` goes at that, and `tools/search.gd`
+goes at the thing both of them missed.
 
 There is no dataset mapping the shape of a puzzle game to how much people enjoy
-it — nobody has measured five hundred games and correlated anything with review
-scores. The nearest thing to evidence is Jarusek and Pelanek's Sokoban work,
-which timed people solving two thousand problems and correlated the times
-against computable properties of the boards. Three came out, in this order:
+it. The nearest thing to evidence is Jarusek and Pelanek's Sokoban work, which
+timed people solving two thousand problems and correlated the times against
+computable properties of the boards: problem decomposition at Spearman 0.82,
+counterintuitive moves at 0.69, and solution length — the only property this
+catalogue is minted against — last at 0.47. Sokoban is not this game, so each is
+translated rather than copied; treat the correlations as Sokoban's.
 
-    problem decomposition    Spearman 0.82   can the sub-goals be done one at a
-                                             time, or must they be planned
-                                             together?
-    counterintuitive moves   Spearman 0.69   moves that take you away from the
-                                             goal before they take you to it
-    solution length          Spearman 0.47   the weakest of the three, and the
-                                             only one this catalogue is minted
-                                             against
-
-Sokoban is not this game, so each is translated rather than copied — see the
-head of `tools/fun.gd` for how, and treat the correlations as Sokoban's rather
-than as this game's.
-
-    counterintuitive folds   336 of 853  (39%)     121 of them bury the core
-    greedy-proof             140 of 150  (93%)     distance-following fails
+    counterintuitive folds   336 of 853  (39%)   121 of them bury the core
+    greedy-proof cubes       140 of 150  (93%)
     real decisions           632 of 853  (74%)
     distinct fold signatures 135 for 150 cubes
 
-    single-objective cubes    60 of 150  (40%)     no sub-goal structure at all
-    keyed cubes that decompose 76 of  90  (84%)    the keys are errands
-    cubes needing global plan  14 of 150  ( 9%)
+**And then the correction, which came from the person holding the phone.** Every
+number above is taken by walking the OPTIMAL LINE, and nobody plays the optimal
+line — par is a floor nobody stands on. Worse, both tools assumed the player can
+see where they are going, and `CubeView._shown` refuses the exit marker unless
+the cell is on the surface. So `tools/search.gd` asks what the search actually
+looks like:
 
-The top block is what makes one cube satisfying and the catalogue has it, evenly,
-in every vault. The bottom block is the strongest predictor there is, and 136 of
-150 cubes sit at the floor of it.
+    core visible at the start      13 of 150  ( 9%)
+    hidden, must be found first   137 of 150  (91%)   mean 2.4 folds to reveal
+    folds a two-phase player tries  mean 525 against a par of 5.7
+    states within par of the start  80 in vault 1 rising to 1064 in vault 10
+    states that cannot reach the core   0 of 17,426 sampled
 
-The mechanic table says the same thing a second way. Four mechanics make fifteen
-possible combinations; the ladder uses three of them.
+Which overturns two claims this file used to make. Sixty cubes were called
+single-objective with no sub-goal structure; on 91% of the catalogue the first
+objective is FINDING the core, and that was never counted. And the late game was
+called narrower rather than deeper on the strength of walkable area on one face;
+the space it is searched in grows thirteenfold.
+
+**This is not a planning game, it is a spatial search game**, and it should be
+measured — and sold — as one. The decomposition metric ranks it low because it
+is answering a question the game does not ask.
+
+What still stands is the mechanic table. Four mechanics make fifteen possible
+combinations; the ladder uses three.
 
                  keys  plates  everters  triggers
     keys           90      30         0        45
@@ -621,15 +625,13 @@ possible combinations; the ladder uses three of them.
     triggers       45       0         0        45
 
 No cube uses more than two. An everter never meets anything at all. Plates never
-meet triggers.
-
-Both failures are one failure: **the mint makes excellent single-thread puzzles
-and never makes a puzzle whose parts constrain each other.** The filter it needs
-is one more solver call per candidate — reject a keyed cube whose sub-goals can
-be fetched nearest-first at par — plus a quota on the untried mechanic pairs.
+meet triggers. And nothing anywhere can be lost: no wrong fold in seventeen
+thousand sampled states can put the core out of reach, so every mistake costs
+time and nothing else.
 
 ```sh
-godot --path godot -s tools/fun.gd > fun.csv
+godot --path godot -s tools/fun.gd    > fun.csv
+godot --path godot -s tools/search.gd > search.csv
 ```
 
 ## The nine harnesses

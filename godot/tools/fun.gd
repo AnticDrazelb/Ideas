@@ -36,88 +36,14 @@ extends SceneTree
 #
 #   godot --path godot -s tools/fun.gd > fun.csv
 
-var _surf_cache := {}
-
-
-func _surf(lv: Level, ori: int, world: int):
-	var k := ori * 32 + world
-	var got = _surf_cache.get(k)
-	if got == null:
-		got = Projection.project(lv.n, lv.eff(world), Turns.ori(ori))
-		_surf_cache[k] = got
-	return got
-
-
-func _apply(lv: Level, s: SolveState, is_turn: bool, dir: int):
-	var n: int = lv.n
-	var m: Ori = Turns.ori(s.ori)
-	if not is_turn:
-		var v: Vector3 = Projection.view_of(n, m, s.pos)
-		var surf = _surf(lv, s.ori, s.world)
-		var u2: int = int(v.x) + Turns.DX[dir]
-		var v2: int = int(v.y) + Turns.DY[dir]
-		if u2 < 0 or v2 < 0 or u2 >= n or v2 >= n:
-			return null
-		var raw: Surf = surf[u2 * n + v2]
-		if not raw.has or not Level.is_walk_type(raw.t):
-			return null
-		var nd: int = s.doors
-		var di: int = lv.door_index_at(raw.w)
-		if di >= 0 and (s.doors & (1 << di)) == 0:
-			if Solver.popcount(s.kmask) - Solver.popcount(s.doors) < 1:
-				return null
-			nd = s.doors | (1 << di)
-		var nk: int = s.kmask
-		var ki: int = lv.key_index_at(raw.w)
-		if ki >= 0:
-			nk |= 1 << ki
-		return SolveState.new(raw.w, s.ori, nk, nd, s.world ^ Level.glyph_bit(raw.t))
-
-	var m2 := Turns.apply(dir, m)
-	var oi2: int = Turns.ori_index(m2)
-	var surf2 = _surf(lv, oi2, s.world)
-	var lv2: Vector3 = Projection.view_of(n, m2, s.pos)
-	var land = Projection.walkable(lv, surf2, int(lv2.x), int(lv2.y), s.doors)
-	if land == null:
-		return null
-	var nk2: int = s.kmask
-	var ki2: int = lv.key_index_at(land.w)
-	if ki2 >= 0:
-		nk2 |= 1 << ki2
-	return SolveState.new(land.w, oi2, nk2, s.doors, s.world)
-
-
-# HOW FAR THE CORE IS ACROSS THE FACE, and whether it is on the face at all.
-# The collapse means a column shows only its nearest cell, so a core buried
-# behind lattice is not merely distant — it is not there to walk to.
-func _gap(lv: Level, s: SolveState) -> Array:
-	var n: int = lv.n
-	var m: Ori = Turns.ori(s.ori)
-	var a: Vector3 = Projection.view_of(n, m, s.pos)
-	var b: Vector3 = Projection.view_of(n, m, lv.goal)
-	var surf = _surf(lv, s.ori, s.world)
-	var k: int = int(b.x) * n + int(b.y)
-	var shown := false
-	if k >= 0 and k < surf.size():
-		var raw: Surf = surf[k]
-		shown = raw.has and raw.w == lv.goal
-	return [abs(a.x - b.x) + abs(a.y - b.y), shown]
-
-
-func _start_state(lv: Level) -> SolveState:
-	var s := SolveState.new(lv.start, 0, 0, 0, 0)
-	var s0: int = lv.key_index_at(lv.start)
-	if s0 >= 0:
-		s.kmask = 1 << s0
-	s.world = lv.glyph_at(lv.start)
-	return s
+var R = load("res://tools/Replay.gd").new()
 
 
 # A PLAYER WHO ONLY EVER CLOSES THE GAP. Steps first, because they are free;
 # otherwise the fold that leaves the core nearest. If this reaches the core in
 # par, there was nothing to work out.
 func _transparent(lv: Level, par: int) -> int:
-	var s: SolveState = _start_state(lv)
+	var s: SolveState = R.start_state(lv)
 	var folds := 0
 	var guard := 0
 	var seen := {}
@@ -129,14 +55,14 @@ func _transparent(lv: Level, par: int) -> int:
 		if seen.has(key):
 			return -1
 		seen[key] = true
-		var here: Array = _gap(lv, s)
+		var here: Array = R.gap(lv, s)
 		var best = null
 		var best_d: float = here[0]
 		for t in range(4):
-			var alt = _apply(lv, s, false, t)
+			var alt = R.apply(lv, s, false, t)
 			if alt == null:
 				continue
-			var g: Array = _gap(lv, alt)
+			var g: Array = R.gap(lv, alt)
 			if g[0] < best_d:
 				best_d = g[0]
 				best = alt
@@ -146,10 +72,10 @@ func _transparent(lv: Level, par: int) -> int:
 		var bf = null
 		var bf_d := 99999.0
 		for t2 in range(4):
-			var alt2 = _apply(lv, s, true, t2)
+			var alt2 = R.apply(lv, s, true, t2)
 			if alt2 == null:
 				continue
-			var g2: Array = _gap(lv, alt2)
+			var g2: Array = R.gap(lv, alt2)
 			if g2[0] < bf_d:
 				bf_d = g2[0]
 				bf = alt2
@@ -188,7 +114,7 @@ func _cost_to(lv: Level, from: SolveState, target: Vector3, budget: int):
 			if s.pos == target:
 				return [cost, s]
 			for t in range(4):
-				var st = _apply(lv, s, false, t)
+				var st = R.apply(lv, s, false, t)
 				if st != null:
 					var k1: int = Solver.state_key(n, st)
 					if not seen.has(k1) or seen[k1] > cost:
@@ -197,7 +123,7 @@ func _cost_to(lv: Level, from: SolveState, target: Vector3, budget: int):
 			if cost + 1 > budget:
 				continue
 			for t2 in range(4):
-				var fd = _apply(lv, s, true, t2)
+				var fd = R.apply(lv, s, true, t2)
 				if fd != null:
 					var k2: int = Solver.state_key(n, fd)
 					if not seen.has(k2) or seen[k2] > cost + 1:
@@ -212,7 +138,7 @@ func _cost_to(lv: Level, from: SolveState, target: Vector3, budget: int):
 # until the core. If that costs no more than par, the cube is a list rather than
 # a puzzle — this is the metric that predicted human solving time best.
 func _greedy_parts(lv: Level, par: int) -> int:
-	var s: SolveState = _start_state(lv)
+	var s: SolveState = R.start_state(lv)
 	var total := 0
 	var guard := 0
 	while guard < 24:
@@ -249,29 +175,29 @@ func _init() -> void:
 		var lv: Level = Catalogue.get_level(level)
 		if lv == null:
 			continue
-		_surf_cache.clear()
+		R.fresh()
 		var res: SolveResult = Solver.solve(lv)
 		if not res.ok:
 			continue
 
-		var s: SolveState = _start_state(lv)
+		var s: SolveState = R.start_state(lv)
 		var counter := 0
 		var buried := 0
 		var folds := 0
 		var sig := ""
 		for a in res.line:
 			if a.is_turn:
-				var before: Array = _gap(lv, s)
-				var after_s = _apply(lv, s, true, a.dir)
+				var before: Array = R.gap(lv, s)
+				var after_s = R.apply(lv, s, true, a.dir)
 				if after_s != null:
-					var after: Array = _gap(lv, after_s)
+					var after: Array = R.gap(lv, after_s)
 					if after[0] > before[0]:
 						counter += 1
 					if before[1] and not after[1]:
 						buried += 1
 				folds += 1
 				sig += ["L", "R", "U", "D"][a.dir]
-			var nxt = _apply(lv, s, a.is_turn, a.dir)
+			var nxt = R.apply(lv, s, a.is_turn, a.dir)
 			if nxt == null:
 				break
 			s = nxt
