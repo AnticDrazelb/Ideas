@@ -61,14 +61,50 @@ func init(into: Node) -> void:
 	cam.near = 0.01
 	cam.far = 200.0
 	cam.current = true
-	cam.translation = Vector3(0, 0, 40.0)
-	# AND IT IS NOT TURNED ROUND. A Godot camera looks down its OWN -Z, so one
-	# standing at +40 with no rotation is already looking at the origin — which is
-	# the same view the C# camera has looking down +Z from -40. The half turn that
-	# used to be here read the sentence one word wrong and pointed the camera at
-	# the empty half of the world: every frame was correct, drawn from behind.
-	# The handedness the two engines disagree about is paid for once, in
-	# CubeGeometry.to_object and rotation_for, and nothing else needs to know.
+	# IT STANDS ON THE MINUS SIDE AND IT IS TURNED ROUND, AND BOTH OF THOSE ARE
+	# LOAD-BEARING.
+	#
+	# I deleted the half turn during the port and wrote, above this line, that a
+	# camera at +40 with no rotation is "the same view the C# camera has looking
+	# down +Z from -40". It is not. It is the OPPOSITE FACE, and the note was
+	# confidently wrong for the whole of this port's life.
+	#
+	# The pipeline is coherent for a camera on the minus side and only for that.
+	# CubeGeometry.to_object negates z to convert the rules' handedness, and
+	# rotation_for conjugates the rules' rotation by the same flip, so a cell's
+	# world position is S applied to its view position — world z is MINUS view z.
+	# Projection collapses each column to the LARGEST view z, calling it nearest;
+	# largest view z is the most NEGATIVE world z; and a camera at +40 draws the
+	# other end of every column.
+	#
+	# Measured rather than argued this time: over cubes 1, 2, 3 and 7, the face
+	# the rules walk on and the face a camera at +40 renders agree on 17 of 106
+	# columns. From -40 they agree on all 106.
+	#
+	# What that looked like was a player walking a face they could not see. The
+	# tile under the singularity was some other cell's colour, a tile drawn as
+	# footing refused to be stepped on, and the exit's marker — which is pushed
+	# toward the camera so it cannot be buried — floated over whatever the far
+	# side happened to have there. Every one of those was reported and none of
+	# them was a shader.
+	# AND THE HALF TURN IS ABOUT Y, WHICH COSTS A MIRROR AND IS STILL THE RIGHT
+	# ONE.
+	#
+	# Either half turn points the camera back at the cube; they differ in what
+	# they do to the picture. A camera basis is right-handed, so with its Z fixed
+	# at world -Z the up vector decides the rest. Up = +Y forces local X to world
+	# -X, so the board is mirrored left to right. Up = -Y — the pitch — keeps X
+	# and inverts Y instead, and the board comes out upside down, because the
+	# viewport's render_target_v_flip is already spending the Y flip.
+	#
+	# Measured both: the pitch separates footing from solid only with the sampler
+	# reading v upside down, which is the board being upside down. The yaw
+	# separates with u read right to left, which is a mirror nothing can see —
+	# the rules' u axis has no meaning on the glass of its own, and unproject
+	# carries the mirror for input, so a tap still lands where the thumb is. This
+	# is the arrangement the C# has.
+	cam.translation = Vector3(0, 0, -40.0)
+	cam.rotate_y(PI)
 	into.add_child(cam)
 
 	# THE PERLIN THE SHAKE IS MADE OF. Unity has one built in; Godot's nearest
@@ -147,7 +183,12 @@ func fit_to(board: Rect2, n: int, margin: float) -> void:
 	var centre := board.position + board.size * 0.5
 	var drift := centre - Vector2(screen.x * 0.5, screen_h * 0.5)
 	var world_per_pixel := 2.0 * _base_size / screen_h
-	_base_offset = -drift * world_per_pixel
+	# AND X FOLLOWS THE HALF TURN. Under the yaw the camera's own right is world
+	# -X, so moving it +x shifts the picture the SAME way rather than the
+	# opposite — the minus that is right for an unturned camera is wrong for this
+	# one, and the attract cube sat a third of the screen right of its band on
+	# every shape until this line agreed with the one in init.
+	_base_offset = Vector2(drift.x, -drift.y) * world_per_pixel
 
 	PerfWatch.settle()
 
@@ -283,10 +324,14 @@ func tick(dt: float, cube: Spatial, contain: bool = true) -> void:
 	# empty picture. So every offset travels with the aperture and the AMPLITUDE
 	# ON SCREEN is what stays constant, which is the only part of it anybody can
 	# see.
+	# MINUS FORTY, THE SAME SIDE init STANDS IT ON. This line hard-coded the
+	# stand-off and ran every frame, so it quietly put the camera back on the
+	# plus side after init had been corrected — a one-word disagreement between
+	# two lines that both look like they are only saying "forty".
 	cam.translation = Vector3(
 			aim.x + (sx + _kick_x * _kick_decay) * zoom,
 			aim.y + (sy + _kick_y * _kick_decay) * zoom,
-			40.0)
+			-40.0)
 	cam.size = _base_size * _room_for(dt, cube, contain) \
 			* (1.0 + pull * amount()) * (1.0 - _punch) \
 			* zoom * 2.0

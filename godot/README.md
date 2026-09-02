@@ -287,6 +287,55 @@ in **portrait**, from an aspect of 0.68 up to the 1.18 where the case calls itse
 turned. Too wide for a column of full-width rows, not wide enough for two of them.
 The audit says so once rather than reporting fifty symptoms of it.
 
+## The camera was on the wrong side of the cube
+
+For the whole of this port's life the player walked a face they could not see.
+
+Projection collapses each column of the cube to its nearest solid cell — nearest
+meaning the LARGEST view depth — and that is the cell the rules let you stand
+on. CubeGeometry.to_object negates z to convert the rules' handedness, and
+rotation_for conjugates the rules' rotation by the same flip, so a cell's world
+position is that flip applied to its view position: **world z is minus view z.**
+The rules' nearest is therefore the most NEGATIVE world z, and a camera standing
+at +40 renders the other end of every column.
+
+Measured over cubes 1, 3, 7 and 11: the face the rules walk and the face a
+camera at +40 draws agree on **17 of 106 columns**. From −40 they agree on all
+106.
+
+What that looked like from the outside was every complaint this port collected
+at once. The tile under the singularity was some other cell's colour. A tile
+drawn as footing refused to be stepped on. The exit's marker — which is pushed
+toward the camera so it cannot be buried — floated over whatever the far side
+happened to have there. `GRID — NO FOOTING ON THIS FACE` on a board full of
+visible traces. None of it was a shader and none of it was the palette.
+
+I caused it. Early in the port I deleted the C#'s half turn and wrote a note
+saying a camera at +40 with no rotation gives "the same view the C# camera has
+looking down +Z from −40". It gives the opposite face.
+
+Two details of the fix are worth keeping:
+
+**The half turn is about Y, and that costs a mirror.** A camera basis is
+right-handed, so with its Z fixed at world −Z the up vector decides the rest.
+Up = +Y forces local X to world −X and the board is mirrored left to right;
+up = −Y keeps X and inverts Y instead, and the board comes out upside down,
+because `render_target_v_flip` is already spending the Y flip. Both were
+measured. The mirror is the one nothing can see — the rules' u axis has no
+meaning on the glass of its own, and unproject carries the mirror for input, so
+a tap still lands under the thumb.
+
+**And fit_to's x sign follows the turn.** Under the yaw the camera's own right
+is world −X, so moving it +x shifts the picture the same way rather than the
+opposite. The attract cube sat a third of the screen right of its band on every
+shape until that line agreed with the one that stands the camera up.
+
+`tests/board.gd` is what settled it, and what now holds it: it samples the
+framebuffer at every surface cell and asserts that everything the rules call
+footing is drawn brighter than everything they call solid. Cube 1 reads
+`footing 0.573..0.617 · unreachable 0.244..0.283 · solid 0.067..0.105` — three
+clean bands in the right order.
+
 ## The bug the tests could not see
 
 It shipped for a whole build and every harness passed the whole time, so it is

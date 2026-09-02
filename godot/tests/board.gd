@@ -23,6 +23,9 @@ var _wait := 0
 var _seen := Vector2.ZERO
 var _still := 0
 var _bad := 0
+var _at := 0
+
+const CUBES := [1, 3, 7, 11]
 
 
 func _init() -> void:
@@ -58,6 +61,10 @@ func _run() -> void:
 		_step += 1
 		_wait = 80
 		return
+	# ONE CUBE IS NOT THE BOARD. The surface a column collapses to depends on
+	# which cells are solid and which way the cube is turned, so a single cube
+	# can agree by luck. These four are a plain one, the buried one, and two with
+	# more depth to get wrong.
 	if _step == 1:
 		# THE GLOW OFF, because this measures the BOARD. Bloom lifts a dark cell
 		# that happens to sit beside a lit one, which is what it is for and what
@@ -68,13 +75,32 @@ func _run() -> void:
 			Store.data().light = 2
 			Store.save()
 		Screens.show(null)
-		_root.director.play(int(OS.get_environment("BOARD_CUBE")) if OS.get_environment("BOARD_CUBE") != "" else 1)
+		_root.director.play(CUBES[_at])
 		_step += 1
-		_wait = 90
+		# A CUBE CHANGE IS NOT INSTANT. The view rebuilds its mesh and materials,
+		# the arrival wave runs, and a cube that ends a chapter puts a word on the
+		# screen first — measure too early and the materials still carry the last
+		# cube's half_span and nothing has been walked yet.
+		_wait = 200
 		return
 
-	_measure()
-	print("%d faults" % _bad)
+	if _step == 2:
+		if Screens.chapter_up():
+			Screens.i()._close_chapter()
+			_wait = 60
+			return
+		Screens.show(null)
+		print("--- cube %d" % CUBES[_at])
+		_measure()
+		_at += 1
+		if _at < CUBES.size():
+			_step = 1
+			_wait = 2
+			return
+		_step += 1
+		return
+
+	print("%d faults over %d cubes" % [_bad, CUBES.size()])
 	quit(1 if _bad > 0 else 0)
 
 
@@ -128,7 +154,10 @@ func _measure() -> void:
 	mid.y = max(1.0, Layout.screen_size().y) - mid.y
 	var cell: float = max(4.0, square.size.x / (float(max(1, s.n)) * Layout.FIT_MARGIN))
 	var half: float = (s.n - 1) * 0.5
-	var flip: float = -1.0 if OS.get_environment("BOARD_MIRROR") != "" else 1.0
+	# THE VIEW'S u AXIS RUNS RIGHT TO LEFT ON THE GLASS. That is the camera's
+	# half turn about Y and it is not a fault — see CameraRig.init.
+	var flip := -1.0
+	var vflip := 1.0
 
 	var walk := []
 	var far := []
@@ -155,7 +184,7 @@ func _measure() -> void:
 			# mirror, and it is the same arithmetic the camera was given.
 			var p := Vector2(
 					mid.x + (u - half) * cell * flip,
-					mid.y - (v - half) * cell)
+					mid.y - (v - half) * cell * vflip)
 			marks.append(p)
 			var lum: float = _sample(img, p, cell)
 			if lum < 0.0:
@@ -225,7 +254,15 @@ func _measure() -> void:
 	for line in report:
 		print("    ", line)
 
-	if walk.empty() or solid.empty():
+	# THE CLAIM IS ABOUT FOOTING AGAINST SOLID, and reachable-or-not is a second
+	# reading laid over the first. On a cube where the only reachable footing is
+	# the cell you are standing on — which this excludes, because the singularity
+	# is drawn on top of it — there is still a board to check.
+	var foot := []
+	foot += walk
+	foot += far
+	foot.sort()
+	if foot.empty() or solid.empty():
 		print("  ! nothing to compare — the board did not draw")
 		_bad += 1
 		return
@@ -233,14 +270,12 @@ func _measure() -> void:
 	walk.sort()
 	far.sort()
 	solid.sort()
-	var dimmest_footing: float = walk[0]
+	var dimmest_footing: float = foot[0]
 	var brightest_solid: float = solid[solid.size() - 1]
-	print("  reachable footing %.3f..%.3f   unreached footing %s   solid %.3f..%.3f" % [
-			walk[0], walk[walk.size() - 1],
+	print("  reachable footing %s   unreached footing %s   solid %.3f..%.3f" % [
+			("%.3f..%.3f" % [walk[0], walk[walk.size() - 1]]) if not walk.empty() else "none",
 			("%.3f..%.3f" % [far[0], far[far.size() - 1]]) if not far.empty() else "none",
 			solid[0], solid[solid.size() - 1]])
-	if not far.empty():
-		dimmest_footing = min(dimmest_footing, far[0])
 
 	# THE ONE PROPERTY. Not a ratio and not a threshold — an ORDER. Every cell a
 	# player may stand on is brighter than every cell they may not, or the board
