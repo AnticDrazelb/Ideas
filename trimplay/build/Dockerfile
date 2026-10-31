@@ -3,6 +3,11 @@
 # root filesystem. Build with:  ./build/build.sh   (works on x86 via QEMU)
 FROM --platform=linux/arm64 debian:bullseye
 
+# bullseye is end-of-life: its packages now live only on archive.debian.org.
+RUN printf 'deb http://archive.debian.org/debian bullseye main\ndeb http://archive.debian.org/debian bullseye-updates main\ndeb http://archive.debian.org/debian-security bullseye-security main\n' > /etc/apt/sources.list \
+	&& rm -f /etc/apt/sources.list.d/* \
+	&& echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive
+
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
 	build-essential cmake git ca-certificates curl xz-utils pkg-config nasm \
 	python3 python3-protobuf protobuf-compiler \
