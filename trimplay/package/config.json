@@ -1,0 +1,6 @@
+{
+	"label": "TrimPlay",
+	"icon": "icon.png",
+	"launch": "launch.sh",
+	"description": "PS4 Remote Play: use the Smart Pro as screen and controller"
+}

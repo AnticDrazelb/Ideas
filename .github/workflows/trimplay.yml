@@ -1,0 +1,26 @@
+name: TrimPlay (TrimUI Smart Pro build)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'trimplay/**'
+      - '.github/workflows/trimplay.yml'
+
+jobs:
+  build:
+    # Emulates arm64 with QEMU so it runs on any repo/plan. The first run
+    # takes a while (FFmpeg + libchiaki compile under emulation).
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Build
+        run: sh trimplay/build/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TrimPlay
+          path: trimplay/dist/TrimPlay.zip
