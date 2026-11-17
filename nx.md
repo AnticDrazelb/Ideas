@@ -11,6 +11,13 @@ and three things that could actually work.*
 an NX1000. The camera doesn't run Linux (see below). Every Samsung NX hack you'll find
 online is for other models.
 
+But "give it a go" was fair, so I did — I pulled the actual Samsung NX research
+tooling and took it apart. The [recon](#i-gave-it-a-go--the-recon) is below. It
+turned up two genuinely useful things: the NX1000's firmware container format is
+already solved and **unencrypted**, and its Wi-Fi remote protocol is a documented
+UPnP API you can drive from a phone *today*. The brick-free wins live there, not in
+a firmware rewrite.
+
 ## Why the NX1000 is the hard one
 
 Samsung's NX line split down the middle, and the NX1000 sits on the wrong side:
@@ -43,6 +50,57 @@ an equivalent, by:
 That is years of work by a small team that already knows how to do this, which is
 roughly what Magic Lantern took. It's on a ~2012 body that maybe a handful of people
 would ever install it on. As a weekend project: no.
+
+## I gave it a go — the recon
+
+I couldn't get the 102 MB firmware binary into the sandbox (the network policy here
+blocks Samsung, the firmware trackers, and even the Internet Archive at the gateway).
+So the one thing I couldn't do is load the real image into a disassembler. But I
+cloned the actual Samsung NX research repo (`ge0rg/samsung-nx-hacks`) and went through
+its tooling and captured protocols. Here's what's real, not guessed:
+
+**1. The firmware container is already reverse-engineered, and it's not encrypted.**
+The repo ships `tools/drime3-firmware.py` — a parser for the DRIMe III firmware
+format (the NX1000's generation). The whole format is:
+
+- an 8-byte header: a 7-char version string + 1 byte partition count,
+- then N partition entries, each `<32sII20s` = a 32-byte filename, a 32-bit size, a
+  32-bit offset, and a 20-byte label.
+
+That's a plain table of concatenated partitions. No decryption pass, no XOR, no
+nonsense — the extractor just `sendfile()`s each partition straight out by offset.
+**So if you ever dump the NX1000's `.bin`, unpacking it is a solved problem today.**
+That's the part people usually think is the wall, and it isn't one here.
+
+**2. The wall is the OS, and the entire NX hack toolchain is useless against it.**
+Every Samsung NX "jailbreak" rides one trick: the Linux models (NX300/NX2000/NX30)
+run a script off the SD card at boot. I have that exact script in the repo —
+`sdcard/autoexec.sh` — and all it does is `mount devpts` and launch `inetd` to open a
+**passwordless telnet**. Thirty lines. That's the whole foothold.
+
+The NX1000 runs **VxWorks** (the firmware carries a VxWorks copyright; the CPU is
+labelled `S1219 ARM N4AK9C`). VxWorks has no SD-card autoexec, no `/etc/passwd`, no
+shell, no `inetd` to start. So `autoexec.sh` does literally nothing on it. There is no inherited
+foothold to build on — you'd be starting from a blank-platform research project,
+which is exactly why the community tried and moved on. The repo's own device table
+marks every DRIMe III body with a plain ❌, and the project has been dormant since
+2015.
+
+**3. The honest verdict on a firmware mod.** Getting custom code to run on a
+VxWorks DRIMe III body is ground-up reverse engineering of a closed real-time OS with
+no symbols — the kind of effort Magic Lantern itself represents, measured in years of
+expert work, with a real chance of bricking the only body you own along the way. For
+one ~2012 camera, it isn't worth it, and that's not pessimism — it's why nobody has.
+
+**4. The good news: the Wi-Fi remote is a documented UPnP API.** The repo's captured
+protocol XML shows Samsung's "Remote ViewFinder" is ordinary UPnP/SOAP over Wi-Fi,
+with named actions and state variables for the things you'd actually want: aperture,
+ISO, EV, metering, drive mode, AF position/trigger, available shots, zoom, flash,
+live-view frames. That's a control surface you can drive from any HTTP client — i.e.
+a phone — with **zero firmware risk**. (The sample XML in the repo is captured from an
+NX3000, a cousin body, so the NX1000's action set may differ slightly; same protocol
+family, worth confirming on your actual camera.) This is where the Magic-Lantern-style
+features realistically come from — see option 2 below.
 
 ## What's actually achievable
 
@@ -98,8 +156,15 @@ Do (1) today. If the tinkering itch is the point, (2) is a real project that fit
 this repo works: no server, a phone app, done in weeks. If the goal is just a better
 camera, (3) with an NX500.
 
-## Open questions to check on the actual camera
+## Answered in the recon
+- **Is there a wired remote option?** Yes. There's a documented DIY micro-USB remote
+  shutter release for the NX20 / NX210 / NX1000 — so a hardware intervalometer is
+  possible with no firmware work at all.
+- **What OS / chip?** VxWorks on DRIMe III, CPU `S1219 ARM N4AK9C`, ~102 MB firmware.
+- **Is the firmware encrypted?** No — the container is a plain partition table (see recon).
+
+## Still to check on the actual camera
 - Firmware version currently installed (Menu → Settings → Device information).
-- Remote Viewfinder: does it still connect from a current phone without Samsung's
-  discontinued app? What's on the wire?
-- Is there a wired remote option on the NX1000 at all, or only Wi-Fi?
+- Remote ViewFinder: does it still pair from a current phone without Samsung's
+  discontinued app, and what does the NX1000's own action set expose on the wire?
+- Whether live-view frames can be pulled continuously (for a phone-side histogram/zebras).
