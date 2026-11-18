@@ -132,10 +132,14 @@ features **without touching the firmware**:
 - focus-stack assist (if focus can be driven remotely; to verify),
 - zebras or a histogram computed on the phone from the live-view stream.
 
-No risk of bricking the camera, it runs in a browser or small app, and it's a project
-that can actually be finished. **First thing to check:** what the Remote Viewfinder
-traffic looks like (plain HTTP/UPnP vs. something proprietary), and which settings it
-exposes.
+No risk of bricking the camera, and it's a project that can actually be finished. The
+protocol turns out to be **plain UPnP/SOAP**, not proprietary — so I stopped describing
+it and built it. There's a working controller in [`nx1000-remote/`](nx1000-remote/):
+discovery, manual control, intervalometer, arbitrary-length bulb, bracketing, and a
+live-view histogram, all in stdlib Python, tested against the documented protocol. It
+needs one session with your actual camera to pin four model-specific values (the
+`README` says which). **First thing to run on the camera:** `./nx_remote.py discover
+--dump` and `./nx_remote.py info`, then send me the output.
 
 ### 3. Switch to a hackable NX body and keep the lenses
 
